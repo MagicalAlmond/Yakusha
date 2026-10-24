@@ -51,7 +51,7 @@ RPG Maker 的文本全部在 `data/*.json` 里：数据库条目（道具、技�
 git clone https://github.com/<you>/yakusha
 cd yakusha
 node --version   # 需要 22 或更高
-npm test         # 133 个测试，应该全绿
+npm test         # 134 个测试，应该全绿
 ```
 
 无第三方运行时依赖。
@@ -310,18 +310,19 @@ src/core/mzproject.js    项目发现（向下 3 层搜索）、System.json 读�
 src/core/fields.js       字段表与指令表（纯数据，会嵌进插件）
 src/core/extract.js      遍历 data/ 抽出所有可译文本
 src/core/dict.js         字典读写
-src/core/pluginsfile.js  js/plugins.js 解析与重写（保留 RPG Maker 布局）
+src/core/pluginsfile.js  js/plugins.js 解析与重写（保留尾逗号与换行风格）
 src/core/install.js      安装 / 卸载
 src/pipeline/provider.js OpenAI 兼容 + mock provider
 src/pipeline/translate.js 批处理、校验、重试、术语表
 src/pipeline/wrap.js     按显示宽度折行（MZ/MV 不会横向自动换行）
 src/plugin/YAKUSHA_Translator.js  运行时插件模板（install 时注入规则表）
-test/                    133 个测试（含 CLI 端到端）
+test/                    134 个测试（含 CLI 端到端）
 ```
 
 ## 设计约束
 
-- **磁盘零改动**：只加一个插件文件 + 一行注册，卸载逐字节还原。
+- **磁盘零改动**：只加一个插件文件 + 一行注册，卸载逐字节还原。重写 `plugins.js` 时会记住原文件
+  是否带尾逗号、用 LF 还是 CRLF，免得一次安装把整份文件变成全文件 diff。
 - **字典 key = 原文**：不做语言检测、不改写原文，hash 之类的方案会让译文无法人工校对。
 - **校验在写之前**：宁可留原文，也不留一条会显示成乱码的译文。
 - **规则单一来源**：`src/core/fields.js` 是唯一真源，插件里的 `RULES` 由 `install` 生成，

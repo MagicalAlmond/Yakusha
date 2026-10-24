@@ -52,6 +52,18 @@ test("serialise honours the original trailing comma shape", () => {
   assert.ok(serialisePluginsJs(plugins).endsWith(",\n];\n"));
 });
 
+test("serialise honours CRLF endings", () => {
+  const crlf = SAMPLE.replace(/\n/g, "\r\n");
+  assert.equal(pluginsJsLayout(crlf).eol, "\r\n");
+  assert.equal(pluginsJsLayout(SAMPLE).eol, "\n");
+
+  const { plugins } = parsePluginsJs(crlf);
+  const text = serialisePluginsJs(plugins, pluginsJsLayout(crlf));
+  assert.ok(text.endsWith("\r\n];\r\n"));
+  assert.ok(!/(?<!\r)\n/.test(text), "no bare LF should be left behind");
+  assert.deepEqual(parsePluginsJs(text).plugins, plugins);
+});
+
 test("parse throws on a missing array", () => {
   assert.throws(() => parsePluginsJs("var nothing = 1;"), /no \$plugins/);
   assert.throws(() => parsePluginsJs("var $plugins = [ {"), /unterminated/);

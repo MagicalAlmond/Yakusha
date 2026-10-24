@@ -117,7 +117,11 @@ test("install keeps a trailing comma when the game already had one", () => {
   const root = sandbox();
   const project = openProject(root);
   const before = fs.readFileSync(project.pluginsFile, "utf8");
-  fs.writeFileSync(project.pluginsFile, before.replace("\n];\n", ",\n];\n"), "utf8");
+  // Check out with CRLF (git's autocrlf on Windows) and the literal "\n];\n"
+  // does not occur, so match the closing bracket through a regex instead.
+  const withComma = before.replace(/\r?\n\];\r?\n?$/, ",\n];\n");
+  assert.ok(withComma.endsWith(",\n];\n"), "the fixture should now end with a trailing comma");
+  fs.writeFileSync(project.pluginsFile, withComma, "utf8");
 
   installPlugin(project);
   const text = fs.readFileSync(project.pluginsFile, "utf8");
