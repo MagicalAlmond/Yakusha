@@ -9,7 +9,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { verifyDictionary } from "../src/pipeline/verify.js";
-import { visibleText } from "../src/core/textkey.js";
+import { plainText, visibleText } from "../src/core/textkey.js";
 
 /** @param {Record<string, {text?: string, error?: string}>} entries */
 function dictionary(entries) {
@@ -199,9 +199,151 @@ test("verify: a malformed dictionary does not throw", () => {
   assert.equal(verifyDictionary({ entries: { a: {} } }).pending, 1);
 });
 
+test("verify: a translation that drifts into traditional Chinese is reported", () => {
+  // Real line: 動 appears in the source, so only 卻 and 來 count as borrowed.
+  const result = verifyDictionary(
+    dictionary({ "身体の動きが止まることはない。": { text: "身体的動作卻停不下來。" } })
+  );
+  const trad = ofKind(result, "trad");
+  assert.equal(trad.length, 1);
+  assert.equal(trad[0].severity, "warn");
+  assert.equal(trad[0].detail, "traditional characters: 卻來");
+});
+
+test("verify: traditional characters the source already used are not a leak", () => {
+  // Japanese writes 愛 and 動 exactly like traditional Chinese does, so a
+  // character the source uses is no evidence of a drifting translation.
+  const result = verifyDictionary(
+    dictionary({ "愛液で体が動かない": { text: "愛液让身体動不了" }, "すでに交尾準備": { text: "早已因交尾准备" } })
+  );
+  assert.equal(ofKind(result, "trad").length, 0);
+});
+
+test("verify: several leaked characters are listed once each", () => {
+  const result = verifyDictionary(dictionary({ "いう": { text: "說說還們" } }));
+  const trad = ofKind(result, "trad");
+  assert.equal(trad.length, 1);
+  assert.equal(trad[0].detail, "traditional characters: 說還們");
+});
+
+test("verify: a speaker name left in Japanese is an error when the game translates it", () => {
+  // The MV plugin paints the tag into a name box, so the player reads it raw.
+  const result = verifyDictionary(
+    dictionary({
+      [String.raw`\N<ひなた>“おはよう”`]: { text: String.raw`\N<日向>“早上好”` },
+      [String.raw`\N<ひなた>“呼ー♡”`]: { text: String.raw`\N<ひなた>“呼ー♡”` },
+    })
+  );
+  const speaker = ofKind(result, "speaker");
+  assert.equal(speaker.length, 1);
+  assert.equal(speaker[0].severity, "error");
+  assert.match(speaker[0].detail, /left in Japanese: ひなた/);
+});
+
+test("verify: two renderings of one speaker name are a warning", () => {
+  const rows = {};
+  for (let i = 0; i < 3; i += 1) {
+    rows[String.raw`\N<さやか>“セリフ` + i + "”"] = { text: String.raw`\N<沙耶香>“台词` + i + "”" };
+  }
+  rows[String.raw`\N<さやか>“もう一つ”`] = { text: String.raw`\N<沙耶加>“还有一个”` };
+  const speaker = ofKind(verifyDictionary(dictionary(rows)), "speaker");
+  assert.equal(speaker.length, 1);
+  assert.equal(speaker[0].severity, "warn");
+  assert.match(speaker[0].detail, /沙耶加/);
+  assert.match(speaker[0].detail, /沙耶香/);
+});
+
+test("verify: a name this game always leaves in Japanese is not reported", () => {
+  // Keeping an honourific-only name or a deliberate proper noun is a choice, so
+  // nothing is reported until at least one line proves the name gets translated.
+  const rows = {
+    [String.raw`\N<ぬらり>“ひとつ”`]: { text: String.raw`\N<ぬらり>“第一个”` },
+    [String.raw`\N<ぬらり>“ふたつ”`]: { text: String.raw`\N<ぬらり>“第二个”` },
+  };
+  const result = verifyDictionary(dictionary(rows));
+  assert.equal(ofKind(result, "speaker").length, 0);
+});
+
+test("verify: a Han-only speaker name that is still the Japanese source is an error", () => {
+  // 水泳部員 contains 員, which simplified Chinese always writes as 员, so seeing
+  // it in the name box means the tag was never translated.
+  const result = verifyDictionary(
+    dictionary({
+      [String.raw`\N<水泳部員>“はじめまして”`]: { text: String.raw`\N<水泳部員>“初次见面”` },
+    })
+  );
+  const speaker = ofKind(result, "speaker");
+  assert.equal(speaker.length, 1);
+  assert.equal(speaker[0].severity, "error");
+  assert.match(speaker[0].detail, /left untranslated: 水泳部員/);
+});
+
+test("verify: a Han-only name that is spelled the same in Chinese is not reported", () => {
+  // 少女 and 入浴女性 read identically in both languages, so keeping them is a
+  // legitimate choice and there is nothing to report.
+  const result = verifyDictionary(
+    dictionary({
+      [String.raw`\N<少女>“こんにちは”`]: { text: String.raw`\N<少女>“你好”` },
+      [String.raw`\N<入浴女性>“こんにちは”`]: { text: String.raw`\N<入浴女性>“你好”` },
+    })
+  );
+  assert.equal(ofKind(result, "speaker").length, 0);
+});
+
+test("verify: a tie between two renderings picks the Chinese one", () => {
+  // Small dictionaries can hold one line per rendering; the majority must not
+  // depend on which key happened to be stored first.
+  const rows = {};
+  rows[String.raw`\N<さやか>“あ”`] = { text: String.raw`\N<さやか>“啊”` };
+  rows[String.raw`\N<さやか>“い”`] = { text: String.raw`\N<沙耶香>“一”` };
+  const speaker = ofKind(verifyDictionary(dictionary(rows)), "speaker");
+  assert.equal(speaker.length, 1);
+  assert.equal(speaker[0].severity, "error");
+});
+
+test("verify: angle brackets holding code are not speaker names", () => {
+  // Games using Chimaki_Lang write expressions such as <50*\v[65]> in the line.
+  const result = verifyDictionary(
+    dictionary({
+      [String.raw`<50*\v[65]>テスト`]: { text: "<50*\\v[65]>测试" },
+      [String.raw`<\s[25] ? " OFF ":" ON " >テスト`]: { text: String.raw`<\s[25] ? " OFF ":" ON " >测试` },
+    })
+  );
+  assert.equal(ofKind(result, "speaker").length, 0);
+});
+
+test("verify: lines that lose or gain a speaker tag are skipped", () => {
+  // Pairing by position is only meaningful while both sides agree on the count.
+  const result = verifyDictionary(
+    dictionary({
+      [String.raw`\N<ひなた>\N<さやか>“ふたり”`]: { text: String.raw`\N<日向>“两个人”` },
+      [String.raw`\N<ひなた>“ひとり”`]: { text: String.raw`\N<日向>\N<沙耶香>“一个人”` },
+    })
+  );
+  assert.equal(ofKind(result, "speaker").length, 0);
+});
+
+test("verify: speaker and trad are filterable like every other kind", () => {
+  const bad = dictionary({
+    [String.raw`\N<ひなた>“おはよう”`]: { text: String.raw`\N<日向>“早上好”` },
+    [String.raw`\N<ひなた>“呼ー♡”`]: { text: String.raw`\N<ひなた>“呼ー♡”` },
+    "いう": { text: "說" },
+  });
+  assert.deepEqual(verifyDictionary(bad, { kinds: ["speaker"] }).counts, { speaker: 1 });
+  const both = verifyDictionary(bad, { kinds: ["trad", "speaker"] });
+  assert.deepEqual(both.counts, { trad: 1, speaker: 1 });
+  assert.equal(verifyDictionary(bad, { kinds: ["kana"] }).problems.length, 0);
+});
+
 test("visibleText: drops escape codes and inline speaker markup", () => {
   assert.equal(visibleText(String.raw`\N<ひなた>“呼ー♡”`), "“呼ー♡”");
   assert.equal(visibleText(String.raw`\C[2]abc\C[0]`), "abc");
   assert.equal(visibleText("plain"), "plain");
   assert.equal(visibleText(undefined), "");
+});
+
+test("plainText: keeps inline markup, drops escape codes", () => {
+  assert.equal(plainText(String.raw`\N<ひなた>“呼ー♡”`), "<ひなた>“呼ー♡”");
+  assert.equal(plainText(String.raw`\C[2]abc\C[0]`), "abc");
+  assert.equal(plainText(undefined), "");
 });

@@ -574,7 +574,7 @@ const USAGE = [
   "",
   "verify options:",
   "  --kind <list>       only report these kinds, comma separated",
-  "                      (kana, echo, codes, slots, lines, width, no-text, rejected)",
+  "                      (kana, echo, codes, slots, lines, width, no-text, trad, speaker, rejected)",
   "  --max-length <cols> also report lines wider than n display columns",
   "  --limit <n>         how many problems to print (default 20)",
   "",

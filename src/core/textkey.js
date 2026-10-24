@@ -191,21 +191,37 @@ export function visibleLength(text) {
 }
 
 /**
- * The characters a player actually reads: escape codes and inline markup removed.
+ * Every character that survives the escape codes, including inline markup.
+ *
+ * This is what feeds a player's screen once the game has substituted each escape
+ * code: "\N<ひなた>“好开心♡”" becomes "<ひなた>“好开心♡”", and the MV plugin that
+ * understands the tag paints ひなた into a name box. Anything language-specific
+ * that verify looks for has to be searched here, not in the raw source form, or
+ * a backslash-quoted code would hide the text around it.
+ *
+ * @param {string} text
+ * @returns {string}
+ */
+export function plainText(text) {
+  if (typeof text !== "string") return "";
+  return tokenize(text)
+    .filter((tok) => tok.t === "text")
+    .map((tok) => tok.v)
+    .join("");
+}
+
+/**
+ * The story text a player reads: escape codes and inline markup removed.
  *
  * Several MV games write the speaker inside the line ("\N<ひなた>“好开心♡”").
  * That tag is not an RPG Maker escape code, so tokenize() hands it back as text;
  * dropping the angle-bracketed part here keeps a speaker name from being mistaken
- * for story text by the language checks in pipeline/verify.js.
+ * for story text by the language checks in pipeline/verify.js. Checks that care
+ * about the name itself use plainText() instead.
  *
  * @param {string} text
  * @returns {string}
  */
 export function visibleText(text) {
-  if (typeof text !== "string") return "";
-  return tokenize(text)
-    .filter((tok) => tok.t === "text")
-    .map((tok) => tok.v)
-    .join("")
-    .replace(/<[^>]*>/g, "");
+  return plainText(text).replace(/<[^>]*>/g, "");
 }

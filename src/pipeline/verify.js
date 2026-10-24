@@ -19,7 +19,8 @@
  * @module pipeline/verify
  */
 
-import { controlCodes, visibleText } from "../core/textkey.js";
+import { controlCodes, plainText, visibleText } from "../core/textkey.js";
+import { TRADITIONAL_JOINED } from "../data/traditional.js";
 import { displayColumns } from "./wrap.js";
 
 /**
@@ -37,8 +38,51 @@ const KANA = /[\u3041-\u3096\u30a1-\u30fa]/;
 const HAN = /[\u4e00-\u9fff]/;
 
 /**
+ * Traditional-only characters, built once from the flat pair table.
+ *
+ * A Chinese translation that switches into traditional forms is not a hard
+ * failure — the text is still readable — but it is a visible regression, so the
+ * check reports it as a warning. See data/traditional.js for why characters with
+ * several accepted simplifications are left out.
+ */
+const TRADITIONAL = (() => {
+  const set = new Set();
+  for (let i = 0; i + 1 < TRADITIONAL_JOINED.length; i += 2) set.add(TRADITIONAL_JOINED[i]);
+  return set;
+})();
+
+/**
+ * What an inline speaker tag may contain: kana, Han and blanks, nothing else.
+ *
+ * MV games using Lunatlazur_ActorNameWindow write the speaker inside the line as
+ * "\N<ひなた>“...”", and the plugin paints the tag into a separate name box, so
+ * the name is shown to the player verbatim. Other plugins use angle brackets for
+ * code, though ("<50*\v[65]>", "<$dataMap.events[6].name;>"), so a plain
+ * /<[^>]*>/ would treat expressions as character names.
+ */
+const TAG_TEXT = /^[\u3005\u3006\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uff66-\uff9f\s]+$/;
+
+/**
+ * Speaker names embedded in one line.
+ * @param {string} text source-form or stored translation
+ * @returns {string[]}
+ */
+function speakerTags(text) {
+  /** @type {string[]} */
+  const names = [];
+  if (typeof text !== "string" || !text.includes("<")) return names;
+  for (const match of plainText(text).matchAll(/<([^<>]*)>/g)) {
+    const inner = match[1].trim();
+    if (inner.length === 0 || inner.length > 40) continue;
+    if (!TAG_TEXT.test(inner)) continue;
+    names.push(inner);
+  }
+  return names;
+}
+
+/**
  * @typedef {object} Problem
- * @property {"kana"|"echo"|"codes"|"slots"|"lines"|"width"|"no-text"|"rejected"} kind
+ * @property {"kana"|"echo"|"codes"|"slots"|"lines"|"width"|"no-text"|"trad"|"speaker"|"rejected"} kind
  * @property {"error"|"warn"} severity
  * @property {string} key source text as stored in the dictionary
  * @property {string} [target] stored translation
@@ -56,6 +100,31 @@ const HAN = /[\u4e00-\u9fff]/;
  * @property {number} errors findings with error severity
  * @property {number} warnings findings with warn severity
  */
+
+/**
+ * Traditional characters in the translation that the source never used.
+ *
+ * Japanese writes 愛, 動, 書 and 員 the same way traditional Chinese does, so a
+ * character shared with the source proves nothing. Only a character the model
+ * introduced — 說, 還, 們, 這 where the source had kana — is evidence that the
+ * translation slipped into traditional Chinese.
+ *
+ * @param {string} target stored translation, escape codes removed
+ * @param {string} source source line, escape codes removed
+ * @returns {string[]} the offending characters, de-duplicated, in reading order
+ */
+function traditionalOnly(target, source) {
+  const seenInSource = new Set(source);
+  /** @type {string[]} */
+  const found = [];
+  for (const char of target) {
+    if (!TRADITIONAL.has(char)) continue;
+    if (seenInSource.has(char)) continue;
+    if (found.includes(char)) continue;
+    found.push(char);
+  }
+  return found;
+}
 
 /**
  * Audit every translated entry of a dictionary.
@@ -85,6 +154,52 @@ export function verifyDictionary(dictionary, options = {}) {
 
   const entries = (dictionary && dictionary.entries) || {};
   const keys = Object.keys(entries);
+
+  // Speaker names are only meaningful in aggregate: whether "ひなた" should have
+  // been translated depends on how the rest of this game renders it, and which of
+  // several renderings is the house style depends on the count. So the names are
+  // collected in a first pass and judged in the second.
+  /** @type {Map<string, Map<string, number>>} source name -> rendering -> lines */
+  const speakerIndex = new Map();
+  for (const key of keys) {
+    const entry = entries[key];
+    if (!entry || typeof entry !== "object") continue;
+    const target = typeof entry.text === "string" ? entry.text : "";
+    if (target.trim().length === 0) continue;
+    const sources = speakerTags(key);
+    const renderings = speakerTags(target);
+    // A line that lost or gained a tag cannot be paired name by name. Pairing by
+    // position is only safe while the counts agree, and in every real dictionary
+    // measured they did.
+    if (sources.length === 0 || sources.length !== renderings.length) continue;
+    for (let i = 0; i < sources.length; i += 1) {
+      const source = sources[i];
+      if (!speakerIndex.has(source)) speakerIndex.set(source, new Map());
+      const bucket = speakerIndex.get(source);
+      bucket.set(renderings[i], (bucket.get(renderings[i]) || 0) + 1);
+    }
+  }
+
+  /** @param {string} source @returns {{translated: boolean, house: string}} */
+  const speakerHouse = (source) => {
+    const bucket = speakerIndex.get(source);
+    if (!bucket) return { translated: false, house: "" };
+    let house = "";
+    let best = -1;
+    let translated = false;
+    for (const [rendering, count] of bucket) {
+      if (!KANA.test(rendering)) translated = true;
+      // Ties happen in small dictionaries (one line each way). Preferring the
+      // Chinese form keeps the house style from depending on which line the
+      // dictionary happened to store first.
+      const better = count > best || (count === best && KANA.test(house) && !KANA.test(rendering));
+      if (better) {
+        best = count;
+        house = rendering;
+      }
+    }
+    return { translated, house };
+  };
 
   for (const key of keys) {
     const entry = entries[key];
@@ -157,6 +272,52 @@ export function verifyDictionary(dictionary, options = {}) {
     const seenSource = visibleText(key);
     if (HAN.test(seenSource) && !HAN.test(seen) && !KANA.test(seen)) {
       report("no-text", "warn", key, target, "no Han characters in the translation");
+    }
+
+    // A translation that drifts into traditional Chinese is still readable, so
+    // this stays a warning; only characters the source never used are evidence.
+    // Speaker markup is kept here on purpose: the name is printed to the player.
+    const novel = traditionalOnly(plainText(target), plainText(key));
+    if (novel.length > 0) {
+      report("trad", "warn", key, target, "traditional characters: " + novel.join(""));
+    }
+
+    // Speaker names written inside the line. If this game translates a name
+    // somewhere, leaving it in Japanese elsewhere shows the player raw kana, so
+    // that is an error; two different Chinese renderings of one name is a
+    // consistency issue and stays a warning.
+    const sourceTags = speakerTags(key);
+    const targetTags = speakerTags(target);
+    if (sourceTags.length > 0 && sourceTags.length === targetTags.length) {
+      for (let i = 0; i < sourceTags.length; i += 1) {
+        const source = sourceTags[i];
+        const rendering = targetTags[i];
+        const house = speakerHouse(source);
+        if (KANA.test(rendering)) {
+          if (house.translated) {
+            report("speaker", "error", key, target, "speaker name left in Japanese: " + source);
+          }
+          continue;
+        }
+        // A name written entirely in Han slips past the kana test, but if it is
+        // the source name unchanged and contains a character simplified Chinese
+        // would have replaced (水泳部員, 主婦, 運転手), it is still Japanese on
+        // screen. Names that are genuinely the same in both languages (少女,
+        // 入浴女性) contain no such character and stay silent.
+        if (rendering === source && [...rendering].some((char) => TRADITIONAL.has(char))) {
+          report("speaker", "error", key, target, "speaker name left untranslated: " + source);
+          continue;
+        }
+        if (house.house && rendering !== house.house) {
+          report(
+            "speaker",
+            "warn",
+            key,
+            target,
+            "speaker name rendered as " + JSON.stringify(rendering) + ", elsewhere " + JSON.stringify(house.house)
+          );
+        }
+      }
     }
 
     // MZ substitutes %1 %2 with actor or item names when the line is drawn, so a
