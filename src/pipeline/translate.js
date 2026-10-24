@@ -16,6 +16,7 @@
  */
 
 import { controlCodes } from "../core/textkey.js";
+import { wrapText } from "./wrap.js";
 
 /**
  * @typedef {object} PendingItem
@@ -42,6 +43,8 @@ import { controlCodes } from "../core/textkey.js";
  * @property {string} [onlyContext]
  * @property {number} [maxLengthRatio]
  * @property {number} [minLengthRatio]
+ * @property {number} [maxColumns] wrap lines wider than this many display columns
+ * @property {boolean} [rewrapExisting] re-wrap entries that are already translated
  * @property {boolean} [requireLines]
  * @property {boolean} [strictCodes]
  * @property {number} [attempts]
@@ -123,11 +126,12 @@ const ESCAPE_EXAMPLES = [
 /**
  * The instruction block sent with every request.
  *
- * @param {{ targetLang?: string, glossary?: Record<string,string> }} options
+ * @param {{ targetLang?: string, glossary?: Record<string,string>, maxColumns?: number }} options
  * @returns {string}
  */
 export function systemPrompt(options = {}) {
   const lang = options.targetLang || "Simplified Chinese";
+  const maxColumns = Number(options.maxColumns);
   const lines = [
     "You are a professional game localiser.",
     "You translate RPG Maker MZ game text from Japanese into " + lang + ".",
@@ -142,9 +146,14 @@ export function systemPrompt(options = {}) {
     "4b. Keep %1, %2 ... placeholders exactly as written; they are filled in by the game.",
     "5. Keep speaker names, item names and skill names consistent.",
     "6. Keep translations compact: the game draws them in fixed size windows.",
+    Number.isFinite(maxColumns) && maxColumns > 0
+      ? "6b. Aim for lines of at most " +
+        maxColumns +
+        " columns (a full width character counts as 2). Keep the existing line breaks."
+      : null,
     "7. If an item is already readable in the target language, repeat it unchanged.",
     "8. Never add notes, explanations or quotation marks that are not in the source.",
-  ];
+  ].filter((line) => line !== null);
   const glossaryKeys = Object.keys(options.glossary || {});
   if (glossaryKeys.length > 0) {
     lines.push("");
@@ -382,7 +391,11 @@ async function runBatch(batch, options) {
 
   for (let attempt = 0; attempt < maxAttempts && pending.length > 0; attempt += 1) {
     const reply = await provider.complete({
-      systemPrompt: systemPrompt({ targetLang: options.targetLang, glossary: options.glossary || {} }),
+      systemPrompt: systemPrompt({
+        targetLang: options.targetLang,
+        glossary: options.glossary || {},
+        maxColumns: options.maxColumns,
+      }),
       userPrompt: userPrompt(pending),
       signal: options.signal,
     });
@@ -398,7 +411,9 @@ async function runBatch(batch, options) {
       }
       const verdict = validateTranslation(item.key, candidate, options);
       if (verdict.ok) {
-        accepted.set(item.key, candidate);
+        // Wrapping happens only once the text is known to be faithful, so the
+        // validator keeps comparing model output against the source verbatim.
+        accepted.set(item.key, wrapText(candidate, options.maxColumns));
         rejections.delete(item.key);
       } else {
         rejections.set(item.key, { key: item.key, target: candidate, reason: verdict.reason });
@@ -416,13 +431,30 @@ async function runBatch(batch, options) {
  *
  * @param {import("../core/dict.js").Dictionary} dict
  * @param {TranslateOptions} options
- * @returns {Promise<{ total: number, translated: number, rejected: Rejection[], failed: number }>}
+ * @returns {Promise<{ total: number, translated: number, rejected: Rejection[], failed: number, rewrapped: number }>}
  */
 export async function translateDictionary(dict, options) {
   const provider = options.provider;
   if (!provider || typeof provider.complete !== "function") throw new Error("no provider given");
 
   const glossary = options.glossary || {};
+
+  // A dictionary translated before --max-length existed still holds over-wide
+  // lines. Re-wrapping them is deterministic and needs no model call, so it runs
+  // first and turns "add the flag" into something that fixes the files on disk.
+  let rewrapped = 0;
+  if (options.rewrapExisting && Number(options.maxColumns) > 0) {
+    for (const key of Object.keys(dict.entries)) {
+      const entry = dict.entries[key];
+      if (!entry.text) continue;
+      const fitted = wrapText(entry.text, options.maxColumns);
+      if (fitted !== entry.text) {
+        entry.text = fitted;
+        rewrapped += 1;
+      }
+    }
+  }
+
   const items = selectPending(dict, {
     limit: options.limit,
     onlyContext: options.onlyContext,
@@ -445,11 +477,11 @@ export async function translateDictionary(dict, options) {
         missed.push({ key, reason: verdict.reason });
         continue;
       }
-      entry.text = fixed;
+      entry.text = wrapText(fixed, options.maxColumns);
       delete entry.error;
       applied += 1;
     }
-    return { total: Object.keys(glossary).length, translated: applied, rejected: missed, failed: 0 };
+    return { total: Object.keys(glossary).length, translated: applied, rejected: missed, failed: 0, rewrapped };
   }
 
   // Glossary hits need no model call at all.
@@ -459,7 +491,7 @@ export async function translateDictionary(dict, options) {
     const fixed = glossary[item.key];
     if (typeof fixed === "string" && fixed.length > 0) {
       if (validateTranslation(item.key, fixed, options).ok) {
-        dict.entries[item.key].text = fixed;
+        dict.entries[item.key].text = wrapText(fixed, options.maxColumns);
         translated += 1;
         continue;
       }
@@ -513,5 +545,5 @@ export async function translateDictionary(dict, options) {
   };
 
   await Promise.all(Array.from({ length: concurrency }, () => worker()));
-  return { total: items.length, translated, rejected, failed };
+  return { total: items.length, translated, rejected, failed, rewrapped };
 }

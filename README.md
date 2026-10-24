@@ -47,7 +47,7 @@ RPG Maker 的文本全部在 `data/*.json` 里：数据库条目（道具、技�
 git clone https://github.com/<you>/yakusha
 cd yakusha
 node --version   # 需要 22 或更高
-npm test         # 100 个测试，应该全绿
+npm test         # 122 个测试，应该全绿
 ```
 
 无第三方运行时依赖。
@@ -252,6 +252,8 @@ translate:
   --char-budget <n>   每请求字符上限（默认 6000）
   --concurrency <n>   并发数（默认 2）
   --save-every <n>    每 n 条落盘一次（默认 200）
+  --max-length <n>    把超过 n 显示列的译文自动换行（0 = 关闭，默认 0）
+  --no-rewrap         不动已经翻好的条目（默认会按新宽度重新折行）
   --dry-run           用 mock provider 且不落盘
   --glossary-only     只应用术语表，不联网
 
@@ -283,8 +285,9 @@ src/core/pluginsfile.js  js/plugins.js 解析与重写（保留 RPG Maker 布局
 src/core/install.js      安装 / 卸载
 src/pipeline/provider.js OpenAI 兼容 + mock provider
 src/pipeline/translate.js 批处理、校验、重试、术语表
+src/pipeline/wrap.js     按显示宽度折行（MZ/MV 不会横向自动换行）
 src/plugin/YAKUSHA_Translator.js  运行时插件模板（install 时注入规则表）
-test/                    100 个测试（含 CLI 端到端）
+test/                    122 个测试（含 CLI 端到端）
 ```
 
 ## 设计约束
@@ -301,7 +304,13 @@ test/                    100 个测试（含 CLI 端到端）
 - 只处理 `data/` 里的文本；插件 `js/plugins/*.js` 里硬编码的 UI 文案不动。
 - 图片里的文字（`img/pictures`）不处理。
 - MV 的 `.rpgmvp` 加密图不影响文本，但 MV 的 `data/` 若用了别的混淆方案可能解不出（会报 `undecodable`）。
-- 译文过长会被 MZ 的固定窗口裁切；`--max-length` 尚未实现，暂时靠 prompt 里的"保持紧凑"约束。
+- **MZ/MV 不会横向自动换行。** `Window_Base.flushTextState` 把整行一次性 `drawText` 到位图，
+  超出 `contents` 宽度的部分直接被裁（只有纵向有 `needsNewPage` 分页）。默认仍以 prompt 里
+  的"保持紧凑"约束为主，需要硬保证时加 `--max-length 54`：它按显示列宽（全角算 2 列）在标点处
+  断行，转义码宽度算 0、不会被拆开；断点落在标点前时会把标点提到上一行（禁则处理），
+  避免"！？"被拆到两行。这个折行发生在`校验通过之后`，所以模型输出仍然逐字比对。
+  对已经翻完的字典重复执行同一条命令即可把旧译文也重新折行（本地计算，不重新请求模型）；
+  不想动旧条目就加 `--no-rewrap`。
 - **MV 老版本（2019/2020 的 nw.js）不吃 `--remote-debugging-port`**，所以 MV 的运行时
   验证不能靠 CDP；本项目验收时用的是临时注入的截图驱动脚本（`SceneManager.snap()`
   → `Bitmap._canvas.toDataURL()`），验完即删，不入库、不随工具分发。

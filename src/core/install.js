@@ -18,7 +18,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { buildRules } from "./fields.js";
-import { readPluginsFile, serialisePluginsJs, upsertPlugin, removePlugin } from "./pluginsfile.js";
+import {
+  readPluginsFile,
+  parsePluginsJs,
+  serialisePluginsJs,
+  pluginsJsLayout,
+  upsertPlugin,
+  removePlugin,
+} from "./pluginsfile.js";
 
 export const PLUGIN_NAME = "YAKUSHA_Translator";
 export const PLUGIN_FILE = "YAKUSHA_Translator.js";
@@ -96,7 +103,9 @@ export function installPlugin(project, options = {}) {
     createdBackup = true;
   }
 
-  const plugins = readPluginsFile(project.pluginsFile);
+  const original = fs.readFileSync(project.pluginsFile, "utf8");
+  const layout = pluginsJsLayout(original);
+  const plugins = parsePluginsJs(original).plugins;
   const state = upsertPlugin(plugins, {
     name: PLUGIN_NAME,
     description: "Runtime translation driven by a yakusha dictionary.",
@@ -107,7 +116,7 @@ export function installPlugin(project, options = {}) {
       ...(options.parameters || {}),
     },
   });
-  fs.writeFileSync(project.pluginsFile, serialisePluginsJs(plugins), "utf8");
+  fs.writeFileSync(project.pluginsFile, serialisePluginsJs(plugins, layout), "utf8");
 
   fs.mkdirSync(project.pluginDir, { recursive: true });
   const pluginPath = path.join(project.pluginDir, PLUGIN_FILE);
@@ -130,9 +139,11 @@ export function uninstallPlugin(project) {
     removed = true;
   }
 
-  const plugins = readPluginsFile(project.pluginsFile);
+  const original = fs.readFileSync(project.pluginsFile, "utf8");
+  const layout = pluginsJsLayout(original);
+  const plugins = parsePluginsJs(original).plugins;
   if (removePlugin(plugins, PLUGIN_NAME)) {
-    fs.writeFileSync(project.pluginsFile, serialisePluginsJs(plugins), "utf8");
+    fs.writeFileSync(project.pluginsFile, serialisePluginsJs(plugins, layout), "utf8");
     removed = true;
   }
 

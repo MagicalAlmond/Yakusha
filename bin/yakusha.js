@@ -230,6 +230,7 @@ async function cmdTranslate(dir) {
 
   const started = Date.now();
   let lastPercent = -1;
+  const maxLength = numberFlag("max-length", 0);
   // A full run over a large game is tens of thousands of entries, so a crash or
   // a Ctrl-C must never throw away an hour of paid requests. The dictionary is
   // written back every --save-every translated entries (0 disables it).
@@ -249,6 +250,13 @@ async function cmdTranslate(dir) {
     onlyContext: typeof flags.context === "string" ? flags.context : undefined,
     glossaryOnly,
     strictCodes: flags["allow-code-drift"] ? false : undefined,
+    // Message windows are a fixed size and MZ never wraps horizontally, so a
+    // translation that is wider than the window is silently clipped. --max-length
+    // breaks long lines ourselves; 0 (the default) leaves text untouched.
+    maxColumns: maxLength,
+    // Existing translations are re-fitted too, so adding the flag later repairs
+    // a dictionary instead of only affecting new entries.
+    rewrapExisting: maxLength > 0 && !flags["no-rewrap"] && !flags["dry-run"],
     onProgress: (progress) => {
       // Persist periodically so an interrupted run resumes instead of restarting.
       if (saveEvery > 0 && !flags["dry-run"]) {
@@ -297,6 +305,7 @@ async function cmdTranslate(dir) {
     translated: result.translated,
     rejected: result.rejected.length,
     failedBatches: result.failed,
+    rewrapped: result.rewrapped,
     progress: s,
   };
   if (json) {
@@ -305,6 +314,7 @@ async function cmdTranslate(dir) {
   }
   console.log("provider  : " + provider.name);
   console.log("translated: " + result.translated + "/" + result.total + " this run");
+  if (result.rewrapped > 0) console.log("rewrapped : " + result.rewrapped + " existing entries fitted to " + maxLength + " columns");
   console.log("progress  : " + s.translated + "/" + s.total + " translated, " + s.pending + " pending");
   if (result.rejected.length > 0) {
     console.log("rejected  : " + result.rejected.length + " (kept untranslated, first 5 below)");
@@ -377,6 +387,7 @@ const USAGE = [
   "  --batch-size <n>    entries per request (default 40)",
   "  --concurrency <n>   parallel requests (default 2)",
   "  --save-every <n>    write the dictionary every n translations (default 200)",
+  "  --max-length <cols> wrap translated lines wider than n display columns (0 = off)",
   "  --dry-run           use the mock provider and do not save",
   "  --glossary-only     apply --glossary and never call a model",
   "",
