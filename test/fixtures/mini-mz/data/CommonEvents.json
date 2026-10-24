@@ -1,0 +1,63 @@
+[
+ null,
+ {
+  "id": 1,
+  "name": "共通",
+  "trigger": 0,
+  "switchId": 1,
+  "list": [
+   {
+    "code": 101,
+    "indent": 0,
+    "parameters": [
+     "",
+     0,
+     0,
+     2,
+     "おっさん"
+    ]
+   },
+   {
+    "code": 401,
+    "indent": 0,
+    "parameters": [
+     "お金が無い！"
+    ]
+   },
+   {
+    "code": 401,
+    "indent": 0,
+    "parameters": [
+     "本当に\\C[2]無い\\C[0]のか？"
+    ]
+   },
+   {
+    "code": 102,
+    "indent": 0,
+    "parameters": [
+     [
+      "はい",
+      "いいえ"
+     ],
+     1,
+     0,
+     2,
+     0
+    ]
+   },
+   {
+    "code": 402,
+    "indent": 0,
+    "parameters": [
+     0,
+     "はい"
+    ]
+   },
+   {
+    "code": 0,
+    "indent": 0,
+    "parameters": []
+   }
+  ]
+ }
+]

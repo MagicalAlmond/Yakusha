@@ -1,0 +1,32 @@
+{
+  "name": "yakusha",
+  "version": "0.2.0",
+  "description": "Non-invasive runtime translation toolkit for RPG Maker MZ and MV games",
+  "type": "module",
+  "bin": {
+    "yakusha": "./bin/yakusha.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test \"test/*.test.js\"",
+    "test:watch": "node --test --watch \"test/*.test.js\"",
+    "lint": "node --check bin/yakusha.js"
+  },
+  "keywords": [
+    "rpg-maker",
+    "rpgmaker-mz",
+    "rpgmaker-mv",
+    "translation",
+    "localization",
+    "llm"
+  ],
+  "license": "GPL-3.0-or-later",
+  "files": [
+    "bin",
+    "src",
+    "README.md",
+    "LICENSE"
+  ]
+}

@@ -1,0 +1,37 @@
+{
+ "gameTitle": "テストゲーム",
+ "currencyUnit": "Ｇ",
+ "terms": {
+  "basic": [
+   "レベル",
+   "Lv"
+  ],
+  "commands": [
+   "戦う",
+   "逃げる"
+  ],
+  "params": [
+   "最大HP"
+  ],
+  "messages": {
+   "alwaysDash": "常時ダッシュ",
+   "commandRemember": "コマンド記憶"
+  }
+ },
+ "armorTypes": [
+  "",
+  "軽装"
+ ],
+ "elements": [
+  "物理"
+ ],
+ "skillTypes": [
+  "特技"
+ ],
+ "weaponTypes": [
+  "剣"
+ ],
+ "equipTypes": [
+  "武器"
+ ]
+}
