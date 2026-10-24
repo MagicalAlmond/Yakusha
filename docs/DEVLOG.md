@@ -1,0 +1,188 @@
+# 开发交接文档（DEVLOG）
+
+> 这份文档记录**阶段目标、已完成项、决策理由和下一步**，随开发进程更新。
+> 最后更新：2026-10-25（0.3.0 + 3 个后续提交，134 个测试全绿）。
+
+## 1. 项目目标（用户原话）
+
+> "按顺序1->2执行，原有工具更新问题完全放弃，自主进行功能开发和测试并验收"
+
+即：
+
+1. **A 阶段** —— 通用化 MVP：任意 RPG Maker MZ / MV 游戏，能扫描、抽文本、装插件、运行时显示中文。
+2. **B 阶段** —— LLM 翻译流水线：可配置端点、术语表、批量、并发、校验、断点续跑。
+3. **原有工具强制更新补丁** —— 明确放弃，不再投入。
+
+项目定位来自更早的判断（m04886）：**单人 + AI 开发，规模不大，个人使用为主，
+顶多按 GPL 公开**。所以一切设计都优先"能跑、能验证、改动可回退"，
+而不是"支持十几个引擎族"。
+
+## 2. 当前状态
+
+| 项 | 状态 |
+| --- | --- |
+| 版本 | 0.3.0（package.json），另有 3 个未发版的后续提交 |
+| 测试 | **134 个，全绿**（`npm test`，约 1.9s） |
+| 支持引擎 | RPG Maker **MZ 1.3.2–1.9.0**、**MV 1.6.1–1.6.2** |
+| 实测游戏 | 15 款可识别（本机全量普查），其中 3 款全量翻译 + 运行时验收 |
+| 磁盘改动 | 只加 1 个插件文件 + `plugins.js` 里 1 条注册，卸载逐字节还原 |
+| 运行时依赖 | 无第三方依赖（Node >= 22） |
+| 许可 | GPL-3.0-or-later |
+
+## 3. 阶段目标与完成情况
+
+### A 阶段（已完成）
+
+- [x] 项目发现：从任意上级目录向下有界搜索（3 层），支持 `www/`、改名子目录、
+      `data/www/` 三种真实布局；同层两套游戏报错而不是随便挑。
+- [x] 数据解码：明文 JSON / 单字节 XOR 穷举 256 键 / 0 字节空白占位（`empty` 不算 `undecodable`）。
+- [x] 文本抽取：字段表 + 指令表（`src/core/fields.js` 是唯一真源）。
+- [x] 字典格式 `yakusha/1`：key = 原文，value = `{text, contexts, error?}`。
+- [x] 运行时插件：MZ 挂 `DataManager.onXhrLoad`；MV 挂 `loadDataFile` + `onLoad`
+      并**按对象身份认领**（MV 的 XHR 是并发的，不能按到达顺序配对）。
+- [x] 安装 / 卸载：备份 `plugins.js`，重写时保留原文件的**尾逗号**与**换行风格**（LF/CRLF）。
+- [x] 真机验收：MZ《格闘娘はお金が無い！》、MV《常識改変者のいるギルド》均有中文对话/选项截图。
+
+### B 阶段（已完成）
+
+- [x] OpenAI 兼容 provider（DeepSeek 实测）+ mock provider（`--dry-run` 离线）。
+- [x] 批处理（`--batch-size` / `--char-budget`）+ 并发（`--concurrency`）+ 每 N 条落盘。
+- [x] 术语表（`--glossary` / `--glossary-only`），命中不发请求。
+- [x] 六道校验闸门（`validateTranslation`）：空串、原样回显、转义码、`%N` 占位符、
+      换行数、长度比、`U+FFFD`。**不合格绝不写伪造译文**，只记 `entry.error`。
+- [x] 折行（`--max-length`）：按显示列宽（全角 2 列），标点断行 + 禁则处理（`！？` 不落到行首），
+      转义码宽度算 0 且不拆开；对已翻完的字典可重复执行回填（`--no-rewrap` 关闭）。
+
+## 4. 文件地图
+
+```
+bin/yakusha.js             CLI（scan / extract / status / translate / install / uninstall）
+src/core/fields.js        字段表与指令表（纯数据，会嵌进插件）
+src/core/mzproject.js     项目发现（向下 3 层）、System.json 读取
+src/core/datafile.js      数据文件解码（明文 / 单字节 XOR / 空白占位）
+src/core/extract.js       遍历 data/ 抽出所有可译文本
+src/core/textkey.js       转义码分词 / 归一化 / 校验
+src/core/dict.js          字典读写
+src/core/pluginsfile.js   js/plugins.js 解析与重写（保留尾逗号与换行风格）
+src/core/install.js       安装 / 卸载
+src/pipeline/provider.js  OpenAI 兼容 + mock provider
+src/pipeline/translate.js 批处理、校验、重试、术语表
+src/pipeline/wrap.js      按显示宽度折行（MZ/MV 不会横向自动换行）
+src/plugin/YAKUSHA_Translator.js  运行时插件模板（install 时注入规则表）
+test/                     134 个测试（含 CLI 端到端）
+```
+
+## 5. 关键决策与理由（改代码前请先读这一节）
+
+| 决策 | 理由 |
+| --- | --- |
+| **运行时钩子，不改 `data/*.json`** | 改磁盘会破坏原游戏、更新即失效、无法回退；钩子只在内存里替换。 |
+| **字典 key = 原文** | 不用 hash/自增 id：译文要能人工校对，key 必须是玩家能看懂的原文。 |
+| **校验在写之前** | 宁可留日文，也不留一条会显示成乱码或吞掉转义码的译文。 |
+| **`fields.js` 单一真源** | 插件的 `RULES` 由 `install` 生成，`test/rules-sync.test.js` 守着漂移。 |
+| **不做自动语言检测（不做 `--skip-lang`）** | 实测判不出来：日文原版那款有 437 条"无假名"条目，多数是纯汉字日文（武闘家/騎士/鎧系）；用日文特有汉字集合加严后仍会**误跳过 64%** 的日文条目。误跳过 = 玩家直接看到日文（不可接受），误翻译 = 多花 token（可接受）。正确做法是全量跑，模型对已是中文的句子原样回显，被"原样回显"闸门拒收。 |
+| **折行放在校验之后** | 模型输出仍逐字比对；折行是本地排版，不该被拉进校验闸门。 |
+| **换行数闸门不放宽** | 曾为兼容折行试过 `b < a`，最后回退成严格相等——闸门一旦被扭曲，后面所有校验都不可信。 |
+| **重写 `plugins.js` 保留原形状** | 有的游戏带尾逗号、有的不带，有的 CRLF。整文件重排会让一次安装变成全文件 diff。 |
+
+## 6. 实测数据（可复现的基准）
+
+### 15 款游戏普查（本机全量，`undecodable` 全程 0）
+
+| 引擎/版本 | data 文件 | unique | total | 游戏 |
+| --- | --- | --- | --- | --- |
+| mv 1.6.1 | 119 | 10,356 | 20,771 | An Arena RPG of Stripping |
+| mv 1.6.1 | 64 | 14,945 | 25,605 | Hustle Battle Card Gamers |
+| mv 1.6.2 | 31 | 19,890 | 28,400 | The Demon King's Reclusive Strategist |
+| mz 1.7.0 | 51 | 38,044 | 80,502 | [RJ01312289]格闘娘はお金が無い！ |
+| mz 1.9.0 | 82 | 4,018 | 7,110 | [RPG]催堕的魔法使 |
+| mz 1.5.0 | 28 | 2,295 | 4,638 | [RPG]误入只有雌性的精灵村（XOR 混淆） |
+| mz 1.8.0 | 27 | 6,797 | 10,366 | [SLG]与傲娇妹妹的治愈日常（改名子目录） |
+| mz 1.3.2 | 276 | 58,256 | 113,050 | セックス実習のある島で |
+| mv 1.6.2 | 268 | 36,203 | 41,136 | 一次性交易大师（data/www） |
+| mv 1.6.2 | 41 | 4,388 | 7,161 | 常識改変者のいるギルド |
+| mv 1.6.1 | 63 | 159 | 184 | 忧郁的安娜 |
+| mz 1.7.0 | 265 | 24,757 | 31,575 | 桜御前 |
+| mz 1.9.0 | 30 | 8,752 | 14,634 | 求生吧！无人岛性存生活♡ |
+| mv 1.6.2 | 46 | 4,065 | 8,852 | 用时间停止肆意妄为 |
+| mv 1.6.2 | 453 | 26,240 | 81,017 | 魔法少女コノハv2.04 |
+
+合计 **259,165 unique / 475,001 total**。
+
+### 全量翻译完成度
+
+| 游戏 | total | translated | pending | 残留原因 |
+| --- | --- | --- | --- | --- |
+| 格闘娘はお金が無い！ | 38,044 | 38,042 | 2 | 一条是纯全角空格（`empty`）；一条转义码 7 vs 6（`\\.` 序列不可译） |
+| 常識改変者のいるギルド | 4,388 | 4,387 | 1 | `\N<ひなた>` 标记剥掉后仍有假名 |
+| 用时间停止肆意妄为 | 4,065 | 4,064 | 1 | 同上 |
+
+残留全部是**校验闸门正确拒收**，不是 bug。
+
+### 其它基准
+
+- 术语表 127 条只占唯一数 0.3%，但覆盖 **18.4%** 的出现次数；要覆盖 42% 得进前 5000 条 → 长尾极重，机器翻译必须跑全量。
+- 译文长度比：p50 **0.71×**（中文普遍比日文短），只有 0.9% 比原文长；`--max-length 54` 对 3.8 万条只改动 61 条，且**控制码 0 丢失、可见字符 0 丢失**。
+- 6 款游戏做过 `install` → `uninstall` 往返，`plugins.js` 全部逐字节还原（md5 一致）。
+- 运行时命中：MZ 那款 `lookups 60,781 / translated 60,779 / misses 2 / rejected 0`。
+
+## 7. 已知限制
+
+1. 只处理 `data/` 里的文本；插件 `js/plugins/*.js` 里硬编码的 UI 文案不动。
+2. 图片里的文字不处理。
+3. MV 的 `.rpgmvp` 加密图不影响文本，但 MV 若用了别的数据混淆方案可能解不出（会报 `undecodable`）。
+4. **MZ/MV 不会横向自动换行**：`Window_Base.flushTextState` 把整行一次性 `drawText`，
+   超宽即裁，只有纵向 `needsNewPage` 分页。默认靠 prompt 约束，硬保证加 `--max-length`。
+5. 老 MV（2019/2020 的 nw.js）不吃 `--remote-debugging-port`，MV 的运行时取证不能靠 CDP。
+6. 有些 MV 游戏把说话人写成 `\N<名字>`（插件自定义标记，非 RPG Maker 转义码），译文必须原样保留。
+7. 不支持 XP/VX/VX Ace（`.rxdata` 二进制）、Unity / Godot / Kirikiri / Ren'Py 等其它引擎。
+
+## 8. 下一步（backlog，按优先级）
+
+1. **push 到 GitHub**（用户说过"顶多公布到 github"，但还没要求立即推送）。
+2. 可选：把「官中游戏不必全量翻」写成 README 里的分步建议（判据已定、数据在第 6 节、
+   说明已在 README「已经是目标语言的游戏不必全量翻」段；还缺一条 `--limit` 抽样看拒绝率的具体命令示例）。
+3. 可选：给 `translate` 加 `--only-context` 的多值支持（现在只能传一个位置子串）。
+4. 可选：把运行时截图驱动脚本（CDP 解冻 / readPixels 回读 / 冻结后原子渲染）整理成
+   `tools/` 下的取证工具，便于以后验收新游戏时复用。**注意：这类脚本会碰游戏进程，
+   不建议随工具分发，只作开发期验证用。**
+5. 可选：MV 老 nw 的运行时取证目前靠临时注入脚本，如果能找到不注入的办法（例如日志钩子）更好。
+
+## 9. 继续工作的方法
+
+```bash
+# 全部测试
+npm test
+
+# 看一款游戏有多少可译文本
+node bin/yakusha.js scan "D:/H/Games/<game>"
+
+# 建字典
+node bin/yakusha.js extract "D:/H/Games/<game>"
+
+# 翻译（需要 key，可用环境变量 YAKUSHA_API_KEY / YAKUSHA_MODEL / YAKUSHA_BASE_URL）
+node bin/yakusha.js translate "D:/H/Games/<game>" --concurrency 4 --batch-size 40 --char-budget 6000
+
+# 离线全套验证（不联网）
+node bin/yakusha.js translate "D:/H/Games/<game>" --dry-run --limit 50
+node bin/yakusha.js translate "D:/H/Games/<game>" --glossary-only
+
+# 装 / 卸
+node bin/yakusha.js install   "D:/H/Games/<game>"
+node bin/yakusha.js uninstall "D:/H/Games/<game>"
+```
+
+## 10. 工程教训（踩过的坑，别再踩）
+
+- **Windows 上 ESM 不能直接 import 绝对路径**（`ERR_UNSUPPORTED_ESM_URL_SCHEME: d:`），
+  必须 `pathToFileURL(p).href`；验证脚本一律写成 `.cjs` 再 `node` 跑，别塞进仓库。
+- **`node --test test/` 在 Windows/Node 24 上会报 Cannot find module**，
+  `scripts.test` 必须写 glob 形式 `node --test "test/*.test.js"`。
+- `plugins.js` 有尾逗号（合法 JS、非法 JSON）→ 必须先 `stripTrailingCommas` 再 `JSON.parse`。
+- `--save-every` 的 `lastSaved` 必须从 0 起（`progress.translated` 是本次运行增量，混基准会永不落盘）。
+- `parseReply` 要能吃两种回显：模型把 `src` 字段回显、以及模型写出非法转义 `\{`
+  （`parseJsonLoose` 逐字符修复）。
+- DeepSeek 用 `response_format:{type:"json_object"}` 时，prompt 里必须出现 "json" 字样，否则 400。
+- 长跑不要加 `--json`（否则没有进度输出，看起来像卡死）。
+- 包装 LLM 调用的脚本要放在**仓库外**（例如 `临时目录下的 llm_run.mjs`），
+  放仓库里会在清理临时文件时被误删，后台长任务整个白跑。
