@@ -172,8 +172,14 @@ node bin/yakusha.js translate "/games/MyGame" --glossary my-terms.json
 | An Arena RPG of Stripping | MV 1.6.1 | 10,356 | `www/` 子目录 |
 | Hustle Battle Card Gamers | MV 1.6.1 | 14,945 | |
 | 忧郁的安娜 | MV 1.6.1 | 159 | |
+| The Demon King's Reclusive Strategist | MV 1.6.2 | 19,890 | |
+| 魔法少女コノハv2.04 | MV 1.6.2 | 26,240 | 453 个 data 文件 |
 | 常識改変者のいるギルド | MV 1.6.2 | 4,388 | **MV 端到端验收用**（全量翻译 + 运行时截图） |
 | 用时间停止肆意妄为 | MV 1.6.2 | 4,065 | 正文已中文、说话人标记是日文 |
+
+上表 13 款即为本机全量普查结果：MZ 跨 1.3.2–1.9.0、MV 跨 1.6.1–1.6.2，单款 data 文件
+从 28 个到 453 个，合计 216,165 条唯一串 / 423,499 次出现，`undecodable` 全程为 0。
+`install`/`uninstall` 在其中 4 款上做过往返验证，`plugins.js` 均逐字节还原。
 
 **加密的 `data/`**：有些 MZ 游戏把 JSON 单字节 XOR 掉了（每文件一个 key，键值由
 `libGLESv2.dll` 的 sha256 推出来）。`src/core/datafile.js` 的做法是：先按明文试，
