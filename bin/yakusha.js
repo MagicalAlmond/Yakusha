@@ -8,6 +8,7 @@
  *   status     <game-dir>                 translation progress
  *   translate  <game-dir>                 fill the dictionary through an LLM
  *   verify     <game-dir>                 audit the dictionary for bad entries
+ *   terms      <game-dir>                 mine name renderings, report drift
  *   install    <game-dir>                 copy the runtime plugin into the game
  *   uninstall  <game-dir>                 remove the plugin and restore plugins.js
  *
@@ -30,6 +31,7 @@ import { stripCodes } from "../src/core/textkey.js";
 import { createProvider } from "../src/pipeline/provider.js";
 import { translateDictionary } from "../src/pipeline/translate.js";
 import { verifyDictionary } from "../src/pipeline/verify.js";
+import { mineTerms, toGlossary } from "../src/pipeline/terms.js";
 
 /**
  * Split argv into flags and positionals. A flag consumes the next argument as
@@ -236,6 +238,107 @@ async function cmdVerify(dir) {
   console.log(result.errors > 0 ? "result    : FAILED, " + result.errors + " error(s)" : "result    : OK with " + result.warnings + " warning(s)");
 }
 
+async function cmdTerms(dir) {
+  const project = requireProject(dir);
+  const { file, data } = requireDictionary(project);
+  const minHolders = numberFlag("min-holders", 5);
+  const minSupport = numberFlag("min-support", 0.5);
+  const maxLength = numberFlag("max-terms", 0);
+  const result = mineTerms(data, { minHolders, minSupport });
+
+  const statuses = typeof flags.status === "string" ? flags.status.split(",").map((s) => s.trim()).filter(Boolean) : null;
+  const terms = statuses ? result.terms.filter((term) => statuses.includes(term.status)) : result.terms;
+  const written = typeof flags.write === "string" ? path.resolve(flags.write) : null;
+  const glossary = toGlossary(terms, { game: data.game, limit: maxLength, driftOnly: flags["drift-only"] === true });
+
+  // --dry-run here means "show what would be written", because writing a
+  // glossary into the dictionary is not what this command touches.
+  const save = written !== null && flags["dry-run"] !== true;
+  if (save) {
+    fs.mkdirSync(path.dirname(written), { recursive: true });
+    fs.writeFileSync(written, JSON.stringify(glossary, null, 2) + "\n");
+  }
+
+  const summary = {
+    ok: true,
+    file,
+    names: result.names,
+    nameEntries: result.nameEntries,
+    skipped: result.skipped,
+    holdersMin: result.holdersMin,
+    supportMin: result.supportMin,
+    mined: result.terms.length,
+    listed: terms.length,
+    drift: result.drift.length,
+    missing: result.missing.length,
+    glossary: Object.keys(glossary.entries).length,
+    written: save ? written : null,
+  };
+  if (json) {
+    process.stdout.write(JSON.stringify({ ...summary, terms }, null, 2) + "\n");
+    return;
+  }
+  console.log("names     : " + result.names + " mined from " + result.nameEntries + " name entries");
+  console.log(
+    "skipped   : " +
+      result.skipped.untranslated +
+      " untranslated, " +
+      result.skipped.short +
+      " too short, " +
+      result.skipped.prose +
+      " prose-like"
+  );
+  if (terms.length === 0 && result.terms.length === 0) {
+    console.log("terms     : none (needs at least " + result.holdersMin + " translated lines mentioning a name)");
+  } else if (terms.length === 0) {
+    console.log("terms     : none match --status (" + result.terms.length + " mined)");
+  } else {
+    // When --status filters the list, say how many survived out of the full mine.
+    const minedNote = terms.length === result.terms.length ? " mined" : " of " + result.terms.length + " mined";
+    console.log(
+      "terms     : " +
+        terms.length +
+        minedNote +
+        " (" +
+        result.drift.length +
+        " drift, " +
+        result.missing.length +
+        " missing)"
+    );
+  }
+  const shown = numberFlag("limit", 20);
+  for (const term of terms.slice(0, shown)) {
+    const support = Math.round(term.support * 100) + "%";
+    if (term.status === "ok") {
+      console.log("  ok       " + term.name + " = " + term.suggested + " (" + support + " of " + term.holders + ")");
+    } else {
+      console.log(
+        "  " + term.status.padEnd(8) + " " + term.name + ": " + (term.db || "(none)") + " -> " + term.dominant
+      );
+      console.log(
+        "           " +
+          Math.round(term.dbSupport * 100) +
+          "% of " +
+          term.holders +
+          " mentions use the name entry, " +
+          support +
+          " use the dominant rendering"
+      );
+    }
+  }
+  if (terms.length > shown) console.log("  ... " + (terms.length - shown) + " more, raise --limit or pass --json");
+  if (save) console.log("glossary  : " + Object.keys(glossary.entries).length + " entries written to " + written);
+  else if (written) console.log("glossary  : " + Object.keys(glossary.entries).length + " entries (--dry-run, not written)");
+  else console.log("glossary  : " + Object.keys(glossary.entries).length + " entries, pass --write <file> to save them");
+  if (save && result.drift.length > 0) {
+    // The file this command writes is meant to be fed back in with --overwrite,
+    // because drift lives on entries that already have a translation.
+    console.log(
+      "apply     : yakusha translate \"" + project.root + "\" --glossary \"" + written + "\" --glossary-only --overwrite"
+    );
+  }
+}
+
 async function cmdTranslate(dir) {
   const project = requireProject(dir);
   const { file, data } = requireDictionary(project);
@@ -287,6 +390,7 @@ async function cmdTranslate(dir) {
     limit: numberFlag("limit", undefined),
     onlyContext: typeof flags.context === "string" ? flags.context : undefined,
     glossaryOnly,
+    overwriteExisting: flags["overwrite"] === true,
     strictCodes: flags["allow-code-drift"] ? false : undefined,
     // Message windows are a fixed size and MZ never wraps horizontally, so a
     // translation that is wider than the window is silently clipped. --max-length
@@ -317,6 +421,7 @@ async function cmdTranslate(dir) {
   });
 
   if (!json) process.stderr.write("\r");
+  const overwritten = result.overwritten || 0;
 
   if (flags["dry-run"]) {
     const summary = {
@@ -341,6 +446,7 @@ async function cmdTranslate(dir) {
     elapsedMs: Date.now() - started,
     total: result.total,
     translated: result.translated,
+    overwritten,
     rejected: result.rejected.length,
     failedBatches: result.failed,
     rewrapped: result.rewrapped,
@@ -352,6 +458,7 @@ async function cmdTranslate(dir) {
   }
   console.log("provider  : " + provider.name);
   console.log("translated: " + result.translated + "/" + result.total + " this run");
+  if (overwritten > 0) console.log("overwritten: " + overwritten + " existing translations replaced by --glossary");
   if (result.rewrapped > 0) console.log("rewrapped : " + result.rewrapped + " existing entries fitted to " + maxLength + " columns");
   console.log("progress  : " + s.translated + "/" + s.total + " translated, " + s.pending + " pending");
   if (result.rejected.length > 0) {
@@ -401,6 +508,7 @@ const commands = {
   status: cmdStatus,
   translate: cmdTranslate,
   verify: cmdVerify,
+  terms: cmdTerms,
   install: cmdInstall,
   uninstall: cmdUninstall,
 };
@@ -416,6 +524,7 @@ const USAGE = [
   "  status     show translation progress",
   "  translate  fill the dictionary through an LLM",
   "  verify     audit the dictionary for bad entries",
+  "  terms      mine name renderings and report drift",
   "  install    install the runtime plugin into the game",
   "  uninstall  remove the runtime plugin",
   "",
@@ -433,12 +542,23 @@ const USAGE = [
   "  --max-length <cols> wrap translated lines wider than n display columns (0 = off)",
   "  --dry-run           use the mock provider and do not save",
   "  --glossary-only     apply --glossary and never call a model",
+  "  --overwrite         let --glossary replace entries that are already translated",
   "",
   "verify options:",
   "  --kind <list>       only report these kinds, comma separated",
   "                      (kana, echo, codes, slots, lines, width, no-text, rejected)",
   "  --max-length <cols> also report lines wider than n display columns",
   "  --limit <n>         how many problems to print (default 20)",
+  "",
+  "terms options:",
+  "  --status <list>     only list these statuses (ok, drift, missing)",
+  "  --min-holders <n>   mentions a name needs before it is mined (default 5)",
+  "  --min-support <n>   share of mentions the dominant spelling needs (default 0.5)",
+  "  --drift-only        write only the entries that disagree",
+  "  --max-terms <n>     cap the glossary (0 = every mined term)",
+  "  --limit <n>         how many terms to print (default 20)",
+  "  --write <file>      save the glossary for translate --glossary",
+  "  --dry-run           report what --write would save, without saving",
   "",
   "install options:",
   "  --embed             embed the translations into the plugin file",

@@ -45,6 +45,7 @@ import { wrapText } from "./wrap.js";
  * @property {number} [minLengthRatio]
  * @property {number} [maxColumns] wrap lines wider than this many display columns
  * @property {boolean} [rewrapExisting] re-wrap entries that are already translated
+ * @property {boolean} [overwriteExisting] let --glossary replace entries that are already translated
  * @property {boolean} [requireLines]
  * @property {boolean} [strictCodes]
  * @property {number} [attempts]
@@ -461,10 +462,15 @@ export async function translateDictionary(dict, options) {
   // hand written spot check gets installed on a real game.
   if (options.glossaryOnly) {
     let applied = 0;
+    let overwritten = 0;
     const missed = [];
     for (const key of Object.keys(dict.entries)) {
       const entry = dict.entries[key];
-      if (entry.text) continue;
+      // A glossary built by "terms --drift-only" targets exactly the entries
+      // that are already translated, so skipping those made a drift report
+      // impossible to act on. Overwriting is opt-in: a plain glossary is still
+      // a fill-the-gaps pass, never a silent rewrite of finished work.
+      if (entry.text && !options.overwriteExisting) continue;
       const fixed = glossary[key];
       if (typeof fixed !== "string" || fixed.length === 0) continue;
       const verdict = validateTranslation(key, fixed, options);
@@ -472,11 +478,19 @@ export async function translateDictionary(dict, options) {
         missed.push({ key, reason: verdict.reason });
         continue;
       }
+      if (entry.text && entry.text !== fixed) overwritten += 1;
       entry.text = wrapText(fixed, options.maxColumns);
       delete entry.error;
       applied += 1;
     }
-    return { total: Object.keys(glossary).length, translated: applied, rejected: missed, failed: 0, rewrapped };
+    return {
+      total: Object.keys(glossary).length,
+      translated: applied,
+      overwritten,
+      rejected: missed,
+      failed: 0,
+      rewrapped,
+    };
   }
 
   // Glossary hits need no model call at all.

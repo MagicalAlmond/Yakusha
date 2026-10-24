@@ -133,7 +133,47 @@ node bin/yakusha.js uninstall "/games/MyGame"   # 完全还原
 `uninstall` 会删掉插件文件、清掉 `$plugins` 里的条目，并从备份复原 `plugins.js`；
 测试里验证过**逐字节一致**。
 
-### 5. 发布前自检
+### 5. 挖出人名/术语的主流译法
+
+```bash
+node bin/yakusha.js terms "/games/MyGame"
+```
+
+字典里 `Actors.json:name` 这类名字条目只有几百个，但它们在正文里被提到几千次。这条
+命令把正文里**实际在用的译法**统计出来，和名字条目比对：对不上就叫 drift。
+
+真实案例（38,044 条的游戏）：名字表写的是「フェイリン → 费琳」，但提到她的 3,653 行里
+**96% 写的是「菲琳」**，只有 4% 用名字表的写法。这不是算法挑剔，是名字表本身错了。
+
+| 状态 | 含义 |
+| --- | --- |
+| `ok` | 正文用法与名字条目一致 |
+| `drift` | 正文的主流译法与名字条目不同，且主流占比达到 `--min-support` 并领先 20% 以上 |
+| `missing` | 名字条目还没翻译，但正文里已经有稳定译法（官方中文游戏常见） |
+
+```bash
+node bin/yakusha.js terms "/games/MyGame" --status drift --limit 50    # 只看对不上的
+node bin/yakusha.js terms "/games/MyGame" --drift-only --write yakusha/terms.json
+node bin/yakusha.js translate "/games/MyGame" --glossary yakusha/terms.json --glossary-only --overwrite
+```
+
+上面三行是**一条完整的修复回路**：挖出漂移 → 存成词表 → 覆盖回去。第三步必须带
+`--overwrite`，因为漂移条目本身就是「已经翻译过」的条目，默认的词表应用只补空缺。
+
+判据（改之前先读 `src/pipeline/terms.js` 顶部注释）：
+
+- **候选必须是 2 字以上的中文连续串**，取字频最高者的 90% 以内**最长**的那个。只取最高频
+  会切出碎片：`哥布林` 的每个子串出现次数都一样多，纯频次会选中 `哥布`。
+- **候选首字不能是中文虚词**（的、了、在、把等）。这是 `丰满的胸部` 变出 `的胸部`
+  这种假漂移的根源。`向` 刻意没进黑名单：它既是助词，也是真名字的首字（向阳处）。
+- **源名是假名且超过 4 个字符的，当散文跳过**。`激しくピストン` 这类短语被游戏填在名字
+  字段里，给它算「主流译法」没有意义。
+- **互为子串不算漂移**（`哥布` 与 `哥布林` 是同一个译法的长短形式），只建议取更长的那个。
+
+实测四款游戏：格闘娘 `names 510/612, mined 52, drift 5`；常識改変者 `156/215, 20, 2`；
+用时间停止 `145/148, 6, 0`；与傲娇妹妹 `45/45, 3, 0, missing 3`（官方中文，名字表反而缺）。
+
+### 6. 发布前自检
 
 ```bash
 node bin/yakusha.js verify "/games/MyGame"
@@ -184,6 +224,9 @@ node bin/yakusha.js translate "/games/MyGame" --glossary my-terms.json
 ```
 
 词表命中直接写入（同样过校验），其余条目才发给模型；`--glossary-only` 则完全不联网。
+
+手工词表之外，`terms` 能从字典自身挖出术语表（见第 5 步），格式与这里完全一致，可以直接当
+`--glossary` 用。
 
 实测在 38,044 条唯一串的游戏上，127 条人工词表覆盖了 **18.4% 的文本出现次数**——
 术语表划算，但长尾极重（前 5000 条才覆盖 42%），**剧情的机器翻译必须跑全量**。
@@ -298,6 +341,7 @@ yakusha <command> <game-dir> [options]
   status      查看翻译进度
   translate   调 LLM 填字典
   verify      体检字典（发布前自检）
+  terms       挖人名/术语的主流译法，报出漂移
   install     装运行时插件
   uninstall   卸载并还原
 
@@ -317,12 +361,23 @@ translate:
   --no-rewrap         不动已经翻好的条目（默认会按新宽度重新折行）
   --dry-run           用 mock provider 且不落盘
   --glossary-only     只应用术语表，不联网
+  --overwrite         允许术语表覆盖已经翻好的条目
 
 verify:
   --kind <list>       只报这些类型，逗号分隔
                       （kana / echo / codes / slots / lines / width / no-text / rejected）
   --max-length <n>    同时检查超过 n 显示列的行
   --limit <n>         最多打印多少条（默认 20）
+
+terms:
+  --status <list>     只列这些状态（ok / drift / missing）
+  --min-holders <n>   名字要被提到多少次才挖（默认 5）
+  --min-support <n>   主流译法的最低占比（默认 0.5）
+  --drift-only        只写对不上的条目
+  --max-terms <n>     术语表条数上限（0 = 全部）
+  --limit <n>         最多打印多少条（默认 20）
+  --write <file>      存成术语表，可直接给 translate --glossary
+  --dry-run           只报会写什么，不落盘
 
 install:
   --embed             把译文嵌进插件文件（离线分发用）
@@ -341,7 +396,7 @@ install:
 ## 目录结构
 
 ```
-bin/yakusha.js            CLI，七个命令
+bin/yakusha.js            CLI，八个命令
 src/core/textkey.js      转义码分词 / 归一化 / 校验
 src/core/datafile.js     数据文件解码（明文 / 单字节 XOR / 空白占位）
 src/core/mzproject.js    项目发现（向下 3 层搜索）、System.json 读取
@@ -354,8 +409,9 @@ src/pipeline/provider.js OpenAI 兼容 + mock provider
 src/pipeline/translate.js 批处理、校验、重试、术语表
 src/pipeline/wrap.js     按显示宽度折行（MZ/MV 不会横向自动换行）
 src/pipeline/verify.js   译文体检（残留假名 / 原样回显 / 转义码 / 占位符 / 超宽行）
+src/pipeline/terms.js    名字/术语的主流译法挖掘与漂移检测
 src/plugin/YAKUSHA_Translator.js  运行时插件模板（install 时注入规则表）
-test/                    159 个测试（含 CLI 端到端）
+test/                    188 个测试（含 CLI 端到端）
 ```
 
 ## 设计约束
@@ -386,8 +442,16 @@ test/                    159 个测试（含 CLI 端到端）
 - 有些 MV 游戏把说话人写成 `\N<名字>` 这种插件自定义标记（不是 RPG Maker 转义码），
   译文必须原样保留；`validateTranslation` 会把这类标记剥掉后判断"是否真的还有日文"，
   否则「正文已中文、只有名字是日文」的行会被误判成未翻译而永久拒收。
-- **`verify` 只查字典能查的东西**：译文风格、人名是否统一、和剧情上下文是否吻合，
-  这些它看不出来；它只保证没有结构性缺陷（原样回显、转义码损坏、占位符丢失、超宽行）。
+- **`terms` 只认名字字段**：数据库 `name` 字段里没有的东西（UI 词、技能描述里的术语、
+  正文地名）挖不出来。这是有意的——没有名字当锚点，任意中文串的统计没有可判定的正确答案。
+- **`terms` 报的是「正文主流译法」，不是「正确译法」**。实测里 `噴水 喷水→喷泉`、
+  `ジョッキ 大杯→精液` 属于语义变化而非算法碎片（译文里确实这么写），要不要采纳得人看一眼。
+  所以 `terms --write` 只是建议，落盘还得自己再跑一次 `--glossary-only --overwrite`。
+- **`translate` 侧对 glossary 条数没有上限**，整张表会塞进 system prompt；词表很大时用
+  `terms --max-terms` 截断。
+- **`verify` 只查字典能查的东西**：译文风格、和剧情上下文是否吻合，这些它看不出来；
+  它只保证没有结构性缺陷（原样回显、转义码损坏、占位符丢失、超宽行）。
+  人名一致性有一部分交给 `terms`（见第 5 步），但 `terms` 也只统计、不判断对错。
   实测在三款跑完的游戏上，`echo`/`codes`/`slots` 三类致命项**都是 0**，
   留下的 `kana` 全是拟声词里故意保留的 `ッ`（格闘娘 106 条，占 0.28%）。
 

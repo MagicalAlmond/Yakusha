@@ -154,6 +154,47 @@ test("translate: glossary hits skip the provider entirely", async () => {
   assert.equal(d.entries["勇者"].text, "勇士");
 });
 
+test("translate: glossary only fills the gaps and leaves finished work alone", async () => {
+  const d = dictOf({ "フェイリン": "费琳", "勇者": "" });
+  const result = await translateDictionary(d, {
+    provider: mockProvider(),
+    glossary: { "フェイリン": "菲琳", "勇者": "勇士" },
+    glossaryOnly: true,
+  });
+  assert.equal(d.entries["フェイリン"].text, "费琳", "an existing translation is not rewritten by default");
+  assert.equal(d.entries["勇者"].text, "勇士");
+  assert.equal(result.translated, 1);
+  assert.equal(result.overwritten, 0);
+});
+
+test("translate: overwriteExisting lets a drift glossary replace a finished entry", async () => {
+  // "terms --drift-only" writes a glossary naming the entries that already have
+  // a translation, so without this the report could never be acted on.
+  const d = dictOf({ "フェイリン": "费琳" });
+  const result = await translateDictionary(d, {
+    provider: mockProvider(),
+    glossary: { "フェイリン": "菲琳" },
+    glossaryOnly: true,
+    overwriteExisting: true,
+  });
+  assert.equal(d.entries["フェイリン"].text, "菲琳");
+  assert.equal(result.translated, 1);
+  assert.equal(result.overwritten, 1);
+});
+
+test("translate: overwriteExisting still runs the validators", async () => {
+  const d = dictOf({ "\\C[2]お金": "已经翻译" });
+  const result = await translateDictionary(d, {
+    provider: mockProvider(),
+    glossary: { "\\C[2]お金": "没有颜色码" },
+    glossaryOnly: true,
+    overwriteExisting: true,
+  });
+  assert.equal(d.entries["\\C[2]お金"].text, "已经翻译", "a translation that breaks the escape codes is refused");
+  assert.equal(result.rejected.length, 1);
+  assert.equal(result.overwritten, 0);
+});
+
 test("translate: a bad translation is retried and then recorded as an error", async () => {
   const d = dictOf({ "\\C[2]お金": "" });
   let calls = 0;

@@ -248,3 +248,109 @@ test("cli: verify needs a dictionary first", () => {
   assert.notEqual(result.code, 0);
   assert.match(result.stderr, /no dictionary yet/);
 });
+
+/**
+ * Build a dictionary that has something to mine: a name entry plus dialogue
+ * lines that mention it. The CLI fixture is too small to mine anything on its
+ * own (one name, mentioned nowhere), so the corpus is written here.
+ *
+ * @param {string} game
+ * @param {Array<[string, string, string[]?]>} rows
+ */
+function writeDictionary(game, rows) {
+  const entries = {};
+  for (const [key, text, contexts] of rows) entries[key] = { text, contexts: contexts || ["Map001.json:401"] };
+  const dict = { format: "yakusha/1", game: "fixture", updatedAt: new Date(0).toISOString(), entries };
+  fs.mkdirSync(path.join(game, "yakusha"), { recursive: true });
+  const file = path.join(game, "yakusha", "dictionary.json");
+  fs.writeFileSync(file, JSON.stringify(dict, null, 2) + "\n", "utf8");
+  return file;
+}
+
+/** Name entry plus six mentions, five of which use `spelling`. */
+function miningRows(name, db, spelling, total = 6, mine = 5) {
+  const rows = [[name, db, ["Actors.json:name"]]];
+  for (let i = 0; i < total; i += 1) {
+    rows.push([name + " line " + i, (i < mine ? spelling : "other") + " line " + i]);
+  }
+  return rows;
+}
+
+test("cli: terms reports drift and a glossary count", () => {
+  const game = tempGame();
+  writeDictionary(game, miningRows("ゴブリン", "哥布", "哥布林"));
+  const result = run(["terms", game, "--json"]);
+  assert.equal(result.code, 0, result.stderr);
+  const summary = JSON.parse(result.stdout);
+  assert.equal(summary.ok, true);
+  assert.equal(summary.names, 1);
+  assert.equal(summary.mined, 1);
+  assert.equal(summary.glossary, 1);
+  assert.equal(summary.written, null);
+  assert.equal(summary.terms[0].suggested, "哥布林");
+});
+
+test("cli: terms --status filters what is listed but not what is mined", () => {
+  const game = tempGame();
+  writeDictionary(game, [
+    ...miningRows("ゴブリン", "哥布林", "哥布林"),
+    ...miningRows("フェイリン", "费琳", "菲琳"),
+  ]);
+  const all = JSON.parse(run(["terms", game, "--json"]).stdout);
+  assert.equal(all.listed, 2);
+  const drift = JSON.parse(run(["terms", game, "--status", "drift", "--json"]).stdout);
+  assert.equal(drift.mined, 2);
+  assert.equal(drift.listed, 1);
+  assert.equal(drift.terms[0].name, "フェイリン");
+});
+
+test("cli: terms human output stays complete when --status matches nothing", () => {
+  const game = tempGame();
+  writeDictionary(game, miningRows("ゴブリン", "哥布林", "哥布林"));
+  // Regression: an early return used to hide the trailing glossary line, so the
+  // report looked truncated exactly when the user was filtering.
+  const filtered = run(["terms", game, "--status", "drift"]);
+  assert.equal(filtered.code, 0, filtered.stderr);
+  assert.match(filtered.stdout, /none match --status \(1 mined\)/);
+  assert.match(filtered.stdout, /glossary  : 0 entries/);
+
+  const empty = run(["terms", game, "--min-holders", "99"]);
+  assert.match(empty.stdout, /terms     : none \(needs at least 99/);
+  assert.match(empty.stdout, /glossary  : 0 entries/);
+});
+
+test("cli: terms --write saves a glossary translate can read", () => {
+  const game = tempGame();
+  writeDictionary(game, miningRows("フェイリン", "费琳", "菲琳"));
+  const file = path.join(game, "yakusha", "glossary.json");
+  const result = run(["terms", game, "--drift-only", "--write", file, "--json"]);
+  assert.equal(result.code, 0, result.stderr);
+  assert.equal(JSON.parse(result.stdout).written, path.resolve(file));
+  const glossary = JSON.parse(fs.readFileSync(file, "utf8"));
+  assert.equal(glossary.entries["フェイリン"], "菲琳");
+
+  // The file has to be accepted by translate without any conversion step.
+  const applied = run(["translate", game, "--glossary", file, "--glossary-only", "--overwrite", "--json"]);
+  assert.equal(applied.code, 0, applied.stderr);
+  const dict = JSON.parse(fs.readFileSync(path.join(game, "yakusha", "dictionary.json"), "utf8"));
+  assert.equal(dict.entries["フェイリン"].text, "菲琳");
+  assert.equal(dict.entries["フェイリン line 0"].text, "菲琳 line 0");
+});
+
+test("cli: terms --dry-run reports without writing", () => {
+  const game = tempGame();
+  writeDictionary(game, miningRows("ゴブリン", "哥布林", "哥布林"));
+  const file = path.join(game, "yakusha", "glossary.json");
+  const result = run(["terms", game, "--write", file, "--dry-run", "--json"]);
+  assert.equal(result.code, 0, result.stderr);
+  assert.equal(JSON.parse(result.stdout).written, null);
+  assert.equal(fs.existsSync(file), false);
+});
+
+test("cli: terms needs a dictionary first", () => {
+  const game = tempGame();
+  const result = run(["terms", game]);
+  assert.notEqual(result.code, 0);
+  assert.match(result.stderr, /no dictionary yet/);
+});
+
