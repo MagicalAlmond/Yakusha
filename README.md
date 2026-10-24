@@ -51,7 +51,7 @@ RPG Maker 的文本全部在 `data/*.json` 里：数据库条目（道具、技�
 git clone https://github.com/<you>/yakusha
 cd yakusha
 node --version   # 需要 22 或更高
-npm test         # 122 个测试，应该全绿
+npm test         # 133 个测试，应该全绿
 ```
 
 无第三方运行时依赖。
@@ -169,22 +169,32 @@ node bin/yakusha.js translate "/games/MyGame" --glossary my-terms.json
 | 求生吧！无人岛性存生活♡ | MZ 1.9.0 | 8,752 | |
 | [RPG]催堕的魔法使 | MZ 1.9.0 | 4,018 | |
 | 误入只有雌性的精灵村… | MZ 1.5.0 | 2,295 | **`data/` 单字节 XOR 混淆** |
+| 与傲娇妹妹的治愈日常 | MZ 1.8.0 | 6,797 | **游戏在改名子目录里**（`ツンデレ妹と私の癒しの日常/`） |
 | An Arena RPG of Stripping | MV 1.6.1 | 10,356 | `www/` 子目录 |
 | Hustle Battle Card Gamers | MV 1.6.1 | 14,945 | |
 | 忧郁的安娜 | MV 1.6.1 | 159 | |
 | The Demon King's Reclusive Strategist | MV 1.6.2 | 19,890 | |
+| 一次性交易大师 | MV 1.6.2 | 36,203 | **`data/www/` 浏览器构建** |
 | 魔法少女コノハv2.04 | MV 1.6.2 | 26,240 | 453 个 data 文件 |
 | 常識改変者のいるギルド | MV 1.6.2 | 4,388 | **MV 端到端验收用**（全量翻译 + 运行时截图） |
 | 用时间停止肆意妄为 | MV 1.6.2 | 4,065 | 正文已中文、说话人标记是日文 |
 
-上表 13 款即为本机全量普查结果：MZ 跨 1.3.2–1.9.0、MV 跨 1.6.1–1.6.2，单款 data 文件
-从 28 个到 453 个，合计 216,165 条唯一串 / 423,499 次出现，`undecodable` 全程为 0。
-`install`/`uninstall` 在其中 4 款上做过往返验证，`plugins.js` 均逐字节还原。
+上表 15 款即为本机全量普查结果：MZ 跨 1.3.2–1.9.0、MV 跨 1.6.1–1.6.2，单款 data 文件
+从 27 个到 453 个，合计 259,165 条唯一串 / 475,001 次出现，`undecodable` 全程为 0。
+`install`/`uninstall` 在其中 6 款上做过往返验证，`plugins.js` 均逐字节还原。
+
+**游戏根目录不必正好指对。** 分发出来的游戏布局五花八门：有的外面套一层 `www/`
+（MV 常见），有的把真正的游戏放进一个改名子目录，还有的额外带一份 `data/www/`
+浏览器构建。`findProjectRoot` 会从你给的目录往下**有界搜索**（最多 3 层，跳过
+`node_modules`、`img`、`audio` 这类资源目录），找到最浅的那一个；如果同一层有两个
+游戏，它会报错并列出候选，而不是随便挑一个。
 
 **加密的 `data/`**：有些 MZ 游戏把 JSON 单字节 XOR 掉了（每文件一个 key，键值由
 `libGLESv2.dll` 的 sha256 推出来）。`src/core/datafile.js` 的做法是：先按明文试，
 失败后**穷举 256 个单字节 key**，只有真的能 `JSON.parse` 且以 `[`/`{` 开头才接受；
 解不出的文件不会静默跳过，会进 `undecodable` 列表并在 `scan` 里报出来。
+0 字节的占位文件（有些游戏会留一个空的 `结果.json`）算 `empty` 而不算 `undecodable`，
+因为它本来就没有文本可丢。
 
 不支持的：XP/VX/VX Ace（`.rxdata` 二进制）、Unity/Godot/Kirikiri/Ren'Py 等其它引擎。
 
@@ -286,8 +296,8 @@ install:
 ```
 bin/yakusha.js            CLI，六个命令
 src/core/textkey.js      转义码分词 / 归一化 / 校验
-src/core/datafile.js     数据文件解码（明文 / 单字节 XOR）
-src/core/mzproject.js    项目发现、System.json 读取
+src/core/datafile.js     数据文件解码（明文 / 单字节 XOR / 空白占位）
+src/core/mzproject.js    项目发现（向下 3 层搜索）、System.json 读取
 src/core/fields.js       字段表与指令表（纯数据，会嵌进插件）
 src/core/extract.js      遍历 data/ 抽出所有可译文本
 src/core/dict.js         字典读写
@@ -297,7 +307,7 @@ src/pipeline/provider.js OpenAI 兼容 + mock provider
 src/pipeline/translate.js 批处理、校验、重试、术语表
 src/pipeline/wrap.js     按显示宽度折行（MZ/MV 不会横向自动换行）
 src/plugin/YAKUSHA_Translator.js  运行时插件模板（install 时注入规则表）
-test/                    122 个测试（含 CLI 端到端）
+test/                    133 个测试（含 CLI 端到端）
 ```
 
 ## 设计约束

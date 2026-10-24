@@ -59,7 +59,9 @@ export function extractProject(projectRoot) {
   for (const file of readDataDir(dataDir)) {
     result.encodings[file.encoding] = (result.encodings[file.encoding] || 0) + 1;
     if (file.data === null) {
-      result.undecodable.push(file.name);
+      // A zero byte placeholder holds no text at all; only a file that really
+      // has content we cannot read is worth reporting to the user.
+      if (file.encoding !== "empty") result.undecodable.push(file.name);
       continue;
     }
     const name = file.name;

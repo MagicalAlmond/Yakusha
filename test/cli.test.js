@@ -171,3 +171,24 @@ test("cli: a directory that is not a game fails politely", () => {
   assert.notEqual(result.code, 0);
   assert.match(result.stderr, /not an RPG Maker project/);
 });
+
+test("cli: a game nested in a subfolder is found from the parent", () => {
+  const outer = fs.mkdtempSync(path.join(os.tmpdir(), "yakusha-outer-"));
+  const inner = path.join(outer, "the game");
+  fs.cpSync(FIXTURE, inner, { recursive: true });
+  const result = run(["scan", outer, "--json"]);
+  assert.equal(result.code, 0, result.stderr);
+  const summary = JSON.parse(result.stdout);
+  assert.equal(summary.ok, true);
+  assert.equal(path.resolve(summary.root), path.resolve(inner));
+  assert.equal(summary.uniqueStrings, 32);
+});
+
+test("cli: two games in one folder ask for a specific one", () => {
+  const outer = fs.mkdtempSync(path.join(os.tmpdir(), "yakusha-many-"));
+  fs.cpSync(FIXTURE, path.join(outer, "a"), { recursive: true });
+  fs.cpSync(FIXTURE, path.join(outer, "b"), { recursive: true });
+  const result = run(["scan", outer]);
+  assert.notEqual(result.code, 0);
+  assert.match(result.stderr, /found 2 RPG Maker projects/);
+});

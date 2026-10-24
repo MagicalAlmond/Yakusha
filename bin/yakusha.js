@@ -369,6 +369,9 @@ const commands = {
 const USAGE = [
   "yakusha <command> <game-dir> [options]",
   "",
+  "  <game-dir> may be the game itself or any folder up to 3 levels above it;",
+  "  the project root is discovered automatically.",
+  "",
   "  scan       report what is translatable",
   "  extract    build/refresh yakusha/dictionary.json",
   "  status     show translation progress",

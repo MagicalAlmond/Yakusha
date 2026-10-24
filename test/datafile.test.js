@@ -47,8 +47,15 @@ test("garbage is reported instead of returning a bogus document", () => {
   assert.ok(r.error);
 });
 
-test("an empty file reports an error", () => {
+test("an empty file is empty, not undecodable", () => {
   const r = decodeBuffer(Buffer.alloc(0));
   assert.equal(r.data, null);
-  assert.ok(r.error);
+  assert.equal(r.encoding, "empty");
+  assert.equal(r.error, undefined);
+});
+
+test("a whitespace only file counts as empty too", () => {
+  const r = decodeBuffer(Buffer.from("\r\n  \t\r\n", "utf8"));
+  assert.equal(r.encoding, "empty");
+  assert.equal(r.error, undefined);
 });

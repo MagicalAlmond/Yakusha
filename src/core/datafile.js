@@ -19,7 +19,7 @@ import path from "node:path";
 /**
  * @typedef {object} DecodedData
  * @property {any} data parsed document, or null when decoding failed
- * @property {string} encoding "json" | "xor"
+ * @property {string} encoding "json" | "xor" | "empty"
  * @property {number} [key] single byte XOR key, when encoding is "xor"
  * @property {string} [error] reason the file could not be decoded
  */
@@ -49,11 +49,24 @@ export function readDataFile(file) {
  * @returns {DecodedData}
  */
 export function decodeBuffer(buffer) {
+  // Some shipped games ship a 0 byte placeholder (a dev leftover such as
+  // "结果.json"). It holds no text, so it is empty rather than
+  // undecodable - reporting it as a decode failure only creates noise.
+  if (isBlank(buffer)) return { data: null, encoding: "empty" };
   const plan = attemptPlain(buffer);
   if (plan.data !== null) return plan;
   const xor = attemptXor(buffer);
   if (xor.data !== null) return xor;
   return { data: null, encoding: plan.encoding, error: "not plain JSON and no single byte XOR key parses" };
+}
+
+/** @param {Buffer | Uint8Array} buffer */
+function isBlank(buffer) {
+  for (let i = 0; i < buffer.length; i += 1) {
+    const byte = buffer[i];
+    if (byte !== 0x20 && byte !== 0x09 && byte !== 0x0a && byte !== 0x0d && byte !== 0x00) return false;
+  }
+  return true;
 }
 
 function attemptPlain(buffer) {
