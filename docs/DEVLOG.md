@@ -1,7 +1,7 @@
 # 开发交接文档（DEVLOG）
 
 > 这份文档记录**阶段目标、已完成项、决策理由和下一步**，随开发进程更新。
-> 最后更新：2026-10-25（0.3.0 + 3 个后续提交，134 个测试全绿）。
+> 最后更新：2026-10-25（0.4.0，新增 `verify`，159 个测试全绿）。
 
 ## 1. 项目目标（用户原话）
 
@@ -21,8 +21,8 @@
 
 | 项 | 状态 |
 | --- | --- |
-| 版本 | 0.3.0（package.json），另有 3 个未发版的后续提交 |
-| 测试 | **134 个，全绿**（`npm test`，约 1.9s） |
+| 版本 | 0.4.0（package.json） |
+| 测试 | **159 个，全绿**（`npm test`，约 2.6s） |
 | 支持引擎 | RPG Maker **MZ 1.3.2–1.9.0**、**MV 1.6.1–1.6.2** |
 | 实测游戏 | 15 款可识别（本机全量普查），其中 3 款全量翻译 + 运行时验收 |
 | 磁盘改动 | 只加 1 个插件文件 + `plugins.js` 里 1 条注册，卸载逐字节还原 |
@@ -52,11 +52,13 @@
       换行数、长度比、`U+FFFD`。**不合格绝不写伪造译文**，只记 `entry.error`。
 - [x] 折行（`--max-length`）：按显示列宽（全角 2 列），标点断行 + 禁则处理（`！？` 不落到行首），
       转义码宽度算 0 且不拆开；对已翻完的字典可重复执行回填（`--no-rewrap` 关闭）。
+- [x] 发布前自检（`verify`）：把人工审计脚本产品化，只读不写，8 类问题分 error/warn 两档。
+      实测三款跑完的游戏上 error 全为 0，见第 6 节。
 
 ## 4. 文件地图
 
 ```
-bin/yakusha.js             CLI（scan / extract / status / translate / install / uninstall）
+bin/yakusha.js             CLI（scan / extract / status / translate / verify / install / uninstall）
 src/core/fields.js        字段表与指令表（纯数据，会嵌进插件）
 src/core/mzproject.js     项目发现（向下 3 层）、System.json 读取
 src/core/datafile.js      数据文件解码（明文 / 单字节 XOR / 空白占位）
@@ -68,8 +70,9 @@ src/core/install.js       安装 / 卸载
 src/pipeline/provider.js  OpenAI 兼容 + mock provider
 src/pipeline/translate.js 批处理、校验、重试、术语表
 src/pipeline/wrap.js      按显示宽度折行（MZ/MV 不会横向自动换行）
+src/pipeline/verify.js    译文体检（残留假名 / 原样回显 / 转义码 / 占位符 / 超宽行）
 src/plugin/YAKUSHA_Translator.js  运行时插件模板（install 时注入规则表）
-test/                     134 个测试（含 CLI 端到端）
+test/                     159 个测试（含 CLI 端到端）
 ```
 
 ## 5. 关键决策与理由（改代码前请先读这一节）
@@ -84,6 +87,8 @@ test/                     134 个测试（含 CLI 端到端）
 | **折行放在校验之后** | 模型输出仍逐字比对；折行是本地排版，不该被拉进校验闸门。 |
 | **换行数闸门不放宽** | 曾为兼容折行试过 `b < a`，最后回退成严格相等——闸门一旦被扭曲，后面所有校验都不可信。 |
 | **重写 `plugins.js` 保留原形状** | 有的游戏带尾逗号、有的不带，有的 CRLF。整文件重排会让一次安装变成全文件 diff。 |
+| **`verify` 区分 error / warn，只有 error 让命令失败** | 发布前需要一条能过的判定线。原样回显、转义码损坏、占位符丢失会让玩家看到错内容，必须拦；残留 `ッ`、多一个换行、超宽行是风格问题，拦下来只会让人关掉检查。 |
+| **`verify` 的假名判据排除 `・` 和 `ー`** | U+30FB / U+30FC 在中译文里是正常标点，早期审计脚本把 `睡眠・沈黙` 判成未翻译，一款误报 22 条、最大的那款误报 135 条（真值 106）。这类阈值一旦定错，整个命令就没人信了。 |
 
 ## 6. 实测数据（可复现的基准）
 
@@ -119,6 +124,20 @@ test/                     134 个测试（含 CLI 端到端）
 
 残留全部是**校验闸门正确拒收**，不是 bug。
 
+### verify 在三款已翻译游戏上的实测（0.4.0）
+
+| 游戏 | translated | error | warn | warn 构成 |
+| --- | --- | --- | --- | --- |
+| 格闘娘はお金が無い！ (MZ) | 38,042 | **0** | 169 | kana 106（拟声词里的 `ッ`）、lines 61（中文比日文短，模型主动断行）、rejected 2 |
+| 常識改変者のいるギルド (MV) | 4,387 | **0** | 1 | rejected 1 |
+| 用时间停止肆意妄为 (MV) | 4,064 | **0** | 1 | rejected 1 |
+
+加 `--max-length 48` 后再跑：格闘娘多出 width 388（这些条目当初没带 `--max-length` 翻译，
+重跑一次 `translate --max-length 48` 就能回填折行），另两款分别只多 3 / 5 条。
+
+格闘娘那 61 条 lines 全部是 `0 -> 1`（原文一行，模型为了可读性断成两行），不是文字损坏；
+`--max-length` 的折行本来就会改写换行，所以这条判定只能是 warn。
+
 ### 其它基准
 
 - 术语表 127 条只占唯一数 0.3%，但覆盖 **18.4%** 的出现次数；要覆盖 42% 得进前 5000 条 → 长尾极重，机器翻译必须跑全量。
@@ -136,17 +155,21 @@ test/                     134 个测试（含 CLI 端到端）
 5. 老 MV（2019/2020 的 nw.js）不吃 `--remote-debugging-port`，MV 的运行时取证不能靠 CDP。
 6. 有些 MV 游戏把说话人写成 `\N<名字>`（插件自定义标记，非 RPG Maker 转义码），译文必须原样保留。
 7. 不支持 XP/VX/VX Ace（`.rxdata` 二进制）、Unity / Godot / Kirikiri / Ren'Py 等其它引擎。
+8. `verify` 只看字典里的结构性问题（回显 / 转义码 / 占位符 / 换行 / 宽度 / 假名残留），
+   看不出风格、人名一致性和上下文是否贴切；那部分仍需人工抽读。
+9. `verify` 的 width 档只在显式传 `--max-length` 时才有意义——不传就不知道窗口宽度该是多少。
 
 ## 8. 下一步（backlog，按优先级）
 
 1. **push 到 GitHub**（用户说过"顶多公布到 github"，但还没要求立即推送）。
-2. 可选：把「官中游戏不必全量翻」写成 README 里的分步建议（判据已定、数据在第 6 节、
+2. 可选：给 `verify` 加 `--write-report <file>`，把结果落成 markdown 便于贴 issue。
+3. 可选：把「官中游戏不必全量翻」写成 README 里的分步建议（判据已定、数据在第 6 节、
    说明已在 README「已经是目标语言的游戏不必全量翻」段；还缺一条 `--limit` 抽样看拒绝率的具体命令示例）。
-3. 可选：给 `translate` 加 `--only-context` 的多值支持（现在只能传一个位置子串）。
-4. 可选：把运行时截图驱动脚本（CDP 解冻 / readPixels 回读 / 冻结后原子渲染）整理成
+4. 可选：给 `translate` 加 `--only-context` 的多值支持（现在只能传一个位置子串）。
+5. 可选：把运行时截图驱动脚本（CDP 解冻 / readPixels 回读 / 冻结后原子渲染）整理成
    `tools/` 下的取证工具，便于以后验收新游戏时复用。**注意：这类脚本会碰游戏进程，
    不建议随工具分发，只作开发期验证用。**
-5. 可选：MV 老 nw 的运行时取证目前靠临时注入脚本，如果能找到不注入的办法（例如日志钩子）更好。
+6. 可选：MV 老 nw 的运行时取证目前靠临时注入脚本，如果能找到不注入的办法（例如日志钩子）更好。
 
 ## 9. 继续工作的方法
 
@@ -166,6 +189,10 @@ node bin/yakusha.js translate "D:/H/Games/<game>" --concurrency 4 --batch-size 4
 # 离线全套验证（不联网）
 node bin/yakusha.js translate "D:/H/Games/<game>" --dry-run --limit 50
 node bin/yakusha.js translate "D:/H/Games/<game>" --glossary-only
+
+# 发布前自检（只读）
+node bin/yakusha.js verify "D:/H/Games/<game>" --max-length 48
+node bin/yakusha.js verify "D:/H/Games/<game>" --kind echo,codes,slots --json
 
 # 装 / 卸
 node bin/yakusha.js install   "D:/H/Games/<game>"

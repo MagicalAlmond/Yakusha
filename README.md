@@ -51,12 +51,12 @@ RPG Maker 的文本全部在 `data/*.json` 里：数据库条目（道具、技�
 git clone https://github.com/<you>/yakusha
 cd yakusha
 node --version   # 需要 22 或更高
-npm test         # 134 个测试，应该全绿
+npm test         # 159 个测试，应该全绿
 ```
 
 无第三方运行时依赖。
 
-## 四步上手
+## 上手步骤
 
 以游戏目录 `/games/MyGame` 为例。
 
@@ -132,6 +132,37 @@ node bin/yakusha.js uninstall "/games/MyGame"   # 完全还原
 
 `uninstall` 会删掉插件文件、清掉 `$plugins` 里的条目，并从备份复原 `plugins.js`；
 测试里验证过**逐字节一致**。
+
+### 5. 发布前自检
+
+```bash
+node bin/yakusha.js verify "/games/MyGame"
+```
+
+字典会被逐条体检，只读不写。问题分两档：`error` 会让命令以失败退出（
+`--json` 里 `ok:false`），`warn` 只提示、退出码仍是 0。
+
+| 类型 | 档位 | 含义 |
+| --- | --- | --- |
+| `echo` | error | 译文与日文原文完全相同（模型原样回显） |
+| `codes` | error | 转义码与原文不一致 |
+| `slots` | error | `%1` `%2` 占位符被丢弃或改名 |
+| `kana` | warn | 译文里还残留假名（多为拟声词里的 `ッ`） |
+| `lines` | warn | 换行数与原文不同（`--max-length` 会主动改写） |
+| `width` | warn | 单行超过 `--max-length` 指定的列数 |
+| `no-text` | warn | 原文有汉字、译文一个汉字都没有（词被吃掉了） |
+| `rejected` | warn | 流水线放弃的条目，运行时显示原文 |
+
+```bash
+node bin/yakusha.js verify "/games/MyGame" --max-length 48      # 顺带查超宽行
+node bin/yakusha.js verify "/games/MyGame" --kind echo,codes    # 只看致命项
+node bin/yakusha.js verify "/games/MyGame" --json --limit 500   # 机器可读，全量列出
+```
+
+判据是踩过坑之后定下来的，改之前请先读 `src/pipeline/verify.js` 顶部的注释：
+`・`（U+30FB）和 `ー`（U+30FC）**不算**假名（它们在中译文里是正常标点，早期版本
+把 `睡眠・沈黙` 判成未翻译，是最大的假阳性来源）；`MAP001`、`ＨＰ` 这类必须原样保留
+的标签不会被报；整行拟声词（`ッ…♡♡♡`）不会被要求出现汉字。
 
 ## 术语表（glossary）
 
@@ -266,6 +297,7 @@ yakusha <command> <game-dir> [options]
   extract     建/刷新 yakusha/dictionary.json
   status      查看翻译进度
   translate   调 LLM 填字典
+  verify      体检字典（发布前自检）
   install     装运行时插件
   uninstall   卸载并还原
 
@@ -286,6 +318,12 @@ translate:
   --dry-run           用 mock provider 且不落盘
   --glossary-only     只应用术语表，不联网
 
+verify:
+  --kind <list>       只报这些类型，逗号分隔
+                      （kana / echo / codes / slots / lines / width / no-text / rejected）
+  --max-length <n>    同时检查超过 n 显示列的行
+  --limit <n>         最多打印多少条（默认 20）
+
 install:
   --embed             把译文嵌进插件文件（离线分发用）
 
@@ -303,7 +341,7 @@ install:
 ## 目录结构
 
 ```
-bin/yakusha.js            CLI，六个命令
+bin/yakusha.js            CLI，七个命令
 src/core/textkey.js      转义码分词 / 归一化 / 校验
 src/core/datafile.js     数据文件解码（明文 / 单字节 XOR / 空白占位）
 src/core/mzproject.js    项目发现（向下 3 层搜索）、System.json 读取
@@ -315,8 +353,9 @@ src/core/install.js      安装 / 卸载
 src/pipeline/provider.js OpenAI 兼容 + mock provider
 src/pipeline/translate.js 批处理、校验、重试、术语表
 src/pipeline/wrap.js     按显示宽度折行（MZ/MV 不会横向自动换行）
+src/pipeline/verify.js   译文体检（残留假名 / 原样回显 / 转义码 / 占位符 / 超宽行）
 src/plugin/YAKUSHA_Translator.js  运行时插件模板（install 时注入规则表）
-test/                    134 个测试（含 CLI 端到端）
+test/                    159 个测试（含 CLI 端到端）
 ```
 
 ## 设计约束
@@ -347,6 +386,10 @@ test/                    134 个测试（含 CLI 端到端）
 - 有些 MV 游戏把说话人写成 `\N<名字>` 这种插件自定义标记（不是 RPG Maker 转义码），
   译文必须原样保留；`validateTranslation` 会把这类标记剥掉后判断"是否真的还有日文"，
   否则「正文已中文、只有名字是日文」的行会被误判成未翻译而永久拒收。
+- **`verify` 只查字典能查的东西**：译文风格、人名是否统一、和剧情上下文是否吻合，
+  这些它看不出来；它只保证没有结构性缺陷（原样回显、转义码损坏、占位符丢失、超宽行）。
+  实测在三款跑完的游戏上，`echo`/`codes`/`slots` 三类致命项**都是 0**，
+  留下的 `kana` 全是拟声词里故意保留的 `ッ`（格闘娘 106 条，占 0.28%）。
 
 ## 许可
 

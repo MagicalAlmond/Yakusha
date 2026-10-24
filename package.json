@@ -1,6 +1,6 @@
 {
   "name": "yakusha",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Non-invasive runtime translation toolkit for RPG Maker MZ and MV games",
   "type": "module",
   "bin": {
@@ -20,7 +20,8 @@
     "rpgmaker-mv",
     "translation",
     "localization",
-    "llm"
+    "llm",
+    "translation-audit"
   ],
   "license": "GPL-3.0-or-later",
   "files": [

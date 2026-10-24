@@ -15,7 +15,7 @@
  * @module pipeline/translate
  */
 
-import { controlCodes } from "../core/textkey.js";
+import { controlCodes, visibleText } from "../core/textkey.js";
 import { wrapText } from "./wrap.js";
 
 /**
@@ -302,12 +302,7 @@ function pickTranslation(item) {
  * @returns {boolean}
  */
 export function hasKanaOutsideMarkup(text) {
-  const bare = String(text)
-    .replace(/<[^>]*>/g, "")
-    .replace(/\\[A-Za-z]+(\[[0-9]+\])?/g, "")
-    .replace(/\\[^A-Za-z0-9]/g, "")
-    .replace(/\\/g, "");
-  return /[\u3040-\u30ff]/.test(bare);
+  return /[\u3040-\u30ff]/.test(visibleText(text));
 }
 
 /**

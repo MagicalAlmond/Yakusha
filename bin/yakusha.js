@@ -7,6 +7,7 @@
  *   extract    <game-dir>                 write yakusha/dictionary.json with empty targets
  *   status     <game-dir>                 translation progress
  *   translate  <game-dir>                 fill the dictionary through an LLM
+ *   verify     <game-dir>                 audit the dictionary for bad entries
  *   install    <game-dir>                 copy the runtime plugin into the game
  *   uninstall  <game-dir>                 remove the plugin and restore plugins.js
  *
@@ -28,6 +29,7 @@ import { installPlugin, uninstallPlugin, isInstalled } from "../src/core/install
 import { stripCodes } from "../src/core/textkey.js";
 import { createProvider } from "../src/pipeline/provider.js";
 import { translateDictionary } from "../src/pipeline/translate.js";
+import { verifyDictionary } from "../src/pipeline/verify.js";
 
 /**
  * Split argv into flags and positionals. A flag consumes the next argument as
@@ -198,6 +200,42 @@ async function cmdStatus(dir) {
   if (withError > 0) console.log("rejected  : " + withError + " (see the error field of those entries)");
 }
 
+async function cmdVerify(dir) {
+  const project = requireProject(dir);
+  const { file, data } = requireDictionary(project);
+  const maxColumns = numberFlag("max-length", 0);
+  const kinds = typeof flags.kind === "string" ? flags.kind.split(",").map((k) => k.trim()).filter(Boolean) : undefined;
+  const result = verifyDictionary(data, { maxColumns, kinds });
+  const shown = numberFlag("limit", 20);
+  const summary = { ok: result.errors === 0, file, maxColumns, ...result, problems: undefined };
+  if (json) {
+    process.stdout.write(JSON.stringify({ ...summary, problems: result.problems }, null, 2) + "\n");
+    return;
+  }
+  console.log("entries   : " + result.total + " (" + result.translated + " translated, " + result.pending + " pending)");
+  if (result.rejected > 0) console.log("rejected  : " + result.rejected + " (see the error field of those entries)");
+  if (result.problems.length === 0) {
+    console.log("problems  : none");
+    return;
+  }
+  const kindsSeen = Object.keys(result.counts).sort();
+  console.log(
+    "problems  : " +
+      result.problems.length +
+      " (" +
+      kindsSeen.map((k) => k + " " + result.counts[k]).join(", ") +
+      ")"
+  );
+  for (const problem of result.problems.slice(0, shown)) {
+    console.log("  [" + problem.severity + "] " + problem.kind + " " + JSON.stringify(problem.key).slice(0, 58));
+    console.log("        " + problem.detail);
+  }
+  if (result.problems.length > shown) {
+    console.log("  ... " + (result.problems.length - shown) + " more, raise --limit or pass --json");
+  }
+  console.log(result.errors > 0 ? "result    : FAILED, " + result.errors + " error(s)" : "result    : OK with " + result.warnings + " warning(s)");
+}
+
 async function cmdTranslate(dir) {
   const project = requireProject(dir);
   const { file, data } = requireDictionary(project);
@@ -362,6 +400,7 @@ const commands = {
   extract: cmdExtract,
   status: cmdStatus,
   translate: cmdTranslate,
+  verify: cmdVerify,
   install: cmdInstall,
   uninstall: cmdUninstall,
 };
@@ -376,6 +415,7 @@ const USAGE = [
   "  extract    build/refresh yakusha/dictionary.json",
   "  status     show translation progress",
   "  translate  fill the dictionary through an LLM",
+  "  verify     audit the dictionary for bad entries",
   "  install    install the runtime plugin into the game",
   "  uninstall  remove the runtime plugin",
   "",
@@ -393,6 +433,12 @@ const USAGE = [
   "  --max-length <cols> wrap translated lines wider than n display columns (0 = off)",
   "  --dry-run           use the mock provider and do not save",
   "  --glossary-only     apply --glossary and never call a model",
+  "",
+  "verify options:",
+  "  --kind <list>       only report these kinds, comma separated",
+  "                      (kana, echo, codes, slots, lines, width, no-text, rejected)",
+  "  --max-length <cols> also report lines wider than n display columns",
+  "  --limit <n>         how many problems to print (default 20)",
   "",
   "install options:",
   "  --embed             embed the translations into the plugin file",

@@ -189,3 +189,23 @@ export function splitLines(text) {
 export function visibleLength(text) {
   return stripCodes(text).length;
 }
+
+/**
+ * The characters a player actually reads: escape codes and inline markup removed.
+ *
+ * Several MV games write the speaker inside the line ("\N<ひなた>“好开心♡”").
+ * That tag is not an RPG Maker escape code, so tokenize() hands it back as text;
+ * dropping the angle-bracketed part here keeps a speaker name from being mistaken
+ * for story text by the language checks in pipeline/verify.js.
+ *
+ * @param {string} text
+ * @returns {string}
+ */
+export function visibleText(text) {
+  if (typeof text !== "string") return "";
+  return tokenize(text)
+    .filter((tok) => tok.t === "text")
+    .map((tok) => tok.v)
+    .join("")
+    .replace(/<[^>]*>/g, "");
+}

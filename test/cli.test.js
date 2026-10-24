@@ -192,3 +192,59 @@ test("cli: two games in one folder ask for a specific one", () => {
   assert.notEqual(result.code, 0);
   assert.match(result.stderr, /found 2 RPG Maker projects/);
 });
+
+test("cli: verify reports problems and sets ok from the error count", () => {
+  const game = tempGame();
+  assert.equal(run(["extract", game]).code, 0);
+  const file = path.join(game, "yakusha", "dictionary.json");
+  const dict = JSON.parse(fs.readFileSync(file, "utf8"));
+  dict.entries["ポーション"].text = "药水";
+  // An echo of a Japanese source is the defect that must fail a release.
+  const echoed = Object.keys(dict.entries).find((key) => key !== "ポーション" && /[\u3041-\u3096\u30a1-\u30fa]/.test(key));
+  assert.equal(typeof echoed, "string");
+  dict.entries[echoed].text = echoed;
+  fs.writeFileSync(file, JSON.stringify(dict, null, 2) + "\n", "utf8");
+
+  const result = run(["verify", game, "--json"]);
+  assert.equal(result.code, 0, result.stderr);
+  const summary = JSON.parse(result.stdout);
+  assert.equal(summary.ok, false);
+  assert.equal(summary.translated, 2);
+  assert.equal(summary.errors, 1);
+  assert.equal(summary.counts.echo, 1);
+  assert.equal(path.resolve(summary.file), path.resolve(file));
+});
+
+test("cli: verify on a dictionary with no translations is clean", () => {
+  const game = tempGame();
+  assert.equal(run(["extract", game]).code, 0);
+  const result = run(["verify", game, "--json"]);
+  assert.equal(result.code, 0, result.stderr);
+  const summary = JSON.parse(result.stdout);
+  assert.equal(summary.ok, true);
+  assert.deepEqual(summary.problems, []);
+  assert.equal(summary.translated, 0);
+});
+
+test("cli: verify --kind limits the report to one kind", () => {
+  const game = tempGame();
+  assert.equal(run(["extract", game]).code, 0);
+  const file = path.join(game, "yakusha", "dictionary.json");
+  const dict = JSON.parse(fs.readFileSync(file, "utf8"));
+  const key = Object.keys(dict.entries).find((k) => /[\u3041-\u3096\u30a1-\u30fa]/.test(k));
+  dict.entries[key].text = key;
+  fs.writeFileSync(file, JSON.stringify(dict, null, 2) + "\n", "utf8");
+
+  const kana = JSON.parse(run(["verify", game, "--kind", "kana", "--json"]).stdout);
+  assert.equal(kana.counts.echo, undefined);
+  assert.equal(kana.counts.kana >= 1, true);
+  const echo = JSON.parse(run(["verify", game, "--kind=echo", "--json"]).stdout);
+  assert.deepEqual(echo.counts, { echo: 1 });
+});
+
+test("cli: verify needs a dictionary first", () => {
+  const game = tempGame();
+  const result = run(["verify", game]);
+  assert.notEqual(result.code, 0);
+  assert.match(result.stderr, /no dictionary yet/);
+});
