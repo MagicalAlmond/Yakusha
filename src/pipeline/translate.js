@@ -40,7 +40,7 @@ import { wrapText } from "./wrap.js";
  * @property {number} [charBudget]
  * @property {number} [concurrency]
  * @property {number} [limit]
- * @property {string} [onlyContext]
+ * @property {string|string[]} [onlyContext] one context substring, or several
  * @property {number} [maxLengthRatio]
  * @property {number} [minLengthRatio]
  * @property {number} [maxColumns] wrap lines wider than this many display columns
@@ -61,18 +61,22 @@ import { wrapText } from "./wrap.js";
  * balanced, which keeps the model from rushing the tail of a request.
  *
  * @param {import("../core/dict.js").Dictionary} dict
- * @param {{ limit?: number, onlyContext?: string, minLength?: number }} [options]
+ * @param {{ limit?: number, onlyContext?: string|string[], minLength?: number }} [options]
  * @returns {PendingItem[]}
  */
 export function selectPending(dict, options = {}) {
   const out = [];
-  const only = options.onlyContext || null;
+  // Several --context values are ORed: filtering to "Map" alone cannot express
+  // "the dialogue windows and the item descriptions, but not the system terms".
+  const raw = options.onlyContext;
+  const only = (Array.isArray(raw) ? raw : [raw])
+    .filter((value) => typeof value === "string" && value.length > 0);
   const minLength = options.minLength || 0;
   for (const key of Object.keys(dict.entries)) {
     const entry = dict.entries[key];
     if (entry.text) continue;
     if (key.length < minLength) continue;
-    if (only && !entry.contexts.some((c) => c.includes(only))) continue;
+    if (only.length > 0 && !entry.contexts.some((c) => only.some((part) => c.includes(part)))) continue;
     out.push({ key, contexts: entry.contexts });
   }
   out.sort((a, b) => b.key.length - a.key.length);

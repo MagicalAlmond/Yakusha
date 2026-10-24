@@ -37,9 +37,25 @@ import { mineTerms, toGlossary } from "../src/pipeline/terms.js";
  * Split argv into flags and positionals. A flag consumes the next argument as
  * its value unless that argument looks like another flag.
  *
+ * Flags listed in REPEATABLE collect every occurrence into an array instead of
+ * overwriting, so "--context Map --context Items" means either one.
+ *
  * @param {string[]} argv
  * @returns {{ flags: Record<string, string|boolean>, positional: string[] }}
  */
+const REPEATABLE = new Set(["context"]);
+
+function setFlag(flags, name, value) {
+  if (!REPEATABLE.has(name)) {
+    flags[name] = value;
+    return;
+  }
+  const previous = flags[name];
+  if (previous === undefined) flags[name] = [value];
+  else if (Array.isArray(previous)) previous.push(value);
+  else flags[name] = [previous, value];
+}
+
 function parseArgs(argv) {
   const flags = {};
   const positional = [];
@@ -48,14 +64,14 @@ function parseArgs(argv) {
     if (arg.startsWith("--")) {
       const eq = arg.indexOf("=");
       if (eq >= 0) {
-        flags[arg.slice(2, eq)] = arg.slice(eq + 1);
+        setFlag(flags, arg.slice(2, eq), arg.slice(eq + 1));
       } else {
         const next = argv[i + 1];
         if (next !== undefined && !next.startsWith("--")) {
-          flags[arg.slice(2)] = next;
+          setFlag(flags, arg.slice(2), next);
           i += 1;
         } else {
-          flags[arg.slice(2)] = true;
+          setFlag(flags, arg.slice(2), true);
         }
       }
     } else if (arg === "-h") {
@@ -83,6 +99,17 @@ function numberFlag(name, fallback) {
   if (raw === undefined || raw === true) return fallback;
   const value = Number(raw);
   return Number.isFinite(value) ? value : fallback;
+}
+
+/**
+ * Turn a (possibly repeated) --context value into the shape selectPending
+ * expects: undefined when absent, a string for the single value case.
+ */
+function normalizeContexts(raw) {
+  if (raw === undefined || raw === true) return undefined;
+  const list = (Array.isArray(raw) ? raw : [raw]).filter((v) => typeof v === "string" && v.length > 0);
+  if (list.length === 0) return undefined;
+  return list.length === 1 ? list[0] : list;
 }
 
 /** @param {string} message */
@@ -388,7 +415,7 @@ async function cmdTranslate(dir) {
     charBudget: numberFlag("char-budget", undefined),
     concurrency: numberFlag("concurrency", undefined),
     limit: numberFlag("limit", undefined),
-    onlyContext: typeof flags.context === "string" ? flags.context : undefined,
+    onlyContext: normalizeContexts(flags.context),
     glossaryOnly,
     overwriteExisting: flags["overwrite"] === true,
     strictCodes: flags["allow-code-drift"] ? false : undefined,
@@ -535,7 +562,8 @@ const USAGE = [
   "  --api-key <key>     API key, defaults to $YAKUSHA_API_KEY or $OPENAI_API_KEY",
   "  --glossary <file>   JSON map of source -> fixed translation",
   "  --limit <n>         translate at most n pending entries",
-  "  --context <text>    only entries whose context contains text",
+  "  --context <text>    only entries whose context contains text; repeat to",
+  "                      accept any of several",
   "  --batch-size <n>    entries per request (default 40)",
   "  --concurrency <n>   parallel requests (default 2)",
   "  --save-every <n>    write the dictionary every n translations (default 200)",

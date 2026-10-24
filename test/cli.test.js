@@ -123,6 +123,20 @@ test("cli: --glossary-only applies a term base without a provider", () => {
   assert.equal(dict.entries["ポーション"].text, "药水");
 });
 
+test("cli: repeating --context widens the filter instead of overwriting it", () => {
+  const game = tempGame();
+  assert.equal(run(["extract", game]).code, 0);
+
+  // Items.json:name and Skills.json:name are disjoint contexts, so a single
+  // value can never select both. The repeated form must union them.
+  const items = JSON.parse(run(["translate", game, "--dry-run", "--context", "Items.json", "--json"]).stdout);
+  const skills = JSON.parse(run(["translate", game, "--dry-run", "--context", "Skills.json", "--json"]).stdout);
+  const both = JSON.parse(run(["translate", game, "--dry-run", "--context", "Items.json", "--context", "Skills.json", "--json"]).stdout);
+  assert.ok(items.translated > 0, "Items.json should match something");
+  assert.ok(skills.translated > 0, "Skills.json should match something");
+  assert.equal(both.translated, items.translated + skills.translated);
+});
+
 test("cli: install then uninstall restores plugins.js byte for byte", () => {
   const game = tempGame();
   const before = fs.readFileSync(path.join(game, "js", "plugins.js"));

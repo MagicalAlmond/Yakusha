@@ -272,6 +272,19 @@ node bin/yakusha.js translate "/games/MyGame" --glossary my-terms.json
 中文的句子会原样回显，随后的"原样回显"闸门把它拒收（记 `error`、保持未翻译），
 不会写进错误译文；想省钱就先用 `--limit` 抽样，看 `status` 的拒绝率再决定。
 
+抽样判断的具体做法（以官方中文游戏为例）：
+
+```bash
+node bin/yakusha.js extract "/games/SomeGame"
+node bin/yakusha.js translate "/games/SomeGame" --limit 200     # 只翻 200 条
+node bin/yakusha.js status "/games/SomeGame"
+```
+
+`status` 里的 `withError` 绝大多数就是"原样回显被拒"的条目。**拒绝率高说明这款游戏
+本来就是中文**——全量跑只会白花 token 并把每一条都记成 `error`，此时直接
+`install` 装插件即可（插件对没翻的条目回退原文，玩家看到的就是官中原文）。
+拒绝率低则说明是日文原版，再跑全量。
+
 **加密的 `data/`**：有些 MZ 游戏把 JSON 单字节 XOR 掉了（每文件一个 key，键值由
 `libGLESv2.dll` 的 sha256 推出来）。`src/core/datafile.js` 的做法是：先按明文试，
 失败后**穷举 256 个单字节 key**，只有真的能 `JSON.parse` 且以 `[`/`{` 开头才接受；
@@ -352,7 +365,7 @@ translate:
   --api-key <key>     API key
   --glossary <file>   术语表 JSON
   --limit <n>         最多翻 n 条
-  --context <text>    只翻位置含该文本的条目（如 Map029）
+  --context <text>    只翻位置含该文本的条目（如 Map029）；可重复，任一命中即选
   --batch-size <n>    每请求条数（默认 40）
   --char-budget <n>   每请求字符上限（默认 6000）
   --concurrency <n>   并发数（默认 2）
@@ -411,7 +424,7 @@ src/pipeline/wrap.js     按显示宽度折行（MZ/MV 不会横向自动换行�
 src/pipeline/verify.js   译文体检（残留假名 / 原样回显 / 转义码 / 占位符 / 超宽行）
 src/pipeline/terms.js    名字/术语的主流译法挖掘与漂移检测
 src/plugin/YAKUSHA_Translator.js  运行时插件模板（install 时注入规则表）
-test/                    192 个测试（含 CLI 端到端）
+test/                    194 个测试（含 CLI 端到端）
 ```
 
 ## 设计约束

@@ -44,6 +44,20 @@ test("translate: selectPending filters by context substring", () => {
   assert.deepEqual(selectPending(d, { onlyContext: "Map" }).map((p) => p.key), ["a"]);
 });
 
+test("translate: selectPending accepts several contexts as one OR filter", () => {
+  const d = dictOf({
+    a: { text: "", contexts: ["Map001.json:401"] },
+    b: { text: "", contexts: ["Items.json:name"] },
+    c: { text: "", contexts: ["System.json:terms.basic"] },
+  });
+  assert.deepEqual(selectPending(d, { onlyContext: ["Map", "Items"] }).map((p) => p.key).sort(), ["a", "b"]);
+  // One value still behaves exactly like the old string form.
+  assert.deepEqual(selectPending(d, { onlyContext: ["Map"] }).map((p) => p.key), ["a"]);
+  // An empty array or an array of empty strings filters nothing, same as absent.
+  assert.equal(selectPending(d, { onlyContext: [] }).length, 3);
+  assert.equal(selectPending(d, { onlyContext: [""] }).length, 3);
+});
+
 test("translate: buildBatches respects the item count", () => {
   const items = Array.from({ length: 7 }, (_, i) => ({ key: "x" + i, contexts: [] }));
   const batches = buildBatches(items, { batchSize: 3 });
