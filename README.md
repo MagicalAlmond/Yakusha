@@ -17,8 +17,12 @@ scan  →  extract  →  translate  →  install
 
 ![MV 游戏中的说话人条与多行对白](docs/screenshots/mv-dialogue-multi-line.png)
 
-（前两张实测游戏《格闘娘はお金が無い！》，MZ 1.7.0；第三张实测游戏《常識改変者のいるギルド》，
-MV 1.6.2。均为 DeepSeek 翻译、运行时替换，原图见 [docs/screenshots](docs/screenshots)。）
+![--max-length 折行后的长句](docs/screenshots/wrapped-dialogue.png)
+
+（第 1、2、4 张实测游戏《格闘娘はお金が無い！》，MZ 1.7.0；第 3 张实测游戏
+《常識改変者のいるギルド》，MV 1.6.2。均为 DeepSeek 翻译、运行时替换，原图见
+[docs/screenshots](docs/screenshots)。第 4 张是 `--max-length 54` 折行的效果：日文原句
+一整行会超出窗口宽度被裁，折行后变成两行，断点落在逗号后，下一行没有以标点开头。）
 
 ## 为什么这样做
 
