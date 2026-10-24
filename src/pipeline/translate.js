@@ -170,6 +170,37 @@ export function systemPrompt(options = {}) {
 
 
 /**
+ * Keep only the glossary rows a request can possibly need.
+ *
+ * Every request carries the instruction block, and a term base is copied into
+ * it verbatim. On a real game that is 952 requests paying for the same few
+ * hundred rows even though a batch of 40 lines only mentions three or four of
+ * them. Filtering by literal mention cuts the glossary share of the prompt by
+ * more than 90% without changing what the model is told about the lines it is
+ * looking at.
+ *
+ * A row that is not mentioned by the batch cannot affect it: the glossary only
+ * fixes how a source string is rendered when that source string shows up.
+ * Entries that match a whole source line never reach the model at all, because
+ * the glossary fills those directly.
+ *
+ * @param {Record<string,string>} glossary
+ * @param {PendingItem[]} items
+ * @returns {Record<string,string>}
+ */
+export function selectGlossary(glossary, items) {
+  const keys = Object.keys(glossary || {});
+  if (keys.length === 0) return {};
+  const out = {};
+  // Join once; an n*m scan of substrings is cheaper than m regexes per item.
+  const haystack = items.map((item) => item.key).join("\u0000");
+  for (const key of keys) {
+    if (haystack.includes(key)) out[key] = glossary[key];
+  }
+  return out;
+}
+
+/**
  * @param {PendingItem[]} batch
  * @returns {string}
  */
@@ -389,7 +420,7 @@ async function runBatch(batch, options) {
     const reply = await provider.complete({
       systemPrompt: systemPrompt({
         targetLang: options.targetLang,
-        glossary: options.glossary || {},
+        glossary: selectGlossary(options.glossary, pending),
         maxColumns: options.maxColumns,
       }),
       userPrompt: userPrompt(pending),

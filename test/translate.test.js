@@ -9,6 +9,7 @@ import { mockProvider } from "../src/pipeline/provider.js";
 import {
   selectPending,
   buildBatches,
+  selectGlossary,
   systemPrompt,
   userPrompt,
   parseReply,
@@ -56,6 +57,58 @@ test("translate: buildBatches respects the character budget", () => {
   for (const batch of batches) {
     const chars = batch.reduce((sum, item) => sum + item.key.length + 40, 0);
     assert.ok(chars <= 300 || batch.length === 1);
+  }
+});
+
+test("translate: selectGlossary keeps only the rows a batch mentions", () => {
+  const glossary = { "勇者": "勇士", "魔王": "魔王", "ポーション": "药水" };
+  const items = [{ key: "勇者が来た", contexts: [] }, { key: "村人A", contexts: [] }];
+  assert.deepEqual(selectGlossary(glossary, items), { "勇者": "勇士" });
+});
+
+test("translate: selectGlossary drops everything when nothing matches", () => {
+  assert.deepEqual(selectGlossary({ "勇者": "勇士" }, [{ key: "a", contexts: [] }]), {});
+  assert.deepEqual(selectGlossary({}, [{ key: "勇者", contexts: [] }]), {});
+});
+
+test("translate: selectGlossary does not join the end of one line to the next", () => {
+  // Items are separated so a term can never be "found" by gluing two lines.
+  // Otherwise "ポー" + "ション" would pull in a term that
+  // neither line actually contains.
+  const items = [{ key: "ポー", contexts: [] }, { key: "ションを買う", contexts: [] }];
+  assert.deepEqual(selectGlossary({ "ポーション": "药水" }, items), {});
+});
+
+test("translate: a request only pays for the glossary rows it needs", async () => {
+  // What the provider sees, paired per request: the system prompt must carry
+  // only the terms mentioned by that request's own items.
+  const seen = [];
+  const provider = {
+    name: "spy",
+    async complete({ systemPrompt: sys, userPrompt: user }) {
+      seen.push({ sys, user });
+      return JSON.stringify({ translations: [] });
+    },
+  };
+  const d = dictOf({ "勇者が来た": "", "魔王が来た": "" });
+  await translateDictionary(d, {
+    provider,
+    glossary: { "勇者": "勇士", "魔王": "大魔王", "ポーション": "药水" },
+    batchSize: 1,
+    concurrency: 1,
+    attempts: 1,
+  });
+  assert.equal(seen.length, 2);
+  // Nothing outside the two source lines may leak into any request.
+  assert.equal(seen.every((s) => s.sys.includes("药水") === false), true);
+  for (const { sys, user } of seen) {
+    if (user.includes("勇者")) {
+      assert.match(sys, /勇士/);
+      assert.doesNotMatch(sys, /大魔王/);
+    } else {
+      assert.match(sys, /大魔王/);
+      assert.doesNotMatch(sys, /勇士/);
+    }
   }
 });
 
