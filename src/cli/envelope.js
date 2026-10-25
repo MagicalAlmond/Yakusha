@@ -200,7 +200,8 @@ export function failureFor(error) {
   if (error instanceof CliError) return error;
   const code = error && typeof error === "object" ? error.code : undefined;
   const message = error && typeof error === "object" && error.message ? error.message : String(error);
-  if (typeof code === "string" && /^E_[A-Z][A-Z_]*$/.test(code)) return new CliError(code, message);
+  const details = error && typeof error === "object" ? error.details : undefined;
+  if (typeof code === "string" && /^E_[A-Z][A-Z_]*$/.test(code)) return new CliError(code, message, details);
   if (typeof code === "string" && IO_CODES.has(code)) return new CliError("E_IO", message);
   return new CliError("E_INTERNAL", message);
 }

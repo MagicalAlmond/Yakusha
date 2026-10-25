@@ -119,6 +119,16 @@ verdict   : usable with 2 warning(s)
 node bin/yakusha.js export "/games/MyGame" --out yakusha-export.json
 ```
 
+### 可选：launch 启动游戏
+
+```bash
+node bin/yakusha.js launch "/games/MyGame"
+```
+
+仅 Windows。项目根恰好一个 `.exe` 时直接启动；多个时用 `--exe <name>` 指定
+（只收裸文件名）。启动后工具立即退出，游戏继续运行；子进程环境会删掉
+`YAKUSHA_API_KEY` / `OPENAI_API_KEY`。`attach` 调试注入在 0.10 仍是桩。
+
 ## 命令一览
 
 | 命令 | 作用 |
@@ -135,10 +145,11 @@ node bin/yakusha.js export "/games/MyGame" --out yakusha-export.json
 | `doctor` | 查安装、备份、字典是否还与这版游戏对得上 |
 | `export` | 把已翻译条目导出成 JSON 快照 |
 | `config` | 读写用户级配置（`provider` / `model` / `baseUrl`，不存密钥） |
+| `launch` | 启动项目根的游戏 exe（仅 Windows） |
 
-`launch` 是 0.10 剩余的设计（尚未实现），启动规则见 [docs/engines.md](docs/engines.md) §8。
-`config` 与 `export` 已实现：优先级与文件位置见 [docs/config.md](docs/config.md)，
-导出规则见 [docs/export-format.md](docs/export-format.md)。
+`launch` 已实现（Windows only），启动规则见 [docs/engines.md](docs/engines.md) §8。
+`config`、`export` 与 `launch` 的完整规则分别见 [docs/config.md](docs/config.md)、
+[docs/export-format.md](docs/export-format.md) 与 [docs/engines.md](docs/engines.md)。
 
 完整选项、判据、实测见 [docs/commands.md](docs/commands.md)。
 
@@ -153,7 +164,7 @@ node bin/yakusha.js export "/games/MyGame" --out yakusha-export.json
 ## 目录结构
 
 ```
-bin/yakusha.js            CLI 薄壳，当前十二个命令（launch 在 0.10 后续工作包）
+bin/yakusha.js            CLI 薄壳，当前十三个命令
 src/cli/                  JSON 信封、严格参数解析、用户级配置、JSON 导出
 src/engines/              MZ/MV 适配器与 registry（detect 返回判别式）
 src/index.js              库门面（与 CLI 共用同一套实现）
@@ -193,7 +204,7 @@ docs/                    设计说明、命令参考、契约、实测记录、�
 | [docs/commands.md](docs/commands.md) | 所有命令的完整选项、`verify` 十类判据、`terms`/`speaker` 算法说明 |
 | [docs/architecture.md](docs/architecture.md) | 三层结构（CLI 内核 / Electron 壳 / 引擎适配器）、引擎能力分档、载荷契约、0.10–1.0 分批计划 |
 | [docs/json-contract.md](docs/json-contract.md) | 0.10 契约（已实现）：`--json` 信封、错误码、退出码、严格参数解析、破坏性变更 |
-| [docs/engines.md](docs/engines.md) | 0.10 契约：adapter 契约、能力矩阵、安装/卸载（已实现）；launch / attach 边界 |
+| [docs/engines.md](docs/engines.md) | 0.10 契约：adapter、能力矩阵、安装/卸载、launch（已实现）；attach 桩 |
 | [docs/config.md](docs/config.md) | 0.10 实现：用户级配置、密钥优先级与威胁模型（不落盘） |
 | [docs/export-format.md](docs/export-format.md) | 0.10 实现：JSON 导出格式、排序、原子写与覆盖规则 |
 | [docs/platforms.md](docs/platforms.md) | 平台支持矩阵与决策记录（Windows-only 的原因与重评条件） |

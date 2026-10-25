@@ -15,6 +15,7 @@
  *   doctor     <game-dir>                 is the install and the dictionary healthy?
  *   config                                read or write the user level config
  *   export     <game-dir>                 write a JSON snapshot of the translations
+ *   launch     <game-dir>                 start the game's .exe (Windows only)
  *
  * Every command prints one JSON envelope when --json is passed, and prints a
  * human summary otherwise. Usage errors are reported as E_USAGE with exit code
@@ -725,6 +726,17 @@ async function cmdExport(dir) {
   return done;
 }
 
+async function cmdLaunch(dir) {
+  const { project, adapter } = requireProject(dir);
+  const result = await adapter.launch(project, { exe: flags.exe });
+  const payload = { root: result.root, exe: result.exe, pid: result.pid };
+  const done = { payload };
+  if (json) return done;
+  console.log("launched  : " + result.exe);
+  console.log("pid       : " + result.pid);
+  return done;
+}
+
 async function cmdDoctor(dir) {
   const { project } = requireProject(dir);
   const file = dict.dictionaryPath(project.root);
@@ -916,6 +928,7 @@ const commands = {
   uninstall: cmdUninstall,
   doctor: cmdDoctor,
   export: cmdExport,
+  launch: cmdLaunch,
 };
 
 const USAGE = [
@@ -940,6 +953,7 @@ const USAGE = [
   "  uninstall  remove the runtime plugin",
   "  doctor     check the install, the backup and the dictionary against this build",
   "  export     write a JSON snapshot of the translated entries",
+  "  launch     start the game executable (Windows only)",
   "  config     read or write the user level config (takes no game directory)",
   "",
   "translate options:",
@@ -992,6 +1006,9 @@ const USAGE = [
   "  --format <name>     json (default; tsv/csv arrive in 0.12)",
   "  --flat              write source -> text instead of {text, contexts}",
   "  --force             overwrite an existing target",
+  "",
+  "launch options:",
+  "  --exe <name>        pick one executable when the project root has several",
   "",
   "install options:",
   "  --embed             embed the translations into the plugin file",
