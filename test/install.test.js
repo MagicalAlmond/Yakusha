@@ -186,3 +186,24 @@ test("install reports a backup that no longer matches the file", () => {
   assert.equal(again.staleBackup, true);
   assert.equal(again.state, "unchanged");
 });
+
+test("uninstall does not restore a backup that already contains the plugin entry", () => {
+  // Real case: the game was patched before yakusha started keeping a backup, so
+  // the backup is taken from an already-installed file. Restoring it would
+  // write our entry back into a project whose plugin file we just deleted.
+  const root = sandbox();
+  const project = openProject(root);
+  installPlugin(project);
+  fs.rmSync(project.pluginsFile + ".yakusha-backup");
+  installPlugin(project);
+
+  const result = uninstallPlugin(project);
+  assert.equal(result.removed, true);
+  assert.equal(result.restored, false);
+  assert.equal(result.drifted, true);
+  assert.equal(result.keptBackup, project.pluginsFile + ".yakusha-backup");
+
+  const text = fs.readFileSync(project.pluginsFile, "utf8");
+  assert.ok(!text.includes("YAKUSHA_Translator"), "our entry must be gone");
+  assert.ok(fs.existsSync(project.pluginsFile + ".yakusha-backup"));
+});

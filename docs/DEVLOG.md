@@ -25,7 +25,7 @@
 | 项 | 状态 |
 | --- | --- |
 | 版本 | 0.7.1（package.json） |
-| 测试 | **243 个，全绿**（`npm test`，约 5.5s） |
+| 测试 | **244 个，全绿**（`npm test`，约 5.5s） |
 | 支持引擎 | RPG Maker **MZ 1.3.2–1.9.0**、**MV 1.6.1–1.6.2** |
 | 实测游戏 | 15 款可识别（本机全量普查），其中 **4 款**全量翻译 + 运行时验收 |
 | 磁盘改动 | 只加 1 个插件文件 + `plugins.js` 里 1 条注册，卸载逐字节还原 |
@@ -329,6 +329,22 @@ target 是空的，但正文里译名早就统一了 → 正好用 `terms --writ
   这两份报告就是「终端里看不过来」的实证。
 - 退出码契约：构造一条原样回显 → 打印 `result : FAILED, 1 error(s)` 且退出码 **1**；
   只有 warning 时退出码 0。两条都有 CLI 测试守着（0.7.0 之前前者是 0，测试也只断言了 stdout）。
+
+### 0.7.1 卸载漂移实测（格闘娘，plugins.js 6.6 MB / 46 条）
+
+用这款游戏**装之前的那份** `plugins.js` 做基线（6,649,576 B；装完后是 6,649,775 B，多出来的
+199 B 就是我们那一条）：
+
+- 干净安装 → 卸载：`createdBackup:true`，卸载 `restored:true / drifted:false`，
+  `plugins.js` 的 md5 与装前**逐字节一致**，`.yakusha-backup` 被删除。
+- 装后往 `$plugins` 里插一条 `OtherMod` 再卸载：`drifted:true / restored:false`，
+  `keptBackup` 指向备份；`OtherMod` 还在、`YAKUSHA_Translator` 已摘掉、插件文件已删、
+  备份留原地。人读输出是 `plugins.js changed after install: removed only the yakusha entry` +
+  `backup kept : <path>`。
+- 被改过之后再 `install`：`staleBackup:true`，打印两行 warning（
+  `plugins.js changed after the backup was taken;` / `uninstall will keep those edits and only remove the yakusha entry`）。
+- 边界（有测试）：如果备份本身是在「已经装过、但当时没留备份」的状态下拍的，备份里就有自己那条；
+  卸载判为 drifted、保留备份、**不还原**——否则刚摘掉的条目会被备份又写回去。
 ## 7. 已知限制
 
 1. 只处理 `data/` 里的文本；插件 `js/plugins/*.js` 里硬编码的 UI 文案不动。
@@ -378,6 +394,8 @@ target 是空的，但正文里译名早就统一了 → 正好用 `terms --writ
 19. 装后被改过时，卸载会**保留** `js/plugins.js.yakusha-backup`（它仍是装之前的那份原文）。
     工具不会自动删它：确认改动都没问题后，你可以手动删掉，或者留着当对照。
     如果这份文件以后又被改回「除自己那条以外与备份一致」，下次卸载会照常逐字节还原。
+    另外，如果备份是在「已经装过、当时却没有备份」的状态下拍的（备份里含自己那一条），
+    卸载同样只摘条目、不还原，避免把条目写回去；这种备份得手动删。
 
 ## 8. 下一步（backlog，按优先级）
 
