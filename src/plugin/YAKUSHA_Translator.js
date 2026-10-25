@@ -5,7 +5,7 @@
  * @target MZ
  * @plugindesc Runtime translation driven by a yakusha dictionary.
  * @author MagicalAlmond
- * @url https://github.com/MagicalAlmond/yakusha
+ * @url https://github.com/MagicalAlmond/Yakusha
  *
  * @param dictionaryPath
  * @text Dictionary path

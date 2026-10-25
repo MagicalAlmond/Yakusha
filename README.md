@@ -20,8 +20,8 @@ scan  →  extract  →  translate  →  install
 ## 安装
 
 ```bash
-git clone https://github.com/MagicalAlmond/yakusha
-cd yakusha
+git clone https://github.com/MagicalAlmond/Yakusha
+cd Yakusha
 node --version   # 需要 22 或更高
 npm test         # 253 个测试，应该全绿
 ```
