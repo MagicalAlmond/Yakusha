@@ -1,12 +1,12 @@
 # 开发交接文档（DEVLOG）
 
 > 这份文档记录**阶段目标、已完成项、决策理由和下一步**，随开发进程更新。
-> 最后更新：2026-10-25（0.9.0 发布；0.10 进入 WP1 实现）。
+> 最后更新：2026-10-25（0.9.0 发布；0.10 完成 WP2）。
 > 0.9.0 项目改名 **Yakusha**，字典目录、插件文件、环境变量与备份后缀全部随之改名；
 > 仓库已发布到 https://github.com/MagicalAlmond/Yakusha（`main` 分支）。
 > 0.8.0 的 `doctor`、0.7.1 的 `uninstall` 漂移保护、0.7.0 的报告/模板见下）。
 > 0.10 的五篇契约已冻结（`json-contract` / `config` / `engines` / `export-format` /
-> `platforms`），实现按 WP1–WP6 推进：WP1 已完成，其余进行中。分支模型是
+> `platforms`），实现按 WP1–WP6 推进：WP1–WP2 已完成，其余进行中。分支模型是
 > **trunk-based**（只有 `main` 一条长期分支，规则见 §9）。
 >
 > **内部日志**：这份文档记录开发过程与决策，主要读者是维护者；面向使用者的命令说明
@@ -37,8 +37,8 @@
 | 项 | 状态 |
 | --- | --- |
 | 版本 | 0.9.0（package.json）；0.10.0 在 WP6 提升，版本号已收敛到 `src/version.js` 单一真源 |
-| 0.10 契约 | 五篇设计稿已冻结（json-contract / config / engines / export-format / platforms）；**WP1 已实现**，WP2–WP6 进行中 |
-| 测试 | **283 个，全绿**（`npm test`，约 6–7s） |
+| 0.10 契约 | 五篇设计稿已冻结（json-contract / config / engines / export-format / platforms）；**WP1–WP2 已实现**，WP3–WP6 进行中 |
+| 测试 | **302 个，全绿**（`npm test`，约 7–7.5s） |
 | 持续集成 | GitHub Actions：`npm test` 在 Node 22 / 24（**windows-latest**，WP1 已从 ubuntu 切换） |
 | 平台 | Windows 10/11 x64 为唯一支持与验收环境（0.10 明确，见 [platforms.md](../platforms.md)） |
 | 支持引擎 | RPG Maker **MZ 1.3.2–1.9.0**、**MV 1.6.1–1.6.2** |
@@ -118,7 +118,12 @@
       `--provider`）、`--provider mock`、`--glossary-only` 不需要配置；
       `provider=compatible` 没有 `--base-url`/`YAKUSHA_BASE_URL` 也拒绝，避免把 key
       发到 `api.openai.com`。新增 `test/provider-config.test.js`。
-- [ ] WP2 引擎适配器 / registry / detect / facade
+- [x] WP2 引擎适配器 / registry / detect / facade：新增 `src/engines/{adapter,registry}.js`、
+      `src/engines/{mz,mv}/adapter.js` 与库门面 `src/index.js`；detect 返回判别式、预期失败不抛，
+      CLI 只经 `detectProject` 找项目，scan / extract / install / uninstall 全部走 adapter；
+      `install` / `uninstall` 增加 realpath 越界守卫（项目外路径 `E_IO`），插件里的
+      `VERSION` 改由 `installPlugin` 从 `src/version.js` 渲染；新增
+      `test/engine-contract.test.js`（18 条）与 `test/fixtures/mini-mv`。
 - [ ] WP3 config
 - [ ] WP4 export
 - [ ] WP5 launch / attach stub
@@ -131,6 +136,11 @@ bin/yakusha.js             CLI 薄壳（解析参数 → 分派命令 → emit�
 src/cli/envelope.js        0.10 信封、错误对象、sanitizeMessage、EXIT 码
 src/cli/args.js            0.10 严格参数解析（未知选项 / 缺值 / 多余参数即 E_USAGE）
 src/version.js             版本单一真源（读 package.json）
+src/engines/adapter.js     MZ/MV 共享适配器逻辑（detect / scan / extract / 安装）
+src/engines/registry.js    MZ→MV 注册表与 detectProject（判别式，不抛）
+src/engines/mz/adapter.js  MZ 能力位与薄包装
+src/engines/mv/adapter.js  MV 能力位与薄包装
+src/index.js               库门面（openProject / detectProject / … / VERSION）
 src/core/fields.js        字段表与指令表（纯数据，会嵌进插件）
 src/core/mzproject.js     项目发现（向下 3 层）、System.json 读取
 src/core/datafile.js      数据文件解码（明文 / 单字节 XOR / 空白占位）
@@ -149,7 +159,7 @@ src/pipeline/terms.js     名字/术语的主流译法挖掘与漂移检测
 src/pipeline/speaker.js   说话人标记的识别、房规统计与按房规修复
 src/pipeline/report.js    verify 结果的 markdown 报告（只格式化，不重算）
 src/plugin/YAKUSHA_Translator.js  运行时插件模板（install 时注入规则表）
-test/                     283 个测试（含 CLI 端到端、0.10 信封契约与配置前置）
+test/                     302 个测试（含 CLI 端到端、0.10 信封契约、配置前置与引擎契约）
 docs/design.md            为什么走运行时钩子、文本面覆盖、转义码、设计约束、作为库用
 docs/commands.md          十个命令的完整选项与 verify / terms / speaker 判据
 docs/games.md             15 款实测游戏、全量翻译记录、官中游戏的处理
@@ -176,6 +186,7 @@ docs/platforms.md         平台支持矩阵与决策记录（Windows-only 的�
 | **launch 只认项目根的直接子 `.exe`** | exe 不得来自配置、字典或游戏内任意路径；`--exe` 只接受裸文件名；spawn 用 `shell:false` + `detached` + `stdio:ignore`，并从子进程 env 删除 `YAKUSHA_API_KEY` / `OPENAI_API_KEY`。理由：分享的游戏目录本身就是不可信输入（[engines.md](../engines.md) §8）。 |
 | **trunk-based：一条 `main` + 短分支 + self-PR squash** | 单人开发没有并行评审需求，`develop`/`release` 这类长期分支只会制造同步债；短分支让 CI 在合并前跑一遍，squash 保持 `main` 线性、可读、可回滚。发布用 `vX.Y.Z` tag；只有旧版本确实有人在用时，才从 tag 切维护分支（规则见 §9）。 |
 | **Windows-only，Linux/macOS 不做也不测** | 单人开发，需求证据与验收机器都没有；macOS 还要签名/公证，且在 macOS 上注入类引擎一个都跑不了。写成决策记录，避免以后“顺手加一个平台”把测试面乘二（[platforms.md](../platforms.md)）。 |
+| **detect 返回判别式，openProject 继续抛** | 库调用方已经依赖 `openProject` 抛错；CLI 不应靠解析异常文本决定错误码。`adapter.detect` 把预期失败变成 `{ok:false,code,message,candidates?}`；registry 按 MZ→MV 顺序，`E_MULTI_ROOT` 立即返回，缺 `data/`、缺 `plugins.js` 的具体文案优先于另一个引擎的通用失败。适配器只薄包装 core，不搬文件。 |
 | **引擎适配器 + 三种运行时模式，注入不是前提** | 长期要像成熟的多引擎汉化工具一样支持多引擎，但 MZ/MV 用插件就够；CDP（`--remote-debugging-port`）还能覆盖一整类 Chromium 壳。把 `inject` 留在契约里，pipeline 与 GUI 不因新引擎返工。 |
 | **运行时载荷形状先定死（`format` + `rules` + `entries`）** | 插件、调试注入、原生 hook 吃同一份数据；以后加投递通道不用改游戏侧钩子。 |
 | **字典 key = 原文** | 不用 hash/自增 id：译文要能人工校对，key 必须是玩家能看懂的原文。 |
@@ -453,6 +464,20 @@ warning），`--provider mock` 与 `--glossary-only` 不读配置。新增 9 条
 缺 model / 缺 key / `compatible` 缺 baseUrl / mock 与 dry-run 可跑 / 环境变量不能代替
 provider / 未知 provider 仍是 `E_PROVIDER`。
 
+### 0.10.0 WP2 适配器与门面
+
+`npm test`：283 → **302 个**，耗时约 7.5s（新增 18 条引擎契约 + 1 条插件版本渲染）。
+契约测试覆盖：registry 的 MZ→MV 顺序与完整能力位（MZ `debuggable:true` / MV `false`）、
+空目录 `E_NOT_PROJECT`、两个同层项目 `E_MULTI_ROOT` + candidates、跨引擎拒绝、
+detect 幂等且零写入（文件快照）、scan 字段（没有旧 `version` 键）、extract 二次
+`added:0`、安装/卸载逐字节还原、CRLF 保持、漂移保留备份、项目外路径 `E_IO`、
+attach 桩，以及包自引用 `import("yakusha")` 与深路径导入。
+
+实测踩到：`renderPlugin` 原来用 `versioned === template` 判断模板缺 `VERSION`，
+而当前 package version 恰好等于模板占位 0.9.0——替换后字符串不变，被误判成「缺常量」，
+所有插件渲染测试一起挂；改成先 `test()` 再 `replace()`。另一处：`assertInsideRoot`
+必须同时守住 install 与 uninstall，且要在删除插件文件之前执行，否则越界路径会先删后报。
+
 ## 7. 已知限制
 
 1. 只处理 `data/` 里的文本；插件 `js/plugins/*.js` 里硬编码的 UI 文案不动。
@@ -516,8 +541,9 @@ provider / 未知 provider 仍是 `E_PROVIDER`。
    关键取舍：扁平信封 + `outcome` + 退出码 0/1/2；`detect` 改判别式；
    不做项目级配置、密钥不落盘；launch 只认根目录唯一 `.exe`；Windows-only；
    契约测试平铺（`npm test` 不收子目录）。
-3. **0.10.0 实现（进行中）**：WP1（信封、严格参数、版本单一真源、CI）已完成；
-   剩余 WP2–WP6。`src/engines/{adapter,registry}` +
+3. **0.10.0 实现（进行中）**：WP1（信封、严格参数、版本单一真源、CI）与
+   WP2（适配器、registry、detect、门面）已完成；剩余 WP3–WP6。
+   `src/engines/{adapter,registry}` +
    `mz/adapter.js` + `mv/adapter.js` 薄包装现有 core；`src/index.js` 门面 +
    `package.json` 的 `main`/`exports`；`src/cli/envelope.js` + `src/cli/args.js`
    收敛 12 个 JSON 出口；`config` / `export` / `launch` 三命令；
@@ -679,3 +705,9 @@ git push origin v0.10.0
 - **默认值会把「没配置」变成延迟失败**：内置 `gpt-4o-mini` 让一次没配置 provider/key 的运行
   看起来能跑，实际在端点上才失败；换了第三方 `baseUrl` 后甚至可能把请求发到默认 OpenAI
   地址。把必填项前移成发请求前的 `E_CONFIG`，错误才出现在用户能修、也免费的地方。
+- **用「替换后是否相等」判断占位符命中会误报**：插件模板里的 `VERSION` 占位恰好等于当前
+  package version 时，`replace` 结果与原文相同，旧实现据此认为「模板缺常量」并把所有插件
+  测试打挂。判断占位符是否存在要用 `regex.test(source)`，不是比较替换前后的字符串。
+- **越界守卫要覆盖所有写/删动作，并且在动手之前跑**：路径 containment 只加在 install、
+  或加在删文件之后，都等于没有；`assertInsideRoot` 对 plugins.js、备份、插件文件逐个检查，
+  install 与 uninstall 共用。

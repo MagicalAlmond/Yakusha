@@ -26,13 +26,10 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 
-import { openProject, listDataFiles } from "../src/core/mzproject.js";
-import { extractProject, toSortedArray } from "../src/core/extract.js";
 import * as dict from "../src/core/dict.js";
 import { stats as dictStats, translatedOnly } from "../src/core/dict.js";
-import { installPlugin, uninstallPlugin } from "../src/core/install.js";
 import { diagnose } from "../src/core/doctor.js";
-import { stripCodes } from "../src/core/textkey.js";
+import { detectProject } from "../src/engines/registry.js";
 import { createProvider } from "../src/pipeline/provider.js";
 import { translateDictionary } from "../src/pipeline/translate.js";
 import { verifyDictionary } from "../src/pipeline/verify.js";
@@ -68,21 +65,20 @@ function normalizeContexts(raw) {
 }
 
 /**
- * Resolve the project for a command, or fail with the documented code.
+ * Resolve the project and its adapter for a command, or fail with the
+ * documented code.
  *
- * openProject throws for a library caller (that is the documented behaviour);
- * the CLI turns its two expected failures into error codes instead of stacks.
+ * The registry's detectProject is the only way the CLI learns about a game:
+ * expected failures come back as a result, so the CLI never parses an
+ * exception from openProject (which stays throwing for library callers).
  *
  * @param {string|undefined} dir
  */
 function requireProject(dir) {
   if (!dir) throw new CliError("E_USAGE", "no game directory given");
-  try {
-    return openProject(dir);
-  } catch (error) {
-    const message = error && error.message ? error.message : String(error);
-    throw new CliError(/^found \d+ RPG Maker projects/.test(message) ? "E_MULTI_ROOT" : "E_NOT_PROJECT", message);
-  }
+  const result = detectProject(dir);
+  if (!result.ok) throw new CliError(result.code, result.message);
+  return { project: result.project, adapter: result.adapter };
 }
 
 /**
@@ -101,23 +97,8 @@ function requireDictionary(project) {
 }
 
 async function cmdScan(dir) {
-  const project = requireProject(dir);
-  const result = extractProject(project.root);
-  const entries = toSortedArray(result);
-  const withCodes = entries.filter((e) => stripCodes(e.text) !== e.text).length;
-  const payload = {
-    root: project.root,
-    engine: project.engine,
-    engineVersion: project.version,
-    gameTitle: project.gameTitle,
-    dataFiles: listDataFiles(project).length,
-    uniqueStrings: result.entries.size,
-    totalStrings: result.totalStrings,
-    stringsWithControlCodes: withCodes,
-    encodings: result.encodings,
-    undecodable: result.undecodable,
-    perFile: result.perFile,
-  };
+  const { project, adapter } = requireProject(dir);
+  const payload = await adapter.scan(project);
   const done = { payload };
   if (json) return done;
   console.log("game      : " + (project.gameTitle || "(untitled)"));
@@ -133,7 +114,7 @@ async function cmdScan(dir) {
   if (payload.undecodable && payload.undecodable.length > 0) {
     console.log("UNDECODED : " + payload.undecodable.join(", "));
   }
-  const top = Object.entries(result.perFile)
+  const top = Object.entries(payload.perFile)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10);
   for (const [file, count] of top) console.log("  " + file.padEnd(24) + count);
@@ -141,43 +122,20 @@ async function cmdScan(dir) {
 }
 
 async function cmdExtract(dir) {
-  const project = requireProject(dir);
-  const result = extractProject(project.root);
-  const file = dict.dictionaryPath(project.root);
-  let existing = null;
-  if (fs.existsSync(file)) {
-    try {
-      existing = dict.loadDictionary(file);
-    } catch {
-      existing = null;
-    }
-  }
-  const target = existing || dict.emptyDictionary(project.gameTitle);
-  let added = 0;
-  for (const entry of result.entries.values()) {
-    const before = target.entries[entry.text];
-    if (!before) {
-      target.entries[entry.text] = { text: "", contexts: [...entry.contexts].sort() };
-      added += 1;
-    } else {
-      for (const context of entry.contexts) {
-        if (!before.contexts.includes(context)) before.contexts.push(context);
-      }
-    }
-  }
-  dict.saveDictionary(file, target);
-  const s = dictStats(target);
-  const payload = { file, added, total: s.total, translated: s.translated, pending: s.pending };
+  const { project, adapter } = requireProject(dir);
+  const payload = await adapter.extract(project);
   const done = { payload };
   if (json) return done;
-  console.log("dictionary: " + file);
-  console.log("added     : " + added);
-  console.log("progress  : " + s.translated + "/" + s.total + " translated, " + s.pending + " pending");
+  console.log("dictionary: " + payload.file);
+  console.log("added     : " + payload.added);
+  console.log(
+    "progress  : " + payload.translated + "/" + payload.total + " translated, " + payload.pending + " pending"
+  );
   return done;
 }
 
 async function cmdStatus(dir) {
-  const project = requireProject(dir);
+  const { project } = requireProject(dir);
   const { file, data } = requireDictionary(project);
   const s = dictStats(data);
   const withError = Object.values(data.entries).filter((e) => e.error).length;
@@ -190,7 +148,7 @@ async function cmdStatus(dir) {
 }
 
 async function cmdVerify(dir) {
-  const project = requireProject(dir);
+  const { project } = requireProject(dir);
   const { file, data } = requireDictionary(project);
   const maxColumns = numberFlag("max-length", 0);
   const kinds = typeof flags.kind === "string" ? flags.kind.split(",").map((k) => k.trim()).filter(Boolean) : undefined;
@@ -265,7 +223,7 @@ async function cmdVerify(dir) {
  * on 400 entries is not realistic.
  */
 async function cmdSpeaker(dir) {
-  const project = requireProject(dir);
+  const { project } = requireProject(dir);
   const { file, data } = requireDictionary(project);
   const includeDrift = flags["include-drift"] === true;
   const dryRun = flags["dry-run"] === true;
@@ -359,7 +317,7 @@ async function cmdSpeaker(dir) {
 }
 
 async function cmdTerms(dir) {
-  const project = requireProject(dir);
+  const { project } = requireProject(dir);
   const { file, data } = requireDictionary(project);
   const minHolders = numberFlag("min-holders", 5);
   const minSupport = numberFlag("min-support", 0.5);
@@ -459,7 +417,7 @@ async function cmdTerms(dir) {
 }
 
 async function cmdTranslate(dir) {
-  const project = requireProject(dir);
+  const { project } = requireProject(dir);
   const { file, data } = requireDictionary(project);
 
   const glossaryOnly = flags["glossary-only"] === true;
@@ -625,11 +583,11 @@ async function cmdTranslate(dir) {
  *
  * @template T
  * @param {() => T} step
- * @returns {T}
+ * @returns {Promise<T>}
  */
-function pluginStep(step) {
+async function pluginStep(step) {
   try {
-    return step();
+    return await step();
   } catch (error) {
     const message = error && error.message ? error.message : String(error);
     if (String(message).startsWith("plugins.js:")) {
@@ -640,7 +598,7 @@ function pluginStep(step) {
 }
 
 async function cmdInstall(dir) {
-  const project = requireProject(dir);
+  const { project, adapter } = requireProject(dir);
   let embed = null;
   if (flags.embed) {
     const file = dict.dictionaryPath(project.root);
@@ -650,7 +608,7 @@ async function cmdInstall(dir) {
     embed = translatedOnly(dict.loadDictionary(file));
     if (Object.keys(embed).length === 0) throw new CliError("E_NO_DICTIONARY", "--embed found no translated entries");
   }
-  const result = pluginStep(() => installPlugin(project, { embed }));
+  const result = await pluginStep(() => adapter.installRuntime(project, { embed }));
   const payload = {
     pluginPath: result.pluginPath,
     registered: result.registered,
@@ -675,8 +633,8 @@ async function cmdInstall(dir) {
 }
 
 async function cmdUninstall(dir) {
-  const project = requireProject(dir);
-  const result = pluginStep(() => uninstallPlugin(project));
+  const { project, adapter } = requireProject(dir);
+  const result = await pluginStep(() => adapter.uninstallRuntime(project));
   const payload = {
     removed: result.removed,
     restored: result.restored,
@@ -697,7 +655,7 @@ async function cmdUninstall(dir) {
 }
 
 async function cmdDoctor(dir) {
-  const project = requireProject(dir);
+  const { project } = requireProject(dir);
   const file = dict.dictionaryPath(project.root);
   let data = null;
   if (fs.existsSync(file)) {

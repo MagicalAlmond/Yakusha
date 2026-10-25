@@ -13,6 +13,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 import { VERSION } from "../src/version.js";
+import { renderPlugin } from "../src/core/install.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, "..");
@@ -33,6 +34,13 @@ function run(args) {
 test("version: package.json is the single source", () => {
   assert.match(packageVersion(), /^\d+\.\d+\.\d+$/);
   assert.equal(VERSION, packageVersion());
+});
+
+test("version: the rendered plugin uses the package version", () => {
+  const source = renderPlugin();
+  const match = source.match(/const VERSION = "([^"]+)";/);
+  assert.ok(match, "the plugin template has a VERSION constant");
+  assert.equal(match[1], packageVersion());
 });
 
 test("version: --version prints the package version and exits 0", () => {

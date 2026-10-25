@@ -26,6 +26,7 @@ import {
   upsertPlugin,
   removePlugin,
 } from "./pluginsfile.js";
+import { VERSION } from "../version.js";
 
 export const PLUGIN_NAME = "YAKUSHA_Translator";
 export const PLUGIN_FILE = "YAKUSHA_Translator.js";
@@ -33,6 +34,41 @@ export const BACKUP_SUFFIX = ".yakusha-backup";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const TEMPLATE = path.join(HERE, "..", "plugin", PLUGIN_FILE);
+
+/**
+ * Refuse to write or delete outside the project root.
+ *
+ * The target may not exist yet (the plugin directory is often created by the
+ * install), so resolve the nearest existing ancestor and append the missing
+ * segments. A symlink that points outside is caught because realpath resolves
+ * the ancestor first.
+ *
+ * @param {import("./mzproject.js").Project} project
+ * @param {string} target
+ * @throws {Error} E_IO when the resolved target escapes the root
+ */
+function assertInsideRoot(project, target) {
+  const root = fs.realpathSync(project.root);
+  const absolute = path.resolve(target);
+  const missing = [];
+  let probe = absolute;
+  while (!fs.existsSync(probe)) {
+    const parent = path.dirname(probe);
+    if (parent === probe) break;
+    missing.unshift(path.basename(probe));
+    probe = parent;
+  }
+  const base = fs.realpathSync(probe);
+  const resolved = path.join(base, ...missing);
+  const relative = path.relative(root, resolved);
+  const escapes =
+    relative === ".." || relative.startsWith(".." + path.sep) || path.isAbsolute(relative);
+  if (escapes) {
+    const error = new Error("refusing to write outside the project root: " + target);
+    error.code = "E_IO";
+    throw error;
+  }
+}
 
 /**
  * @typedef {{ pluginPath: string, registered: boolean, backupPath: string|null, createdBackup: boolean, staleBackup: boolean, state: "added"|"enabled"|"unchanged" }} InstallResult
@@ -49,8 +85,13 @@ const TEMPLATE = path.join(HERE, "..", "plugin", PLUGIN_FILE);
  */
 export function renderPlugin(options = {}) {
   const template = fs.readFileSync(TEMPLATE, "utf8");
+  // The template carries a placeholder version; package.json is the single
+  // source of truth (docs/engines.md §11), so render it on every install.
+  const versionPattern = /const VERSION = "[^"]*";/;
+  if (!versionPattern.test(template)) throw new Error("plugin template is missing the VERSION constant");
+  const versioned = template.replace(versionPattern, "const VERSION = " + JSON.stringify(VERSION) + ";");
   const rules = JSON.stringify(buildRules());
-  const withRules = replaceBlock(template, "RULES", rules);
+  const withRules = replaceBlock(versioned, "RULES", rules);
   if (!options.embed) return withRules;
   return replaceBlock(withRules, "EMBEDDED", JSON.stringify(options.embed));
 }
@@ -122,6 +163,12 @@ function samePlugins(a, b) {
  */
 export function installPlugin(project, options = {}) {
   const backupPath = project.pluginsFile + BACKUP_SUFFIX;
+  const pluginPath = path.join(project.pluginDir, PLUGIN_FILE);
+  // Check every path before touching the disk: a project object with a
+  // pluginDir outside the root must not leave a half-installed game behind.
+  assertInsideRoot(project, project.pluginsFile);
+  assertInsideRoot(project, backupPath);
+  assertInsideRoot(project, pluginPath);
   const original = fs.readFileSync(project.pluginsFile, "utf8");
   const plugins = parsePluginsJs(original).plugins;
 
@@ -152,7 +199,6 @@ export function installPlugin(project, options = {}) {
   fs.writeFileSync(project.pluginsFile, serialisePluginsJs(plugins, layout), "utf8");
 
   fs.mkdirSync(project.pluginDir, { recursive: true });
-  const pluginPath = path.join(project.pluginDir, PLUGIN_FILE);
   fs.writeFileSync(pluginPath, renderPlugin({ embed: options.embed || null }), "utf8");
 
   return { pluginPath, registered: true, backupPath: createdBackup ? backupPath : null, createdBackup, staleBackup, state };
@@ -173,6 +219,9 @@ export function installPlugin(project, options = {}) {
 export function uninstallPlugin(project) {
   const backupPath = project.pluginsFile + BACKUP_SUFFIX;
   const pluginPath = path.join(project.pluginDir, PLUGIN_FILE);
+  assertInsideRoot(project, project.pluginsFile);
+  assertInsideRoot(project, backupPath);
+  assertInsideRoot(project, pluginPath);
   let removed = false;
 
   if (fs.existsSync(pluginPath)) {
