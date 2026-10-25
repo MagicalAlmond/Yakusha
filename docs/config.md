@@ -1,7 +1,7 @@
-# 配置与密钥（0.10 设计稿）
+# 配置与密钥（0.10 已实现）
 
-> **状态：0.10 设计，尚未实现。** 0.9.0 没有配置文件，provider / model / baseUrl / key
-> 只来自命令行参数与环境变量。本文冻结 0.10 的 `config` 命令与读取规则。
+> **状态：0.10 已实现（WP3）。** `yakusha config list|get|set|unset` 与 `translate` 的
+> 配置读取规则按本文执行；provider / model / 密钥都没有默认值，真实调用前必须显式配置。
 > 平台范围见 [platforms.md](platforms.md)：0.10 只支持 Windows 10/11 x64。
 
 ## 1. 三个先定死的决定

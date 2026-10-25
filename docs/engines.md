@@ -1,6 +1,7 @@
 # 引擎适配器契约（0.10 设计稿）
 
-> **状态：0.10 设计，尚未实现。** 现有 `src/core/mzproject.js` / `extract.js` /
+> **状态：0.10 适配器、registry、detect 与安装契约已实现（WP2）；launch 在 WP5 落地，
+> attach 保持 0.10 的桩。** 现有 `src/core/mzproject.js` / `extract.js` /
 > `install.js` 已经能处理 MZ 与 MV；0.10 只是把它们包进统一的 adapter，
 > **不搬文件、不重写算法**。本文冻结 adapter 的形状、能力矩阵、安装/启动契约
 > 与契约测试的落点。

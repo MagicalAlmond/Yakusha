@@ -37,6 +37,14 @@ import { buildReport, namesNeedingInput } from "../src/pipeline/report.js";
 import { repairSpeakerNames } from "../src/pipeline/speaker.js";
 import { mineTerms, toGlossary } from "../src/pipeline/terms.js";
 import { assertOptions, parseArgs } from "../src/cli/args.js";
+import {
+  DEFAULT_BASE_URL,
+  loadConfig,
+  requireUsableConfig,
+  resolveEffective,
+  setConfigValue,
+  unsetConfigValue,
+} from "../src/cli/config.js";
 import { CliError, EXIT, emit, emitError, failureFor, sanitizeMessage } from "../src/cli/envelope.js";
 import { VERSION } from "../src/version.js";
 
@@ -62,6 +70,18 @@ function normalizeContexts(raw) {
   const list = (Array.isArray(raw) ? raw : [raw]).filter((v) => typeof v === "string" && v.length > 0);
   if (list.length === 0) return undefined;
   return list.length === 1 ? list[0] : list;
+}
+
+/**
+ * Print config warnings on stderr in either output mode. stdout stays reserved
+ * for exactly one JSON object (or the human summary) in text mode.
+ *
+ * @param {string[]} warnings
+ */
+function writeConfigWarnings(warnings) {
+  for (const warning of warnings || []) {
+    process.stderr.write("warning: " + sanitizeMessage(warning) + "\n");
+  }
 }
 
 /**
@@ -428,21 +448,35 @@ async function cmdTranslate(dir) {
   if (dryRun && requestedProvider && requestedProvider.toLowerCase() !== "mock") {
     process.stderr.write("warning: --dry-run always uses the mock provider; --provider " + requestedProvider + " ignored\n");
   }
-  // 0.10 has no default provider. A real run must say where it is going;
-  // guessing meant a missing setup only failed after a request was attempted.
-  const providerName = glossaryOnly ? null : dryRun ? "mock" : requestedProvider;
+  // --dry-run must not read the config file at all, so a broken file (or a
+  // missing APPDATA) cannot stop an offline preview. Every other mode reads it:
+  // a broken file is a warning here, because an offline run should still work.
+  const loaded = dryRun ? null : loadConfig({ env: process.env });
+  if (loaded) writeConfigWarnings(loaded.warnings);
+  const effective = loaded
+    ? resolveEffective(loaded, { flags, env: process.env })
+    : {
+        provider: { value: null, source: "none" },
+        model: { value: null, source: "none" },
+        baseUrl: { value: null, source: "none" },
+        apiKey: { set: false, source: null },
+      };
+  // 0.10 has no default provider: the flag, the config file or nothing.
+  const providerName = glossaryOnly ? null : dryRun ? "mock" : effective.provider.value;
   if (!glossaryOnly && !dryRun && !providerName) {
-    throw new CliError("E_CONFIG", "no provider configured: pass --provider openai or --provider compatible");
+    throw new CliError(
+      "E_CONFIG",
+      "no provider configured: pass --provider openai or --provider compatible, or run: yakusha config set provider openai"
+    );
   }
+  const providerKey = providerName === null ? null : String(providerName).toLowerCase();
   // A third-party endpoint has no sensible default, and sending the key to
   // api.openai.com because baseUrl was omitted would be both wrong and surprising.
-  if (
-    providerName !== null &&
-    providerName.toLowerCase() === "compatible" &&
-    typeof flags["base-url"] !== "string" &&
-    !process.env.YAKUSHA_BASE_URL
-  ) {
-    throw new CliError("E_CONFIG", "no base URL configured for provider compatible: pass --base-url or set YAKUSHA_BASE_URL");
+  if (providerKey === "compatible" && !effective.baseUrl.value) {
+    throw new CliError(
+      "E_CONFIG",
+      "no base URL configured for provider compatible: pass --base-url, set YAKUSHA_BASE_URL, or run: yakusha config set baseUrl <url>"
+    );
   }
   // Glossary only mode never talks to a model, so do not even build a provider.
   let provider;
@@ -450,8 +484,8 @@ async function cmdTranslate(dir) {
     provider = glossaryOnly
       ? { name: "glossary", complete: () => Promise.reject(new Error("glossary only mode makes no requests")) }
       : createProvider(providerName, {
-          baseUrl: typeof flags["base-url"] === "string" ? flags["base-url"] : undefined,
-          model: typeof flags.model === "string" ? flags.model : undefined,
+          baseUrl: effective.baseUrl.value || undefined,
+          model: effective.model.value || undefined,
           apiKey: typeof flags["api-key"] === "string" ? flags["api-key"] : undefined,
           temperature: numberFlag("temperature", undefined),
           timeoutMs: numberFlag("timeout", undefined),
@@ -703,7 +737,137 @@ async function cmdDoctor(dir) {
   return done;
 }
 
+const CONFIG_ACTION_NAMES = new Set(["list", "get", "set", "unset"]);
+const CONFIG_KEY_NAMES = new Set(["provider", "model", "baseUrl"]);
+
+/**
+ * Reject a key the config command does not manage. apiKey is a special case
+ * because the contract says it is never stored, and a generic "unknown key"
+ * would hide that decision.
+ *
+ * @param {string} key
+ */
+function requireConfigKey(key) {
+  if (String(key).toLowerCase() === "apikey") {
+    throw new CliError(
+      "E_USAGE",
+      "the API key is not stored in the config file; use --api-key or YAKUSHA_API_KEY"
+    );
+  }
+  if (!CONFIG_KEY_NAMES.has(key)) {
+    throw new CliError("E_USAGE", "unknown config key: " + key + " (expected provider, model or baseUrl)");
+  }
+}
+
+/** @param {{value: string|null, source: string}} entry */
+function configEntryText(entry) {
+  if (entry.value === null) return "(not set)";
+  return entry.value + " (" + entry.source + ")";
+}
+
+/**
+ * config list|get|set|unset. Unlike every other command this one takes no game
+ * directory: the file belongs to the user, not to a project.
+ *
+ * @param {string[]} args positionals after "config"
+ */
+async function cmdConfig(args) {
+  const action = args[0];
+  if (!action) throw new CliError("E_USAGE", "config needs a subcommand: list, get, set or unset");
+  if (!CONFIG_ACTION_NAMES.has(action)) throw new CliError("E_USAGE", "unknown config action: " + action);
+
+  if (action === "list") {
+    if (args.length > 1) throw new CliError("E_USAGE", "unexpected argument: " + args[1]);
+    const loaded = loadConfig({ env: process.env });
+    writeConfigWarnings(loaded.warnings);
+    requireUsableConfig(loaded);
+    const resolved = resolveEffective(loaded, { env: process.env });
+    const payload = {
+      action: "list",
+      file: loaded.file,
+      exists: loaded.exists,
+      values: {
+        provider: resolved.provider,
+        model: resolved.model,
+        baseUrl: resolved.baseUrl,
+      },
+      apiKey: resolved.apiKey,
+    };
+    const done = { payload };
+    if (json) {
+      warnNonDefaultBaseUrl(resolved.baseUrl.value);
+      return done;
+    }
+    console.log("file    : " + loaded.file);
+    console.log("exists  : " + loaded.exists);
+    console.log("provider: " + configEntryText(resolved.provider));
+    console.log("model   : " + configEntryText(resolved.model));
+    console.log("baseUrl : " + configEntryText(resolved.baseUrl));
+    console.log("apiKey  : " + (resolved.apiKey.set ? "set (" + resolved.apiKey.source + ")" : "(not set)"));
+    warnNonDefaultBaseUrl(resolved.baseUrl.value);
+    return done;
+  }
+
+  if (action === "get") {
+    if (args.length < 2) throw new CliError("E_USAGE", "config get needs a key");
+    if (args.length > 2) throw new CliError("E_USAGE", "unexpected argument: " + args[2]);
+    const key = args[1];
+    requireConfigKey(key);
+    const loaded = loadConfig({ env: process.env });
+    writeConfigWarnings(loaded.warnings);
+    requireUsableConfig(loaded);
+    const resolved = resolveEffective(loaded, { env: process.env });
+    const entry = resolved[key];
+    const payload = { action: "get", key, value: entry.value, source: entry.source };
+    const done = { payload };
+    if (json) return done;
+    console.log(key.padEnd(9) + ": " + configEntryText(entry));
+    return done;
+  }
+
+  if (action === "set") {
+    if (args.length < 3) throw new CliError("E_USAGE", "config set needs a key and a value");
+    if (args.length > 3) throw new CliError("E_USAGE", "unexpected argument: " + args[3]);
+    const key = args[1];
+    requireConfigKey(key);
+    const result = setConfigValue(key, args[2], { env: process.env });
+    writeConfigWarnings(result.warnings);
+    const payload = { action: "set", key, value: result.value, file: result.file, changed: result.changed };
+    const done = { payload };
+    if (json) return done;
+    if (result.changed) console.log(key + " = " + result.value);
+    else console.log(key + " is already " + result.value + " (no change)");
+    console.log("file    : " + result.file);
+    return done;
+  }
+
+  if (args.length < 2) throw new CliError("E_USAGE", "config unset needs a key");
+  if (args.length > 2) throw new CliError("E_USAGE", "unexpected argument: " + args[2]);
+  const key = args[1];
+  requireConfigKey(key);
+  const result = unsetConfigValue(key, { env: process.env });
+  writeConfigWarnings(result.warnings);
+  const payload = { action: "unset", key, file: result.file, changed: result.changed };
+  const done = { payload };
+  if (json) return done;
+  console.log(result.changed ? key + " unset" : key + " was not set (no change)");
+  console.log("file    : " + result.file);
+  return done;
+}
+
+/**
+ * A non-default endpoint is the one config value whose effect is not obvious
+ * from the value alone. Warn in both modes, on stderr, so stdout stays clean.
+ *
+ * @param {string|null} baseUrl
+ */
+function warnNonDefaultBaseUrl(baseUrl) {
+  if (!baseUrl || baseUrl === DEFAULT_BASE_URL) return;
+  process.stderr.write("warning: requests will be sent to " + sanitizeMessage(baseUrl) + "\n");
+}
+
 const commands = {
+  config: cmdConfig,
   scan: cmdScan,
   extract: cmdExtract,
   status: cmdStatus,
@@ -737,6 +901,7 @@ const USAGE = [
   "  install    install the runtime plugin into the game",
   "  uninstall  remove the runtime plugin",
   "  doctor     check the install, the backup and the dictionary against this build",
+  "  config     read or write the user level config (takes no game directory)",
   "",
   "translate options:",
   "  --provider <name>   openai, compatible or mock (required for a real run)",
@@ -785,6 +950,15 @@ const USAGE = [
   "",
   "install options:",
   "  --embed             embed the translations into the plugin file",
+  "",
+  "config commands (no game directory):",
+  "  yakusha config list",
+  "  yakusha config get <provider|model|baseUrl>",
+  "  yakusha config set <provider|model|baseUrl> <value>",
+  "  yakusha config unset <provider|model|baseUrl>",
+  "",
+  "  The file lives at %APPDATA%\\yakusha\\config.json; YAKUSHA_CONFIG_DIR",
+  "  points at another directory. The API key is never stored there.",
 ].join("\n");
 
 /**
@@ -848,10 +1022,14 @@ async function main() {
   assertOptions(command, flags);
 
   const args = parsed.positional.slice(1);
-  if (args.length === 0) throw new CliError("E_USAGE", "no game directory given");
-  if (args.length > 1) throw new CliError("E_USAGE", "unexpected argument: " + args[1]);
+  // config is the one command that does not take a game directory: its
+  // positionals are the subcommand and its arguments.
+  if (command !== "config") {
+    if (args.length === 0) throw new CliError("E_USAGE", "no game directory given");
+    if (args.length > 1) throw new CliError("E_USAGE", "unexpected argument: " + args[1]);
+  }
 
-  const result = await commands[command](args[0]);
+  const result = command === "config" ? await commands.config(args) : await commands[command](args[0]);
   const outcome = result.outcome || "ok";
   if (json) return emit(command, outcome, result.payload);
   return EXIT[outcome];

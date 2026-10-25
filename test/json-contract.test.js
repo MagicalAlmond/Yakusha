@@ -19,6 +19,8 @@ import { sanitizeMessage } from "../src/cli/envelope.js";
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const BIN = path.join(HERE, "..", "bin", "yakusha.js");
 const FIXTURE = path.join(HERE, "fixtures", "mini-mz");
+// Isolate the user level config file from the developer machine.
+const CONFIG_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "yakusha-json-config-"));
 
 /** @returns {string} a private copy of the fixture, safe to mutate */
 function tempGame() {
@@ -34,6 +36,7 @@ function cleanEnv() {
   for (const key of Object.keys(env)) {
     if (/^YAKUSHA_/i.test(key) || /^OPENAI_API_KEY$/i.test(key)) delete env[key];
   }
+  env.YAKUSHA_CONFIG_DIR = CONFIG_DIR;
   return env;
 }
 
