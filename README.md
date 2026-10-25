@@ -111,6 +111,14 @@ node bin/yakusha.js doctor "/games/MyGame"
 verdict   : usable with 2 warning(s)
 ```
 
+### 可选：export 导出译文
+
+译文要备份、做校对或交给别人时，导出一份 JSON 快照（不是字典备份）：
+
+```bash
+node bin/yakusha.js export "/games/MyGame" --out yakusha-export.json
+```
+
 ## 命令一览
 
 | 命令 | 作用 |
@@ -125,11 +133,12 @@ verdict   : usable with 2 warning(s)
 | `install` | 装运行时插件 |
 | `uninstall` | 卸载并还原 |
 | `doctor` | 查安装、备份、字典是否还与这版游戏对得上 |
+| `export` | 把已翻译条目导出成 JSON 快照 |
 | `config` | 读写用户级配置（`provider` / `model` / `baseUrl`，不存密钥） |
 
-`export` / `launch` 是 0.10 剩余的设计（尚未实现）：导出见
-[docs/export-format.md](docs/export-format.md)，启动规则见 [docs/engines.md](docs/engines.md) §8。
-`config` 已实现，优先级与文件位置见 [docs/config.md](docs/config.md)。
+`launch` 是 0.10 剩余的设计（尚未实现），启动规则见 [docs/engines.md](docs/engines.md) §8。
+`config` 与 `export` 已实现：优先级与文件位置见 [docs/config.md](docs/config.md)，
+导出规则见 [docs/export-format.md](docs/export-format.md)。
 
 完整选项、判据、实测见 [docs/commands.md](docs/commands.md)。
 
@@ -144,8 +153,8 @@ verdict   : usable with 2 warning(s)
 ## 目录结构
 
 ```
-bin/yakusha.js            CLI 薄壳，当前十一个命令（export/launch 在 0.10 后续工作包）
-src/cli/                  JSON 信封、严格参数解析、用户级配置
+bin/yakusha.js            CLI 薄壳，当前十二个命令（launch 在 0.10 后续工作包）
+src/cli/                  JSON 信封、严格参数解析、用户级配置、JSON 导出
 src/engines/              MZ/MV 适配器与 registry（detect 返回判别式）
 src/index.js              库门面（与 CLI 共用同一套实现）
 src/core/                项目发现、数据解码、文本抽取、字典、安装、doctor
@@ -181,12 +190,12 @@ docs/                    设计说明、命令参考、契约、实测记录、�
 
 | 文件 | 内容 |
 | --- | --- |
-| [docs/commands.md](docs/commands.md) | 十个命令的完整选项、`verify` 十类判据、`terms`/`speaker` 算法说明 |
+| [docs/commands.md](docs/commands.md) | 所有命令的完整选项、`verify` 十类判据、`terms`/`speaker` 算法说明 |
 | [docs/architecture.md](docs/architecture.md) | 三层结构（CLI 内核 / Electron 壳 / 引擎适配器）、引擎能力分档、载荷契约、0.10–1.0 分批计划 |
 | [docs/json-contract.md](docs/json-contract.md) | 0.10 契约（已实现）：`--json` 信封、错误码、退出码、严格参数解析、破坏性变更 |
 | [docs/engines.md](docs/engines.md) | 0.10 契约：adapter 契约、能力矩阵、安装/卸载（已实现）；launch / attach 边界 |
 | [docs/config.md](docs/config.md) | 0.10 实现：用户级配置、密钥优先级与威胁模型（不落盘） |
-| [docs/export-format.md](docs/export-format.md) | 0.10 设计稿：JSON 导出格式、排序、原子写与覆盖规则 |
+| [docs/export-format.md](docs/export-format.md) | 0.10 实现：JSON 导出格式、排序、原子写与覆盖规则 |
 | [docs/platforms.md](docs/platforms.md) | 平台支持矩阵与决策记录（Windows-only 的原因与重评条件） |
 | [docs/design.md](docs/design.md) | 为什么走运行时钩子、文本面覆盖、转义码、设计约束、作为库用 |
 | [docs/games.md](docs/games.md) | 匿名记录的 15 款实测游戏、全量翻译数据、官中游戏的处理方式 |

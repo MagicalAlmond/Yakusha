@@ -125,6 +125,7 @@ test("json: every command keeps its payload flat", () => {
     ["verify"],
     ["speaker"],
     ["terms"],
+    ["export", "--out", path.join(game, "yakusha", "export.json")],
     ["install"],
     ["uninstall"],
     ["doctor"],

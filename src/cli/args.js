@@ -34,6 +34,8 @@ const BOOLEAN = new Set([
   "include-drift",
   "drift-only",
   "embed",
+  "flat",
+  "force",
 ]);
 
 /**
@@ -67,6 +69,8 @@ const VALUE = [
   "min-support",
   "max-terms",
   "write",
+  "out",
+  "format",
 ];
 
 /** Per command option names; GLOBAL is always allowed. */
@@ -75,6 +79,7 @@ const COMMAND_OPTIONS = {
   scan: [],
   extract: [],
   status: [],
+  export: ["out", "format", "flat", "force"],
   uninstall: [],
   install: ["embed"],
   doctor: ["max-length"],
