@@ -204,7 +204,25 @@ node bin/yakusha.js verify "/games/MyGame"
 node bin/yakusha.js verify "/games/MyGame" --max-length 48      # 顺带查超宽行
 node bin/yakusha.js verify "/games/MyGame" --kind echo,codes    # 只看致命项
 node bin/yakusha.js verify "/games/MyGame" --json --limit 500   # 机器可读，全量列出
+node bin/yakusha.js verify "/games/MyGame" --write-report verify.md  # 写一份 markdown 报告
 ```
+
+终端只适合边改边看：192 条警告滚过去就没法对照了。`--write-report` 把同样的结果写成
+一份自包含的 markdown——摘要表、按类型分节、每条问题的原文与译文，可以直接贴进 issue，
+也可以存档对比两个版本。命令失败时同样会写，因为那正是需要读它的时候。
+
+```markdown
+| entries | 38044 (38042 translated, 2 pending, 2 rejected) |
+| problems | 192 (0 errors, 192 warnings) |
+
+**OK with 192 warning(s)** - nothing blocks a release.
+
+## kana (106)
+1. warning: `ラスボス敗北時(通常)(テ)` -> `最终BOSS败北时(通常)(テ)`
+   Japanese kana left in the translation
+```
+
+报告里换行显示为 `⏎`，否则一条多行台词会和两条问题混在一起。
 
 判据是踩过坑之后定下来的，改之前请先读 `src/pipeline/verify.js` 顶部的注释：
 `・`（U+30FB）和 `ー`（U+30FC）**不算**假名（它们在中译文里是正常标点，早期版本
@@ -256,6 +274,15 @@ node bin/yakusha.js speaker "/games/MyGame" --names my-names.json
 
 ```json
 { "entries": { "水泳部員": "游泳社员" } }
+```
+
+名字多的时候不用手抄：`--write-names` 会把它挑出来的名字（只含本作一次都没翻过、
+机械修复帮不上的那些）写成一个空模板，填空后再用 `--names` 传回去。
+
+```bash
+node bin/yakusha.js speaker "/games/MyGame" --write-names names.json
+# 编辑 names.json，把每个名字的中文填进 value
+node bin/yakusha.js speaker "/games/MyGame" --names names.json
 ```
 
 实测《用时间停止肆意妄为》（MV）：`verify` 报 411 个 speaker error，`speaker` 一次改掉
@@ -455,10 +482,12 @@ verify:
                       （kana / echo / codes / slots / lines / width / no-text / trad / speaker / rejected）
   --max-length <n>    同时检查超过 n 显示列的行
   --limit <n>         最多打印多少条（默认 20）
+  --write-report <f>  把全部问题写成一份 markdown 报告
 
 speaker:
   --include-drift     连中文写法不一致的也统一（默认只修没翻的）
   --names <file>      给本作从没翻过的名字补一份映射表
+  --write-names <f>   把这些名字写成待填的 JSON 模板
   --dry-run           只报会改什么，不落盘
   --limit <n>         最多打印多少个名字（默认 20）
 
@@ -504,9 +533,10 @@ src/pipeline/wrap.js     按显示宽度折行（MZ/MV 不会横向自动换行�
 src/pipeline/verify.js   译文体检（残留假名 / 原样回显 / 转义码 / 占位符 / 超宽行 / 繁体 / 说话人）
 src/pipeline/terms.js    名字/术语的主流译法挖掘与漂移检测
 src/pipeline/speaker.js  说话人标记的识别与按房规修复
+src/pipeline/report.js   verify 结果的 markdown 报告
 src/data/traditional.js  繁体专用字表（OpenCC TSCharacters，一繁对一简）
 src/plugin/YAKUSHA_Translator.js  运行时插件模板（install 时注入规则表）
-test/                    229 个测试（含 CLI 端到端）
+test/                    239 个测试（含 CLI 端到端）
 ```
 
 ## 设计约束

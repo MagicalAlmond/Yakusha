@@ -59,6 +59,7 @@ const TRADITIONAL = (() => {
  * @property {string} key source text as stored in the dictionary
  * @property {string} [target] stored translation
  * @property {string} detail human readable explanation
+ * @property {string} [name] speaker tag the finding is about (kind "speaker")
  */
 
 /**
@@ -118,10 +119,12 @@ export function verifyDictionary(dictionary, options = {}) {
   let pending = 0;
   let rejected = 0;
 
-  const report = (kind, severity, key, target, detail) => {
+  const report = (kind, severity, key, target, detail, extra) => {
     if (only && !only.has(kind)) return;
     counts[kind] = (counts[kind] || 0) + 1;
-    problems.push({ kind, severity, key, target, detail });
+    const problem = { kind, severity, key, target, detail };
+    if (extra && extra.name) problem.name = extra.name;
+    problems.push(problem);
   };
 
   const entries = (dictionary && dictionary.entries) || {};
@@ -228,7 +231,7 @@ export function verifyDictionary(dictionary, options = {}) {
         const house = speakerHouse(source);
         if (KANA.test(rendering)) {
           if (house.translated) {
-            report("speaker", "error", key, target, "speaker name left in Japanese: " + source);
+            report("speaker", "error", key, target, "speaker name left in Japanese: " + source, { name: source });
           }
           continue;
         }
@@ -238,7 +241,7 @@ export function verifyDictionary(dictionary, options = {}) {
         // screen. Names that are genuinely the same in both languages (少女,
         // 入浴女性) contain no such character and stay silent.
         if (rendering === source && [...rendering].some((char) => TRADITIONAL.has(char))) {
-          report("speaker", "error", key, target, "speaker name left untranslated: " + source);
+          report("speaker", "error", key, target, "speaker name left untranslated: " + source, { name: source });
           continue;
         }
         if (house.house && rendering !== house.house) {
@@ -247,7 +250,8 @@ export function verifyDictionary(dictionary, options = {}) {
             "warn",
             key,
             target,
-            "speaker name rendered as " + JSON.stringify(rendering) + ", elsewhere " + JSON.stringify(house.house)
+            "speaker name rendered as " + JSON.stringify(rendering) + ", elsewhere " + JSON.stringify(house.house),
+            { name: source }
           );
         }
       }

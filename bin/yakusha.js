@@ -32,6 +32,7 @@ import { stripCodes } from "../src/core/textkey.js";
 import { createProvider } from "../src/pipeline/provider.js";
 import { translateDictionary } from "../src/pipeline/translate.js";
 import { verifyDictionary } from "../src/pipeline/verify.js";
+import { buildReport, namesNeedingInput } from "../src/pipeline/report.js";
 import { repairSpeakerNames } from "../src/pipeline/speaker.js";
 import { mineTerms, toGlossary } from "../src/pipeline/terms.js";
 
@@ -238,13 +239,38 @@ async function cmdVerify(dir) {
   const kinds = typeof flags.kind === "string" ? flags.kind.split(",").map((k) => k.trim()).filter(Boolean) : undefined;
   const result = verifyDictionary(data, { maxColumns, kinds });
   const shown = numberFlag("limit", 20);
-  const summary = { ok: result.errors === 0, file, maxColumns, ...result, problems: undefined };
+  // The documented contract is that an error makes the command fail, so a
+  // release script can gate on it ("verify && install"). Setting exitCode
+  // instead of calling process.exit keeps stdout flushing intact, which matters
+  // for --json: the report has to reach the caller even on failure.
+  const failed = result.errors > 0;
+  if (failed) process.exitCode = 1;
+  // A terminal is a bad place to review two hundred findings: the report is the
+  // same result laid out as markdown, self-contained enough to attach to an
+  // issue. It is written even when the run fails, since that is exactly when it
+  // is needed.
+  const reportFile = typeof flags["write-report"] === "string" ? path.resolve(flags["write-report"]) : null;
+  if (reportFile) {
+    fs.mkdirSync(path.dirname(reportFile), { recursive: true });
+    fs.writeFileSync(
+      reportFile,
+      buildReport(result, {
+        game: project.gameTitle,
+        file,
+        root: project.root,
+        maxColumns,
+        dictionary: data,
+      })
+    );
+  }
+  const summary = { ok: result.errors === 0, file, maxColumns, report: reportFile, ...result, problems: undefined };
   if (json) {
     process.stdout.write(JSON.stringify({ ...summary, problems: result.problems }, null, 2) + "\n");
     return;
   }
   console.log("entries   : " + result.total + " (" + result.translated + " translated, " + result.pending + " pending)");
   if (result.rejected > 0) console.log("rejected  : " + result.rejected + " (see the error field of those entries)");
+  if (reportFile) console.log("report    : " + reportFile);
   if (result.problems.length === 0) {
     console.log("problems  : none");
     return;
@@ -297,6 +323,17 @@ async function cmdSpeaker(dir) {
   const before = verifyDictionary(data, { kinds: ["speaker"] });
   const result = repairSpeakerNames(data, { includeDrift, names });
   const after = verifyDictionary(data, { kinds: ["speaker"] });
+  // The names repair cannot invent a reading, and a name every line leaves in
+  // Japanese has nothing to copy. A template is the cheapest way to ask: the
+  // user fills in only the names they care about and reruns with --names.
+  const missing = namesNeedingInput(after, data);
+  const namesFile = typeof flags["write-names"] === "string" ? path.resolve(flags["write-names"]) : null;
+  if (namesFile) {
+    const template = { entries: {} };
+    for (const entry of missing) template.entries[entry.name] = "";
+    fs.mkdirSync(path.dirname(namesFile), { recursive: true });
+    fs.writeFileSync(namesFile, JSON.stringify(template, null, 2) + "\n");
+  }
   const saved = result.entries > 0 && !dryRun;
   if (saved) dict.saveDictionary(file, data);
   const summary = {
@@ -309,6 +346,8 @@ async function cmdSpeaker(dir) {
     entries: result.entries,
     tags: result.tags,
     names: result.names,
+    namesFile,
+    namesNeeded: missing.length,
     errorsBefore: before.errors,
     errorsAfter: after.errors,
     warningsBefore: before.warnings,
@@ -317,6 +356,15 @@ async function cmdSpeaker(dir) {
   if (json) {
     process.stdout.write(JSON.stringify(summary, null, 2) + "\n");
     return;
+  }
+  if (namesFile) {
+    console.log(
+      "names file: " +
+        namesFile +
+        (missing.length === 0
+          ? " (nothing to fill in)"
+          : " (" + missing.length + " name(s) to fill in, then pass --names)")
+    );
   }
   if (result.names.length === 0) {
     if (after.errors === 0) {
@@ -661,12 +709,14 @@ const USAGE = [
   "                      (kana, echo, codes, slots, lines, width, no-text, trad, speaker, rejected)",
   "  --max-length <cols> also report lines wider than n display columns",
   "  --limit <n>         how many problems to print (default 20)",
+  "  --write-report <f>  write every finding as a markdown report",
   "",
   "speaker options:",
   "  --include-drift     also replace a Chinese rendering that differs from the",
   "                      one used elsewhere (style call, off by default)",
   "  --names <file>      JSON map of source name -> Chinese, for names this game",
   "                      never translated (so no rendering can be copied)",
+  "  --write-names <f>   write a JSON template of the names --names must supply",
   "  --dry-run           report what would change without writing",
   "  --limit <n>         how many names to print (default 20)",
   "",

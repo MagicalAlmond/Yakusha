@@ -1,9 +1,10 @@
 # 开发交接文档（DEVLOG）
 
 > 这份文档记录**阶段目标、已完成项、决策理由和下一步**，随开发进程更新。
-> 最后更新：2026-10-25（0.6.0，新增 `speaker` 命令：把 `speaker` 检查报出的
-> 说话人名问题按本作自己的写法机械修好，229 个测试全绿；同轮把「只报不修」的
-> 最后一类可自动修的问题补成了可执行动作）。
+> 最后更新：2026-10-25（0.7.0，`verify` 新增 `--write-report` 把体检结果落成
+> markdown 报告，`speaker` 新增 `--write-names` 直接生成待填的名字模板；
+> 同时修掉一个与文档承诺不符的契约 bug——`verify` 报 error 时退出码曾是 0。
+> 239 个测试全绿）。
 
 ## 1. 项目目标（用户原话）
 
@@ -23,8 +24,8 @@
 
 | 项 | 状态 |
 | --- | --- |
-| 版本 | 0.6.0（package.json） |
-| 测试 | **229 个，全绿**（`npm test`，约 4.0s） |
+| 版本 | 0.7.0（package.json） |
+| 测试 | **239 个，全绿**（`npm test`，约 5.4s） |
 | 支持引擎 | RPG Maker **MZ 1.3.2–1.9.0**、**MV 1.6.1–1.6.2** |
 | 实测游戏 | 15 款可识别（本机全量普查），其中 **4 款**全量翻译 + 运行时验收 |
 | 磁盘改动 | 只加 1 个插件文件 + `plugins.js` 里 1 条注册，卸载逐字节还原 |
@@ -66,6 +67,12 @@
       `drift`/`missing`，可导出成术语表回灌（配 `translate --glossary-only --overwrite`）。
       这一步解决的是`verify` 查不到的那类问题：`フェイリン` 的名字表现写「费琳」，
       而正文 3,653 行里 96% 写「菲琳」。`verify` 看到这条只会说「没有结构性问题」。
+- [x] 0.7.0 补上发布流程的两块拼图：`verify --write-report <file>` 把 10 类问题
+      连同「为什么重要」写成一份自包含的 markdown（终端里看 192 条警告不现实，
+      报告能直接贴 issue）；`speaker --write-names <file>` 把「本作一次都没翻过、
+      机械修复帮不上」的名字直接列成待填的 JSON 模板。同一轮修掉 `verify` 报 error
+      时退出码仍为 0 的契约 bug（README 与本文第 5 节都承诺过它会失败），
+      现在 `verify && install` 可以当发布闸门用。
 
 ## 4. 文件地图
 
@@ -86,8 +93,9 @@ src/pipeline/verify.js    译文体检（残留假名 / 原样回显 / 转义码
 src/data/traditional.js   繁体专用字表（OpenCC TSCharacters，只留一繁对一简）
 src/pipeline/terms.js     名字/术语的主流译法挖掘与漂移检测
 src/pipeline/speaker.js   说话人标记的识别、房规统计与按房规修复
+src/pipeline/report.js    verify 结果的 markdown 报告（只格式化，不重算）
 src/plugin/YAKUSHA_Translator.js  运行时插件模板（install 时注入规则表）
-test/                     229 个测试（含 CLI 端到端）
+test/                     239 个测试（含 CLI 端到端）
 ```
 
 ## 5. 关键决策与理由（改代码前请先读这一节）
@@ -119,6 +127,8 @@ test/                     229 个测试（含 CLI 端到端）
 | **`speaker` 默认只修「没翻的」，两种中文写法要显式 `--include-drift`** | 「这一行还是日文、别处翻过」有唯一正确答案（抄别处那个），可以机械执行；「沙耶香 vs 沙耶加」「疲惫的女性 vs 看起来疲惫的女性」是风格取舍，两个都是合理中文，自动统一等于替人做美学决定。所以后者做成 opt-in，跑之前先看 `--dry-run`。 |
 | **`speaker` 是纯本地改写，不调模型** | 正确的译法就在同一个字典里（用了 490 次的「日向」），再问模型一次既贵又可能发明第三种写法。`repairSpeakerNames` 只做「按位置换掉标记内容」，转义码与正文一个字节都不动，跑两次幂等。 |
 | **`speaker` 的标记识别用白名单正则，不用 `<[^>]*>`** | 桜御前 的 84 行 `<...>` 全是代码表达式（`<50*\v[65]>`、`<\s[25] ? " OFF ":" ON " >`），天真匹配会把它们当人名。只接受「纯中文/假名/空白、长度 ≤ 40」的内容后，那款游戏 0 命中，真正有 `\N<名字>` 插件的那款 1,151 行正常命中。 |
+| **`verify` 有 error 时用 `process.exitCode = 1` 失败，不用 `process.exit(1)`** | 契约上要让 `verify && install` 能拦住有问题的字典；实现上必须让 `--json` 的 stdout 冲刷完再退。`process.exit` 会截断管道里的 JSON，脚本解析直接炸。这个 bug 实测存在过（打印 FAILED 但退出码 0），修复时把退出码本身写进了测试。 |
+| **报告只格式化，不重算** | `buildReport` 吃的是 `verifyDictionary` 已经算好的 `result`，不重新跑一遍检查。重算会让报告和终端输出的数字有机会不一致（比如中途有人改了字典），而报告的价值就在「它和刚才那次运行是同一份事实」。失败时也照写——最需要贴出去的正是失败的那次。 |
 
 ## 6. 实测数据（可复现的基准）
 
@@ -302,6 +312,18 @@ target 是空的，但正文里译名早就统一了 → 正好用 `terms --writ
   XOR 那款是 `7c5df17309bb01551d0ba6de2d79ca31` → 装后 `6b55d468fd539ad7cff2782f9a4712f3` → 卸载后回到原 md5。
 - 运行时命中：MZ 那款 `lookups 60,781 / translated 60,779 / misses 2 / rejected 0`。
 
+### 0.7.0 报告与退出码实测
+
+- 格闘娘（38,044 条）：0 error / **192 warning**（kana 106、lines 61、trad 23、rejected 2），
+  `verify --write-report` 生成 **38,502 B** 报告，耗时 0.34s，退出码 0。
+- 桜御前（24,757 条）：0 error / **195 warning**（kana 117、trad 56、rejected 22），
+  报告 35,425 B，退出码 0。
+- 报告不是一坨文本：按 kind 分节、error 类排在最前、每节带一句「为什么重要/怎么修」，
+  单条是「severity: 原文 -> 译文」（原文和译文各自用反引号包住）再加一行缩进 detail；
+  多行原文显示成 `⏎`，文本里含反引号时自动换更长的 fence。
+  这两份报告就是「终端里看不过来」的实证。
+- 退出码契约：构造一条原样回显 → 打印 `result : FAILED, 1 error(s)` 且退出码 **1**；
+  只有 warning 时退出码 0。两条都有 CLI 测试守着（0.7.0 之前前者是 0，测试也只断言了 stdout）。
 ## 7. 已知限制
 
 1. 只处理 `data/` 里的文本；插件 `js/plugins/*.js` 里硬编码的 UI 文案不动。
@@ -344,15 +366,18 @@ target 是空的，但正文里译名早就统一了 → 正好用 `terms --writ
 17. `speaker --include-drift` 会**重写已有的中文译文**（实测把 38 条 `雏田` 改成 `日向`）。
     这是除 `terms --drift-only --overwrite` 之外第二处会主动改动已翻内容的入口，
     跑之前先看 `--dry-run` 的输出。
+18. `verify --write-report` 写的是**生成那一刻的快照**，之后改字典不会自动更新，
+    要重新跑一次；`speaker --write-names` 只列 `verify` 报 error 的那些名字
+    （本作别处翻过、能机械修的不在里面），所以模板是空的**不代表名字全都对**，
+    只代表没有会被拦下的问题。
 
 ## 8. 下一步（backlog，按优先级）
 
 1. **push 到 GitHub**（用户说过"顶多公布到 github"，但还没要求立即推送）。
 2. 可选：给 `translate` 的 glossary 加条数上限（按请求过滤后已经省了 90%+，
    但词表上万条时仍会让每请求的过滤变慢，届时值得加）。
-3. 可选：给 `verify` 加 `--write-report <file>`，把结果落成 markdown 便于贴 issue。
-   若要做，`speaker` 的 `--names` 模板可以一起生成（把「本作从没翻过的名字」直接列成
-   一份待填的 JSON），省掉人工去比对哪几个名字还需要补。
+3. ~~给 `verify` 加 `--write-report <file>`，并把 `speaker` 的 `--names` 模板一起生成~~
+   —— **0.7.0 已完成**（`--write-report` / `--write-names`，见第 3 节与第 6 节）。
 4. 可选：把运行时截图驱动脚本（CDP 解冻 / readPixels 回读 / 冻结后原子渲染）整理成
    `tools/` 下的取证工具，便于以后验收新游戏时复用。**注意：这类脚本会碰游戏进程，
    不建议随工具分发，只作开发期验证用。**
@@ -395,6 +420,12 @@ node bin/yakusha.js translate "D:/H/Games/<game>" --glossary yakusha/terms.json 
 node bin/yakusha.js verify "D:/H/Games/<game>" --max-length 48
 node bin/yakusha.js verify "D:/H/Games/<game>" --kind echo,codes,slots --json
 node bin/yakusha.js verify "D:/H/Games/<game>" --kind trad,speaker   # 繁简混入 / 说话人名漏译
+node bin/yakusha.js verify "D:/H/Games/<game>" --write-report yakusha/verify.md   # 全部问题落成 markdown
+
+# 说话人名字模板（只列 verify 报 error、机械修复帮不上的）
+node bin/yakusha.js speaker "D:/H/Games/<game>" --write-names yakusha/names.json
+# 填好 value 后：
+node bin/yakusha.js speaker "D:/H/Games/<game>" --names yakusha/names.json
 
 # 装 / 卸
 node bin/yakusha.js install   "D:/H/Games/<game>"
@@ -423,6 +454,10 @@ node bin/yakusha.js uninstall "D:/H/Games/<game>"
 - **白名单正则比黑名单稳**：判断"尖括号里是不是人名"时，先试了排除含 `\` `$` `[` 的内容，
   漏了 `<s[25] ? " OFF ":" ON " >` 这类带空格的；改成"内容必须是纯 CJK/假名/空白且
   长度 ≤ 40"后一次通过。
+- **文档里写下的承诺，必须有测试守着**：README 和第 5 节都写着「`verify` 的 error 会让命令
+  失败」，实际退出码一直是 0，因为测试只断言了 stdout 里的 `result : FAILED`。
+  凡是文档里写出「会失败 / 会写盘 / 会退出」的句子，都该有一条断言；`verify --write-report` 的
+  「失败时也写」同理，是专门为它加的一条 CLI 测试。
 
 - **Windows 上 ESM 不能直接 import 绝对路径**（`ERR_UNSUPPORTED_ESM_URL_SCHEME: d:`），
   必须 `pathToFileURL(p).href`；验证脚本一律写成 `.cjs` 再 `node` 跑，别塞进仓库。

@@ -219,14 +219,32 @@ test("cli: verify reports problems and sets ok from the error count", () => {
   dict.entries[echoed].text = echoed;
   fs.writeFileSync(file, JSON.stringify(dict, null, 2) + "\n", "utf8");
 
+  // A release script gates on the exit code ("verify && install"), so an error
+  // must fail the command while still printing the full report on stdout.
   const result = run(["verify", game, "--json"]);
-  assert.equal(result.code, 0, result.stderr);
+  assert.equal(result.code, 1, result.stderr);
   const summary = JSON.parse(result.stdout);
   assert.equal(summary.ok, false);
   assert.equal(summary.translated, 2);
   assert.equal(summary.errors, 1);
   assert.equal(summary.counts.echo, 1);
   assert.equal(path.resolve(summary.file), path.resolve(file));
+});
+
+test("cli: verify exits 0 when every finding is a warning", () => {
+  const game = tempGame();
+  assert.equal(run(["extract", game]).code, 0);
+  const file = path.join(game, "yakusha", "dictionary.json");
+  const dict = JSON.parse(fs.readFileSync(file, "utf8"));
+  // A kana leftover is a style finding, not corruption: it must not stop a
+  // release, otherwise every run of onomatopoeia turns the gate red.
+  dict.entries["ポーション"].text = "药水";
+  dict.entries["はい"].text = "是ッ";
+  fs.writeFileSync(file, JSON.stringify(dict, null, 2) + "\n", "utf8");
+
+  const result = run(["verify", game]);
+  assert.equal(result.code, 0, result.stdout + result.stderr);
+  assert.match(result.stdout, /OK with \d+ warning/);
 });
 
 test("cli: verify on a dictionary with no translations is clean", () => {
@@ -261,6 +279,39 @@ test("cli: verify needs a dictionary first", () => {
   const result = run(["verify", game]);
   assert.notEqual(result.code, 0);
   assert.match(result.stderr, /no dictionary yet/);
+});
+
+test("cli: verify --write-report writes the findings even when the run fails", () => {
+  const game = tempGame();
+  assert.equal(run(["extract", game]).code, 0);
+  const file = path.join(game, "yakusha", "dictionary.json");
+  const dict = JSON.parse(fs.readFileSync(file, "utf8"));
+  const echoed = Object.keys(dict.entries).find((key) => /[\u3041-\u3096\u30a1-\u30fa]/.test(key));
+  assert.equal(typeof echoed, "string");
+  dict.entries[echoed].text = echoed;
+  fs.writeFileSync(file, JSON.stringify(dict, null, 2) + "\n", "utf8");
+
+  const report = path.join(game, "yakusha", "verify-report.md");
+  const result = run(["verify", game, "--write-report", report, "--json"]);
+  // The echo is an error, so the command fails - and the report is written
+  // anyway, because a failed run is exactly when somebody needs to read it.
+  assert.equal(result.code, 1, result.stderr);
+  assert.equal(path.resolve(JSON.parse(result.stdout).report), path.resolve(report));
+  const markdown = fs.readFileSync(report, "utf8");
+  assert.match(markdown, /# yakusha verify report/);
+  assert.match(markdown, /FAILED: 1 error/);
+  assert.ok(markdown.includes(echoed), "the echoed line should be quoted in the report");
+});
+
+test("cli: verify --write-report prints the path and creates parent folders", () => {
+  const game = tempGame();
+  assert.equal(run(["extract", game]).code, 0);
+  const report = path.join(game, "out", "nested", "report.md");
+  const result = run(["verify", game, "--write-report", report]);
+  assert.equal(result.code, 0, result.stderr);
+  assert.match(result.stdout, /report    : /);
+  assert.ok(fs.existsSync(report));
+  assert.match(fs.readFileSync(report, "utf8"), /\*\*OK\*\*/);
 });
 
 /**
@@ -426,6 +477,24 @@ test("cli: speaker --names supplies a rendering the dictionary never had", () =>
   assert.equal(fixed.errorsAfter, 0);
   const dict = JSON.parse(fs.readFileSync(path.join(game, "yakusha", "dictionary.json"), "utf8"));
   assert.equal(dict.entries[speakerLine("水泳部員", "a")].text, speakerLine("游泳社员", "a"));
+});
+
+test("cli: speaker --write-names writes a template --names can consume", () => {
+  const game = tempGame();
+  writeDictionary(game, [[speakerLine("水泳部員", "a"), speakerLine("水泳部員", "a")]]);
+  const namesFile = path.join(game, "names.json");
+  const summary = JSON.parse(run(["speaker", game, "--write-names", namesFile, "--json"]).stdout);
+  // The template asks for exactly the names the mechanical repair cannot fix.
+  assert.equal(summary.namesNeeded, 1);
+  assert.equal(path.resolve(summary.namesFile), path.resolve(namesFile));
+  const template = JSON.parse(fs.readFileSync(namesFile, "utf8"));
+  assert.deepEqual(template, { entries: { 水泳部員: "" } });
+
+  template.entries["水泳部員"] = "游泳社员";
+  fs.writeFileSync(namesFile, JSON.stringify(template), "utf8");
+  const fixed = JSON.parse(run(["speaker", game, "--names", namesFile, "--json"]).stdout);
+  assert.equal(fixed.supplied, 1);
+  assert.equal(fixed.errorsAfter, 0);
 });
 
 test("cli: speaker without --names explains what is left", () => {
