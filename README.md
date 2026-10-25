@@ -183,7 +183,43 @@ node bin/yakusha.js translate "/games/MyGame" --glossary yakusha/terms.json --gl
 实测四款游戏：格闘娘 `names 510/612, mined 52, drift 5`；常識改変者 `156/215, 20, 2`；
 用时间停止 `145/148, 6, 0`；与傲娇妹妹 `45/45, 3, 0, missing 3`（官方中文，名字表反而缺）。
 
-### 6. 发布前自检
+### 6. 装好之后：游戏更新了怎么办
+
+最常遇到的事故是「游戏更新以后中文没了」。三种原因外观一样，`doctor` 把它们分开：
+
+```bash
+node bin/yakusha.js doctor "/games/MyGame"
+```
+
+```
+game      : 格闘娘はお金が無い！ (RPG Maker MZ 1.7.0, 51 data files)
+  engine      ok    RPG Maker MZ 1.7.0
+  dictionary  ok    38044 entries (38042 translated, 2 pending, 2 rejected)
+  progress    warn  2 entries are still empty - run: yakusha translate <game>
+  rejected    warn  2 entries failed validation - run: yakusha verify
+  sync        ok    every dictionary key still appears in data/
+  install     ok    js/plugins/YAKUSHA_Translator.js registered in js/plugins.js
+  backup      ok    uninstall can restore js/plugins.js byte for byte
+  runtime     ok    yakusha/dictionary.json (found)
+  verify      ok    0 error, 192 warning(s)
+verdict   : usable with 2 warning(s)
+```
+
+| 症状 | 看哪一行 | 怎么办 |
+| --- | --- | --- |
+| 中文全没了，插件文件还在 | `install  fail` | 重跑 `install`（`$plugins` 里的条目被更新覆盖了） |
+| 游戏一启动就报错 | `plugins.js  fail` | 从 `js/plugins.js.yakusha-backup` 恢复，或重装游戏 |
+| 一部分台词变回日文 | `sync  warn` | 重跑 `extract` 补上新 key，再 `translate` |
+| 部署版 MV 把游戏放在 `www/` 下 | `runtime  ok` | 不用管，插件在根目录和 `www/` 下都会找 |
+
+`sync` 是最有用的那一行：它把字典每个 key 拿回 `data/` 里找一遍。游戏更新改写了台词，
+key 就找不到了——这比插件坏了更常见，而且不重新抽文本就发现不了。
+
+结尾四种：`broken`（有 fail，退出码 1）、`not installed`（还没装）、`usable`（能用但
+有警告）、`ready`（全绿）。`--json` 输出完整的 `checks` 数组。`warn` 不让命令失败——
+诊断不该因为「还有 2 条没翻」就把脚本打断。
+
+### 7. 发布前自检
 
 ```bash
 node bin/yakusha.js verify "/games/MyGame"
@@ -251,7 +287,7 @@ node bin/yakusha.js verify "/games/MyGame" --write-report verify.md  # 写一份
 尖括号里放代码表达式的游戏（`<50*\v[65]>`、`<\s[25] ? " OFF ":" ON " >`）不会被
 误认成名字：标记内容必须是纯中文/假名/空白才算。
 
-### 7. 修掉没翻的说话人名
+### 8. 修掉没翻的说话人名
 
 `verify` 只报不修，而「同一角色的名字在别处翻过、这一行还留日文」这种问题的正确答案
 **已经在这个字典里**（用了 490 次的那个写法），不该再问模型一次：
@@ -463,6 +499,7 @@ yakusha <command> <game-dir> [options]
   terms       挖人名/术语的主流译法，报出漂移
   install     装运行时插件
   uninstall   卸载并还原
+  doctor      查安装、备份、字典是否还与这版游戏对得上
 
 translate:
   --provider <name>   openai（默认）或 mock
@@ -523,7 +560,7 @@ install:
 ## 目录结构
 
 ```
-bin/yakusha.js            CLI，九个命令
+bin/yakusha.js            CLI，十个命令
 src/core/textkey.js      转义码分词 / 归一化 / 校验
 src/core/datafile.js     数据文件解码（明文 / 单字节 XOR / 空白占位）
 src/core/mzproject.js    项目发现（向下 3 层搜索）、System.json 读取
@@ -532,6 +569,7 @@ src/core/extract.js      遍历 data/ 抽出所有可译文本
 src/core/dict.js         字典读写
 src/core/pluginsfile.js  js/plugins.js 解析与重写（保留尾逗号与换行风格）
 src/core/install.js      安装 / 卸载
+src/core/doctor.js       装完之后的体检（安装 / 备份 / 字典同步 / 运行时查找）
 src/pipeline/provider.js OpenAI 兼容 + mock provider
 src/pipeline/translate.js 批处理、校验、重试、术语表
 src/pipeline/wrap.js     按显示宽度折行（MZ/MV 不会横向自动换行）
@@ -541,7 +579,7 @@ src/pipeline/speaker.js  说话人标记的识别与按房规修复
 src/pipeline/report.js   verify 结果的 markdown 报告
 src/data/traditional.js  繁体专用字表（OpenCC TSCharacters，一繁对一简）
 src/plugin/YAKUSHA_Translator.js  运行时插件模板（install 时注入规则表）
-test/                    239 个测试（含 CLI 端到端）
+test/                    253 个测试（含 CLI 端到端）
 ```
 
 ## 设计约束
@@ -595,6 +633,9 @@ test/                    239 个测试（含 CLI 端到端）
   不会判断哪个译名更好。一款游戏从头到尾没翻过某个名字时，字典里没有可抄的写法，
   机械修复帮不上忙，得用 `--names` 人工补一行。`--include-drift` 会改写已有的中文译文
   （比如把 38 条 `雏田` 改成 `日向`），跑之前先看一眼 `--dry-run` 的输出。
+- **`doctor` 只诊断，不修**：它不改字典、不重装插件、不碰游戏文件。`sync` 能发现
+  「字典里的 key 在新 `data/` 里不存在」，但发现不了「游戏新增了台词」——后者要看
+  `extract` 报的 new 计数。
 - **`verify` 只查字典能查的东西**：译文风格、和剧情上下文是否吻合，这些它看不出来；
   它只保证没有结构性缺陷（原样回显、转义码损坏、占位符丢失、超宽行、繁体字混入、
   说话人名漏译）。

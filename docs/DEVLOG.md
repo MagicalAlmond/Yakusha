@@ -1,10 +1,9 @@
 # 开发交接文档（DEVLOG）
 
 > 这份文档记录**阶段目标、已完成项、决策理由和下一步**，随开发进程更新。
-> 最后更新：2026-10-25（0.7.1，`uninstall` 不再无条件用备份覆盖 `plugins.js`：装好后
-> 文件又被改过时只摘掉自己那一条、备份留原地，避免把游戏更新或别的插件一起回滚掉。
-> 同轮 0.7.0 的 `verify --write-report` / `speaker --write-names` 也已在仓库里，
-> 243 个测试全绿）。
+> 最后更新：2026-10-25（0.8.0，新增 `doctor`：一条命令回答「游戏更新后中文没了」到底是
+> 插件条目丢了、备份对不上，还是字典与这版 `data/` 脱节，且只在真正 broken 时退出 1。
+> 253 个测试全绿。0.7.1 的 `uninstall` 漂移保护、0.7.0 的报告/模板见下）。
 
 ## 1. 项目目标（用户原话）
 
@@ -24,8 +23,8 @@
 
 | 项 | 状态 |
 | --- | --- |
-| 版本 | 0.7.1（package.json） |
-| 测试 | **244 个，全绿**（`npm test`，约 5.5s） |
+| 版本 | 0.8.0（package.json） |
+| 测试 | **253 个，全绿**（`npm test`，约 5.9s） |
 | 支持引擎 | RPG Maker **MZ 1.3.2–1.9.0**、**MV 1.6.1–1.6.2** |
 | 实测游戏 | 15 款可识别（本机全量普查），其中 **4 款**全量翻译 + 运行时验收 |
 | 磁盘改动 | 只加 1 个插件文件 + `plugins.js` 里 1 条注册，卸载逐字节还原 |
@@ -77,11 +76,15 @@
       机械修复帮不上」的名字直接列成待填的 JSON 模板。同一轮修掉 `verify` 报 error
       时退出码仍为 0 的契约 bug（README 与本文第 5 节都承诺过它会失败），
       现在 `verify && install` 可以当发布闸门用。
+- [x] 0.8.0 新增 `doctor`：把「游戏更新后中文没了」拆成三条可判定的问题——字典是否还对得上
+      这版 `data/`（逐 key 回查）、插件条目是否还在 `$plugins` 里、运行时能否在根目录或
+      `www/` 找到字典。结果分 `broken` / `not installed` / `usable` / `ready` 四态，
+      只在 `broken` 时退出 1。`plugins.js` 被手写坏时也照常出报告（初版会抛栈）。
 
 ## 4. 文件地图
 
 ```
-bin/yakusha.js             CLI（scan / extract / status / translate / verify / speaker / terms / install / uninstall）
+bin/yakusha.js             CLI（scan / extract / status / translate / verify / speaker / terms / install / uninstall / doctor）
 src/core/fields.js        字段表与指令表（纯数据，会嵌进插件）
 src/core/mzproject.js     项目发现（向下 3 层）、System.json 读取
 src/core/datafile.js      数据文件解码（明文 / 单字节 XOR / 空白占位）
@@ -89,7 +92,8 @@ src/core/extract.js       遍历 data/ 抽出所有可译文本
 src/core/textkey.js       转义码分词 / 归一化 / 校验
 src/core/dict.js          字典读写
 src/core/pluginsfile.js   js/plugins.js 解析与重写（保留尾逗号与换行风格）
-src/core/install.js       安装 / 卸载
+src/core/install.js       安装 / 卸载（含 installedEntry / backupStatus 两个只读探针）
+src/core/doctor.js        装完之后的体检（安装 / 备份 / 字典同步 / 运行时查找）
 src/pipeline/provider.js  OpenAI 兼容 + mock provider
 src/pipeline/translate.js 批处理、校验、重试、术语表
 src/pipeline/wrap.js      按显示宽度折行（MZ/MV 不会横向自动换行）
@@ -99,7 +103,7 @@ src/pipeline/terms.js     名字/术语的主流译法挖掘与漂移检测
 src/pipeline/speaker.js   说话人标记的识别、房规统计与按房规修复
 src/pipeline/report.js    verify 结果的 markdown 报告（只格式化，不重算）
 src/plugin/YAKUSHA_Translator.js  运行时插件模板（install 时注入规则表）
-test/                     239 个测试（含 CLI 端到端）
+test/                     253 个测试（含 CLI 端到端）
 ```
 
 ## 5. 关键决策与理由（改代码前请先读这一节）
@@ -134,6 +138,8 @@ test/                     239 个测试（含 CLI 端到端）
 | **`verify` 有 error 时用 `process.exitCode = 1` 失败，不用 `process.exit(1)`** | 契约上要让 `verify && install` 能拦住有问题的字典；实现上必须让 `--json` 的 stdout 冲刷完再退。`process.exit` 会截断管道里的 JSON，脚本解析直接炸。这个 bug 实测存在过（打印 FAILED 但退出码 0），修复时把退出码本身写进了测试。 |
 | **报告只格式化，不重算** | `buildReport` 吃的是 `verifyDictionary` 已经算好的 `result`，不重新跑一遍检查。重算会让报告和终端输出的数字有机会不一致（比如中途有人改了字典），而报告的价值就在「它和刚才那次运行是同一份事实」。失败时也照写——最需要贴出去的正是失败的那次。 |
 | **`uninstall` 只在「除自己那条以外没变」时用备份整体还原** | 备份只是文件在某个时刻的一张照片，不是「撤销」的凭据。装好之后游戏更新、你另装了一个插件、或者在 RPG Maker 编辑器里存过档，`plugins.js` 就已经不是那张照片了；无条件还原会把别人的改动一起删掉，而且是静默的。所以先比 `$plugins`（name/status/description/parameters，键序与排版不算改动）：一致才逐字节还原，不一致就只摘掉自己那一条、备份留原地并明确打印出来。`install` 也会在发现备份对不上时先说明，避免用户以为「反正能一键还原」。 |
+| **`doctor` 只在 `broken` 时退出 1，`warn` 不算失败** | 诊断命令的职责是报告，不是闸门：还有 2 条没翻、192 条风格警告都是正常状态，让它们退出 1 只会让脚本里到处加 `|| true`，闸门形同虚设。真正的发布闸门是 `verify`（error 才失败），`doctor` 回答的是「这台机器上现在是什么形状」。 |
+| **损坏的 `plugins.js` 要报出来，不能让 doctor 崩栈** | 手改坏或写了一半的文件，正是最需要诊断的时候。初版 `backupStatus` 直接 `parsePluginsJs` 抛异常，doctor 打出一段 stack trace 而不是「哪里坏了」；现在解析失败记成 `plugins.js fail`，并跳过依赖它的 `install` / `backup` 两项检查，其余照常输出。 |
 
 ## 6. 实测数据（可复现的基准）
 
@@ -345,6 +351,25 @@ target 是空的，但正文里译名早就统一了 → 正好用 `terms --writ
   `plugins.js changed after the backup was taken;` / `uninstall will keep those edits and only remove the yakusha entry`）。
 - 边界（有测试）：如果备份本身是在「已经装过、但当时没留备份」的状态下拍的，备份里就有自己那条；
   卸载判为 drifted、保留备份、**不还原**——否则刚摘掉的条目会被备份又写回去。
+
+### 0.8.0 `doctor` 实测（格闘娘 / 桜御前 / 四种故障）
+
+健康状态（格闘娘，已装，字典 38,044 条）10 项检查全 ok，只有 `progress` / `rejected` 两条
+warn（还有 2 条没翻、2 条被校验拒收），结尾 `verdict : usable with 2 warning(s)`、EXIT=0，
+耗时约 4.0s（大头是 `verify` 遍历 38k 条；桜御前 24,757 条同样 verdict，约 0.8s）。
+
+故障复现（每条都先用 `install` 造出健康状态，再只破坏一处）：
+
+| 破坏方式 | doctor 的结论 | 退出码 |
+| --- | --- | --- |
+| 从 `$plugins` 删掉我们那条（模拟游戏更新覆盖） | `install fail the plugin file is there but its $plugins entry is gone (game update?) - run install again`，verdict broken | 1 |
+| 把 `plugins.js` 写成半截 `var $plugins = [{"name":` | `plugins.js fail js/plugins.js is not readable (plugins.js: unterminated array literal) - restore it from the backup or reinstall the game`，其余检查照常输出 | 1 |
+| `install --embed`（离线分发形态） | `runtime ok translations compiled into the plugin (38042 entries)` | 0 |
+| 删掉 `yakusha/dictionary.json` | `dictionary fail` + `runtime fail` | 1 |
+
+「把文件写坏」这一行是实测踩出来的：初版 `backupStatus` 直接 `parsePluginsJs`，doctor 会在
+最需要它的场景下打出一段 stack trace，而不是一句「哪里坏了」。
+
 ## 7. 已知限制
 
 1. 只处理 `data/` 里的文本；插件 `js/plugins/*.js` 里硬编码的 UI 文案不动。
@@ -396,6 +421,9 @@ target 是空的，但正文里译名早就统一了 → 正好用 `terms --writ
     如果这份文件以后又被改回「除自己那条以外与备份一致」，下次卸载会照常逐字节还原。
     另外，如果备份是在「已经装过、当时却没有备份」的状态下拍的（备份里含自己那一条），
     卸载同样只摘条目、不还原，避免把条目写回去；这种备份得手动删。
+20. `doctor` 只诊断不修：不改字典、不重装插件、不碰游戏文件。`sync` 能发现「字典里的 key 在
+    新 `data/` 里不存在」，但发现不了「游戏新增了台词」——后者要看 `extract` 报的 new 计数，
+    而 `doctor` 本身不抽文本。
 
 ## 8. 下一步（backlog，按优先级）
 
@@ -456,6 +484,10 @@ node bin/yakusha.js speaker "D:/H/Games/<game>" --names yakusha/names.json
 # 装 / 卸
 node bin/yakusha.js install   "D:/H/Games/<game>"
 node bin/yakusha.js uninstall "D:/H/Games/<game>"
+
+# 装完之后：游戏更新了、中文没了，先看它
+node bin/yakusha.js doctor "D:/H/Games/<game>"
+node bin/yakusha.js doctor "D:/H/Games/<game>" --json
 ```
 
 ## 10. 工程教训（踩过的坑，别再踩）
@@ -488,6 +520,11 @@ node bin/yakusha.js uninstall "D:/H/Games/<game>"
   第一版无条件用备份覆盖，等于把「装好之后所有别的改动」当作不存在——这类 bug 在测试里
   看不出来，因为测试只走「装完立刻卸」这一条最干净的路。补的测试专门在中间插一次
   「别人也改了文件」，这才是真实世界里会发生的事。
+- **诊断工具遇到损坏的输入要报出来，而不是抛栈**：`doctor` 是「坏了才跑」的命令，初版
+  `backupStatus` 直接解析 `plugins.js`，遇到写了一半的文件就打出一段 stack trace——
+  在最需要答案的时刻给出了最没用的输出。现在解析失败变成一条 `plugins.js fail`，依赖它的
+  `install` / `backup` 两项跳过，其余照常输出。凡是「输入可能已经坏掉」的入口，先想清楚
+  坏了时该打印什么。
 
 - **Windows 上 ESM 不能直接 import 绝对路径**（`ERR_UNSUPPORTED_ESM_URL_SCHEME: d:`），
   必须 `pathToFileURL(p).href`；验证脚本一律写成 `.cjs` 再 `node` 跑，别塞进仓库。

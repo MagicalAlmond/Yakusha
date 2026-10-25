@@ -205,3 +205,46 @@ export function uninstallPlugin(project) {
 
   return { removed, restored, backupPath: restored ? backupPath : null, drifted, keptBackup };
 }
+
+/**
+ * Read our own entry out of js/plugins.js, if it is still there.
+ *
+ * @param {import("./mzproject.js").Project} project
+ * @returns {Record<string, unknown>|null}
+ */
+export function installedEntry(project) {
+  try {
+    const plugins = readPluginsFile(project.pluginsFile);
+    return plugins.find((plugin) => plugin && plugin.name === PLUGIN_NAME) || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Describe the backup without touching it: exists, and whether it still
+ * matches the file it was taken from (see uninstallPlugin for why that
+ * decides whether an uninstall can restore byte for byte).
+ *
+ * @param {import("./mzproject.js").Project} project
+ * @returns {{ path: string, exists: boolean, stale: boolean }}
+ */
+export function backupStatus(project) {
+  const backupPath = project.pluginsFile + BACKUP_SUFFIX;
+  if (!fs.existsSync(backupPath)) return { path: backupPath, exists: false, stale: false, readable: true };
+  // A backup that already holds our entry is not a pre-install snapshot; it
+  // can never be restored safely (that would add the entry back).
+  try {
+    const plugins = parsePluginsJs(fs.readFileSync(project.pluginsFile, "utf8")).plugins;
+    const backup = parsePluginsJs(fs.readFileSync(backupPath, "utf8")).plugins;
+    const stale = !samePlugins(
+      plugins.filter((plugin) => !plugin || plugin.name !== PLUGIN_NAME),
+      backup
+    );
+    return { path: backupPath, exists: true, stale, readable: true };
+  } catch {
+    // A hand-edited or half-written plugins.js is exactly when somebody runs
+    // the diagnosis; it must report the damage, not crash on it.
+    return { path: backupPath, exists: true, stale: true, readable: false };
+  }
+}

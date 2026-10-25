@@ -544,3 +544,26 @@ test("cli: uninstall keeps a plugins.js edit made after install", () => {
   assert.equal(fs.existsSync(file + ".yakusha-backup"), true);
 });
 
+test("cli: doctor reports a missing dictionary as the failure", () => {
+  const game = tempGame();
+  const result = run(["doctor", game]);
+  assert.equal(result.code, 1, "a broken game must fail the command");
+  assert.match(result.stdout, /dictionary {2}fail/);
+  assert.match(result.stdout, /verdict {3}: broken - /);
+});
+
+test("cli: doctor turns usable once the plugin and the dictionary agree", () => {
+  const game = tempGame();
+  assert.equal(run(["extract", game]).code, 0);
+  assert.equal(run(["install", game]).code, 0);
+
+  const result = run(["doctor", game, "--json"]);
+  assert.equal(result.code, 0, result.stderr);
+  const summary = JSON.parse(result.stdout);
+  assert.equal(summary.ok, true);
+  assert.equal(summary.verdict, "usable", "an untranslated dictionary is usable but not ready");
+  assert.equal(summary.install.entryPresent, true);
+  assert.equal(summary.runtime.found, path.join(game, "yakusha", "dictionary.json"));
+
+  assert.match(run(["doctor", game]).stdout, /verdict {3}: usable with \d+ warning/);
+});

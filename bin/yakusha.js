@@ -12,6 +12,7 @@
  *   terms      <game-dir>                 mine name renderings, report drift
  *   install    <game-dir>                 copy the runtime plugin into the game
  *   uninstall  <game-dir>                 remove the plugin and restore plugins.js
+ *   doctor     <game-dir>                 is the install and the dictionary healthy?
  *
  * Every command prints machine readable JSON when --json is passed, and every
  * flag also accepts the --flag=value form.
@@ -28,6 +29,7 @@ import { extractProject, toSortedArray } from "../src/core/extract.js";
 import * as dict from "../src/core/dict.js";
 import { stats as dictStats, translatedOnly } from "../src/core/dict.js";
 import { installPlugin, uninstallPlugin, isInstalled } from "../src/core/install.js";
+import { diagnose } from "../src/core/doctor.js";
 import { stripCodes } from "../src/core/textkey.js";
 import { createProvider } from "../src/pipeline/provider.js";
 import { translateDictionary } from "../src/pipeline/translate.js";
@@ -668,6 +670,46 @@ async function cmdUninstall(dir) {
   }
 }
 
+async function cmdDoctor(dir) {
+  const project = requireProject(dir);
+  const file = dict.dictionaryPath(project.root);
+  let data = null;
+  if (fs.existsSync(file)) {
+    try {
+      data = dict.loadDictionary(file);
+    } catch {
+      data = null;
+    }
+  }
+  const result = diagnose(project, { dictionary: data, dictionaryFile: file, maxColumns: numberFlag("max-length", 0) });
+  if (!result.ok) process.exitCode = 1;
+  if (json) {
+    process.stdout.write(JSON.stringify(result, null, 2) + "\n");
+    return;
+  }
+  const game = result.game;
+  console.log(
+    "game      : " +
+      (game.title || "(untitled)") +
+      " (RPG Maker " +
+      game.engine.toUpperCase() +
+      (game.version ? " " + game.version : "") +
+      ", " +
+      game.dataFiles +
+      " data files)"
+  );
+  for (const check of result.checks) {
+    console.log(("  " + check.id).padEnd(14) + check.level.padEnd(6) + check.message);
+    for (const sample of check.samples || []) console.log("              - " + JSON.stringify(sample).slice(0, 70));
+  }
+  if (result.verdict === "broken") console.log("verdict   : broken - " + result.failure);
+  else if (result.verdict === "not-installed") console.log("verdict   : not installed yet - run: yakusha install <game>");
+  else if (result.verdict === "usable") {
+    const warnings = result.checks.filter((check) => check.level === "warn").length;
+    console.log("verdict   : usable with " + warnings + " warning(s)");
+  } else console.log("verdict   : ready");
+}
+
 const commands = {
   scan: cmdScan,
   extract: cmdExtract,
@@ -678,6 +720,7 @@ const commands = {
   terms: cmdTerms,
   install: cmdInstall,
   uninstall: cmdUninstall,
+  doctor: cmdDoctor,
 };
 
 const USAGE = [
@@ -695,6 +738,7 @@ const USAGE = [
   "  terms      mine name renderings and report drift",
   "  install    install the runtime plugin into the game",
   "  uninstall  remove the runtime plugin",
+  "  doctor     check the install, the backup and the dictionary against this build",
   "",
   "translate options:",
   "  --provider <name>   openai (default) or mock",
