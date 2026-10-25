@@ -138,6 +138,11 @@ node bin/yakusha.js uninstall "/games/MyGame"   # 完全还原
 `uninstall` 会删掉插件文件、清掉 `$plugins` 里的条目，并从备份复原 `plugins.js`；
 测试里验证过**逐字节一致**。
 
+如果装好之后 `plugins.js` 又被改过（游戏更新、你另装了别的插件、在 RPG Maker 编辑器里
+存过档），`uninstall` 不会拿旧备份盖掉这些改动：它只删掉 `YAKUSHA_Translator` 那一条，
+把 `js/plugins.js.yakusha-backup` 留在原地给你核对，并打印一行提示。`install` 也会在发现备份
+已经对不上时先说明这一点。
+
 ### 5. 挖出人名/术语的主流译法
 
 ```bash

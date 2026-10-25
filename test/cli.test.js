@@ -522,3 +522,25 @@ test("cli: speaker on a dictionary with no tags is a no-op", () => {
   assert.equal(summary.saved, false);
 });
 
+test("cli: uninstall keeps a plugins.js edit made after install", () => {
+  const game = tempGame();
+  assert.equal(run(["install", game, "--json"]).code, 0);
+
+  // Simulate another mod (or a game update) adding a plugin after us.
+  const file = path.join(game, "js", "plugins.js");
+  const text = fs.readFileSync(file, "utf8");
+  const patched = text.replace(/\[\r?\n/, "[\n" + JSON.stringify({ name: "OtherMod", status: true, description: "", parameters: {} }) + ",\n");
+  assert.notEqual(patched, text, "the fixture should start with a plugin array");
+  fs.writeFileSync(file, patched, "utf8");
+
+  const result = run(["uninstall", game]);
+  assert.equal(result.code, 0, result.stderr);
+  assert.match(result.stdout, /plugins.js changed after install/);
+  assert.match(result.stdout, /backup kept/);
+
+  const after = fs.readFileSync(file, "utf8");
+  assert.ok(after.includes("OtherMod"), "the later edit was lost");
+  assert.ok(!after.includes("YAKUSHA_Translator"), "our entry is still registered");
+  assert.equal(fs.existsSync(file + ".yakusha-backup"), true);
+});
+

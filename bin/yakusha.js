@@ -644,6 +644,10 @@ async function cmdInstall(dir) {
   console.log("plugin    : " + result.pluginPath);
   console.log("registered: " + (result.registered ? "yes" : "already present"));
   console.log("backup    : " + result.backupPath);
+  if (result.staleBackup) {
+    console.log("warning   : plugins.js changed after the backup was taken;");
+    console.log("            uninstall will keep those edits and only remove the yakusha entry");
+  }
   if (embed) console.log("embedded  : " + Object.keys(embed).length + " translations");
   else console.log("dictionary: yakusha/dictionary.json (loaded at runtime)");
 }
@@ -656,7 +660,12 @@ async function cmdUninstall(dir) {
     return;
   }
   console.log(result.removed ? "plugin removed" : "plugin was not installed");
-  if (result.restored) console.log("plugins.js restored from backup");
+  if (result.restored) {
+    console.log("plugins.js restored from backup");
+  } else if (result.keptBackup) {
+    console.log("plugins.js changed after install: removed only the yakusha entry");
+    console.log("backup kept : " + result.keptBackup);
+  }
 }
 
 const commands = {

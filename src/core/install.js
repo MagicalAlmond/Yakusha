@@ -35,7 +35,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const TEMPLATE = path.join(HERE, "..", "plugin", PLUGIN_FILE);
 
 /**
- * @typedef {{ pluginPath: string, registered: boolean, backupPath: string|null, createdBackup: boolean, state: "added"|"enabled"|"unchanged" }} InstallResult
+ * @typedef {{ pluginPath: string, registered: boolean, backupPath: string|null, createdBackup: boolean, staleBackup: boolean, state: "added"|"enabled"|"unchanged" }} InstallResult
  */
 
 /**
@@ -91,21 +91,54 @@ export function isInstalled(project) {
 }
 
 /**
+ * Fields that decide whether two plugin lists are "the same file after our
+ * entry was added". Only the fields RPG Maker stores matter: a reformat or a
+ * different key order is not an edit worth protecting.
+ *
+ * @param {Record<string, unknown>|null} plugin
+ * @returns {Record<string, unknown>|null}
+ */
+function normalisePlugin(plugin) {
+  if (!plugin) return null;
+  const parameters = {};
+  const keys = Object.keys(plugin.parameters || {}).sort();
+  for (const key of keys) parameters[key] = plugin.parameters[key];
+  return { name: plugin.name, status: plugin.status, description: plugin.description, parameters };
+}
+
+/**
+ * @param {Array<Record<string, unknown>>} a
+ * @param {Array<Record<string, unknown>>} b
+ * @returns {boolean}
+ */
+function samePlugins(a, b) {
+  return JSON.stringify(a.map(normalisePlugin)) === JSON.stringify(b.map(normalisePlugin));
+}
+
+/**
  * @param {import("./mzproject.js").Project} project
  * @param {{ embed?: Record<string,string>|null, parameters?: Record<string,string> }} [options]
  * @returns {InstallResult}
  */
 export function installPlugin(project, options = {}) {
   const backupPath = project.pluginsFile + BACKUP_SUFFIX;
+  const original = fs.readFileSync(project.pluginsFile, "utf8");
+  const plugins = parsePluginsJs(original).plugins;
+
   let createdBackup = false;
+  let staleBackup = false;
   if (!fs.existsSync(backupPath)) {
     fs.copyFileSync(project.pluginsFile, backupPath);
     createdBackup = true;
+  } else {
+    // The backup only describes the file it was taken from. If the game
+    // updated or another mod rewrote plugins.js since then, restoring it on
+    // uninstall would silently throw those edits away (see uninstallPlugin).
+    const backup = parsePluginsJs(fs.readFileSync(backupPath, "utf8")).plugins;
+    staleBackup = !samePlugins(plugins.filter((plugin) => !plugin || plugin.name !== PLUGIN_NAME), backup);
   }
 
-  const original = fs.readFileSync(project.pluginsFile, "utf8");
   const layout = pluginsJsLayout(original);
-  const plugins = parsePluginsJs(original).plugins;
   const state = upsertPlugin(plugins, {
     name: PLUGIN_NAME,
     description: "Runtime translation driven by a yakusha dictionary.",
@@ -122,12 +155,20 @@ export function installPlugin(project, options = {}) {
   const pluginPath = path.join(project.pluginDir, PLUGIN_FILE);
   fs.writeFileSync(pluginPath, renderPlugin({ embed: options.embed || null }), "utf8");
 
-  return { pluginPath, registered: true, backupPath: createdBackup ? backupPath : null, createdBackup, state };
+  return { pluginPath, registered: true, backupPath: createdBackup ? backupPath : null, createdBackup, staleBackup, state };
 }
 
 /**
+ * Remove the plugin and, when it is still safe, restore plugins.js byte for
+ * byte.
+ *
+ * "Safe" means everything except our own entry still matches the backup. If
+ * the file was changed after install (a game update, another mod, a hand
+ * edit in the editor), restoring the backup would delete those changes, so
+ * this removes only our entry and leaves the backup on disk for review.
+ *
  * @param {import("./mzproject.js").Project} project
- * @returns {{ removed: boolean, restored: boolean, backupPath: string|null }}
+ * @returns {{ removed: boolean, restored: boolean, backupPath: string|null, drifted: boolean, keptBackup: string|null }}
  */
 export function uninstallPlugin(project) {
   const backupPath = project.pluginsFile + BACKUP_SUFFIX;
@@ -139,20 +180,28 @@ export function uninstallPlugin(project) {
     removed = true;
   }
 
-  const original = fs.readFileSync(project.pluginsFile, "utf8");
-  const layout = pluginsJsLayout(original);
-  const plugins = parsePluginsJs(original).plugins;
+  const current = fs.readFileSync(project.pluginsFile, "utf8");
+  const layout = pluginsJsLayout(current);
+  const plugins = parsePluginsJs(current).plugins;
   if (removePlugin(plugins, PLUGIN_NAME)) {
     fs.writeFileSync(project.pluginsFile, serialisePluginsJs(plugins, layout), "utf8");
     removed = true;
   }
 
   let restored = false;
+  let drifted = false;
+  let keptBackup = null;
   if (fs.existsSync(backupPath)) {
-    fs.copyFileSync(backupPath, project.pluginsFile);
-    fs.rmSync(backupPath);
-    restored = true;
+    const backup = parsePluginsJs(fs.readFileSync(backupPath, "utf8")).plugins;
+    drifted = !samePlugins(plugins, backup);
+    if (drifted) {
+      keptBackup = backupPath;
+    } else {
+      fs.copyFileSync(backupPath, project.pluginsFile);
+      fs.rmSync(backupPath);
+      restored = true;
+    }
   }
 
-  return { removed, restored, backupPath: restored ? backupPath : null };
+  return { removed, restored, backupPath: restored ? backupPath : null, drifted, keptBackup };
 }

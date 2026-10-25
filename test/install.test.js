@@ -6,7 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { openProject } from "../src/core/mzproject.js";
-import { readPluginsFile, parsePluginsJs } from "../src/core/pluginsfile.js";
+import { readPluginsFile, parsePluginsJs, serialisePluginsJs, pluginsJsLayout } from "../src/core/pluginsfile.js";
 import { buildRules } from "../src/core/fields.js";
 import {
   installPlugin,
@@ -127,4 +127,62 @@ test("install keeps a trailing comma when the game already had one", () => {
   const text = fs.readFileSync(project.pluginsFile, "utf8");
   assert.ok(text.endsWith(",\n];\n"));
   assert.ok(parsePluginsJs(text).plugins.length >= 3);
+});
+
+test("uninstall keeps plugins.js edits made after install", () => {
+  const root = sandbox();
+  const project = openProject(root);
+  installPlugin(project);
+
+  // A game update or a second mod rewrites plugins.js after we installed.
+  // Restoring the backup here would silently delete that edit.
+  const installed = fs.readFileSync(project.pluginsFile, "utf8");
+  const plugins = parsePluginsJs(installed).plugins;
+  plugins.push({ name: "OtherMod", status: true, description: "", parameters: {} });
+  fs.writeFileSync(project.pluginsFile, serialisePluginsJs(plugins, pluginsJsLayout(installed)), "utf8");
+
+  const result = uninstallPlugin(project);
+  assert.equal(result.removed, true);
+  assert.equal(result.restored, false);
+  assert.equal(result.drifted, true);
+  assert.equal(result.keptBackup, project.pluginsFile + ".yakusha-backup");
+  assert.equal(fs.existsSync(result.keptBackup), true);
+
+  const remaining = readPluginsFile(project.pluginsFile);
+  assert.ok(remaining.some((plugin) => plugin.name === "OtherMod"), "the later edit was lost");
+  assert.equal(remaining.some((plugin) => plugin.name === PLUGIN_NAME), false);
+});
+
+test("uninstall still restores when only our own entry was edited", () => {
+  const root = sandbox();
+  const project = openProject(root);
+  const before = fs.readFileSync(project.pluginsFile, "utf8");
+  installPlugin(project);
+
+  // Editing our parameters (debug on, a different dictionary path) is not a
+  // reason to keep the whole file; the entry is removed either way.
+  const text = fs.readFileSync(project.pluginsFile, "utf8");
+  const plugins = parsePluginsJs(text).plugins;
+  plugins.find((plugin) => plugin.name === PLUGIN_NAME).parameters.debug = "true";
+  fs.writeFileSync(project.pluginsFile, serialisePluginsJs(plugins, pluginsJsLayout(text)), "utf8");
+
+  const result = uninstallPlugin(project);
+  assert.equal(result.drifted, false);
+  assert.equal(result.restored, true);
+  assert.equal(fs.readFileSync(project.pluginsFile, "utf8"), before);
+});
+
+test("install reports a backup that no longer matches the file", () => {
+  const root = sandbox();
+  const project = openProject(root);
+  assert.equal(installPlugin(project).staleBackup, false);
+
+  const installed = fs.readFileSync(project.pluginsFile, "utf8");
+  const plugins = parsePluginsJs(installed).plugins;
+  plugins.push({ name: "OtherMod", status: true, description: "", parameters: {} });
+  fs.writeFileSync(project.pluginsFile, serialisePluginsJs(plugins, pluginsJsLayout(installed)), "utf8");
+
+  const again = installPlugin(project);
+  assert.equal(again.staleBackup, true);
+  assert.equal(again.state, "unchanged");
 });
