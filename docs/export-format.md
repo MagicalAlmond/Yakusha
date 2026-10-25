@@ -1,7 +1,7 @@
-# 译文导出格式（0.10 设计稿）
+# 译文导出格式（0.10）
 
-> **状态：0.10 设计，尚未实现。** 0.9.0 只能直接编辑 `yakusha/dictionary.json`。
-> 0.10 加 `export`，只做 JSON；TSV / CSV 推迟到 0.12。信封与退出码见
+> **状态：0.10 已实现（WP4）。** `yakusha export` 只做 JSON；TSV / CSV 推迟到 0.12。
+> 实现与测试见 `src/cli/export.js`、`test/export.test.js`；信封与退出码见
 > [json-contract.md](json-contract.md)。
 
 ## 1. 命令
@@ -155,11 +155,11 @@ yakusha export <game-dir> --out <file> [--format json] [--flat] [--force] [--jso
 
 ## 9. 验收清单
 
-- [ ] rich / flat 两种输出都能被 `JSON.parse`，字段与本文一致。
-- [ ] entries 键顺序与 locale 无关；同一字典在 Windows CI 上重复导出字节一致。
-- [ ] 只导出非空 `text`；`error` 不出现在输出里。
-- [ ] 无 `--force` 覆盖已存在文件 → `E_EXISTS`；源文件字节不变。
-- [ ] `--out` 等于字典路径 → `E_EXISTS`，即使带 `--force`。
-- [ ] 导出到不存在父目录 → 创建成功；写失败 → `E_IO`，无半份文件。
-- [ ] 空字典 → `ok`、`entries: 0`、`{}`。
-- [ ] 信封字段 `out/format/flat/entries/bytes` 有测试。
+- [x] rich / flat 两种输出都能被 `JSON.parse`，字段与本文一致。
+- [x] entries 键顺序与 locale 无关；同一字典在 Windows CI 上重复导出字节一致。
+- [x] 只导出非空 `text`；`error` 不出现在输出里。
+- [x] 无 `--force` 覆盖已存在文件 → `E_EXISTS`；源文件字节不变。
+- [x] `--out` 等于字典路径 → `E_EXISTS`，即使带 `--force`。
+- [x] 导出到不存在父目录 → 创建成功；写失败 → `E_IO`，无半份文件。
+- [x] 空字典 → `ok`、`entries: 0`、`{}`。
+- [x] 信封字段 `out/format/flat/entries/bytes` 有测试。

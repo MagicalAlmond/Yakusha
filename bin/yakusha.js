@@ -13,6 +13,8 @@
  *   install    <game-dir>                 copy the runtime plugin into the game
  *   uninstall  <game-dir>                 remove the plugin and restore plugins.js
  *   doctor     <game-dir>                 is the install and the dictionary healthy?
+ *   config                                read or write the user level config
+ *   export     <game-dir>                 write a JSON snapshot of the translations
  *
  * Every command prints one JSON envelope when --json is passed, and prints a
  * human summary otherwise. Usage errors are reported as E_USAGE with exit code
@@ -46,6 +48,13 @@ import {
   unsetConfigValue,
 } from "../src/cli/config.js";
 import { CliError, EXIT, emit, emitError, failureFor, sanitizeMessage } from "../src/cli/envelope.js";
+import {
+  assertNotDictionaryTarget,
+  buildExport,
+  exportLocationWarning,
+  serialiseExport,
+  writeExportFile,
+} from "../src/cli/export.js";
 import { VERSION } from "../src/version.js";
 
 /** Parsed global state, filled in by {@link main}. */
@@ -688,6 +697,34 @@ async function cmdUninstall(dir) {
   return done;
 }
 
+async function cmdExport(dir) {
+  const rawOut = typeof flags.out === "string" ? flags.out : null;
+  if (!rawOut) throw new CliError("E_USAGE", "export needs --out <file>");
+  if (rawOut === "-") throw new CliError("E_USAGE", "export --out must be a file path, not -");
+  const formatName = typeof flags.format === "string" ? flags.format.toLowerCase() : "json";
+  if (formatName !== "json") {
+    throw new CliError("E_USAGE", "export supports --format json only (tsv/csv arrive in 0.12)");
+  }
+  const out = path.resolve(rawOut);
+  const { project } = requireProject(dir);
+  const { file, data } = requireDictionary(project);
+  assertNotDictionaryTarget(out, file);
+  const flat = flags.flat === true;
+  const document = buildExport(data, { flat });
+  const text = serialiseExport(document);
+  const entries = Object.keys(document.entries).length;
+  const { bytes } = writeExportFile(out, text, { force: flags.force === true });
+  const warning = exportLocationWarning(project.root, out);
+  if (warning) process.stderr.write("warning: " + sanitizeMessage(warning) + "\n");
+  const payload = { out, format: "json", flat, entries, bytes };
+  const done = { payload };
+  if (json) return done;
+  console.log(
+    "exported " + entries + " " + (entries === 1 ? "entry" : "entries") + " to " + out + " (" + bytes + " B)"
+  );
+  return done;
+}
+
 async function cmdDoctor(dir) {
   const { project } = requireProject(dir);
   const file = dict.dictionaryPath(project.root);
@@ -878,6 +915,7 @@ const commands = {
   install: cmdInstall,
   uninstall: cmdUninstall,
   doctor: cmdDoctor,
+  export: cmdExport,
 };
 
 const USAGE = [
@@ -901,6 +939,7 @@ const USAGE = [
   "  install    install the runtime plugin into the game",
   "  uninstall  remove the runtime plugin",
   "  doctor     check the install, the backup and the dictionary against this build",
+  "  export     write a JSON snapshot of the translated entries",
   "  config     read or write the user level config (takes no game directory)",
   "",
   "translate options:",
@@ -947,6 +986,12 @@ const USAGE = [
   "  --limit <n>         how many terms to print (default 20)",
   "  --write <file>      save the glossary for translate --glossary",
   "  --dry-run           report what --write would save, without saving",
+  "",
+  "export options:",
+  "  --out <file>        target file (required; never stdout)",
+  "  --format <name>     json (default; tsv/csv arrive in 0.12)",
+  "  --flat              write source -> text instead of {text, contexts}",
+  "  --force             overwrite an existing target",
   "",
   "install options:",
   "  --embed             embed the translations into the plugin file",

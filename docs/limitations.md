@@ -62,8 +62,8 @@
 - **多引擎只有 MZ / MV 适配器**：0.10 的 registry / adapter 层已落地，但只注册这两个引擎；
   Ren'Py、Unity、Godot、Wolf、Kirikiri 等不在当前版本内，`inject` 档（原生注入）只有契约、
   没有实现。
-- **`config` 已实现，`export` / `launch` 还没有**：用户级配置、密钥不落盘与优先级见
-  [config.md](config.md)；导出格式见 [export-format.md](export-format.md)；启动只认项目根
-  唯一 `.exe` 的规则见 [engines.md](engines.md) §8（WP5 落地）。
-- **没有译文导入导出**：目前只能直接编辑 `yakusha/dictionary.json`；TSV / CSV round-trip
-  在 0.12 计划里。
+- **`config` 与 `export` 已实现，`launch` 还没有**：用户级配置、密钥不落盘与优先级见
+  [config.md](config.md)；JSON 导出格式见 [export-format.md](export-format.md)；启动只认
+  项目根唯一 `.exe` 的规则见 [engines.md](engines.md) §8（WP5 落地）。
+- **没有译文导入**：目前只能直接编辑 `yakusha/dictionary.json`；`export` 是单向投影，
+  不含未翻译条目，也不能代替字典备份；TSV / CSV round-trip 在 0.12 计划里。

@@ -1,13 +1,13 @@
 # 命令参考
 
-十个原有命令的完整选项、判据与实测数据，加上 0.10 新增的 `config`。
+十个原有命令的完整选项、判据与实测数据，加上 0.10 新增的 `config` 与 `export`。
 
 > **0.10 实现进度**：`--json` 统一信封、错误码、退出码 0/1/2、严格参数解析、
-> `scan.version` 改名 `engineVersion`、`config` 已实现（WP1–WP3）；
-> `export` / `launch` 仍是设计稿（WP4/WP5）。冻结内容见
+> `scan.version` 改名 `engineVersion`、`config` 与 `export` 已实现（WP1–WP4）；
+> `launch` 仍是设计稿（WP5）。冻结内容见
 > [json-contract.md](json-contract.md)；引擎与启动契约见 [engines.md](engines.md)；
 > 配置见 [config.md](config.md)；导出见 [export-format.md](export-format.md)。
-> 十三个命令中已实现十一个；本文其余描述在 WP6 按 0.10 最终行为统一重写。
+> 十三个命令中已实现十二个；本文其余描述在 WP6 按 0.10 最终行为统一重写。
 
 ## 命令一览
 
@@ -24,6 +24,7 @@ yakusha <command> <game-dir> [options]
   install     装运行时插件
   uninstall   卸载并还原
   doctor      查安装、备份、字典是否还与这版游戏对得上
+  export      把已翻译条目导出成 JSON 快照
   config      读写用户级配置（不接游戏目录）
 
 translate:
@@ -70,6 +71,12 @@ terms:
 
 install:
   --embed             把译文嵌进插件文件（离线分发用）
+
+export:
+  --out <file>        目标文件（必填，不写 stdout）
+  --format <name>     json（默认；tsv / csv 在 0.12）
+  --flat              条目值写成字符串，而不是 {text, contexts}
+  --force             允许覆盖已存在的目标文件
 
 全局选项（所有命令都支持）：
   --json              机器可读输出
@@ -124,6 +131,22 @@ node bin/yakusha.js translate "/games/MyGame" --glossary yakusha/terms.json --gl
 
 实测四款游戏：MZ-A `names 510/612, mined 52, drift 5`；MV-G `156/215, 20, 2`；
 MV-H `145/148, 6, 0`；MZ-G `45/45, 3, 0, missing 3`（官方中文，名字表反而缺）。
+
+## export：导出 JSON 快照
+
+```bash
+node bin/yakusha.js export "/games/MyGame" --out backup.json
+node bin/yakusha.js export "/games/MyGame" --out flat.json --flat --force
+```
+
+只导出 `text` 非空的条目，`error` 不会出现；`game` / `updatedAt` 原样复制字典里的值。
+默认形状是 `{text, contexts}`，`--flat` 改成 `source -> text`。条目键按 UTF-16 码元排序，
+同一份字典重复导出字节一致；输出是 UTF-8、无 BOM、LF、2 空格缩进、末尾换行。
+
+目标已存在时没有 `--force` 会报 `E_EXISTS` 且不碰原文件；目标是项目字典本身时即使带
+`--force` 也拒绝。目标在游戏目录内、但不在 `yakusha/` 下时会往 stderr 打一行 warning。
+这是投影，不是备份：未翻译条目和它们的 contexts 不会进导出文件。完整规则见
+[export-format.md](export-format.md)。
 
 ## doctor：装好之后，游戏更新了怎么办
 

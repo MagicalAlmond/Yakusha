@@ -1,12 +1,12 @@
 # 开发交接文档（DEVLOG）
 
 > 这份文档记录**阶段目标、已完成项、决策理由和下一步**，随开发进程更新。
-> 最后更新：2026-10-25（0.9.0 发布；0.10 完成 WP3）。
+> 最后更新：2026-10-25（0.9.0 发布；0.10 完成 WP4）。
 > 0.9.0 项目改名 **Yakusha**，字典目录、插件文件、环境变量与备份后缀全部随之改名；
 > 仓库已发布到 https://github.com/MagicalAlmond/Yakusha（`main` 分支）。
 > 0.8.0 的 `doctor`、0.7.1 的 `uninstall` 漂移保护、0.7.0 的报告/模板见下）。
 > 0.10 的五篇契约已冻结（`json-contract` / `config` / `engines` / `export-format` /
-> `platforms`），实现按 WP1–WP6 推进：WP1–WP3 已完成，其余进行中。分支模型是
+> `platforms`），实现按 WP1–WP6 推进：WP1–WP4 已完成，其余进行中。分支模型是
 > **trunk-based**（只有 `main` 一条长期分支，规则见 §9）。
 >
 > **内部日志**：这份文档记录开发过程与决策，主要读者是维护者；面向使用者的命令说明
@@ -37,8 +37,8 @@
 | 项 | 状态 |
 | --- | --- |
 | 版本 | 0.9.0（package.json）；0.10.0 在 WP6 提升，版本号已收敛到 `src/version.js` 单一真源 |
-| 0.10 契约 | 五篇设计稿已冻结（json-contract / config / engines / export-format / platforms）；**WP1–WP3 已实现**，WP4–WP6 进行中 |
-| 测试 | **317 个，全绿**（`npm test`，约 7.5–8s） |
+| 0.10 契约 | 五篇设计稿已冻结（json-contract / config / engines / export-format / platforms）；**WP1–WP4 已实现**，WP5–WP6 进行中 |
+| 测试 | **331 个，全绿**（`npm test`，约 8–9s） |
 | 持续集成 | GitHub Actions：`npm test` 在 Node 22 / 24（**windows-latest**，WP1 已从 ubuntu 切换） |
 | 平台 | Windows 10/11 x64 为唯一支持与验收环境（0.10 明确，见 [platforms.md](../platforms.md)） |
 | 支持引擎 | RPG Maker **MZ 1.3.2–1.9.0**、**MV 1.6.1–1.6.2** |
@@ -131,7 +131,13 @@
       逐级取值；坏文件对 `translate` 只 warn，对 `config` 子命令 `E_CONFIG`；`--dry-run`
       完全不读配置。`config` 不接游戏目录，只允许全局 `--json`。新增 `test/config.test.js`
       （15 条）并把 CLI/契约/配置前置测试的 `YAKUSHA_CONFIG_DIR` 隔离到临时目录。
-- [ ] WP4 export
+- [x] WP4 export：新增 `src/cli/export.js` 与 `export` 命令（`--out` 必填、只做 JSON）。
+      只导出非空 `text`，`error` 不出现；`game` / `updatedAt` 原样复制；`--flat` 去掉
+      `contexts`。entries 键按 UTF-16 码元排序（默认 `sort`，不用 `localeCompare`），
+      同一字典重复导出字节一致。写入用同目录临时文件 + rename；目标存在无 `--force`
+      `E_EXISTS`，目标是字典本身即使 `--force` 也拒绝，目标是目录 `E_IO`，父目录自动创建。
+      新增 `test/export.test.js`（14 条），并在契约测试的“每个命令 payload 扁平”清单里
+      加入 export。
 - [ ] WP5 launch / attach stub
 - [ ] WP6 文档与 0.10.0
 
@@ -142,6 +148,7 @@ bin/yakusha.js             CLI 薄壳（解析参数 → 分派命令 → emit�
 src/cli/envelope.js        0.10 信封、错误对象、sanitizeMessage、EXIT 码
 src/cli/args.js            0.10 严格参数解析（未知选项 / 缺值 / 多余参数即 E_USAGE）
 src/cli/config.js          用户级配置读写（provider / model / baseUrl，密钥不落盘）
+src/cli/export.js          字典 → JSON 快照（UTF-16 键序、原子写、覆盖保护）
 src/version.js             版本单一真源（读 package.json）
 src/engines/adapter.js     MZ/MV 共享适配器逻辑（detect / scan / extract / 安装）
 src/engines/registry.js    MZ→MV 注册表与 detectProject（判别式，不抛）
@@ -166,16 +173,16 @@ src/pipeline/terms.js     名字/术语的主流译法挖掘与漂移检测
 src/pipeline/speaker.js   说话人标记的识别、房规统计与按房规修复
 src/pipeline/report.js    verify 结果的 markdown 报告（只格式化，不重算）
 src/plugin/YAKUSHA_Translator.js  运行时插件模板（install 时注入规则表）
-test/                     317 个测试（含 CLI 端到端、0.10 信封契约、配置命令/前置与引擎契约）
+test/                     331 个测试（含 CLI 端到端、0.10 信封契约、配置/前置、引擎契约与导出）
 docs/design.md            为什么走运行时钩子、文本面覆盖、转义码、设计约束、作为库用
-docs/commands.md          十个命令的完整选项与 verify / terms / speaker 判据
+docs/commands.md          所有命令的完整选项与 verify / terms / speaker 判据
 docs/games.md             15 款实测游戏、全量翻译记录、官中游戏的处理
 docs/limitations.md       已知限制全表
 docs/architecture.md      分层、引擎适配器契约、plugin/debug/inject 三种运行时模式、GUI 与 core 边界
 docs/json-contract.md     0.10 设计稿：--json 信封、错误码、退出码、严格参数解析
 docs/engines.md           0.10 设计稿：adapter 契约、能力矩阵、安装/卸载、launch 与 attach
 docs/config.md            0.10 实现：用户级配置、密钥优先级、威胁模型（密钥不落盘）
-docs/export-format.md     0.10 设计稿：JSON 导出格式、排序、原子写与覆盖规则
+docs/export-format.md     0.10 实现：JSON 导出格式、排序、原子写与覆盖规则
 docs/platforms.md         平台支持矩阵与决策记录（Windows-only 的原因与重评条件）
 ```
 
@@ -501,6 +508,24 @@ attach 桩，以及包自引用 `import("yakusha")` 与深路径导入。
 会随本机配置时绿时红。现在每个 spawn 都注入一个 `mkdtemp` 出来的空
 `YAKUSHA_CONFIG_DIR`，测试不再依赖开发机状态。
 
+### 0.10.0 WP4 JSON 导出
+
+`npm test`：317 → **331 个**，耗时约 8–9s（新增 14 条导出测试；契约测试的“每个命令
+payload 扁平”清单也加入了 `export`）。测试覆盖：rich / flat 两种输出可解析且字段一致；
+contexts 顺序与重复保留、空 `text` 与 `error` 不导出；entries 键按 UTF-16 排序
+（含 `"10"` / `"2"` 与代理对 `𠮷`），同一字典重复导出字节一致；空字典 `entries:0`
+且为 `{}`；无 `--force` 时 `E_EXISTS` 且目标字节不变，`--force` 可覆盖；目标是字典
+本身即使带 `--force` 也 `E_EXISTS`；目录目标 `E_IO`；父目录自动创建；父路径是普通文件
+时 `E_IO` 且无半份文件；缺 `--out`、`--out -`、`--format tsv/csv`、多余位置参数、
+未知选项、布尔选项带值全部 `E_USAGE`/2；payload 的 `out/format/flat/entries/bytes` 与
+文本模式的单复数行；目标在游戏内但不在 `yakusha/` 下时 warning 只进 stderr；无 `game`
+的字典导出空字符串。
+
+序列化是手写的，不是 `JSON.stringify(obj, null, 2)`：JavaScript 会把整数样式的键
+（`"2"`）排到 `"10"` 前面，即使插入顺序相反；契约要求所有键按 UTF-16 码元排序，
+先排序普通对象再交给 `JSON.stringify` 会在数字键上静默违规。手写只负责顶层与 entries
+的键序和缩进，值仍走 `JSON.stringify(value, null, 2)`，转义与缩进保持一致。
+
 ## 7. 已知限制
 
 1. 只处理 `data/` 里的文本；插件 `js/plugins/*.js` 里硬编码的 UI 文案不动。
@@ -565,11 +590,12 @@ attach 桩，以及包自引用 `import("yakusha")` 与深路径导入。
    不做项目级配置、密钥不落盘；launch 只认根目录唯一 `.exe`；Windows-only；
    契约测试平铺（`npm test` 不收子目录）。
 3. **0.10.0 实现（进行中）**：WP1（信封、严格参数、版本单一真源、CI）、
-   WP2（适配器、registry、detect、门面）与 WP3（用户级 config）已完成；剩余 WP4–WP6。
+   WP2（适配器、registry、detect、门面）与 WP3（用户级 config）、WP4（JSON export）
+   已完成；剩余 WP5–WP6。
    `src/engines/{adapter,registry}` +
    `mz/adapter.js` + `mv/adapter.js` 薄包装现有 core；`src/index.js` 门面 +
    `package.json` 的 `main`/`exports`；`src/cli/envelope.js` + `src/cli/args.js`
-   收敛 12 个 JSON 出口；`config` / `export` / `launch` 三命令；
+   收敛 12 个 JSON 出口；`config` / `export` 已落地，`launch` 待做；
    版本单一真源；`test/engine-contract.test.js` + `test/json-contract.test.js` +
    `test/fixtures/mini-mv`。验收以五篇设计稿为准。
 4. **0.10.0 平台与 CI（WP1 已完成）**：workflow 改 `windows-latest`（Node 22/24，删 ubuntu）；
@@ -744,3 +770,12 @@ git push origin v0.10.0
 - **用户级配置必须给测试一个可注入的目录**：清空 `YAKUSHA_*` 只能保证不继承环境变量，
   不能阻止代码去读开发机真实的 `%APPDATA%`；CLI 测试要显式设 `YAKUSHA_CONFIG_DIR`
   指向 `mkdtemp` 的空目录，否则断言的绿红取决于本机有没有配置文件。
+- **整数样式的键会无视插入顺序**：导出契约要求 entries 按 UTF-16 排序，但普通对象交给
+  `JSON.stringify` 会把 `"2"` 排在 `"10"` 前面（JS 对象自身的枚举规则），先 `sort`
+  再 stringify 也会被重新排列。顶层与 entries 的键序只能手写，值仍用 `JSON.stringify`
+  保持转义一致；测试用 `"10"` / `"2"` / 代理对 `𠮷` 直接断言字节位置和重复导出。
+- **拒绝写一个文件，要同时看路径和文件身份**：export 的 `--out` 可能通过相对路径、大小写、
+  符号链接或目录联接指向字典本身；只比较字符串不够。用 realpath 比较目标（不存在时解析父
+  目录），并且 `--force` 不能绕过这条保护——否则一次“导出”就能把唯一一份译文覆盖掉。
+- **临时文件必须与目标同目录**：跨盘 / 跨卷 rename 会 `EXDEV`；同目录临时文件 + `wx`
+  + rename 才能保证失败时原文件一个字节不动，并在 catch 里清理临时文件。
