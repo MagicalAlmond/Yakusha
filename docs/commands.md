@@ -2,6 +2,13 @@
 
 十个命令的完整选项、判据与实测数据。上手流程见 [README](../README.md)。
 
+> **0.10 会改契约的部分（设计稿，尚未实现）**：`--json` 统一信封、错误码、
+> 退出码 0/1/2、严格参数解析、`scan.version` 改名 `engineVersion`，以及新增
+> `config` / `export` / `launch`。冻结内容见
+> [json-contract.md](json-contract.md)；引擎与启动契约见 [engines.md](engines.md)；
+> 配置见 [config.md](config.md)；导出见 [export-format.md](export-format.md)。
+> 本文描述的是**当前 0.9 的行为**，两者冲突时以本文为准，直到 0.10 发布。
+
 ## 命令一览
 
 ```

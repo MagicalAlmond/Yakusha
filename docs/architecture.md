@@ -49,16 +49,19 @@ export default {
   id: "mz",
   name: "RPG Maker MZ",
 
-  // 只读探测：返回 {ok, name, version, dataDir, evidence} 或 null。
-  // 必须能在"用户拖进来一个错误目录"时不抛异常、不写盘。
+  // 只读探测，返回判别式：成功 {ok:true, project}，
+  // 失败 {ok:false, code, message, candidates?}。
+  // 预期失败不抛异常、不写盘、不联网；完整契约见 engines.md §4。
   detect(dir) { ... },
 
   // 声明能力，GUI 用它决定按钮可不可点，而不是点了才报错。
   capabilities: {
     extract: true,
     export: true,
-    runtime: "plugin",      // plugin | debug | inject
+    runtime: "plugin",      // 已实现的投递方式：plugin | debug | inject
     launch: true,
+    debuggable: false,      // 引擎本身是否支持 CDP（MZ true，MV false）
+    attach: false,          // 工具是否实现 attach；0.10 全为 false
     liveReload: false,      // 运行中改字典能否立即生效
   },
 
@@ -76,16 +79,17 @@ export default {
 }
 ```
 
-契约测试（`test/contract/engine.test.js`）：每个 adapter 都要过同一套用例——
-错误目录不抛、detect 幂等、install 后 isInstalled 为真、uninstall 后逐字节还原、
-launch 只 spawn 不接管、attach 在 unsupported 时明确报 not-implemented。
+契约测试平铺在 `test/engine-contract.test.js`（`npm test` 只收 `test/*.test.js`，
+放子目录会静默不执行）：每个 adapter 都要过同一套用例——错误目录返回判别式而不抛、
+detect 幂等、install 后 isInstalled 为真、uninstall 后逐字节还原、launch 只 spawn 不接管、
+attach 在 0.10 明确报 not-implemented。用例清单见 [engines.md](engines.md) §12。
 
 ## 4. 三种运行时模式
 
 | 模式 | 适用 | 机制 | 可逆 | 现状 |
 | --- | --- | --- | --- | --- |
 | `plugin` | MZ / MV | 装一个 JS 插件，包装 `DataManager.onXhrLoad`（MZ）或 `onLoad`（MV） | 逐字节还原 | **已实现**，4 款游戏验收 |
-| `debug` | NW.js / Electron / Chromium 系（含某些多引擎工具自带的运行时、部分 Unity WebGL 壳） | 启动参数 `--remote-debugging-port`，用 CDP `Runtime.evaluate` 注入钩子 | 结束即恢复 | **已在实机验证**：MZ 的 `Game.exe` 加参数后可读 `SceneManager`、可改写 `startMessage` |
+| `debug` | NW.js / Electron / Chromium 系（含某些多引擎工具自带的运行时、部分 Unity WebGL 壳） | 启动参数 `--remote-debugging-port`，用 CDP `Runtime.evaluate` 注入钩子 | 结束即恢复 | **机制已实机验证**：MZ 加参数后可读 `SceneManager`、可改写 `startMessage`；但 `attach` 命令不在 0.10 内（能力表 `attach:false`），MV 旧版不吃该参数 |
 | `inject` | Ren'Py / Unity / Godot / Wolf / KRKR 等 | 原生注入器 + 引擎钩子 DLL，喂译文 | 需 detach/退出后恢复 | 未实现，仅预留契约 |
 
 注意 `debug` 这一档很值钱：它证明"注入类目标"里有一整类可以**不写一行 C** 就拿下来。
@@ -143,7 +147,8 @@ src/pipeline/            provider、translate、verify、wrap、terms、speaker�
 gui/
   main.js preload.js renderer/
 native/                  未来：injector 与 hook，打包时进 extraResources
-test/contract/           适配器契约测试 + 各引擎 fixture
+test/engine-contract.test.js  适配器契约测试（平铺，npm test 只收 test/*.test.js）
+test/fixtures/           各引擎最小夹具（mini-mz、mini-mv）
 ```
 
 ## 8. 为未来注入预留的五个点
@@ -163,7 +168,7 @@ test/contract/           适配器契约测试 + 各引擎 fixture
 
 | 版本 | 内容 | 验收 |
 | --- | --- | --- |
-| 0.10.0 | core 适配器化：`engines/registry` + mz/mv adapter 包住现有逻辑；新增 `export`、`launch`、`config`；全部命令 `--json` 稳定 | 既有测试全绿不降，新增适配器契约测试 |
+| 0.10.0 | core 适配器化：`engines/registry` + mz/mv adapter 包住现有逻辑；新增 `export`、`launch`、`config`；全部命令 `--json` 稳定；契约先冻结（见下文五篇设计稿） | 既有测试全绿不降，新增适配器契约测试 |
 | 0.11.0 | Electron MVP：拖拽、卡片、启动、导出、LLM 设置、翻译进度、对比编辑 | 真机拖入 4 款游戏跑通 |
 | 0.12.0 | 译文导入导出 round-trip（TSV/CSV）、verify 问题面板与就地修复 | 外部工具改过的表能回灌 |
 | 1.0.0 | 便携 exe、图标、无控制台、最近游戏、`native/` 脚手架（不含具体引擎 hook） | 双击 exe 可用 |
@@ -181,6 +186,11 @@ test/contract/           适配器契约测试 + 各引擎 fixture
 
 ## 11. 与现有文档的关系
 
+- 0.10 的 JSON 信封、错误码、退出码 → [json-contract.md](json-contract.md)
+- 引擎 adapter / 能力矩阵 / 安装与启动契约 → [engines.md](engines.md)
+- 用户级配置与密钥优先级 → [config.md](config.md)
+- 导出格式（0.10 只有 JSON） → [export-format.md](export-format.md)
+- 平台支持矩阵与决策记录 → [platforms.md](platforms.md)
 - 为什么选运行时钩子、文本面覆盖、转义码判据 → [design.md](design.md)
 - 命令选项与 verify/terms/speaker 判据 → [commands.md](commands.md)
 - 15 款实测游戏与支持边界 → [games.md](games.md)

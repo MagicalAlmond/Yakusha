@@ -128,6 +128,10 @@ verdict   : usable with 2 warning(s)
 | `uninstall` | 卸载并还原 |
 | `doctor` | 查安装、备份、字典是否还与这版游戏对得上 |
 
+`config` / `export` / `launch` 是 0.10 的设计（尚未实现）：配置与密钥优先级见
+[docs/config.md](docs/config.md)，导出见 [docs/export-format.md](docs/export-format.md)，
+启动规则见 [docs/engines.md](docs/engines.md) §8。
+
 完整选项、判据、实测见 [docs/commands.md](docs/commands.md)。
 
 ## 环境变量
@@ -141,12 +145,12 @@ verdict   : usable with 2 warning(s)
 ## 目录结构
 
 ```
-bin/yakusha.js            CLI，十个命令
+bin/yakusha.js            CLI，当前十个命令（0.10 计划加 config/export/launch）
 src/core/                项目发现、数据解码、文本抽取、字典、安装、doctor
 src/pipeline/            provider、批处理、校验、折行、verify、terms、speaker、报告
 src/plugin/              运行时插件模板
 test/                    单元与 CLI 端到端测试
-docs/                    设计说明、命令参考、实测记录、已知限制、DEVLOG
+docs/                    设计说明、命令参考、契约、实测记录、已知限制、DEVLOG
 ```
 
 ## 已知限制
@@ -159,12 +163,22 @@ docs/                    设计说明、命令参考、实测记录、已知限�
 
 完整清单见 [docs/limitations.md](docs/limitations.md)。
 
+## 平台
+
+当前**只支持并验收 Windows 10/11 x64**。Linux 与 macOS 不在范围内（原因、成本与重评条件见
+[docs/platforms.md](docs/platforms.md)）；WSL、Wine、Proton 也不作为受支持环境。
+
 ## 文档
 
 | 文件 | 内容 |
 | --- | --- |
 | [docs/commands.md](docs/commands.md) | 十个命令的完整选项、`verify` 十类判据、`terms`/`speaker` 算法说明 |
 | [docs/architecture.md](docs/architecture.md) | 三层结构（CLI 内核 / Electron 壳 / 引擎适配器）、引擎能力分档、载荷契约、0.10–1.0 分批计划 |
+| [docs/json-contract.md](docs/json-contract.md) | 0.10 设计稿：`--json` 信封、错误码、退出码、严格参数解析、破坏性变更 |
+| [docs/engines.md](docs/engines.md) | 0.10 设计稿：adapter 契约、能力矩阵、安装/卸载、launch 与 attach 边界 |
+| [docs/config.md](docs/config.md) | 0.10 设计稿：用户级配置、密钥优先级与威胁模型（不落盘） |
+| [docs/export-format.md](docs/export-format.md) | 0.10 设计稿：JSON 导出格式、排序、原子写与覆盖规则 |
+| [docs/platforms.md](docs/platforms.md) | 平台支持矩阵与决策记录（Windows-only 的原因与重评条件） |
 | [docs/design.md](docs/design.md) | 为什么走运行时钩子、文本面覆盖、转义码、设计约束、作为库用 |
 | [docs/games.md](docs/games.md) | 已实测的 15 款游戏、全量翻译记录、官中游戏的处理方式 |
 | [docs/limitations.md](docs/limitations.md) | 已知限制全表 |

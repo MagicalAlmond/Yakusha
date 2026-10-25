@@ -5,6 +5,8 @@
 > 备份后缀全部随之改名；已翻译的游戏字典复制到新目录，253 个测试全绿；仓库已发布到
 > https://github.com/MagicalAlmond/Yakusha（`main` 分支）。
 > 0.8.0 的 `doctor`、0.7.1 的 `uninstall` 漂移保护、0.7.0 的报告/模板见下）。
+> 0.10 的契约设计稿已冻结（`json-contract` / `config` / `engines` / `export-format` /
+> `platforms`），**只有设计，没有实现代码**；等确认后开工。
 > README 是一页 quickstart；判据、实测与限制在 `docs/design.md`、`docs/commands.md`、
 > `docs/games.md`、`docs/limitations.md`。
 
@@ -26,8 +28,10 @@
 | 项 | 状态 |
 | --- | --- |
 | 版本 | 0.9.0（package.json） |
+| 0.10 契约 | 五篇设计稿已冻结（json-contract / config / engines / export-format / platforms），**尚未实现** |
 | 测试 | **253 个，全绿**（`npm test`，约 5.9s） |
-| 持续集成 | GitHub Actions：`npm test` 在 Node 22 / 24 上各跑一遍 |
+| 持续集成 | GitHub Actions：`npm test` 在 Node 22 / 24（ubuntu-latest）；0.10 计划改 windows-latest |
+| 平台 | Windows 10/11 x64 为唯一支持与验收环境（0.10 明确，见 [platforms.md](platforms.md)） |
 | 支持引擎 | RPG Maker **MZ 1.3.2–1.9.0**、**MV 1.6.1–1.6.2** |
 | 实测游戏 | 15 款可识别（本机全量普查），其中 **4 款**全量翻译 + 运行时验收 |
 | 磁盘改动 | 只加 1 个插件文件 + `plugins.js` 里 1 条注册，卸载逐字节还原 |
@@ -114,6 +118,11 @@ docs/commands.md          十个命令的完整选项与 verify / terms / speake
 docs/games.md             15 款实测游戏、全量翻译记录、官中游戏的处理
 docs/limitations.md       已知限制全表
 docs/architecture.md      分层、引擎适配器契约、plugin/debug/inject 三种运行时模式、GUI 与 core 边界
+docs/json-contract.md     0.10 设计稿：--json 信封、错误码、退出码、严格参数解析
+docs/engines.md           0.10 设计稿：adapter 契约、能力矩阵、安装/卸载、launch 与 attach
+docs/config.md            0.10 设计稿：用户级配置、密钥优先级、威胁模型（密钥不落盘）
+docs/export-format.md     0.10 设计稿：JSON 导出格式、排序、原子写与覆盖规则
+docs/platforms.md         平台支持矩阵与决策记录（Windows-only 的原因与重评条件）
 ```
 
 ## 5. 关键决策与理由（改代码前请先读这一节）
@@ -124,6 +133,10 @@ docs/architecture.md      分层、引擎适配器契约、plugin/debug/inject �
 | **GUI 是 Electron 薄壳，core 保持零依赖** | 玩家要拖拽启动，浏览器拿不到被拖入文件夹的绝对路径，所以选 Electron；但汉化者仍需要 CLI 与脚本。两者都只是 core 的调用方，逻辑不复制。 |
 | **改名为 Yakusha（訳者），字典目录与产品同名** | 旧缩写既像「机器翻译」，又和那个多引擎汉化工具撞脸，当窗口标题、exe 名、CLI 命令都不合适。`yakusha` 是「译者」，与游戏文化同源，短、好念、好打；目录跟着产品走，`<游戏>/yakusha/` 一眼知道是谁放的。 |
 | **改名不保留旧路径兼容分支** | 兼容别名会把旧名写回代码与文档，等于规则白立；旧目录只用一次性迁移脚本处理（脚本在仓库外），代码里只有 `yakusha` 一个名字。 |
+| **`--json` 用固定信封，三件事分开** | `schema` / `command` / `ok` / `outcome` / `error` 是保留键，其余载荷平铺；`ok` 只表示“命令成功”，`outcome` 才区分 ok / findings / error；退出码 0 / 1 / 2。修复类命令（translate/speaker/status）有问题仍是 ok，发布闸门交给 `verify`。理由：机器消费者要能区分“发现缺陷”和“命令失败”，而现有 `ok` 一字段两义（[json-contract.md](json-contract.md)）。 |
+| **0.10 不做项目级配置，密钥不落盘** | 项目里的一份 `config.json` 能把用户环境变量里的 key 重定向到任意 `baseUrl`；Windows 上 `chmod 0600` 实测仍是 0666（`mode & 0o777 === 0o666`）。所以 0.10 只做用户级非敏感配置，key 只走 `--api-key` / 环境变量；持久化留到 0.11 的 GUI `safeStorage`（[config.md](config.md)）。 |
+| **launch 只认项目根的直接子 `.exe`** | exe 不得来自配置、字典或游戏内任意路径；`--exe` 只接受裸文件名；spawn 用 `shell:false` + `detached` + `stdio:ignore`，并从子进程 env 删除 `YAKUSHA_API_KEY` / `OPENAI_API_KEY`。理由：分享的游戏目录本身就是不可信输入（[engines.md](engines.md) §8）。 |
+| **Windows-only，Linux/macOS 不做也不测** | 单人开发，需求证据与验收机器都没有；macOS 还要签名/公证，且在 macOS 上注入类引擎一个都跑不了。写成决策记录，避免以后“顺手加一个平台”把测试面乘二（[platforms.md](platforms.md)）。 |
 | **引擎适配器 + 三种运行时模式，注入不是前提** | 长期要像成熟的多引擎汉化工具一样支持多引擎，但 MZ/MV 用插件就够；CDP（`--remote-debugging-port`）还能覆盖一整类 Chromium 壳。把 `inject` 留在契约里，pipeline 与 GUI 不因新引擎返工。 |
 | **运行时载荷形状先定死（`format` + `rules` + `entries`）** | 插件、调试注入、原生 hook 吃同一份数据；以后加投递通道不用改游戏侧钩子。 |
 | **字典 key = 原文** | 不用 hash/自增 id：译文要能人工校对，key 必须是玩家能看懂的原文。 |
@@ -444,14 +457,21 @@ warn（还有 2 条没翻、2 条被校验拒收），结尾 `verdict : usable w
 ## 8. 下一步（backlog，按优先级）
 
 1. ~~push 到 GitHub~~ —— **0.9.0 已完成**：仓库已发布，CI 在 Node 22 / 24 上全绿。
-2. **0.10.0 适配器层**：`src/engines/{adapter,registry}` + `mz/adapter.js` + `mv/adapter.js`
-   包住现有逻辑；`openProject` 等对外入口经 `src/index.js` 稳定导出，别让库用户撞上内部路径。
-3. **0.10.0 三个命令**：`export`（稳定载荷）、`launch`（启动游戏，可选调试端口）、
-   `config`（`yakusha/config.json`）；同时把 `--json` 输出固化成契约（`docs/json-contract.md`），
-   GUI 直接消费。
-4. **0.10.0 配套文档**：`docs/config.md`（字段、优先级、密钥策略）、
-   `docs/engines.md`（如何加引擎 + 契约测试 + fixture）、`docs/export-format.md`；
-   `docs/limitations.md` 补「暂无 GUI / 多引擎未实现 / 无 config」。
+2. ~~0.10.0 契约设计~~ —— **已完成（只有文档）**：五篇设计稿已冻结并互相链接
+   （[json-contract](json-contract.md) / [engines](engines.md) / [config](config.md) /
+   [export-format](export-format.md) / [platforms](platforms.md)）。
+   关键取舍：扁平信封 + `outcome` + 退出码 0/1/2；`detect` 改判别式；
+   不做项目级配置、密钥不落盘；launch 只认根目录唯一 `.exe`；Windows-only；
+   契约测试平铺（`npm test` 不收子目录）。
+3. **0.10.0 实现（未开工，等用户确认）**：`src/engines/{adapter,registry}` +
+   `mz/adapter.js` + `mv/adapter.js` 薄包装现有 core；`src/index.js` 门面 +
+   `package.json` 的 `main`/`exports`；`src/cli/envelope.js` + `src/cli/args.js`
+   收敛 12 个 JSON 出口；`config` / `export` / `launch` 三命令；
+   版本单一真源；`test/engine-contract.test.js` + `test/json-contract.test.js` +
+   `test/fixtures/mini-mv`。验收以五篇设计稿为准。
+4. **0.10.0 平台与 CI（未开工）**：workflow 改 `windows-latest`（Node 22/24，删 ubuntu）；
+   加 `.gitattributes`（`* text=auto eol=lf`）防止 CRLF 夹具在 CI 上漂；
+   版本号升 0.10.0 时同步插件模板与测试。
 5. **0.11.0 GUI 前**：`docs/gui.md` 用户指南、`CHANGELOG.md`（DEVLOG 是内部日志，
    公开仓库需要面向使用者的变更记录）、`docs/limitations.md` 补 Electron 打包与密钥存储。
 6. 可选：给 `translate` 的 glossary 加条数上限（按请求过滤后已经省了 90%+，

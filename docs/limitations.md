@@ -56,9 +56,13 @@
 
 - **暂无 GUI**：当前只有 CLI（`bin/yakusha.js`）。Electron 外壳按 [architecture.md](architecture.md)
   的 0.11 计划落地，还没有打包好的 exe / 安装包；拖拽、设置面板、进度条这些都要等 0.11。
+- **只在 Windows 10/11 x64 上支持与验收**：Linux 与 macOS 不在当前范围（原因与重评条件见
+  [platforms.md](platforms.md)）；WSL、Wine、Proton 也不作为受支持环境。
 - **多引擎尚未实现**：适配器层要到 0.10 才落地；当前只支持 MZ / MV。Ren'Py、Unity、Godot、
   Wolf、Kirikiri 等不在当前版本内，`inject` 档（原生注入）只有契约、没有实现。
-- **没有 `config` / `export` / `launch` 命令**：配置目前只认命令行参数与环境变量，密钥不落盘；
-  这三个命令在 0.10 计划里（`config` 会明确 `yakusha/config.json` 的字段与密钥存储策略）。
+- **没有 `config` / `export` / `launch` 命令**：配置目前只认命令行参数与环境变量，密钥不落盘。
+  0.10 的契约已冻结为设计稿（尚未实现）：用户级配置与密钥优先级见
+  [config.md](config.md)，导出格式见 [export-format.md](export-format.md)，
+  启动只认项目根唯一 `.exe` 的规则见 [engines.md](engines.md) §8。
 - **没有译文导入导出**：目前只能直接编辑 `yakusha/dictionary.json`；TSV / CSV round-trip
   在 0.12 计划里。
