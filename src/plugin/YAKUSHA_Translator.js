@@ -4,8 +4,8 @@
 /*:
  * @target MZ
  * @plugindesc Runtime translation driven by a yakusha dictionary.
- * @author yakusha
- * @url https://github.com/MagicalAlmond/Yakusha
+ * @author MagicalAlmond
+ * @url https://github.com/MagicalAlmond/yakusha
  *
  * @param dictionaryPath
  * @text Dictionary path
@@ -41,7 +41,7 @@
     "use strict";
 
     const PLUGIN_NAME = "YAKUSHA_Translator";
-    const VERSION = "0.1.0";
+    const VERSION = "0.9.0";
 
     //<<<RULES>>>
     const RULES = {"dbFields":{"Actors.json":["name","nickname","profile"],"Classes.json":["name"],"Skills.json":["name","description","message1","message2"],"Items.json":["name","description"],"Weapons.json":["name","description"],"Armors.json":["name","description"],"Enemies.json":["name"],"States.json":["name","message1","message2","message3","message4"],"Tilesets.json":["name"],"CommonEvents.json":["name"],"MapInfos.json":["name"]},"systemFields":["gameTitle","currencyUnit","terms.basic[]","terms.commands[]","terms.params[]","terms.messages","armorTypes[]","elements[]","skillTypes[]","weaponTypes[]","equipTypes[]"],"commands":{"101":"4","102":"0[]","320":"1","324":"1","325":"1","401":"0","405":"0"}};

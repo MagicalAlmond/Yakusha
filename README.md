@@ -1,4 +1,4 @@
-# yakusha
+# Yakusha
 
 **非侵入式 RPG Maker 运行时翻译工具。**
 
@@ -20,7 +20,7 @@ scan  →  extract  →  translate  →  install
 ## 安装
 
 ```bash
-git clone https://github.com/<you>/yakusha
+git clone https://github.com/MagicalAlmond/yakusha
 cd yakusha
 node --version   # 需要 22 或更高
 npm test         # 253 个测试，应该全绿

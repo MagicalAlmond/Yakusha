@@ -27,7 +27,7 @@ function runPlugin(dictionary, options = {}) {
   context.globalThis = context;
   vm.createContext(context);
   vm.runInContext(source, context, { filename: "YAKUSHA_Translator.js" });
-  return { context, YAKUSHA: context.window.__YAKUSHA, calls };
+  return { context, api: context.window.__YAKUSHA, calls };
 }
 
 /** Deliver a data file the way the engine would. */
@@ -37,12 +37,12 @@ function load(context, name, src, data) {
 }
 
 test("the plugin installs its hook and exposes window.__YAKUSHA", () => {
-  const { context, YAKUSHA } = runPlugin({});
-  assert.ok(YAKUSHA, "window.__YAKUSHA missing");
-  assert.equal(YAKUSHA.version, "0.1.0");
-  assert.equal(typeof YAKUSHA.translate, "function");
-  assert.equal(typeof YAKUSHA.translateDocument, "function");
-  assert.ok(YAKUSHA.rules.dbFields["Actors.json"]);
+  const { context, api } = runPlugin({});
+  assert.ok(api, "window.__YAKUSHA missing");
+  assert.equal(api.version, "0.9.0");
+  assert.equal(typeof api.translate, "function");
+  assert.equal(typeof api.translateDocument, "function");
+  assert.ok(api.rules.dbFields["Actors.json"]);
   assert.equal(context.DataManager.onXhrLoad.toString().includes("translateDocument"), true);
 });
 
@@ -125,7 +125,7 @@ test("choices are translated as a whole array, not element by element", () => {
 });
 
 test("escape codes are preserved and mismatches are rejected", () => {
-  const { context, YAKUSHA } = runPlugin({
+  const { context, api } = runPlugin({
     "本当に\\C[2]無い\\C[0]のか？": "真的\\C[2]没有\\C[0]吗？",
     "色だけ\\C[6]": "只有颜色", // translation dropped the code on purpose
   });
@@ -137,7 +137,7 @@ test("escape codes are preserved and mismatches are rejected", () => {
   const list = map.events[1].pages[0].list;
   assert.equal(list[0].parameters[0], "真的\\C[2]没有\\C[0]吗？");
   assert.equal(list[1].parameters[0], "色だけ\\C[6]", "strict mode must keep the source");
-  assert.equal(YAKUSHA.stats().rejected, 1);
+  assert.equal(api.stats().rejected, 1);
 });
 
 test("strict mode can be switched off", () => {
@@ -157,12 +157,12 @@ test("strict mode can be switched off", () => {
 });
 
 test("unknown strings are left alone", () => {
-  const { context, YAKUSHA } = runPlugin({ "ポーション": "药水" });
+  const { context, api } = runPlugin({ "ポーション": "药水" });
   const items = [null, { id: 1, name: "ポーション" }, { id: 2, name: "エリクサー" }];
   load(context, "$dataItems", "Items.json", items);
   assert.equal(items[1].name, "药水");
   assert.equal(items[2].name, "エリクサー");
-  assert.ok(YAKUSHA.stats().misses >= 1);
+  assert.ok(api.stats().misses >= 1);
 });
 
 test("normalised keys catch width and spacing differences", () => {

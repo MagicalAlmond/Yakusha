@@ -1,6 +1,6 @@
 {
   "name": "yakusha",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Non-invasive runtime translation toolkit for RPG Maker MZ and MV games",
   "type": "module",
   "bin": {
