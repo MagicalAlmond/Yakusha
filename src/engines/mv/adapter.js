@@ -16,6 +16,7 @@ import {
   scanProject,
   uninstallRuntime as uninstallRuntimeCore,
 } from "../adapter.js";
+import { launchProject } from "../launch.js";
 
 export const adapter = {
   id: "mv",
@@ -49,8 +50,8 @@ export const adapter = {
     return uninstallRuntimeCore(project);
   },
 
-  launch() {
-    throw notImplemented("launch");
+  launch(project, options = {}) {
+    return launchProject(project, options);
   },
 
   attach() {

@@ -1,12 +1,12 @@
 # 开发交接文档（DEVLOG）
 
 > 这份文档记录**阶段目标、已完成项、决策理由和下一步**，随开发进程更新。
-> 最后更新：2026-10-25（0.9.0 发布；0.10 完成 WP4）。
+> 最后更新：2026-10-25（0.9.0 发布；0.10 完成 WP5）。
 > 0.9.0 项目改名 **Yakusha**，字典目录、插件文件、环境变量与备份后缀全部随之改名；
 > 仓库已发布到 https://github.com/MagicalAlmond/Yakusha（`main` 分支）。
 > 0.8.0 的 `doctor`、0.7.1 的 `uninstall` 漂移保护、0.7.0 的报告/模板见下）。
 > 0.10 的五篇契约已冻结（`json-contract` / `config` / `engines` / `export-format` /
-> `platforms`），实现按 WP1–WP6 推进：WP1–WP4 已完成，其余进行中。分支模型是
+> `platforms`），实现按 WP1–WP6 推进：WP1–WP5 已完成，WP6 进行中。分支模型是
 > **trunk-based**（只有 `main` 一条长期分支，规则见 §9）。
 >
 > **内部日志**：这份文档记录开发过程与决策，主要读者是维护者；面向使用者的命令说明
@@ -37,8 +37,8 @@
 | 项 | 状态 |
 | --- | --- |
 | 版本 | 0.9.0（package.json）；0.10.0 在 WP6 提升，版本号已收敛到 `src/version.js` 单一真源 |
-| 0.10 契约 | 五篇设计稿已冻结（json-contract / config / engines / export-format / platforms）；**WP1–WP4 已实现**，WP5–WP6 进行中 |
-| 测试 | **331 个，全绿**（`npm test`，约 8–9s） |
+| 0.10 契约 | 五篇设计稿已冻结（json-contract / config / engines / export-format / platforms）；**WP1–WP5 已实现**，WP6 进行中 |
+| 测试 | **346 个，全绿**（`npm test`，约 7.4s） |
 | 持续集成 | GitHub Actions：`npm test` 在 Node 22 / 24（**windows-latest**，WP1 已从 ubuntu 切换） |
 | 平台 | Windows 10/11 x64 为唯一支持与验收环境（0.10 明确，见 [platforms.md](../platforms.md)） |
 | 支持引擎 | RPG Maker **MZ 1.3.2–1.9.0**、**MV 1.6.1–1.6.2** |
@@ -138,7 +138,14 @@
       `E_EXISTS`，目标是字典本身即使 `--force` 也拒绝，目标是目录 `E_IO`，父目录自动创建。
       新增 `test/export.test.js`（14 条），并在契约测试的“每个命令 payload 扁平”清单里
       加入 export。
-- [ ] WP5 launch / attach stub
+- [x] WP5 launch / attach 桩：新增 `src/engines/launch.js` 与 `launch` 命令。仅 Windows
+      （其他平台 `E_UNSUPPORTED_PLATFORM`）；只认项目根直接子普通 `.exe`（0 个/多个
+      `E_EXE` 且 `details.candidates` 最多 20 个）；`--exe` 只收裸文件名、大小写不敏感
+      匹配磁盘真实名；spawn 无参数、`detached`、`stdio:"ignore"`、`shell:false`，子进程
+      env 删除 `YAKUSHA_API_KEY` / `OPENAI_API_KEY` 及大小写变体；不等待、不 kill。
+      `attach` 在两个适配器仍是 `E_NOT_IMPLEMENTED` 桩，`capabilities.attach:false`。
+      新增 `test/launch.test.js`（15 条，注入假 spawn，从不真启动 exe）；`failureFor`
+      保留 `error.details`，`E_EXE` 的 candidates 才能进信封。
 - [ ] WP6 文档与 0.10.0
 
 ## 4. 文件地图
@@ -154,6 +161,7 @@ src/engines/adapter.js     MZ/MV 共享适配器逻辑（detect / scan / extract
 src/engines/registry.js    MZ→MV 注册表与 detectProject（判别式，不抛）
 src/engines/mz/adapter.js  MZ 能力位与薄包装
 src/engines/mv/adapter.js  MV 能力位与薄包装
+src/engines/launch.js      Windows exe 发现、子进程环境清理与 spawn
 src/index.js               库门面（openProject / detectProject / … / VERSION）
 src/core/fields.js        字段表与指令表（纯数据，会嵌进插件）
 src/core/mzproject.js     项目发现（向下 3 层）、System.json 读取
@@ -173,14 +181,14 @@ src/pipeline/terms.js     名字/术语的主流译法挖掘与漂移检测
 src/pipeline/speaker.js   说话人标记的识别、房规统计与按房规修复
 src/pipeline/report.js    verify 结果的 markdown 报告（只格式化，不重算）
 src/plugin/YAKUSHA_Translator.js  运行时插件模板（install 时注入规则表）
-test/                     331 个测试（含 CLI 端到端、0.10 信封契约、配置/前置、引擎契约与导出）
+test/                     346 个测试（含 CLI 端到端、0.10 信封契约、配置/前置、引擎/启动契约与导出）
 docs/design.md            为什么走运行时钩子、文本面覆盖、转义码、设计约束、作为库用
 docs/commands.md          所有命令的完整选项与 verify / terms / speaker 判据
 docs/games.md             15 款实测游戏、全量翻译记录、官中游戏的处理
 docs/limitations.md       已知限制全表
 docs/architecture.md      分层、引擎适配器契约、plugin/debug/inject 三种运行时模式、GUI 与 core 边界
-docs/json-contract.md     0.10 设计稿：--json 信封、错误码、退出码、严格参数解析
-docs/engines.md           0.10 设计稿：adapter 契约、能力矩阵、安装/卸载、launch 与 attach
+docs/json-contract.md     0.10 契约（已实现）：--json 信封、错误码、退出码、严格参数解析
+docs/engines.md           0.10 契约：adapter、能力矩阵、安装/卸载、launch（已实现）、attach 桩
 docs/config.md            0.10 实现：用户级配置、密钥优先级、威胁模型（密钥不落盘）
 docs/export-format.md     0.10 实现：JSON 导出格式、排序、原子写与覆盖规则
 docs/platforms.md         平台支持矩阵与决策记录（Windows-only 的原因与重评条件）
@@ -526,6 +534,19 @@ contexts 顺序与重复保留、空 `text` 与 `error` 不导出；entries 键�
 先排序普通对象再交给 `JSON.stringify` 会在数字键上静默违规。手写只负责顶层与 entries
 的键序和缩进，值仍走 `JSON.stringify(value, null, 2)`，转义与缩进保持一致。
 
+### 0.10.0 WP5 启动与 attach 桩
+
+`npm test`：331 → **346 个**，耗时约 7.4s（新增 15 条启动测试）。测试覆盖：裸 exe
+名校验；只收项目根直接子普通 `.exe`（目录叫 `folder.exe`、`nested/Deep.exe` 都不算）；
+0 个与多个 `E_EXE`、候选排序且最多 20 个；`--exe` 大小写不敏感并返回磁盘真实名；
+同步 throw 与异步 `error` 事件都映射 `E_IO`；假 spawn 断言 args 为空、完整 options
+与 env 已删密钥；MZ/MV 适配器在非 Windows 报 `E_UNSUPPORTED_PLATFORM`；CLI 的
+`E_EXE` / `E_USAGE` 与 `details.candidates` 信封。
+
+发现与启动是纯函数（`listExecutables` / `selectExecutable` / `childEnvironment` /
+`launchProject`），测试注入假 `spawn` 和假 platform，**从不真正启动游戏 exe**。
+`launch` 只负责把进程拉起来：不等待、不读输出、不 kill；`pid` 只放进 payload。
+
 ## 7. 已知限制
 
 1. 只处理 `data/` 里的文本；插件 `js/plugins/*.js` 里硬编码的 UI 文案不动。
@@ -590,12 +611,12 @@ contexts 顺序与重复保留、空 `text` 与 `error` 不导出；entries 键�
    不做项目级配置、密钥不落盘；launch 只认根目录唯一 `.exe`；Windows-only；
    契约测试平铺（`npm test` 不收子目录）。
 3. **0.10.0 实现（进行中）**：WP1（信封、严格参数、版本单一真源、CI）、
-   WP2（适配器、registry、detect、门面）与 WP3（用户级 config）、WP4（JSON export）
-   已完成；剩余 WP5–WP6。
+   WP2（适配器、registry、detect、门面）、WP3（用户级 config）、WP4（JSON export）
+   与 WP5（launch、attach 桩）已完成；剩余 WP6。
    `src/engines/{adapter,registry}` +
    `mz/adapter.js` + `mv/adapter.js` 薄包装现有 core；`src/index.js` 门面 +
    `package.json` 的 `main`/`exports`；`src/cli/envelope.js` + `src/cli/args.js`
-   收敛 12 个 JSON 出口；`config` / `export` 已落地，`launch` 待做；
+   收敛 12 个 JSON 出口；`config` / `export` / `launch` 已落地；
    版本单一真源；`test/engine-contract.test.js` + `test/json-contract.test.js` +
    `test/fixtures/mini-mv`。验收以五篇设计稿为准。
 4. **0.10.0 平台与 CI（WP1 已完成）**：workflow 改 `windows-latest`（Node 22/24，删 ubuntu）；
@@ -779,3 +800,11 @@ git push origin v0.10.0
   目录），并且 `--force` 不能绕过这条保护——否则一次“导出”就能把唯一一份译文覆盖掉。
 - **临时文件必须与目标同目录**：跨盘 / 跨卷 rename 会 `EXDEV`；同目录临时文件 + `wx`
   + rename 才能保证失败时原文件一个字节不动，并在 catch 里清理临时文件。
+- **测试不能真的启动游戏 exe**：`launch` 的发现逻辑是纯函数，`spawn` 由参数注入；
+  测试用假 `ChildProcess` + `queueMicrotask` 发 `spawn` / `error` 事件，断言 args、
+  `cwd`、`detached`、`stdio` 和 env，既不弹游戏窗口也不依赖本机装没装游戏。非法
+  `--exe` 是 `E_EXE`（exe 选择失败），不是参数语法错误 `E_USAGE`——两者都退出 2，
+  但错误码是契约。
+- **信封要保留错误的结构化 `details`**：`E_EXE` 的候选列表原本在 `failureFor` 里被
+  丢掉，只剩一句 “found N .exe files”；CLI 错误转换必须复制 `error.details`，否则
+  调用方拿不到 `candidates`，JSON 契约里写的字段就只是摆设。

@@ -71,6 +71,7 @@ const VALUE = [
   "write",
   "out",
   "format",
+  "exe",
 ];
 
 /** Per command option names; GLOBAL is always allowed. */
@@ -80,6 +81,7 @@ const COMMAND_OPTIONS = {
   extract: [],
   status: [],
   export: ["out", "format", "flat", "force"],
+  launch: ["exe"],
   uninstall: [],
   install: ["embed"],
   doctor: ["max-length"],

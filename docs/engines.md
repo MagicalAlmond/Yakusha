@@ -1,7 +1,7 @@
-# 引擎适配器契约（0.10 设计稿）
+# 引擎适配器契约（0.10 契约）
 
-> **状态：0.10 适配器、registry、detect 与安装契约已实现（WP2）；launch 在 WP5 落地，
-> attach 保持 0.10 的桩。** 现有 `src/core/mzproject.js` / `extract.js` /
+> **状态：0.10 适配器、registry、detect、安装、launch 与 attach 桩均已实现
+> （WP2 + WP5）。** 现有 `src/core/mzproject.js` / `extract.js` /
 > `install.js` 已经能处理 MZ 与 MV；0.10 只是把它们包进统一的 adapter，
 > **不搬文件、不重写算法**。本文冻结 adapter 的形状、能力矩阵、安装/启动契约
 > 与契约测试的落点。
@@ -226,7 +226,7 @@ adapter 只是把“装哪个插件、怎么探测”变成统一接口，不改
 - 不把 containment 当“防恶意游戏”的完整沙箱：游戏文件仍是不可信输入，
   但 0.10 只读 JSON/JS 文本，不执行它们。
 
-## 8. 启动契约（`launch`）
+## 8. 启动契约（`launch`，0.10 已实现）
 
 ### 8.1 命令
 
@@ -283,7 +283,7 @@ child.unref();
 - 不读 `package.json` 的 `main` 来决定启动什么；RPG Maker 的 exe 与网页入口是两回事。
 - 不实现“以管理员身份启动”“兼容模式”“Winlator/Proton 包装”。
 
-## 9. attach 契约（0.10 只有桩）
+## 9. attach 契约（0.10 已实现为桩）
 
 ```js
 attach(project, options) {
@@ -413,12 +413,12 @@ export { VERSION } from "./version.js";
 
 ## 15. 验收清单
 
-- [ ] `detectProject` 对错误目录/多根返回判别式，不抛、不写盘。
-- [ ] registry 按 `mz → mv` 顺序；同目录双 core 取 MZ。
-- [ ] MZ / MV 两个 fixture 都过同一套契约测试；MV 的 CDP 能力为 false。
-- [ ] 安装幂等、卸载逐字节还原、漂移时不还原；路径逃逸被拒。
-- [ ] launch 发现规则全测；spawn 参数与 env 用假实现断言；非 Windows 报平台错误。
-- [ ] `attach` 桩返回 `E_NOT_IMPLEMENTED`，能力为 false。
-- [ ] `import "yakusha"` 自引用可用；旧深路径仍可用。
-- [ ] 版本三处一致；`--version` 有测试。
-- [ ] `npm test` 在 `windows-latest` Node 22/24 全绿。
+- [x] `detectProject` 对错误目录/多根返回判别式，不抛、不写盘。
+- [x] registry 按 `mz → mv` 顺序；同目录双 core 取 MZ。
+- [x] MZ / MV 两个 fixture 都过同一套契约测试；MV 的 CDP 能力为 false。
+- [x] 安装幂等、卸载逐字节还原、漂移时不还原；路径逃逸被拒。
+- [x] launch 发现规则全测；spawn 参数与 env 用假实现断言；非 Windows 报平台错误。
+- [x] `attach` 桩返回 `E_NOT_IMPLEMENTED`，能力为 false。
+- [x] `import "yakusha"` 自引用可用；旧深路径仍可用。
+- [x] 版本三处一致；`--version` 有测试。
+- [ ] `npm test` 在 `windows-latest` Node 22/24 全绿（推送后由 CI 验证）。

@@ -1,13 +1,14 @@
 # 命令参考
 
-十个原有命令的完整选项、判据与实测数据，加上 0.10 新增的 `config` 与 `export`。
+十个原有命令的完整选项、判据与实测数据，加上 0.10 新增的 `config`、`export` 与
+`launch`。
 
 > **0.10 实现进度**：`--json` 统一信封、错误码、退出码 0/1/2、严格参数解析、
-> `scan.version` 改名 `engineVersion`、`config` 与 `export` 已实现（WP1–WP4）；
-> `launch` 仍是设计稿（WP5）。冻结内容见
+> `scan.version` 改名 `engineVersion`、`config`、`export` 与 `launch` 均已实现
+> （WP1–WP5）；`attach` 仍是库层桩（没有 CLI 入口）。冻结内容见
 > [json-contract.md](json-contract.md)；引擎与启动契约见 [engines.md](engines.md)；
 > 配置见 [config.md](config.md)；导出见 [export-format.md](export-format.md)。
-> 十三个命令中已实现十二个；本文其余描述在 WP6 按 0.10 最终行为统一重写。
+> 十三个命令全部实现；本文其余描述在 WP6 按 0.10 最终行为统一重写。
 
 ## 命令一览
 
@@ -26,6 +27,7 @@ yakusha <command> <game-dir> [options]
   doctor      查安装、备份、字典是否还与这版游戏对得上
   export      把已翻译条目导出成 JSON 快照
   config      读写用户级配置（不接游戏目录）
+  launch      启动游戏 exe（仅 Windows）
 
 translate:
   --provider <name>   openai / compatible / mock（真实调用必须显式指定）
@@ -77,6 +79,9 @@ export:
   --format <name>     json（默认；tsv / csv 在 0.12）
   --flat              条目值写成字符串，而不是 {text, contexts}
   --force             允许覆盖已存在的目标文件
+
+launch:
+  --exe <name>        项目根有多个 exe 时指定一个（只收裸文件名）
 
 全局选项（所有命令都支持）：
   --json              机器可读输出
@@ -147,6 +152,22 @@ node bin/yakusha.js export "/games/MyGame" --out flat.json --flat --force
 `--force` 也拒绝。目标在游戏目录内、但不在 `yakusha/` 下时会往 stderr 打一行 warning。
 这是投影，不是备份：未翻译条目和它们的 contexts 不会进导出文件。完整规则见
 [export-format.md](export-format.md)。
+
+## launch：启动游戏 exe
+
+```bash
+node bin/yakusha.js launch "/games/MyGame"
+node bin/yakusha.js launch "/games/MyGame" --exe "Game.exe"
+```
+
+只支持 Windows（其他平台 `E_UNSUPPORTED_PLATFORM`）。只看游戏根目录的直接子文件：
+恰好一个 `.exe` 时直接启动；0 个或多个时报 `E_EXE`，JSON 的 `details.candidates`
+最多列出 20 个文件名，用 `--exe` 指定。`--exe` 只接受裸文件名（不含 `/`、`\`、`..`，
+不是绝对路径），大小写不敏感匹配，但最终用磁盘上的真实文件名。
+
+启动后工具立即退出，不等待、不接管输出、不 kill；子进程环境会删掉
+`YAKUSHA_API_KEY` / `OPENAI_API_KEY`（含大小写变体），避免把翻译密钥传给游戏。
+`attach` 调试注入在 0.10 仍是桩（`E_NOT_IMPLEMENTED`），没有 CLI 入口。
 
 ## doctor：装好之后，游戏更新了怎么办
 
