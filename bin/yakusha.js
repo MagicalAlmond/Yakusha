@@ -8,6 +8,7 @@
  *   status     <game-dir>                 translation progress
  *   translate  <game-dir>                 fill the dictionary through an LLM
  *   verify     <game-dir>                 audit the dictionary for bad entries
+ *   speaker    <game-dir>                 repair inline speaker names
  *   terms      <game-dir>                 mine name renderings, report drift
  *   install    <game-dir>                 copy the runtime plugin into the game
  *   uninstall  <game-dir>                 remove the plugin and restore plugins.js
@@ -31,6 +32,7 @@ import { stripCodes } from "../src/core/textkey.js";
 import { createProvider } from "../src/pipeline/provider.js";
 import { translateDictionary } from "../src/pipeline/translate.js";
 import { verifyDictionary } from "../src/pipeline/verify.js";
+import { repairSpeakerNames } from "../src/pipeline/speaker.js";
 import { mineTerms, toGlossary } from "../src/pipeline/terms.js";
 
 /**
@@ -263,6 +265,86 @@ async function cmdVerify(dir) {
     console.log("  ... " + (result.problems.length - shown) + " more, raise --limit or pass --json");
   }
   console.log(result.errors > 0 ? "result    : FAILED, " + result.errors + " error(s)" : "result    : OK with " + result.warnings + " warning(s)");
+}
+
+/**
+ * Repair inline speaker names.
+ *
+ * verify can only report these: a name is wrong in relation to how the rest of
+ * the same dictionary renders it, so the fix is "use the rendering this game
+ * already uses", not a new translation. That is mechanical, and doing it by hand
+ * on 400 entries is not realistic.
+ */
+async function cmdSpeaker(dir) {
+  const project = requireProject(dir);
+  const { file, data } = requireDictionary(project);
+  const includeDrift = flags["include-drift"] === true;
+  const dryRun = flags["dry-run"] === true;
+  const shown = numberFlag("limit", 20);
+  let names;
+  if (typeof flags.names === "string") {
+    const namesFile = path.resolve(flags.names);
+    if (!fs.existsSync(namesFile)) fail("names file not found: " + namesFile);
+    let parsed;
+    try {
+      parsed = JSON.parse(fs.readFileSync(namesFile, "utf8"));
+    } catch (error) {
+      fail("names file is not valid JSON: " + namesFile + " (" + error.message + ")");
+    }
+    names = parsed && typeof parsed === "object" ? parsed.entries || parsed : null;
+    if (!names || typeof names !== "object") fail("names file must be a JSON map of source name -> Chinese name");
+  }
+  const before = verifyDictionary(data, { kinds: ["speaker"] });
+  const result = repairSpeakerNames(data, { includeDrift, names });
+  const after = verifyDictionary(data, { kinds: ["speaker"] });
+  const saved = result.entries > 0 && !dryRun;
+  if (saved) dict.saveDictionary(file, data);
+  const summary = {
+    ok: true,
+    file,
+    includeDrift,
+    dryRun,
+    supplied: names ? Object.keys(names).length : 0,
+    saved,
+    entries: result.entries,
+    tags: result.tags,
+    names: result.names,
+    errorsBefore: before.errors,
+    errorsAfter: after.errors,
+    warningsBefore: before.warnings,
+    warningsAfter: after.warnings,
+  };
+  if (json) {
+    process.stdout.write(JSON.stringify(summary, null, 2) + "\n");
+    return;
+  }
+  if (result.names.length === 0) {
+    if (after.errors === 0) {
+      console.log("names     : every speaker tag already matches the rest of this game");
+      console.log("result    : no change");
+      return;
+    }
+    // Everything left is a name this game never translated, so there is no
+    // rendering to copy. Say so, and say what would fix it.
+    const remaining = verifyDictionary(data, { kinds: ["speaker"] }).problems.filter((p) => p.severity === "error");
+    console.log("names     : nothing left that this dictionary can fix");
+    console.log("untranslated: " + remaining.length + " line(s) use a name this game never translated");
+    for (const problem of remaining.slice(0, shown)) {
+      console.log("  " + JSON.stringify(problem.key).slice(0, 58));
+    }
+    console.log("result    : no change, pass --names <file> to supply the missing renderings");
+    return;
+  }
+  console.log("renamed   : " + result.names.length + " name(s) across " + result.entries + " entries");
+  const sorted = result.names.slice().sort((a, b) => b.count - a.count);
+  for (const name of sorted.slice(0, shown)) {
+    console.log("  " + JSON.stringify(name.source) + " -> " + JSON.stringify(name.to) + "  x" + name.count);
+    if (name.from !== name.source) console.log("      was " + JSON.stringify(name.from));
+  }
+  if (sorted.length > shown) console.log("  ... " + (sorted.length - shown) + " more, raise --limit or pass --json");
+  console.log("speaker   : " + before.errors + " -> " + after.errors + " error(s), " + before.warnings + " -> " + after.warnings + " warning(s)");
+  if (dryRun) console.log("result    : dry run, dictionary not written");
+  else console.log("result    : saved " + file);
 }
 
 async function cmdTerms(dir) {
@@ -535,6 +617,7 @@ const commands = {
   status: cmdStatus,
   translate: cmdTranslate,
   verify: cmdVerify,
+  speaker: cmdSpeaker,
   terms: cmdTerms,
   install: cmdInstall,
   uninstall: cmdUninstall,
@@ -551,6 +634,7 @@ const USAGE = [
   "  status     show translation progress",
   "  translate  fill the dictionary through an LLM",
   "  verify     audit the dictionary for bad entries",
+  "  speaker    repair inline speaker names from the game's own rendering",
   "  terms      mine name renderings and report drift",
   "  install    install the runtime plugin into the game",
   "  uninstall  remove the runtime plugin",
@@ -577,6 +661,14 @@ const USAGE = [
   "                      (kana, echo, codes, slots, lines, width, no-text, trad, speaker, rejected)",
   "  --max-length <cols> also report lines wider than n display columns",
   "  --limit <n>         how many problems to print (default 20)",
+  "",
+  "speaker options:",
+  "  --include-drift     also replace a Chinese rendering that differs from the",
+  "                      one used elsewhere (style call, off by default)",
+  "  --names <file>      JSON map of source name -> Chinese, for names this game",
+  "                      never translated (so no rendering can be copied)",
+  "  --dry-run           report what would change without writing",
+  "  --limit <n>         how many names to print (default 20)",
   "",
   "terms options:",
   "  --status <list>     only list these statuses (ok, drift, missing)",

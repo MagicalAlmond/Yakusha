@@ -368,3 +368,88 @@ test("cli: terms needs a dictionary first", () => {
   assert.match(result.stderr, /no dictionary yet/);
 });
 
+/** A source line carrying one inline speaker tag. */
+function speakerLine(name, body) {
+  return "<" + name + ">\u201c" + body + "\u201d";
+}
+
+test("cli: speaker repairs a kana leftover from the game's own rendering", () => {
+  const game = tempGame();
+  writeDictionary(game, [
+    [speakerLine("ひなた", "a"), speakerLine("日向", "a")],
+    [speakerLine("ひなた", "b"), speakerLine("日向", "b")],
+    [speakerLine("ひなた", "c"), speakerLine("ひなた", "c")],
+  ]);
+  const summary = JSON.parse(run(["speaker", game, "--json"]).stdout);
+  assert.equal(summary.saved, true);
+  assert.equal(summary.tags, 1);
+  assert.equal(summary.errorsBefore, 1);
+  assert.equal(summary.errorsAfter, 0);
+  const dict = JSON.parse(fs.readFileSync(path.join(game, "yakusha", "dictionary.json"), "utf8"));
+  assert.equal(dict.entries[speakerLine("ひなた", "c")].text, speakerLine("日向", "c"));
+});
+
+test("cli: speaker --dry-run reports without writing", () => {
+  const game = tempGame();
+  const file = writeDictionary(game, [
+    [speakerLine("ひなた", "a"), speakerLine("日向", "a")],
+    [speakerLine("ひなた", "b"), speakerLine("ひなた", "b")],
+  ]);
+  const before = fs.readFileSync(file, "utf8");
+  const summary = JSON.parse(run(["speaker", game, "--dry-run", "--json"]).stdout);
+  assert.equal(summary.saved, false);
+  assert.equal(summary.tags, 1);
+  assert.equal(fs.readFileSync(file, "utf8"), before);
+});
+
+test("cli: speaker reports no change when every name already matches", () => {
+  const game = tempGame();
+  writeDictionary(game, [[speakerLine("ひなた", "a"), speakerLine("日向", "a")]]);
+  const result = run(["speaker", game]);
+  assert.equal(result.code, 0, result.stderr);
+  assert.match(result.stdout, /no change/);
+});
+
+test("cli: speaker --names supplies a rendering the dictionary never had", () => {
+  const game = tempGame();
+  writeDictionary(game, [[speakerLine("水泳部員", "a"), speakerLine("水泳部員", "a")]]);
+  // No house rendering exists anywhere, so the mechanical repair cannot help.
+  const stuck = JSON.parse(run(["speaker", game, "--json"]).stdout);
+  assert.equal(stuck.tags, 0);
+  assert.equal(stuck.errorsAfter, 1);
+
+  const file = path.join(game, "names.json");
+  fs.writeFileSync(file, JSON.stringify({ entries: { 水泳部員: "游泳社员" } }), "utf8");
+  const fixed = JSON.parse(run(["speaker", game, "--names", file, "--json"]).stdout);
+  assert.equal(fixed.supplied, 1);
+  assert.equal(fixed.tags, 1);
+  assert.equal(fixed.errorsAfter, 0);
+  const dict = JSON.parse(fs.readFileSync(path.join(game, "yakusha", "dictionary.json"), "utf8"));
+  assert.equal(dict.entries[speakerLine("水泳部員", "a")].text, speakerLine("游泳社员", "a"));
+});
+
+test("cli: speaker without --names explains what is left", () => {
+  const game = tempGame();
+  writeDictionary(game, [[speakerLine("水泳部員", "a"), speakerLine("水泳部員", "a")]]);
+  const result = run(["speaker", game]);
+  assert.equal(result.code, 0, result.stderr);
+  assert.match(result.stdout, /nothing left that this dictionary can fix/);
+  assert.match(result.stdout, /--names <file>/);
+});
+
+test("cli: speaker --names rejects a missing file", () => {
+  const game = tempGame();
+  writeDictionary(game, [[speakerLine("ひなた", "a"), speakerLine("ひなた", "a")]]);
+  const result = run(["speaker", game, "--names", path.join(game, "nope.json")]);
+  assert.notEqual(result.code, 0);
+  assert.match(result.stderr, /names file not found/);
+});
+
+test("cli: speaker on a dictionary with no tags is a no-op", () => {
+  const game = tempGame();
+  writeDictionary(game, [["おはよう", "早上好"]]);
+  const summary = JSON.parse(run(["speaker", game, "--json"]).stdout);
+  assert.equal(summary.entries, 0);
+  assert.equal(summary.saved, false);
+});
+

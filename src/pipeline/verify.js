@@ -21,6 +21,7 @@
 
 import { controlCodes, plainText, visibleText } from "../core/textkey.js";
 import { TRADITIONAL_JOINED } from "../data/traditional.js";
+import { buildSpeakerIndex, houseOf, speakerTags } from "./speaker.js";
 import { displayColumns } from "./wrap.js";
 
 /**
@@ -50,35 +51,6 @@ const TRADITIONAL = (() => {
   for (let i = 0; i + 1 < TRADITIONAL_JOINED.length; i += 2) set.add(TRADITIONAL_JOINED[i]);
   return set;
 })();
-
-/**
- * What an inline speaker tag may contain: kana, Han and blanks, nothing else.
- *
- * MV games using Lunatlazur_ActorNameWindow write the speaker inside the line as
- * "\N<ひなた>“...”", and the plugin paints the tag into a separate name box, so
- * the name is shown to the player verbatim. Other plugins use angle brackets for
- * code, though ("<50*\v[65]>", "<$dataMap.events[6].name;>"), so a plain
- * /<[^>]*>/ would treat expressions as character names.
- */
-const TAG_TEXT = /^[\u3005\u3006\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uff66-\uff9f\s]+$/;
-
-/**
- * Speaker names embedded in one line.
- * @param {string} text source-form or stored translation
- * @returns {string[]}
- */
-function speakerTags(text) {
-  /** @type {string[]} */
-  const names = [];
-  if (typeof text !== "string" || !text.includes("<")) return names;
-  for (const match of plainText(text).matchAll(/<([^<>]*)>/g)) {
-    const inner = match[1].trim();
-    if (inner.length === 0 || inner.length > 40) continue;
-    if (!TAG_TEXT.test(inner)) continue;
-    names.push(inner);
-  }
-  return names;
-}
 
 /**
  * @typedef {object} Problem
@@ -156,50 +128,11 @@ export function verifyDictionary(dictionary, options = {}) {
   const keys = Object.keys(entries);
 
   // Speaker names are only meaningful in aggregate: whether "ひなた" should have
-  // been translated depends on how the rest of this game renders it, and which of
-  // several renderings is the house style depends on the count. So the names are
-  // collected in a first pass and judged in the second.
-  /** @type {Map<string, Map<string, number>>} source name -> rendering -> lines */
-  const speakerIndex = new Map();
-  for (const key of keys) {
-    const entry = entries[key];
-    if (!entry || typeof entry !== "object") continue;
-    const target = typeof entry.text === "string" ? entry.text : "";
-    if (target.trim().length === 0) continue;
-    const sources = speakerTags(key);
-    const renderings = speakerTags(target);
-    // A line that lost or gained a tag cannot be paired name by name. Pairing by
-    // position is only safe while the counts agree, and in every real dictionary
-    // measured they did.
-    if (sources.length === 0 || sources.length !== renderings.length) continue;
-    for (let i = 0; i < sources.length; i += 1) {
-      const source = sources[i];
-      if (!speakerIndex.has(source)) speakerIndex.set(source, new Map());
-      const bucket = speakerIndex.get(source);
-      bucket.set(renderings[i], (bucket.get(renderings[i]) || 0) + 1);
-    }
-  }
-
-  /** @param {string} source @returns {{translated: boolean, house: string}} */
-  const speakerHouse = (source) => {
-    const bucket = speakerIndex.get(source);
-    if (!bucket) return { translated: false, house: "" };
-    let house = "";
-    let best = -1;
-    let translated = false;
-    for (const [rendering, count] of bucket) {
-      if (!KANA.test(rendering)) translated = true;
-      // Ties happen in small dictionaries (one line each way). Preferring the
-      // Chinese form keeps the house style from depending on which line the
-      // dictionary happened to store first.
-      const better = count > best || (count === best && KANA.test(house) && !KANA.test(rendering));
-      if (better) {
-        best = count;
-        house = rendering;
-      }
-    }
-    return { translated, house };
-  };
+  // been translated depends on how the rest of this game renders it. The index is
+  // shared with the repair path so the audit and the fix can never disagree about
+  // what the house rendering is.
+  const speakerIndex = buildSpeakerIndex(dictionary);
+  const speakerHouse = (source) => houseOf(speakerIndex, source);
 
   for (const key of keys) {
     const entry = entries[key];

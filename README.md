@@ -56,7 +56,7 @@ RPG Maker 的文本全部在 `data/*.json` 里：数据库条目（道具、技�
 git clone https://github.com/<you>/yakusha
 cd yakusha
 node --version   # 需要 22 或更高
-npm test         # 207 个测试，应该全绿
+npm test         # 229 个测试，应该全绿
 ```
 
 无第三方运行时依赖。
@@ -228,6 +228,41 @@ node bin/yakusha.js verify "/games/MyGame" --json --limit 500   # 机器可读�
 尖括号里放代码表达式的游戏（`<50*\v[65]>`、`<\s[25] ? " OFF ":" ON " >`）不会被
 误认成名字：标记内容必须是纯中文/假名/空白才算。
 
+### 7. 修掉没翻的说话人名
+
+`verify` 只报不修，而「同一角色的名字在别处翻过、这一行还留日文」这种问题的正确答案
+**已经在这个字典里**（用了 490 次的那个写法），不该再问模型一次：
+
+```bash
+node bin/yakusha.js speaker "/games/MyGame"               # 按本作自己用得最多的写法统一
+node bin/yakusha.js speaker "/games/MyGame" --dry-run     # 只看会改什么
+node bin/yakusha.js speaker "/games/MyGame" --include-drift
+```
+
+默认只改两类，都是「这一行没翻，别处翻过」：
+没翻的假名（`ひなた` → `日向`）和原样照抄的汉字名（`主婦` → `主妇`）。
+两种不同的中文写法属于风格选择（`沙耶香` vs `沙耶加`），要显式 `--include-drift` 才统一。
+
+房规的取法有一条关键规则：**真正的译文优先于「原样照抄的源名」**，同层再比出现次数，
+平票取非假名。否则 `先生`（既是「老师」也是日语称谓）、`主婦` 这类名字会让「留日文」
+以票数取胜，反过来把正确的中文译文报成漂移。
+
+有些名字在这款游戏里**一次都没翻过**，字典里没有可抄的写法，机械修复帮不上忙。
+`speaker` 会把它们点出来，用一份一行的映射表补上：
+
+```bash
+node bin/yakusha.js speaker "/games/MyGame" --names my-names.json
+```
+
+```json
+{ "entries": { "水泳部員": "游泳社员" } }
+```
+
+实测《用时间停止肆意妄为》（MV）：`verify` 报 411 个 speaker error，`speaker` 一次改掉
+414 条（23 个名字），剩 3 条是全文未译的 `水泳部員`，`--names` 补上后 error 归零；
+再用 `--include-drift` 把 `雏田`/`雏田爸爸`/`雏田妈妈`/`沙耶加` 等 8 个名字统一到主流写法，
+warn 也从 51 归零。两轮都只改字典，不调用模型。
+
 ## 术语表（glossary）
 
 人名、技能名、选项这类必须锁定一致性的词，用人工词表覆盖，不经过模型：
@@ -392,6 +427,7 @@ yakusha <command> <game-dir> [options]
   status      查看翻译进度
   translate   调 LLM 填字典
   verify      体检字典（发布前自检）
+  speaker     按本作自己的写法修复说话人名
   terms       挖人名/术语的主流译法，报出漂移
   install     装运行时插件
   uninstall   卸载并还原
@@ -420,6 +456,12 @@ verify:
   --max-length <n>    同时检查超过 n 显示列的行
   --limit <n>         最多打印多少条（默认 20）
 
+speaker:
+  --include-drift     连中文写法不一致的也统一（默认只修没翻的）
+  --names <file>      给本作从没翻过的名字补一份映射表
+  --dry-run           只报会改什么，不落盘
+  --limit <n>         最多打印多少个名字（默认 20）
+
 terms:
   --status <list>     只列这些状态（ok / drift / missing）
   --min-holders <n>   名字要被提到多少次才挖（默认 5）
@@ -447,7 +489,7 @@ install:
 ## 目录结构
 
 ```
-bin/yakusha.js            CLI，八个命令
+bin/yakusha.js            CLI，九个命令
 src/core/textkey.js      转义码分词 / 归一化 / 校验
 src/core/datafile.js     数据文件解码（明文 / 单字节 XOR / 空白占位）
 src/core/mzproject.js    项目发现（向下 3 层搜索）、System.json 读取
@@ -461,9 +503,10 @@ src/pipeline/translate.js 批处理、校验、重试、术语表
 src/pipeline/wrap.js     按显示宽度折行（MZ/MV 不会横向自动换行）
 src/pipeline/verify.js   译文体检（残留假名 / 原样回显 / 转义码 / 占位符 / 超宽行 / 繁体 / 说话人）
 src/pipeline/terms.js    名字/术语的主流译法挖掘与漂移检测
+src/pipeline/speaker.js  说话人标记的识别与按房规修复
 src/data/traditional.js  繁体专用字表（OpenCC TSCharacters，一繁对一简）
 src/plugin/YAKUSHA_Translator.js  运行时插件模板（install 时注入规则表）
-test/                    207 个测试（含 CLI 端到端）
+test/                    229 个测试（含 CLI 端到端）
 ```
 
 ## 设计约束
@@ -510,6 +553,13 @@ test/                    207 个测试（含 CLI 端到端）
   只剩 3–4 条，prompt 里术语表的占比从 693 字降到 47 字）。代价是**上下文相关的术语**
   （只在某个场景里出现的词）不会出现在别的场景的请求里——词表本身要表达的是固定译法，
   这通常是想要的。词表上千条时仍建议用 `terms --max-terms` 截断。
+- **`speaker` 只认 `\N<名字>` 这一种标记形态**（MV 的 `Lunatlazur_ActorNameWindow` 风格）。
+  别的插件把名字放在别处（独立窗口参数、JSON 配置、插件参数里的 UI 词典）它看不到；
+  那类文本目前整套工具都不处理。
+- **`speaker` 的房规来自这份字典自己的统计**：它只会把写法统一到本作**已经在用**的那一种，
+  不会判断哪个译名更好。一款游戏从头到尾没翻过某个名字时，字典里没有可抄的写法，
+  机械修复帮不上忙，得用 `--names` 人工补一行。`--include-drift` 会改写已有的中文译文
+  （比如把 38 条 `雏田` 改成 `日向`），跑之前先看一眼 `--dry-run` 的输出。
 - **`verify` 只查字典能查的东西**：译文风格、和剧情上下文是否吻合，这些它看不出来；
   它只保证没有结构性缺陷（原样回显、转义码损坏、占位符丢失、超宽行、繁体字混入、
   说话人名漏译）。
