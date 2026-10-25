@@ -6,7 +6,8 @@
 >
 > 本轮已按用户拍板（2026-10-25）改写第 0、1.2、4、5、6、8、9 节：原生组件要做并按引擎下载、
 > 外部适配器不做、GUI 后移到 0.14、Ren'Py 覆盖 `.rpyc`、先 RGSS 注入再字典导出再 GUI、
-> “可逆/零依赖”不再作为差异化卖点。已拍板项见 9.1，仍待拍板项见 9.2，签名成本见 9.3。
+> “可逆/零依赖”不再作为差异化卖点。已拍板项见 9.1，仍待拍板项见 9.2，签名成本见 9.3，
+> 不签名的真实后果见 9.4。
 
 ## 0. 结论摘要
 
@@ -624,8 +625,11 @@ TextGrammar = {
   通常还要硬件 token/HSM，且需要企业或个人身份验证。中国主体可以走这条，但流程更长。
 - **签名本身的技术工作**：Windows SDK 的 `signtool`，必须 `/fd SHA256` + `/td SHA256` 并
   打时间戳；CI 里要安全保存证书/密钥（PFX + 密码走 secret，或用云签名服务的 OIDC）。
-- **SmartScreen**：签名解决“未知发布者”，但**新证书仍需累积信誉**，早期仍可能弹警告；
-  EV 证书通常更快建立信誉，但不保证立刻消失。未签名 = 默认被拦，且注入器更容易被 AV 误杀。
+- **SmartScreen**：签名解决“未知发布者”和“信誉能不能继承”，但**新证书仍需累积信誉**，早期仍可能弹警告。
+  注意：微软官方已明确 **EV 证书不再豁免 SmartScreen**（原文 “EV certificates no longer bypass
+  SmartScreen… paying a premium for EV solely to avoid SmartScreen warnings is no longer justified”），
+  所以为“少弹窗”而买 EV 是不划算的，买 OV 即可满足签名与信誉继承的需要。未签名 = 默认被拦，
+  且注入器更容易被 AV 误杀。
 
 工作量与时间（经验估算，不是官方承诺）：
 
@@ -641,6 +645,48 @@ TextGrammar = {
 结论建议：**签名这件事不贵但要早启动**——它的关键路径是身份/资格审核（周级），不是技术。
 0.12 要做 RGSS 注入，签名必须在 0.12 之前就绪；如果首发不做签名，就要在 README 和 GUI 里
 明说“未签名，可能出现 SmartScreen/杀软提示”，不能装作没有这回事。
+
+### 9.4 不做代码签名会怎样（四道拦截，不是“跳一次警告”）
+
+常见误解是“未签名顶多弹一次警告，用户点一下就过”。实际是按环境分四道，越往后越硬。
+依据：[SmartScreen 信誉官方说明](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/smartscreen-reputation)、
+[Smart App Control 官方说明](https://learn.microsoft.com/en-us/windows/apps/develop/smart-app-control/overview)。
+
+| 层 | 触发条件 | 用户看到什么 | 能不能绕过 |
+| --- | --- | --- | --- |
+| 1. SmartScreen | 从网络下载的 exe/msi，哈希无信誉 | “Windows 已保护你的电脑”，需点“仍要运行” | 能，但**每次发新版本都要重来** |
+| 2. 浏览器下载拦截 | Chrome/Edge 判定“不常下载的文件” | “此文件可能有危险”，需手动保留 | 能，多两步点击 |
+| 3. 企业/学校策略 | 组策略把 SmartScreen 设为“阻止” | 直接被挡住，没有“仍要运行”按钮 | 不能，要 IT 放行 |
+| 4. Smart App Control（Win11） | 系统处于 enforcement 模式 | 应用**无法运行**，**没有“仍要运行”**按钮 | 不能，只能关 SAC |
+
+第 1 层为什么“每次都要重来”是官方原话：`Reputation cannot transfer from previous versions
+unless both were signed using the same publisher identity`、`Unsigned files must build reputation
+anew with every update`。也就是说：**未签名的文件，每发一版信誉归零**；签了名且用同一张证书，
+新旧版本的发布者信誉可以继承。所以未签名不是“一次性摩擦”，而是**每个版本、每个用户都摩擦一次**。
+官方给的爬坡量级是 “several weeks and hundreds of clean installs from a wide audience”，
+且没有公开阈值、没有人工加白入口。
+
+第 4 层最致命，因为它**没有“仍要运行”按钮**：Smart App Control 的 enforcement 模式只允许
+“有把握是安全的”或“用受信任 CA 证书签名的”程序，默认拦截 malware、PUA 和
+**unknown, unsigned code**；而且它检查所有可执行文件，不限于“从网上下载的”。更麻烦的是
+SAC 在“干净安装”的 Win11 上默认是评估/开启状态，**用户关掉之后通常要重装系统才能再开**，
+所以“让用户关掉 SAC”不能当常规解法（近期有 KB 在改这条限制，但不能指望用户去折腾）。
+
+对 Yakusha 的具体含义，按阶段分：
+
+- **0.10–0.11（纯 JS）几乎不受影响**：用户跑的是官方签名过的 `node.exe`，
+  `bin/yakusha.js` / `src/**` 是脚本而不是可执行文件，SmartScreen 与 SAC 都不针对它们；
+  这一阶段不签名也不会挡住用户。
+- **0.12 起（原生 helper + injector.exe）风险陡增**：注入器本身就是典型的
+  “unknown unsigned code”，是第 1/3/4 层拦截的典型对象；hook DLL 做的“往别的进程写代码”
+  与恶意软件技术重合，Defender/第三方杀软的启发式误报率显著高于普通 CLI。
+- **1.0（便携 exe）必须有签名**：单文件 exe 是最容易被拦的形态，没有签名等于把安装失败
+  写在脸上。
+
+因此结论不变但更明确：**不是“要不要签名”，而是“什么时候必须签”**。可行策略是
+0.10/0.11 先不签（把预算和身份审核留到需要时），0.12 之前 1–2 个月启动证书申请——
+关键路径是身份/资格审核，不是技术接入。若 0.12 赶不上，就必须在 README 与 GUI 里显式
+标注“未签名”，并在 GUI 里给一条“被拦了怎么办”的说明，而不是假装没有这回事。
 
 ## 10. 参考与证据
 
