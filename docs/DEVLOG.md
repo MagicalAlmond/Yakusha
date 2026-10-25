@@ -2,7 +2,8 @@
 
 > 这份文档记录**阶段目标、已完成项、决策理由和下一步**，随开发进程更新。
 > 最后更新：2026-10-25（0.9.0，项目改名 **Yakusha**，字典目录、插件文件、环境变量与
-> 备份后缀全部随之改名；已翻译的游戏字典复制到新目录，253 个测试全绿。
+> 备份后缀全部随之改名；已翻译的游戏字典复制到新目录，253 个测试全绿；仓库已发布到
+> https://github.com/MagicalAlmond/Yakusha（`main` 分支）。
 > 0.8.0 的 `doctor`、0.7.1 的 `uninstall` 漂移保护、0.7.0 的报告/模板见下）。
 > README 是一页 quickstart；判据、实测与限制在 `docs/design.md`、`docs/commands.md`、
 > `docs/games.md`、`docs/limitations.md`。
@@ -32,6 +33,7 @@
 | 运行时依赖 | 无第三方依赖（Node >= 22） |
 | 产品形态 | CLI 为内核；Electron GUI 在 0.11 落地（见 [architecture.md](architecture.md)） |
 | 许可 | GPL-3.0-or-later |
+| 仓库 | https://github.com/MagicalAlmond/Yakusha（`main`） |
 
 ## 3. 阶段目标与完成情况
 
