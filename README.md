@@ -168,6 +168,12 @@ docs/                    设计说明、命令参考、契约、实测记录、�
 当前**只支持并验收 Windows 10/11 x64**。Linux 与 macOS 不在范围内（原因、成本与重评条件见
 [docs/platforms.md](docs/platforms.md)）；WSL、Wine、Proton 也不作为受支持环境。
 
+## 参与开发
+
+分支模型是 **trunk-based**：只有 `main` 一条长期分支，工作分支当天合回；合并前 `npm test`
+必须全绿，每个工作包走一个 self-PR（以 CI status check 为准）并 squash 合并；发布用
+`vX.Y.Z` annotated tag 标记。完整规则与命令见 [docs/DEVLOG.md](docs/DEVLOG.md) §9。
+
 ## 文档
 
 | 文件 | 内容 |

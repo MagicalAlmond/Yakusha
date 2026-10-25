@@ -6,7 +6,8 @@
 > https://github.com/MagicalAlmond/Yakusha（`main` 分支）。
 > 0.8.0 的 `doctor`、0.7.1 的 `uninstall` 漂移保护、0.7.0 的报告/模板见下）。
 > 0.10 的契约设计稿已冻结（`json-contract` / `config` / `engines` / `export-format` /
-> `platforms`），**只有设计，没有实现代码**；等确认后开工。
+> `platforms`），**只有设计，没有实现代码**；等确认后开工。分支模型定为
+> **trunk-based**（只有 `main` 一条长期分支，规则见 §9）。
 > README 是一页 quickstart；判据、实测与限制在 `docs/design.md`、`docs/commands.md`、
 > `docs/games.md`、`docs/limitations.md`。
 
@@ -136,6 +137,7 @@ docs/platforms.md         平台支持矩阵与决策记录（Windows-only 的�
 | **`--json` 用固定信封，三件事分开** | `schema` / `command` / `ok` / `outcome` / `error` 是保留键，其余载荷平铺；`ok` 只表示“命令成功”，`outcome` 才区分 ok / findings / error；退出码 0 / 1 / 2。修复类命令（translate/speaker/status）有问题仍是 ok，发布闸门交给 `verify`。理由：机器消费者要能区分“发现缺陷”和“命令失败”，而现有 `ok` 一字段两义（[json-contract.md](json-contract.md)）。 |
 | **0.10 不做项目级配置，密钥不落盘** | 项目里的一份 `config.json` 能把用户环境变量里的 key 重定向到任意 `baseUrl`；Windows 上 `chmod 0600` 实测仍是 0666（`mode & 0o777 === 0o666`）。所以 0.10 只做用户级非敏感配置，key 只走 `--api-key` / 环境变量；持久化留到 0.11 的 GUI `safeStorage`（[config.md](config.md)）。 |
 | **launch 只认项目根的直接子 `.exe`** | exe 不得来自配置、字典或游戏内任意路径；`--exe` 只接受裸文件名；spawn 用 `shell:false` + `detached` + `stdio:ignore`，并从子进程 env 删除 `YAKUSHA_API_KEY` / `OPENAI_API_KEY`。理由：分享的游戏目录本身就是不可信输入（[engines.md](engines.md) §8）。 |
+| **trunk-based：一条 `main` + 短分支 + self-PR squash** | 单人开发没有并行评审需求，`develop`/`release` 这类长期分支只会制造同步债；短分支让 CI 在合并前跑一遍，squash 保持 `main` 线性、可读、可回滚。发布用 `vX.Y.Z` tag；只有旧版本确实有人在用时，才从 tag 切维护分支（规则见 §9）。 |
 | **Windows-only，Linux/macOS 不做也不测** | 单人开发，需求证据与验收机器都没有；macOS 还要签名/公证，且在 macOS 上注入类引擎一个都跑不了。写成决策记录，避免以后“顺手加一个平台”把测试面乘二（[platforms.md](platforms.md)）。 |
 | **引擎适配器 + 三种运行时模式，注入不是前提** | 长期要像成熟的多引擎汉化工具一样支持多引擎，但 MZ/MV 用插件就够；CDP（`--remote-debugging-port`）还能覆盖一整类 Chromium 壳。把 `inject` 留在契约里，pipeline 与 GUI 不因新引擎返工。 |
 | **运行时载荷形状先定死（`format` + `rules` + `entries`）** | 插件、调试注入、原生 hook 吃同一份数据；以后加投递通道不用改游戏侧钩子。 |
@@ -535,6 +537,34 @@ node bin/yakusha.js uninstall "D:/H/Games/<game>"
 node bin/yakusha.js doctor "D:/H/Games/<game>"
 node bin/yakusha.js doctor "D:/H/Games/<game>" --json
 ```
+
+### 分支与发布（trunk-based）
+
+只有 `main` 一条长期分支，不建 `develop`，也不预先建 `release`。规则：
+
+1. **`main` 常绿**：合并前 `npm test` 必须全绿；红了先修，不在红树上继续叠改动。
+2. **工作分支当天合回**，命名 `feat/` / `fix/` / `docs/` / `chore/` + 主题
+   （如 `feat/0.10-envelope`）。文档、注释这类零风险改动可以直接推 `main`。
+3. **每个工作包开 self-PR**：CI 在 `push main` 与 `pull_request` 上都会跑；
+   分支保护只要求 **status check 通过**，不要求人工 approve（单人无法 approve 自己的 PR）。
+   合并方式固定 **squash**，保持 `main` 一条线。
+4. **发布打 annotated tag**：`vX.Y.Z` 指向 `main` 上的提交；`CHANGELOG.md` 在 0.11 前补。
+5. **紧急修复从 tag 切**：`fix/0.10.1` 修完合回 `main` 并打新 tag；只有 `main` 已经跑远、
+   旧版本仍有人在用时，才建长期的 `0.10.x` 维护分支。
+6. **并行 agent 用 `git worktree`**：同一个工作目录不能同时切两个分支，否则两边互相踩。
+
+```bash
+git switch -c feat/0.10-envelope
+npm test
+git push -u origin HEAD          # 开 PR，CI 绿后 squash merge
+git switch main && git pull --ff-only
+git tag -a v0.10.0 -m "0.10.0"
+git push origin v0.10.0
+```
+
+仓库侧的手动设置（GitHub，不在代码里）：Settings → Branches → 保护 `main`，
+勾选 *Require status checks to pass before merging*；不勾 *Require approvals*（单人）；
+*Require linear history* 可选（squash 合并已经保证线性）。
 
 ## 10. 工程教训（踩过的坑，别再踩）
 
