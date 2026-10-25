@@ -223,7 +223,9 @@ export function diagnose(project, options = {}) {
     game: {
       title: project.gameTitle,
       engine: project.engine,
-      version: project.version,
+      // engineVersion, not "version": the envelope already has a schema
+      // version, and the json contract names the game's one explicitly.
+      engineVersion: project.version,
       root: project.root,
       dataFiles: listDataFiles(project).length,
     },

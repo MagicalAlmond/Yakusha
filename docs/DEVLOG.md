@@ -28,10 +28,10 @@
 
 | 项 | 状态 |
 | --- | --- |
-| 版本 | 0.9.0（package.json） |
-| 0.10 契约 | 五篇设计稿已冻结（json-contract / config / engines / export-format / platforms），**尚未实现** |
-| 测试 | **253 个，全绿**（`npm test`，约 5.9s） |
-| 持续集成 | GitHub Actions：`npm test` 在 Node 22 / 24（ubuntu-latest）；0.10 计划改 windows-latest |
+| 版本 | 0.9.0（package.json）；0.10.0 在 WP6 提升，版本号已收敛到 `src/version.js` 单一真源 |
+| 0.10 契约 | 五篇设计稿已冻结（json-contract / config / engines / export-format / platforms）；**WP1 已实现**，WP2–WP6 进行中 |
+| 测试 | **274 个，全绿**（`npm test`，约 6.5s） |
+| 持续集成 | GitHub Actions：`npm test` 在 Node 22 / 24（**windows-latest**，WP1 已从 ubuntu 切换） |
 | 平台 | Windows 10/11 x64 为唯一支持与验收环境（0.10 明确，见 [platforms.md](platforms.md)） |
 | 支持引擎 | RPG Maker **MZ 1.3.2–1.9.0**、**MV 1.6.1–1.6.2** |
 | 实测游戏 | 15 款可识别（本机全量普查），其中 **4 款**全量翻译 + 运行时验收 |
@@ -91,10 +91,32 @@
       `www/` 找到字典。结果分 `broken` / `not installed` / `usable` / `ready` 四态，
       只在 `broken` 时退出 1。`plugins.js` 被手写坏时也照常出报告（初版会抛栈）。
 
+### C 阶段（0.10.0，进行中）
+
+- [x] WP1 基础设施：`--json` 信封（`schema/command/ok/outcome/error` 五个保留键 + 扁平 payload）、
+      13 个错误码与 `sanitizeMessage`（ANSI / 换行 / `sk-` / `Bearer` / URL userinfo / 家目录 /
+      500 字截断）、退出码 0/1/2 与 `outcome` 一一对应；`bin/yakusha.js` 改为薄壳
+      （解析 → 命令 → emit），12 处直接 `JSON.stringify` 全部收敛到 `src/cli/envelope.js` 的 `emit()`。
+- [x] WP1 严格参数解析（`src/cli/args.js`）：未知选项、缺值、给布尔选项 `--flag=value`、
+      多余位置参数一律 `E_USAGE`/2，且发生在任何磁盘操作之前；解析失败时错误信封仍带上
+      正在解析的命令名，测试直接断言了这个字段。
+- [x] WP1 版本单一真源：新增 `src/version.js` 读 `package.json`，`--version` 输出
+      `yakusha <version>` 且优先于任何命令/选项（不套信封）；`package.json` 补 `main`/`exports`。
+- [x] WP1 契约测试：新增 `test/json-contract.test.js`（17 条）与 `test/version.test.js`（4 条）；
+      CLI 测试统一清空 `YAKUSHA_*` / `OPENAI_API_KEY`，不再继承开发机环境。
+- [ ] WP2 引擎适配器 / registry / detect / facade
+- [ ] WP3 config
+- [ ] WP4 export
+- [ ] WP5 launch / attach stub
+- [ ] WP6 文档与 0.10.0
+
 ## 4. 文件地图
 
 ```
-bin/yakusha.js             CLI（scan / extract / status / translate / verify / speaker / terms / install / uninstall / doctor）
+bin/yakusha.js             CLI 薄壳（解析参数 → 分派命令 → emit；不再直接拼 JSON）
+src/cli/envelope.js        0.10 信封、错误对象、sanitizeMessage、EXIT 码
+src/cli/args.js            0.10 严格参数解析（未知选项 / 缺值 / 多余参数即 E_USAGE）
+src/version.js             版本单一真源（读 package.json）
 src/core/fields.js        字段表与指令表（纯数据，会嵌进插件）
 src/core/mzproject.js     项目发现（向下 3 层）、System.json 读取
 src/core/datafile.js      数据文件解码（明文 / 单字节 XOR / 空白占位）
@@ -113,7 +135,7 @@ src/pipeline/terms.js     名字/术语的主流译法挖掘与漂移检测
 src/pipeline/speaker.js   说话人标记的识别、房规统计与按房规修复
 src/pipeline/report.js    verify 结果的 markdown 报告（只格式化，不重算）
 src/plugin/YAKUSHA_Translator.js  运行时插件模板（install 时注入规则表）
-test/                     253 个测试（含 CLI 端到端）
+test/                     274 个测试（含 CLI 端到端与 0.10 信封契约）
 docs/design.md            为什么走运行时钩子、文本面覆盖、转义码、设计约束、作为库用
 docs/commands.md          十个命令的完整选项与 verify / terms / speaker 判据
 docs/games.md             15 款实测游戏、全量翻译记录、官中游戏的处理
@@ -401,6 +423,15 @@ warn（还有 2 条没翻、2 条被校验拒收），结尾 `verdict : usable w
 「把文件写坏」这一行是实测踩出来的：初版 `backupStatus` 直接 `parsePluginsJs`，doctor 会在
 最需要它的场景下打出一段 stack trace，而不是一句「哪里坏了」。
 
+### 0.10.0 WP1 契约与耗时
+
+`npm test`：253 → **274 个**，耗时 5.9s → 约 6.5s（新增 17 条信封契约 + 4 条版本）。
+契约测试直接跑 `bin/yakusha.js`（`spawnSync` + 清空环境变量），逐条验证：每个命令的
+stdout 恰好一行、五个保留键在最前、`ok === (outcome === "ok")`、payload 没有 `data` 包装、
+`outcome` 与退出码一致；`verify` 有 error / `doctor` broken 为 `findings`/1，
+只有警告是 `ok`/0，写报告失败是 `E_IO`/2（error 压过 findings）；未知命令/选项退出 2 且
+错误消息不带 usage 全文；`--version` 在 `scan --bogus --version` 下仍只打印版本行。
+
 ## 7. 已知限制
 
 1. 只处理 `data/` 里的文本；插件 `js/plugins/*.js` 里硬编码的 UI 文案不动。
@@ -614,3 +645,13 @@ git push origin v0.10.0
 - 长跑不要加 `--json`（否则没有进度输出，看起来像卡死）。
 - 包装 LLM 调用的脚本要放在**仓库外**（临时目录里的一个 `.mjs` 即可），
   放仓库里会在清理临时文件时被误删，后台长任务整个白跑。
+- **严格解析要在任何副作用之前，并且解析失败也要知道「正在解析哪个命令」**：0.9 的
+  `parseArgs` 会静默忽略未知选项，等于带着一个打错字的 `--limit` 跑一小时付费请求。
+  0.10 的 `E_USAGE` 在抛错时带上 `positional[0]`，`scan --limit` 的信封才不会
+  `command: null`。
+- **provider 的非 2xx 只报状态码**：旧消息把响应体前 300 字拼进 message，而有些兼容网关
+  会把请求头（含 `Authorization`）回显在错误体里，等于把 key 写进日志和 `--json`。
+  现在 message 永远是 `provider returned HTTP 401`，body 只在 `YAKUSHA_DEBUG=1` 时进 stderr。
+- **测试里不要写字面量密码 / URL userinfo**：本机工具链会把 `user:pass@host` 脱敏成占位符，
+  fixture 与断言会悄悄对不上；改成拼接构造（`"https://user:" + password + "@host"`），
+  断言脱敏后的 `https://***@host`。

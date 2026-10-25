@@ -104,12 +104,19 @@ export function openaiProvider(options = {}) {
         });
         const text = await response.text();
         if (!response.ok) {
-          throw new Error("provider returned HTTP " + response.status + ": " + text.slice(0, 300));
+          // The body can echo the whole request, Authorization header included,
+          // so it must never reach an error message. The status is enough to
+          // act on; YAKUSHA_DEBUG=1 shows the body on stderr elsewhere.
+          const error = new Error("provider returned HTTP " + response.status);
+          error.code = "E_PROVIDER";
+          throw error;
         }
         const body = JSON.parse(text);
         const choice = body.choices && body.choices[0];
         if (!choice || !choice.message || typeof choice.message.content !== "string") {
-          throw new Error("provider returned no message content");
+          const error = new Error("provider returned no message content");
+          error.code = "E_PROVIDER";
+          throw error;
         }
         return choice.message.content;
       } finally {
@@ -128,5 +135,7 @@ export function createProvider(name, options = {}) {
   const key = String(name || "openai").toLowerCase();
   if (key === "mock") return mockProvider(options);
   if (key === "openai" || key === "compatible") return openaiProvider(options);
-  throw new Error("unknown provider: " + name + " (expected openai or mock)");
+  const error = new Error("unknown provider: " + name + " (expected openai or mock)");
+  error.code = "E_PROVIDER";
+  throw error;
 }

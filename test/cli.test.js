@@ -26,10 +26,26 @@ export function tempGame() {
   return game;
 }
 
+/**
+ * A child environment with every yakusha / provider variable removed.
+ *
+ * The suite must not inherit a developer's YAKUSHA_* or OPENAI_API_KEY: a
+ * machine with a real key configured would otherwise change what a test sees.
+ *
+ * @returns {Record<string, string|undefined>}
+ */
+function cleanEnv() {
+  const env = { ...process.env };
+  for (const key of Object.keys(env)) {
+    if (/^YAKUSHA_/i.test(key) || /^OPENAI_API_KEY$/i.test(key)) delete env[key];
+  }
+  return env;
+}
+
 /** @returns {{ code: number, stdout: string, stderr: string }} */
 function run(args) {
   try {
-    const stdout = execFileSync(process.execPath, [BIN, ...args], { encoding: "utf8" });
+    const stdout = execFileSync(process.execPath, [BIN, ...args], { encoding: "utf8", env: cleanEnv() });
     return { code: 0, stdout, stderr: "" };
   } catch (error) {
     return {

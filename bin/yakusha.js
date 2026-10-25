@@ -14,8 +14,10 @@
  *   uninstall  <game-dir>                 remove the plugin and restore plugins.js
  *   doctor     <game-dir>                 is the install and the dictionary healthy?
  *
- * Every command prints machine readable JSON when --json is passed, and every
- * flag also accepts the --flag=value form.
+ * Every command prints one JSON envelope when --json is passed, and prints a
+ * human summary otherwise. Usage errors are reported as E_USAGE with exit code
+ * 2, findings (verify with errors, doctor with a broken verdict) with exit code
+ * 1, everything else with 0. docs/json-contract.md is the contract.
  *
  * @module bin/yakusha
  */
@@ -28,7 +30,7 @@ import { openProject, listDataFiles } from "../src/core/mzproject.js";
 import { extractProject, toSortedArray } from "../src/core/extract.js";
 import * as dict from "../src/core/dict.js";
 import { stats as dictStats, translatedOnly } from "../src/core/dict.js";
-import { installPlugin, uninstallPlugin, isInstalled } from "../src/core/install.js";
+import { installPlugin, uninstallPlugin } from "../src/core/install.js";
 import { diagnose } from "../src/core/doctor.js";
 import { stripCodes } from "../src/core/textkey.js";
 import { createProvider } from "../src/pipeline/provider.js";
@@ -37,66 +39,14 @@ import { verifyDictionary } from "../src/pipeline/verify.js";
 import { buildReport, namesNeedingInput } from "../src/pipeline/report.js";
 import { repairSpeakerNames } from "../src/pipeline/speaker.js";
 import { mineTerms, toGlossary } from "../src/pipeline/terms.js";
+import { assertOptions, parseArgs } from "../src/cli/args.js";
+import { CliError, EXIT, emit, emitError, failureFor, sanitizeMessage } from "../src/cli/envelope.js";
+import { VERSION } from "../src/version.js";
 
-/**
- * Split argv into flags and positionals. A flag consumes the next argument as
- * its value unless that argument looks like another flag.
- *
- * Flags listed in REPEATABLE collect every occurrence into an array instead of
- * overwriting, so "--context Map --context Items" means either one.
- *
- * @param {string[]} argv
- * @returns {{ flags: Record<string, string|boolean>, positional: string[] }}
- */
-const REPEATABLE = new Set(["context"]);
-
-function setFlag(flags, name, value) {
-  if (!REPEATABLE.has(name)) {
-    flags[name] = value;
-    return;
-  }
-  const previous = flags[name];
-  if (previous === undefined) flags[name] = [value];
-  else if (Array.isArray(previous)) previous.push(value);
-  else flags[name] = [previous, value];
-}
-
-function parseArgs(argv) {
-  const flags = {};
-  const positional = [];
-  for (let i = 0; i < argv.length; i += 1) {
-    const arg = argv[i];
-    if (arg.startsWith("--")) {
-      const eq = arg.indexOf("=");
-      if (eq >= 0) {
-        setFlag(flags, arg.slice(2, eq), arg.slice(eq + 1));
-      } else {
-        const next = argv[i + 1];
-        if (next !== undefined && !next.startsWith("--")) {
-          setFlag(flags, arg.slice(2), next);
-          i += 1;
-        } else {
-          setFlag(flags, arg.slice(2), true);
-        }
-      }
-    } else if (arg === "-h") {
-      flags.help = true;
-    } else {
-      positional.push(arg);
-    }
-  }
-  return { flags, positional };
-}
-
-const { flags, positional } = parseArgs(process.argv.slice(2));
-const json = flags.json === true || flags.json === "true";
-
-/** @param {string} message */
-function fail(message, code = 1) {
-  if (json) process.stdout.write(JSON.stringify({ ok: false, error: message }) + "\n");
-  else process.stderr.write("error: " + message + "\n");
-  process.exit(code);
-}
+/** Parsed global state, filled in by {@link main}. */
+let flags = {};
+let json = false;
+let command = null;
 
 /** Read a numeric flag, falling back when it is absent or not a number. */
 function numberFlag(name, fallback) {
@@ -117,28 +67,37 @@ function normalizeContexts(raw) {
   return list.length === 1 ? list[0] : list;
 }
 
-/** @param {string} message */
-function say(message) {
-  if (!json) process.stdout.write(message + "\n");
-}
-
 /**
- * @param {string} dir
+ * Resolve the project for a command, or fail with the documented code.
+ *
+ * openProject throws for a library caller (that is the documented behaviour);
+ * the CLI turns its two expected failures into error codes instead of stacks.
+ *
+ * @param {string|undefined} dir
  */
 function requireProject(dir) {
-  if (!dir) fail("no game directory given\nusage: yakusha <command> <game-dir>");
+  if (!dir) throw new CliError("E_USAGE", "no game directory given");
   try {
     return openProject(dir);
   } catch (error) {
-    fail(error.message);
-    throw error;
+    const message = error && error.message ? error.message : String(error);
+    throw new CliError(/^found \d+ RPG Maker projects/.test(message) ? "E_MULTI_ROOT" : "E_NOT_PROJECT", message);
   }
 }
 
+/**
+ * Load the dictionary of a project, or fail with E_NO_DICTIONARY / E_DICTIONARY.
+ *
+ * @param {import("../src/core/mzproject.js").Project} project
+ */
 function requireDictionary(project) {
   const file = dict.dictionaryPath(project.root);
-  if (!fs.existsSync(file)) fail("no dictionary yet, run: yakusha extract \"" + project.root + "\"");
-  return { file, data: dict.loadDictionary(file) };
+  if (!fs.existsSync(file)) throw new CliError("E_NO_DICTIONARY", "no dictionary yet: " + file);
+  try {
+    return { file, data: dict.loadDictionary(file) };
+  } catch (error) {
+    throw new CliError("E_DICTIONARY", error && error.message ? error.message : String(error));
+  }
 }
 
 async function cmdScan(dir) {
@@ -146,11 +105,10 @@ async function cmdScan(dir) {
   const result = extractProject(project.root);
   const entries = toSortedArray(result);
   const withCodes = entries.filter((e) => stripCodes(e.text) !== e.text).length;
-  const summary = {
-    ok: true,
+  const payload = {
     root: project.root,
     engine: project.engine,
-    version: project.version,
+    engineVersion: project.version,
     gameTitle: project.gameTitle,
     dataFiles: listDataFiles(project).length,
     uniqueStrings: result.entries.size,
@@ -160,27 +118,26 @@ async function cmdScan(dir) {
     undecodable: result.undecodable,
     perFile: result.perFile,
   };
-  if (json) {
-    process.stdout.write(JSON.stringify(summary, null, 2) + "\n");
-    return;
-  }
+  const done = { payload };
+  if (json) return done;
   console.log("game      : " + (project.gameTitle || "(untitled)"));
   console.log("root      : " + project.root);
   console.log("engine    : " + project.engine + (project.version ? " " + project.version : ""));
-  console.log("data files: " + summary.dataFiles);
-  console.log("strings   : " + summary.uniqueStrings + " unique / " + summary.totalStrings + " total");
-  console.log("w/ codes  : " + summary.stringsWithControlCodes);
-  const encodings = Object.entries(summary.encodings || {});
+  console.log("data files: " + payload.dataFiles);
+  console.log("strings   : " + payload.uniqueStrings + " unique / " + payload.totalStrings + " total");
+  console.log("w/ codes  : " + payload.stringsWithControlCodes);
+  const encodings = Object.entries(payload.encodings || {});
   if (encodings.length > 1 || (encodings.length === 1 && encodings[0][0] !== "json")) {
     console.log("encodings : " + encodings.map(([k, v]) => k + " " + v).join(", "));
   }
-  if (summary.undecodable && summary.undecodable.length > 0) {
-    console.log("UNDECODED : " + summary.undecodable.join(", "));
+  if (payload.undecodable && payload.undecodable.length > 0) {
+    console.log("UNDECODED : " + payload.undecodable.join(", "));
   }
   const top = Object.entries(result.perFile)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10);
   for (const [file, count] of top) console.log("  " + file.padEnd(24) + count);
+  return done;
 }
 
 async function cmdExtract(dir) {
@@ -210,14 +167,13 @@ async function cmdExtract(dir) {
   }
   dict.saveDictionary(file, target);
   const s = dictStats(target);
-  const summary = { ok: true, file, added, total: s.total, translated: s.translated, pending: s.pending };
-  if (json) {
-    process.stdout.write(JSON.stringify(summary, null, 2) + "\n");
-    return;
-  }
+  const payload = { file, added, total: s.total, translated: s.translated, pending: s.pending };
+  const done = { payload };
+  if (json) return done;
   console.log("dictionary: " + file);
   console.log("added     : " + added);
   console.log("progress  : " + s.translated + "/" + s.total + " translated, " + s.pending + " pending");
+  return done;
 }
 
 async function cmdStatus(dir) {
@@ -225,13 +181,12 @@ async function cmdStatus(dir) {
   const { file, data } = requireDictionary(project);
   const s = dictStats(data);
   const withError = Object.values(data.entries).filter((e) => e.error).length;
-  const summary = { ok: true, file, ...s, withError };
-  if (json) {
-    process.stdout.write(JSON.stringify(summary, null, 2) + "\n");
-    return;
-  }
+  const payload = { file, total: s.total, translated: s.translated, pending: s.pending, withError };
+  const done = { payload };
+  if (json) return done;
   console.log("progress  : " + s.translated + "/" + s.total + " translated, " + s.pending + " pending");
   if (withError > 0) console.log("rejected  : " + withError + " (see the error field of those entries)");
+  return done;
 }
 
 async function cmdVerify(dir) {
@@ -241,16 +196,9 @@ async function cmdVerify(dir) {
   const kinds = typeof flags.kind === "string" ? flags.kind.split(",").map((k) => k.trim()).filter(Boolean) : undefined;
   const result = verifyDictionary(data, { maxColumns, kinds });
   const shown = numberFlag("limit", 20);
-  // The documented contract is that an error makes the command fail, so a
-  // release script can gate on it ("verify && install"). Setting exitCode
-  // instead of calling process.exit keeps stdout flushing intact, which matters
-  // for --json: the report has to reach the caller even on failure.
-  const failed = result.errors > 0;
-  if (failed) process.exitCode = 1;
-  // A terminal is a bad place to review two hundred findings: the report is the
-  // same result laid out as markdown, self-contained enough to attach to an
-  // issue. It is written even when the run fails, since that is exactly when it
-  // is needed.
+  // An error makes the command fail, so a release script can gate on it
+  // ("verify && install"). The report still goes to stdout: a caller needs the
+  // findings of a failed run most of all.
   const reportFile = typeof flags["write-report"] === "string" ? path.resolve(flags["write-report"]) : null;
   if (reportFile) {
     fs.mkdirSync(path.dirname(reportFile), { recursive: true });
@@ -265,17 +213,29 @@ async function cmdVerify(dir) {
       })
     );
   }
-  const summary = { ok: result.errors === 0, file, maxColumns, report: reportFile, ...result, problems: undefined };
-  if (json) {
-    process.stdout.write(JSON.stringify({ ...summary, problems: result.problems }, null, 2) + "\n");
-    return;
-  }
+  const payload = {
+    file,
+    maxColumns,
+    // docs/json-contract.md: report is the path to a written file, so it only
+    // exists when --write-report asked for one.
+    ...(reportFile ? { report: reportFile } : {}),
+    total: result.total,
+    translated: result.translated,
+    pending: result.pending,
+    errors: result.errors,
+    warnings: result.warnings,
+    rejected: result.rejected,
+    counts: result.counts,
+    problems: result.problems,
+  };
+  const done = { outcome: result.errors > 0 ? "findings" : "ok", payload };
+  if (json) return done;
   console.log("entries   : " + result.total + " (" + result.translated + " translated, " + result.pending + " pending)");
   if (result.rejected > 0) console.log("rejected  : " + result.rejected + " (see the error field of those entries)");
   if (reportFile) console.log("report    : " + reportFile);
   if (result.problems.length === 0) {
     console.log("problems  : none");
-    return;
+    return done;
   }
   const kindsSeen = Object.keys(result.counts).sort();
   console.log(
@@ -293,6 +253,7 @@ async function cmdVerify(dir) {
     console.log("  ... " + (result.problems.length - shown) + " more, raise --limit or pass --json");
   }
   console.log(result.errors > 0 ? "result    : FAILED, " + result.errors + " error(s)" : "result    : OK with " + result.warnings + " warning(s)");
+  return done;
 }
 
 /**
@@ -312,15 +273,17 @@ async function cmdSpeaker(dir) {
   let names;
   if (typeof flags.names === "string") {
     const namesFile = path.resolve(flags.names);
-    if (!fs.existsSync(namesFile)) fail("names file not found: " + namesFile);
+    if (!fs.existsSync(namesFile)) throw new CliError("E_IO", "names file not found: " + namesFile);
     let parsed;
     try {
       parsed = JSON.parse(fs.readFileSync(namesFile, "utf8"));
     } catch (error) {
-      fail("names file is not valid JSON: " + namesFile + " (" + error.message + ")");
+      throw new CliError("E_USAGE", "names file is not valid JSON: " + namesFile + " (" + error.message + ")");
     }
     names = parsed && typeof parsed === "object" ? parsed.entries || parsed : null;
-    if (!names || typeof names !== "object") fail("names file must be a JSON map of source name -> Chinese name");
+    if (!names || typeof names !== "object") {
+      throw new CliError("E_USAGE", "names file must be a JSON map of source name -> Chinese name");
+    }
   }
   const before = verifyDictionary(data, { kinds: ["speaker"] });
   const result = repairSpeakerNames(data, { includeDrift, names });
@@ -338,8 +301,7 @@ async function cmdSpeaker(dir) {
   }
   const saved = result.entries > 0 && !dryRun;
   if (saved) dict.saveDictionary(file, data);
-  const summary = {
-    ok: true,
+  const payload = {
     file,
     includeDrift,
     dryRun,
@@ -355,10 +317,8 @@ async function cmdSpeaker(dir) {
     warningsBefore: before.warnings,
     warningsAfter: after.warnings,
   };
-  if (json) {
-    process.stdout.write(JSON.stringify(summary, null, 2) + "\n");
-    return;
-  }
+  const done = { payload };
+  if (json) return done;
   if (namesFile) {
     console.log(
       "names file: " +
@@ -372,7 +332,7 @@ async function cmdSpeaker(dir) {
     if (after.errors === 0) {
       console.log("names     : every speaker tag already matches the rest of this game");
       console.log("result    : no change");
-      return;
+      return done;
     }
     // Everything left is a name this game never translated, so there is no
     // rendering to copy. Say so, and say what would fix it.
@@ -383,7 +343,7 @@ async function cmdSpeaker(dir) {
       console.log("  " + JSON.stringify(problem.key).slice(0, 58));
     }
     console.log("result    : no change, pass --names <file> to supply the missing renderings");
-    return;
+    return done;
   }
   console.log("renamed   : " + result.names.length + " name(s) across " + result.entries + " entries");
   const sorted = result.names.slice().sort((a, b) => b.count - a.count);
@@ -395,6 +355,7 @@ async function cmdSpeaker(dir) {
   console.log("speaker   : " + before.errors + " -> " + after.errors + " error(s), " + before.warnings + " -> " + after.warnings + " warning(s)");
   if (dryRun) console.log("result    : dry run, dictionary not written");
   else console.log("result    : saved " + file);
+  return done;
 }
 
 async function cmdTerms(dir) {
@@ -418,8 +379,7 @@ async function cmdTerms(dir) {
     fs.writeFileSync(written, JSON.stringify(glossary, null, 2) + "\n");
   }
 
-  const summary = {
-    ok: true,
+  const payload = {
     file,
     names: result.names,
     nameEntries: result.nameEntries,
@@ -432,11 +392,10 @@ async function cmdTerms(dir) {
     missing: result.missing.length,
     glossary: Object.keys(glossary.entries).length,
     written: save ? written : null,
+    terms,
   };
-  if (json) {
-    process.stdout.write(JSON.stringify({ ...summary, terms }, null, 2) + "\n");
-    return;
-  }
+  const done = { payload };
+  if (json) return done;
   console.log("names     : " + result.names + " mined from " + result.nameEntries + " name entries");
   console.log(
     "skipped   : " +
@@ -496,6 +455,7 @@ async function cmdTerms(dir) {
       "apply     : yakusha translate \"" + project.root + "\" --glossary \"" + written + "\" --glossary-only --overwrite"
     );
   }
+  return done;
 }
 
 async function cmdTranslate(dir) {
@@ -505,26 +465,31 @@ async function cmdTranslate(dir) {
   const glossaryOnly = flags["glossary-only"] === true;
   const providerName = typeof flags.provider === "string" ? flags.provider : flags["dry-run"] ? "mock" : "openai";
   // Glossary only mode never talks to a model, so do not even build a provider.
-  const provider = glossaryOnly
-    ? { name: "glossary", complete: () => Promise.reject(new Error("glossary only mode makes no requests")) }
-    : createProvider(providerName, {
-        baseUrl: typeof flags["base-url"] === "string" ? flags["base-url"] : undefined,
-        model: typeof flags.model === "string" ? flags.model : undefined,
-        apiKey: typeof flags["api-key"] === "string" ? flags["api-key"] : undefined,
-        temperature: numberFlag("temperature", undefined),
-        timeoutMs: numberFlag("timeout", undefined),
-        maxTokens: numberFlag("max-tokens", undefined),
-      });
+  let provider;
+  try {
+    provider = glossaryOnly
+      ? { name: "glossary", complete: () => Promise.reject(new Error("glossary only mode makes no requests")) }
+      : createProvider(providerName, {
+          baseUrl: typeof flags["base-url"] === "string" ? flags["base-url"] : undefined,
+          model: typeof flags.model === "string" ? flags.model : undefined,
+          apiKey: typeof flags["api-key"] === "string" ? flags["api-key"] : undefined,
+          temperature: numberFlag("temperature", undefined),
+          timeoutMs: numberFlag("timeout", undefined),
+          maxTokens: numberFlag("max-tokens", undefined),
+        });
+  } catch (error) {
+    throw new CliError("E_PROVIDER", error && error.message ? error.message : String(error));
+  }
 
   /** @type {Record<string,string>} */
   let glossary = {};
   if (typeof flags.glossary === "string") {
-    if (!fs.existsSync(flags.glossary)) fail("glossary file not found: " + flags.glossary);
+    if (!fs.existsSync(flags.glossary)) throw new CliError("E_IO", "glossary file not found: " + flags.glossary);
     try {
       const parsed = JSON.parse(fs.readFileSync(flags.glossary, "utf8"));
       if (parsed && typeof parsed === "object") glossary = parsed.entries || parsed;
     } catch (error) {
-      fail("cannot read glossary: " + error.message);
+      throw new CliError("E_USAGE", "cannot read glossary: " + error.message);
     }
   }
 
@@ -567,7 +532,7 @@ async function cmdTranslate(dir) {
           try {
             flush();
           } catch (error) {
-            process.stderr.write("warning: cannot save progress: " + error.message + "\n");
+            process.stderr.write("warning: cannot save progress: " + sanitizeMessage(error.message) + "\n");
           }
         }
       }
@@ -581,27 +546,29 @@ async function cmdTranslate(dir) {
 
   if (!json) process.stderr.write("\r");
   const overwritten = result.overwritten || 0;
+  // The payload names the provider family (openai / mock), never the model and
+  // never the key; the text output may still show the model.
+  const providerLabel = String(provider.name).split(":")[0];
 
   if (flags["dry-run"]) {
-    const summary = {
-      ok: true,
+    const payload = {
       dryRun: true,
-      provider: provider.name,
+      provider: providerLabel,
       total: result.total,
       translated: result.translated,
       rejected: result.rejected.length,
     };
-    if (json) process.stdout.write(JSON.stringify(summary, null, 2) + "\n");
-    else console.log("dry run   : " + result.translated + " of " + result.total + " would be translated (not saved)");
-    return;
+    const done = { payload };
+    if (json) return done;
+    console.log("dry run   : " + result.translated + " of " + result.total + " would be translated (not saved)");
+    return done;
   }
 
   dict.saveDictionary(file, data);
   const s = dictStats(data);
-  const summary = {
-    ok: result.rejected.length === 0,
+  const payload = {
     file,
-    provider: provider.name,
+    provider: providerLabel,
     elapsedMs: Date.now() - started,
     total: result.total,
     translated: result.translated,
@@ -611,10 +578,8 @@ async function cmdTranslate(dir) {
     rewrapped: result.rewrapped,
     progress: s,
   };
-  if (json) {
-    process.stdout.write(JSON.stringify(summary, null, 2) + "\n");
-    return;
-  }
+  const done = { payload };
+  if (json) return done;
   console.log("provider  : " + provider.name);
   console.log("translated: " + result.translated + "/" + result.total + " this run");
   if (overwritten > 0) console.log("overwritten: " + overwritten + " existing translations replaced by --glossary");
@@ -627,6 +592,26 @@ async function cmdTranslate(dir) {
     }
   }
   console.log("elapsed   : " + ((Date.now() - started) / 1000).toFixed(1) + "s");
+  return done;
+}
+
+/**
+ * Run a plugin install/uninstall step, mapping a damaged plugins.js to E_IO.
+ *
+ * @template T
+ * @param {() => T} step
+ * @returns {T}
+ */
+function pluginStep(step) {
+  try {
+    return step();
+  } catch (error) {
+    const message = error && error.message ? error.message : String(error);
+    if (String(message).startsWith("plugins.js:")) {
+      throw new CliError("E_IO", "cannot update js/plugins.js: " + message);
+    }
+    throw error;
+  }
 }
 
 async function cmdInstall(dir) {
@@ -634,33 +619,48 @@ async function cmdInstall(dir) {
   let embed = null;
   if (flags.embed) {
     const file = dict.dictionaryPath(project.root);
-    if (!fs.existsSync(file)) fail("--embed needs a dictionary, run: yakusha extract \"" + project.root + "\"");
+    if (!fs.existsSync(file)) {
+      throw new CliError("E_NO_DICTIONARY", "--embed needs a dictionary, run: yakusha extract \"" + project.root + "\"");
+    }
     embed = translatedOnly(dict.loadDictionary(file));
-    if (Object.keys(embed).length === 0) fail("--embed found no translated entries");
+    if (Object.keys(embed).length === 0) throw new CliError("E_NO_DICTIONARY", "--embed found no translated entries");
   }
-  const result = installPlugin(project, { embed });
-  if (json) {
-    process.stdout.write(JSON.stringify({ ok: true, ...result }, null, 2) + "\n");
-    return;
+  const result = pluginStep(() => installPlugin(project, { embed }));
+  const payload = {
+    pluginPath: result.pluginPath,
+    registered: result.registered,
+    backupPath: result.backupPath,
+    createdBackup: result.createdBackup,
+    staleBackup: result.staleBackup,
+    state: result.state,
+  };
+  const done = { payload };
+  if (result.staleBackup) {
+    process.stderr.write(
+      "warning: plugins.js changed after the backup was taken; uninstall will keep those edits and only remove the yakusha entry\n"
+    );
   }
+  if (json) return done;
   console.log("plugin    : " + result.pluginPath);
   console.log("registered: " + (result.registered ? "yes" : "already present"));
   console.log("backup    : " + result.backupPath);
-  if (result.staleBackup) {
-    console.log("warning   : plugins.js changed after the backup was taken;");
-    console.log("            uninstall will keep those edits and only remove the yakusha entry");
-  }
   if (embed) console.log("embedded  : " + Object.keys(embed).length + " translations");
   else console.log("dictionary: yakusha/dictionary.json (loaded at runtime)");
+  return done;
 }
 
 async function cmdUninstall(dir) {
   const project = requireProject(dir);
-  const result = uninstallPlugin(project);
-  if (json) {
-    process.stdout.write(JSON.stringify({ ok: true, ...result }, null, 2) + "\n");
-    return;
-  }
+  const result = pluginStep(() => uninstallPlugin(project));
+  const payload = {
+    removed: result.removed,
+    restored: result.restored,
+    backupPath: result.backupPath,
+    drifted: result.drifted,
+    keptBackup: result.keptBackup,
+  };
+  const done = { payload };
+  if (json) return done;
   console.log(result.removed ? "plugin removed" : "plugin was not installed");
   if (result.restored) {
     console.log("plugins.js restored from backup");
@@ -668,6 +668,7 @@ async function cmdUninstall(dir) {
     console.log("plugins.js changed after install: removed only the yakusha entry");
     console.log("backup kept : " + result.keptBackup);
   }
+  return done;
 }
 
 async function cmdDoctor(dir) {
@@ -682,18 +683,26 @@ async function cmdDoctor(dir) {
     }
   }
   const result = diagnose(project, { dictionary: data, dictionaryFile: file, maxColumns: numberFlag("max-length", 0) });
-  if (!result.ok) process.exitCode = 1;
-  if (json) {
-    process.stdout.write(JSON.stringify(result, null, 2) + "\n");
-    return;
-  }
+  const payload = {
+    verdict: result.verdict,
+    checks: result.checks,
+    failure: result.failure,
+    game: result.game,
+    dictionary: result.dictionary,
+    sync: result.sync,
+    install: result.install,
+    runtime: result.runtime,
+    verify: result.verify,
+  };
+  const done = { outcome: result.verdict === "broken" ? "findings" : "ok", payload };
+  if (json) return done;
   const game = result.game;
   console.log(
     "game      : " +
       (game.title || "(untitled)") +
       " (RPG Maker " +
       game.engine.toUpperCase() +
-      (game.version ? " " + game.version : "") +
+      (game.engineVersion ? " " + game.engineVersion : "") +
       ", " +
       game.dataFiles +
       " data files)"
@@ -708,6 +717,7 @@ async function cmdDoctor(dir) {
     const warnings = result.checks.filter((check) => check.level === "warn").length;
     console.log("verdict   : usable with " + warnings + " warning(s)");
   } else console.log("verdict   : ready");
+  return done;
 }
 
 const commands = {
@@ -732,6 +742,7 @@ const USAGE = [
   "global options:",
   "  --json              machine readable output (every command)",
   "  --help, -h          show this help",
+  "  --version           print the version and exit",
   "",
   "  scan       report what is translatable",
   "  extract    build/refresh yakusha/dictionary.json",
@@ -793,18 +804,78 @@ const USAGE = [
   "  --embed             embed the translations into the plugin file",
 ].join("\n");
 
-async function main() {
-  const command = positional[0];
-  const target = positional[1];
-  if (!command || flags.help || command === "--help" || command === "-h") {
-    console.log(USAGE);
-    process.exit(command ? 0 : 2);
+/**
+ * Report one failure the way the current output mode requires.
+ *
+ * @param {unknown} error
+ */
+function reportFailure(error) {
+  const failure = failureFor(error);
+  // Parsing happens before the command is bound, so a usage error carries the
+  // command it was reading on the error itself.
+  if (!command && error && typeof error.command === "string") command = error.command;
+  // A stack is for the person debugging yakusha, never for the payload: it
+  // carries absolute paths and sometimes request context. Opt in on stderr.
+  if (process.env.YAKUSHA_DEBUG === "1" && error && error.stack) process.stderr.write(error.stack + "\n");
+  if (json) {
+    const code = emitError(command, failure.code, failure.message, failure.details);
+    process.exitCode = code;
+    return;
   }
-  const handler = commands[command];
-  if (!handler) fail("unknown command: " + command + "\n\n" + USAGE);
-  await handler(target);
+  process.stderr.write("error: " + sanitizeMessage(failure.message) + "\n");
+  process.exitCode = EXIT.error;
 }
 
-main().catch((error) => {
-  fail(error && error.stack ? error.stack : String(error));
-});
+/**
+ * @returns {Promise<number>} the exit code implied by the run
+ */
+async function main() {
+  const argv = process.argv.slice(2);
+  // --version and --help win over everything else, including a command and a
+  // bad option: they are how a caller finds out what this binary is.
+  const wantsVersion = argv.includes("--version");
+  const wantsHelp = argv.includes("--help") || argv.includes("-h");
+  if (wantsVersion) {
+    process.stdout.write("yakusha " + VERSION + "\n");
+    return EXIT.ok;
+  }
+  // The error reporter needs the mode even when parsing fails, so detect --json
+  // before the parse and only then take the parsed value.
+  json = argv.includes("--json");
+  if (wantsHelp) {
+    process.stdout.write(USAGE + "\n");
+    return EXIT.ok;
+  }
+
+  const parsed = parseArgs(argv);
+  flags = parsed.flags;
+  json = flags.json === true;
+  command = parsed.positional[0] || null;
+
+  if (!command) {
+    if (json) return emitError(null, "E_USAGE", "no command");
+    process.stderr.write(USAGE + "\n");
+    return EXIT.error;
+  }
+  if (!Object.hasOwn(commands, command)) {
+    if (json) return emitError(command, "E_USAGE", "unknown command: " + command);
+    process.stderr.write("error: unknown command: " + command + "\nrun 'yakusha --help' for usage\n");
+    return EXIT.error;
+  }
+  assertOptions(command, flags);
+
+  const args = parsed.positional.slice(1);
+  if (args.length === 0) throw new CliError("E_USAGE", "no game directory given");
+  if (args.length > 1) throw new CliError("E_USAGE", "unexpected argument: " + args[1]);
+
+  const result = await commands[command](args[0]);
+  const outcome = result.outcome || "ok";
+  if (json) return emit(command, outcome, result.payload);
+  return EXIT[outcome];
+}
+
+main()
+  .then((code) => {
+    if (code !== EXIT.ok) process.exitCode = code;
+  })
+  .catch(reportFailure);
