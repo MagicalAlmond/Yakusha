@@ -3,6 +3,12 @@
   "version": "0.9.0",
   "description": "Non-invasive runtime translation toolkit for RPG Maker MZ and MV games",
   "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
   "bin": {
     "yakusha": "./bin/yakusha.js"
   },

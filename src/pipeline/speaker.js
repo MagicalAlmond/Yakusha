@@ -2,7 +2,7 @@
  * Speaker names carried inside a dialogue line.
  *
  * Some MV games write the speaker into the line itself as "\N<ひなた>“...”" and a
- * plugin (Lunatlazur_ActorNameWindow) moves it into a separate name box. The tag
+ * plugin (某姓名窗插件) moves it into a separate name box. The tag
  * text is drawn verbatim, so it is translated content like any other — but it is
  * invisible to every other part of the pipeline: it is not a database field,
  * it is not an escape code, and validateTranslation deliberately strips markup

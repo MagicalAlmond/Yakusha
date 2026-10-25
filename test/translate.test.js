@@ -160,7 +160,7 @@ test("translate: parseReply rejects junk", () => {
 });
 
 test("translate: validateTranslation accepts a faithful translation", () => {
-  assert.equal(validateTranslation("お金が無い！", "没有钱！").ok, true);
+  assert.equal(validateTranslation("お金が足りない！", "没有钱！").ok, true);
 });
 
 test("translate: validateTranslation keeps escape codes identical", () => {
@@ -196,12 +196,12 @@ test("translate: validateTranslation rejects empty, truncated and padded output"
 });
 
 test("translate: translateDictionary fills every entry through the mock provider", async () => {
-  const d = dictOf({ "お金が無い！": "", "勇者よ": "", "済み": "已完成" });
+  const d = dictOf({ "お金が足りない！": "", "勇者よ": "", "済み": "已完成" });
   const result = await translateDictionary(d, { provider: mockProvider({ prefix: "译:" }) });
   assert.equal(result.total, 2);
   assert.equal(result.translated, 2);
   assert.equal(result.rejected.length, 0);
-  assert.equal(d.entries["お金が無い！"].text, "译:お金が無い！");
+  assert.equal(d.entries["お金が足りない！"].text, "译:お金が足りない！");
   assert.equal(d.entries["済み"].text, "已完成");
 });
 
@@ -222,13 +222,13 @@ test("translate: glossary hits skip the provider entirely", async () => {
 });
 
 test("translate: glossary only fills the gaps and leaves finished work alone", async () => {
-  const d = dictOf({ "フェイリン": "费琳", "勇者": "" });
+  const d = dictOf({ "アリア": "艾莉亚", "勇者": "" });
   const result = await translateDictionary(d, {
     provider: mockProvider(),
-    glossary: { "フェイリン": "菲琳", "勇者": "勇士" },
+    glossary: { "アリア": "阿莉亚", "勇者": "勇士" },
     glossaryOnly: true,
   });
-  assert.equal(d.entries["フェイリン"].text, "费琳", "an existing translation is not rewritten by default");
+  assert.equal(d.entries["アリア"].text, "艾莉亚", "an existing translation is not rewritten by default");
   assert.equal(d.entries["勇者"].text, "勇士");
   assert.equal(result.translated, 1);
   assert.equal(result.overwritten, 0);
@@ -237,14 +237,14 @@ test("translate: glossary only fills the gaps and leaves finished work alone", a
 test("translate: overwriteExisting lets a drift glossary replace a finished entry", async () => {
   // "terms --drift-only" writes a glossary naming the entries that already have
   // a translation, so without this the report could never be acted on.
-  const d = dictOf({ "フェイリン": "费琳" });
+  const d = dictOf({ "アリア": "艾莉亚" });
   const result = await translateDictionary(d, {
     provider: mockProvider(),
-    glossary: { "フェイリン": "菲琳" },
+    glossary: { "アリア": "阿莉亚" },
     glossaryOnly: true,
     overwriteExisting: true,
   });
-  assert.equal(d.entries["フェイリン"].text, "菲琳");
+  assert.equal(d.entries["アリア"].text, "阿莉亚");
   assert.equal(result.translated, 1);
   assert.equal(result.overwritten, 1);
 });
@@ -345,7 +345,7 @@ test("translate: an identical line is accepted once the visible text has no kana
 });
 
 test("translate: an identical line that still shows kana is rejected", () => {
-  const line = "お金が無い！";
+  const line = "お金が足りない！";
   const verdict = validateTranslation(line, line);
   assert.equal(verdict.ok, false);
   assert.match(verdict.reason, /identical to source/);
@@ -354,7 +354,7 @@ test("translate: an identical line that still shows kana is rejected", () => {
 test("translate: hasKanaOutsideMarkup ignores tags and escape codes", () => {
   const bs = String.fromCharCode(92);
   assert.equal(hasKanaOutsideMarkup(bs + "N<ひなた>“你好”"), false);
-  assert.equal(hasKanaOutsideMarkup("お金が無い！"), true);
+  assert.equal(hasKanaOutsideMarkup("お金が足りない！"), true);
   assert.equal(hasKanaOutsideMarkup(bs + "C[2]ＨＰ" + bs + "C[0]"), false);
 });
 

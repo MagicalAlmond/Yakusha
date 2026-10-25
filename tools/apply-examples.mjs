@@ -6,7 +6,7 @@
  * live in examples/. Every pair is validated exactly like a model reply, so a
  * hand edited entry can never be worse than a generated one.
  *
- *   node tools/apply-examples.mjs <game-dir> examples/demo-opening-zh.json [...]
+ *   node tools/apply-examples.mjs <game-dir> examples/demo-glossary-zh.json [...]
  */
 import fs from "node:fs";
 import path from "node:path";

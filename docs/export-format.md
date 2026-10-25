@@ -25,7 +25,7 @@ yakusha export <game-dir> --out <file> [--format json] [--flat] [--force] [--jso
 ```json
 {
   "format": "yakusha/1",
-  "game": "格闘娘はお金が無い！",
+  "game": "Example Game",
   "updatedAt": "2026-10-20T12:34:56.000Z",
   "entries": {
     "これはテストの台詞です。": {
@@ -41,7 +41,7 @@ yakusha export <game-dir> --out <file> [--format json] [--flat] [--force] [--jso
 ```json
 {
   "format": "yakusha/1",
-  "game": "格闘娘はお金が無い！",
+  "game": "Example Game",
   "updatedAt": "2026-10-20T12:34:56.000Z",
   "entries": {
     "これはテストの台詞です。": "这是测试用的台词。"

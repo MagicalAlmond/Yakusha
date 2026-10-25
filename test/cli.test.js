@@ -26,10 +26,26 @@ export function tempGame() {
   return game;
 }
 
+/**
+ * A child environment with every yakusha / provider variable removed.
+ *
+ * The suite must not inherit a developer's YAKUSHA_* or OPENAI_API_KEY: a
+ * machine with a real key configured would otherwise change what a test sees.
+ *
+ * @returns {Record<string, string|undefined>}
+ */
+function cleanEnv() {
+  const env = { ...process.env };
+  for (const key of Object.keys(env)) {
+    if (/^YAKUSHA_/i.test(key) || /^OPENAI_API_KEY$/i.test(key)) delete env[key];
+  }
+  return env;
+}
+
 /** @returns {{ code: number, stdout: string, stderr: string }} */
 function run(args) {
   try {
-    const stdout = execFileSync(process.execPath, [BIN, ...args], { encoding: "utf8" });
+    const stdout = execFileSync(process.execPath, [BIN, ...args], { encoding: "utf8", env: cleanEnv() });
     return { code: 0, stdout, stderr: "" };
   } catch (error) {
     return {
@@ -359,14 +375,14 @@ test("cli: terms --status filters what is listed but not what is mined", () => {
   const game = tempGame();
   writeDictionary(game, [
     ...miningRows("ゴブリン", "哥布林", "哥布林"),
-    ...miningRows("フェイリン", "费琳", "菲琳"),
+    ...miningRows("アリア", "艾莉亚", "阿莉亚"),
   ]);
   const all = JSON.parse(run(["terms", game, "--json"]).stdout);
   assert.equal(all.listed, 2);
   const drift = JSON.parse(run(["terms", game, "--status", "drift", "--json"]).stdout);
   assert.equal(drift.mined, 2);
   assert.equal(drift.listed, 1);
-  assert.equal(drift.terms[0].name, "フェイリン");
+  assert.equal(drift.terms[0].name, "アリア");
 });
 
 test("cli: terms human output stays complete when --status matches nothing", () => {
@@ -386,20 +402,20 @@ test("cli: terms human output stays complete when --status matches nothing", () 
 
 test("cli: terms --write saves a glossary translate can read", () => {
   const game = tempGame();
-  writeDictionary(game, miningRows("フェイリン", "费琳", "菲琳"));
+  writeDictionary(game, miningRows("アリア", "艾莉亚", "阿莉亚"));
   const file = path.join(game, "yakusha", "glossary.json");
   const result = run(["terms", game, "--drift-only", "--write", file, "--json"]);
   assert.equal(result.code, 0, result.stderr);
   assert.equal(JSON.parse(result.stdout).written, path.resolve(file));
   const glossary = JSON.parse(fs.readFileSync(file, "utf8"));
-  assert.equal(glossary.entries["フェイリン"], "菲琳");
+  assert.equal(glossary.entries["アリア"], "阿莉亚");
 
   // The file has to be accepted by translate without any conversion step.
   const applied = run(["translate", game, "--glossary", file, "--glossary-only", "--overwrite", "--json"]);
   assert.equal(applied.code, 0, applied.stderr);
   const dict = JSON.parse(fs.readFileSync(path.join(game, "yakusha", "dictionary.json"), "utf8"));
-  assert.equal(dict.entries["フェイリン"].text, "菲琳");
-  assert.equal(dict.entries["フェイリン line 0"].text, "菲琳 line 0");
+  assert.equal(dict.entries["アリア"].text, "阿莉亚");
+  assert.equal(dict.entries["アリア line 0"].text, "阿莉亚 line 0");
 });
 
 test("cli: terms --dry-run reports without writing", () => {

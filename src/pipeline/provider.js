@@ -40,7 +40,6 @@
  */
 
 const DEFAULT_BASE_URL = "https://api.openai.com/v1";
-const DEFAULT_MODEL = "gpt-4o-mini";
 
 /**
  * An offline provider that "translates" by tagging the source.
@@ -70,9 +69,24 @@ export function mockProvider(options = {}) {
  * @returns {Provider}
  */
 export function openaiProvider(options = {}) {
+  // 0.10 has no built-in model and no built-in key. A silent gpt-4o-mini
+  // fallback made the tool look configured when it was not, and it could only
+  // fail later at the endpoint (or, with a third-party base URL, at the wrong
+  // endpoint). Both values must come from a flag, an environment variable or
+  // the user config file, so a missing setup fails locally before any request.
   const baseUrl = (options.baseUrl || process.env.YAKUSHA_BASE_URL || DEFAULT_BASE_URL).replace(/\/+$/, "");
   const apiKey = options.apiKey || process.env.YAKUSHA_API_KEY || process.env.OPENAI_API_KEY || "";
-  const model = options.model || process.env.YAKUSHA_MODEL || DEFAULT_MODEL;
+  const model = options.model || process.env.YAKUSHA_MODEL;
+  if (!model) {
+    const error = new Error("no model configured: pass --model or set YAKUSHA_MODEL");
+    error.code = "E_CONFIG";
+    throw error;
+  }
+  if (!apiKey) {
+    const error = new Error("no API key configured: pass --api-key or set YAKUSHA_API_KEY or OPENAI_API_KEY");
+    error.code = "E_CONFIG";
+    throw error;
+  }
   const temperature = options.temperature === undefined ? 0.3 : options.temperature;
   const timeoutMs = options.timeoutMs || 120000;
   const maxTokens = options.maxTokens || 4096;
@@ -104,12 +118,19 @@ export function openaiProvider(options = {}) {
         });
         const text = await response.text();
         if (!response.ok) {
-          throw new Error("provider returned HTTP " + response.status + ": " + text.slice(0, 300));
+          // The body can echo the whole request, Authorization header included,
+          // so it must never reach an error message. The status is enough to
+          // act on; YAKUSHA_DEBUG=1 shows the body on stderr elsewhere.
+          const error = new Error("provider returned HTTP " + response.status);
+          error.code = "E_PROVIDER";
+          throw error;
         }
         const body = JSON.parse(text);
         const choice = body.choices && body.choices[0];
         if (!choice || !choice.message || typeof choice.message.content !== "string") {
-          throw new Error("provider returned no message content");
+          const error = new Error("provider returned no message content");
+          error.code = "E_PROVIDER";
+          throw error;
         }
         return choice.message.content;
       } finally {
@@ -128,5 +149,7 @@ export function createProvider(name, options = {}) {
   const key = String(name || "openai").toLowerCase();
   if (key === "mock") return mockProvider(options);
   if (key === "openai" || key === "compatible") return openaiProvider(options);
-  throw new Error("unknown provider: " + name + " (expected openai or mock)");
+  const error = new Error("unknown provider: " + name + " (expected openai or mock)");
+  error.code = "E_PROVIDER";
+  throw error;
 }

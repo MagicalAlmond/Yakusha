@@ -47,12 +47,12 @@ test("the plugin installs its hook and exposes window.__YAKUSHA", () => {
 });
 
 test("database fields are translated in place", () => {
-  const { context } = runPlugin({ "フェイリン": "菲琳", "ポーション": "药水", "HPを50回復する。": "回复50点HP。" });
-  const actors = [null, { id: 1, name: "フェイリン", nickname: "フェイ", profile: "" }];
+  const { context } = runPlugin({ "アリア": "阿莉亚", "ポーション": "药水", "HPを50回復する。": "回复50点HP。" });
+  const actors = [null, { id: 1, name: "アリア", nickname: "フェイ", profile: "" }];
   const items = [null, { id: 1, name: "ポーション", description: "HPを50回復する。" }];
   load(context, "$dataActors", "Actors.json", actors);
   load(context, "$dataItems", "Items.json", items);
-  assert.equal(actors[1].name, "菲琳");
+  assert.equal(actors[1].name, "阿莉亚");
   assert.equal(actors[1].nickname, "フェイ");
   assert.equal(items[1].name, "药水");
   assert.equal(items[1].description, "回复50点HP。");
@@ -81,7 +81,7 @@ test("System.json paths are translated including arrays and objects", () => {
 test("event commands are translated for maps, common events and troops", () => {
   const { context } = runPlugin({
     "おっさん": "大叔",
-    "お金が無い！": "没钱了！",
+    "お金が足りない！": "没钱了！",
     "はい": "是",
     "いいえ": "否",
     "酒場": "酒馆",
@@ -90,14 +90,14 @@ test("event commands are translated for maps, common events and troops", () => {
     displayName: "酒場",
     events: [null, { pages: [{ list: [
       { code: 101, indent: 0, parameters: ["", 0, 0, 2, "おっさん"] },
-      { code: 401, indent: 0, parameters: ["お金が無い！"] },
+      { code: 401, indent: 0, parameters: ["お金が足りない！"] },
       { code: 102, indent: 0, parameters: [["はい", "いいえ"], 1, 0, 2, 0] },
       { code: 117, indent: 0, parameters: [{ name: "おっさん" }] },
       { code: 0, indent: 0, parameters: [] },
     ] }] }],
   };
   const common = [null, { id: 1, list: [
-    { code: 401, indent: 0, parameters: ["お金が無い！"] },
+    { code: 401, indent: 0, parameters: ["お金が足りない！"] },
     { code: 0, indent: 0, parameters: [] },
   ] }];
   load(context, "$dataMap", "Map001.json", map);
@@ -126,11 +126,11 @@ test("choices are translated as a whole array, not element by element", () => {
 
 test("escape codes are preserved and mismatches are rejected", () => {
   const { context, api } = runPlugin({
-    "本当に\\C[2]無い\\C[0]のか？": "真的\\C[2]没有\\C[0]吗？",
+    "本当に\\C[2]足りない\\C[0]のか？": "真的\\C[2]没有\\C[0]吗？",
     "色だけ\\C[6]": "只有颜色", // translation dropped the code on purpose
   });
   const map = { events: [null, { pages: [{ list: [
-    { code: 401, indent: 0, parameters: ["本当に\\C[2]無い\\C[0]のか？"] },
+    { code: 401, indent: 0, parameters: ["本当に\\C[2]足りない\\C[0]のか？"] },
     { code: 401, indent: 0, parameters: ["色だけ\\C[6]"] },
   ] }] }] };
   load(context, "$dataMap", "Map001.json", map);
@@ -173,8 +173,8 @@ test("normalised keys catch width and spacing differences", () => {
 });
 
 test("Test_ files reuse the base file rules", () => {
-  const { context } = runPlugin({ "お金が無い！": "没钱了！" });
-  const data = [null, { id: 1, list: [{ code: 401, indent: 0, parameters: ["お金が無い！"] }] }];
+  const { context } = runPlugin({ "お金が足りない！": "没钱了！" });
+  const data = [null, { id: 1, list: [{ code: 401, indent: 0, parameters: ["お金が足りない！"] }] }];
   load(context, "$dataCommonEvents", "Test_CommonEvents.json", data);
   assert.equal(data[1].list[0].parameters[0], "没钱了！");
 });
@@ -216,7 +216,7 @@ function runMvPlugin(dictionary) {
 }
 
 test("MV games are hooked through loadDataFile plus onLoad", () => {
-  const context = runMvPlugin({ "ポーション": "药水", "お金が無い！": "没钱了！" });
+  const context = runMvPlugin({ "ポーション": "药水", "お金が足りない！": "没钱了！" });
   const items = [null, { id: 1, name: "ポーション" }];
   context.MVload("$dataItems", "Items.json", items);
   assert.equal(items[1].name, "药水");
@@ -224,7 +224,7 @@ test("MV games are hooked through loadDataFile plus onLoad", () => {
 
   // Map files come through the same route and must be translated too.
   const map = { displayName: "", events: [null, { pages: [{ list: [
-    { code: 401, indent: 0, parameters: ["お金が無い！"] },
+    { code: 401, indent: 0, parameters: ["お金が足りない！"] },
   ] }] }] };
   context.MVload("$dataMap", "Map001.json", map);
   assert.equal(map.events[1].pages[0].list[0].parameters[0], "没钱了！");
