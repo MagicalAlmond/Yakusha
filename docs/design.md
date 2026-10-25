@@ -58,8 +58,8 @@ MZ 的文本里混着反斜杠转义，翻译时**一个都不能动**：
 
 ## data/ 的编码
 
-**加密的 `data/`**：有些 MZ 游戏把 JSON 单字节 XOR 掉了（每文件一个 key，键值由
-`libGLESv2.dll` 的 sha256 推出来）。`src/core/datafile.js` 的做法是：先按明文试，
+**加密的 `data/`**：有些 MZ 游戏把 JSON 单字节 XOR 掉了（每文件一个 key；有资料称键值由
+`libGLESv2.dll` 的 sha256 推出，但工具不依赖这个推导）。`src/core/datafile.js` 的做法是：先按明文试，
 失败后**穷举 256 个单字节 key**，只有真的能 `JSON.parse` 且以 `[`/`{` 开头才接受；
 解不出的文件不会静默跳过，会进 `undecodable` 列表并在 `scan` 里报出来。
 0 字节的占位文件（有些游戏会留一个空的 `结果.json`）算 `empty` 而不算 `undecodable`，

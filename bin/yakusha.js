@@ -729,6 +729,10 @@ const USAGE = [
   "  <game-dir> may be the game itself or any folder up to 3 levels above it;",
   "  the project root is discovered automatically.",
   "",
+  "global options:",
+  "  --json              machine readable output (every command)",
+  "  --help, -h          show this help",
+  "",
   "  scan       report what is translatable",
   "  extract    build/refresh yakusha/dictionary.json",
   "  status     show translation progress",
@@ -750,9 +754,11 @@ const USAGE = [
   "  --context <text>    only entries whose context contains text; repeat to",
   "                      accept any of several",
   "  --batch-size <n>    entries per request (default 40)",
+  "  --char-budget <n>   characters per request (default 6000)",
   "  --concurrency <n>   parallel requests (default 2)",
   "  --save-every <n>    write the dictionary every n translations (default 200)",
   "  --max-length <cols> wrap translated lines wider than n display columns (0 = off)",
+  "  --no-rewrap         leave existing translations alone (no re-wrap)",
   "  --dry-run           use the mock provider and do not save",
   "  --glossary-only     apply --glossary and never call a model",
   "  --overwrite         let --glossary replace entries that are already translated",
@@ -785,8 +791,6 @@ const USAGE = [
   "",
   "install options:",
   "  --embed             embed the translations into the plugin file",
-  "",
-  "  --json              machine readable output",
 ].join("\n");
 
 async function main() {

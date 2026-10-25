@@ -23,7 +23,7 @@ scan  →  extract  →  translate  →  install
 git clone https://github.com/MagicalAlmond/Yakusha
 cd Yakusha
 node --version   # 需要 22 或更高
-npm test         # 253 个测试，应该全绿
+npm test         # 全部测试，应该全绿
 ```
 
 无第三方运行时依赖。
@@ -145,7 +145,7 @@ bin/yakusha.js            CLI，十个命令
 src/core/                项目发现、数据解码、文本抽取、字典、安装、doctor
 src/pipeline/            provider、批处理、校验、折行、verify、terms、speaker、报告
 src/plugin/              运行时插件模板
-test/                    253 个测试（含 CLI 端到端）
+test/                    单元与 CLI 端到端测试
 docs/                    设计说明、命令参考、实测记录、已知限制、DEVLOG
 ```
 
@@ -164,6 +164,7 @@ docs/                    设计说明、命令参考、实测记录、已知限�
 | 文件 | 内容 |
 | --- | --- |
 | [docs/commands.md](docs/commands.md) | 十个命令的完整选项、`verify` 十类判据、`terms`/`speaker` 算法说明 |
+| [docs/architecture.md](docs/architecture.md) | 三层结构（CLI 内核 / Electron 壳 / 引擎适配器）、引擎能力分档、载荷契约、0.10–1.0 分批计划 |
 | [docs/design.md](docs/design.md) | 为什么走运行时钩子、文本面覆盖、转义码、设计约束、作为库用 |
 | [docs/games.md](docs/games.md) | 已实测的 15 款游戏、全量翻译记录、官中游戏的处理方式 |
 | [docs/limitations.md](docs/limitations.md) | 已知限制全表 |

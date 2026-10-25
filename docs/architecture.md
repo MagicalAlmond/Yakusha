@@ -1,7 +1,7 @@
 # 架构说明：CLI 内核 + Electron 外壳 + 多引擎适配器
 
 > 这份文档回答"以后要支持多引擎汉化工具那样的多引擎（包括进程注入）时，现在的架构怎么不返工"。
-> 产品名待定（见 README 的命名候选），文中暂称"本项目"。
+> 项目名 **Yakusha**，文中也称"本项目"。
 
 ## 1. 三条约束先摆出来
 
@@ -93,11 +93,20 @@ launch 只 spawn 不接管、attach 在 unsupported 时明确报 not-implemented
 
 ## 5. 文本通道：注入和插件吃同一份数据
 
-运行时消费的统一载荷：
+运行时消费的统一载荷，就是 `yakusha/dictionary.json` 的形状：
 
 ```json
-{ "format": "yakusha/1", "rules": { ... }, "entries": { "原文": "译文" } }
+{
+  "format": "yakusha/1",
+  "game": "游戏标题",
+  "updatedAt": "2026-10-25T00:00:00.000Z",
+  "entries": {
+    "原文": { "text": "译文", "contexts": ["Map001.json:401"] }
+  }
+}
 ```
+
+手写的字典可以用扁平形式 `"原文": "译文"`（工具会当成没有 `contexts`），但工具写出的永远是上一种。
 
 三种投递方式，按引擎能力选：
 
@@ -107,7 +116,7 @@ launch 只 spawn 不接管、attach 在 unsupported 时明确报 not-implemented
 | 本地 HTTP | 注入钩子 / 调试会话 | GUI 改一条、游戏里立刻变；支持热重载 |
 | 共享内存 / IPC | 原生 hook | 最低延迟，实现最重 |
 
-**现在就把载荷形状定死**（`format` + `rules` + `entries`），以后加通道不用改游戏侧钩子。
+**载荷形状就是字典文件本身**（`format` + `entries`）：`rules`（转义码、行宽、说话人判定）由插件/引擎适配器持有，**不进 payload**。以后加投递通道不用改游戏侧钩子。
 
 ## 6. GUI 与 core 的边界
 
@@ -154,7 +163,7 @@ test/contract/           适配器契约测试 + 各引擎 fixture
 
 | 版本 | 内容 | 验收 |
 | --- | --- | --- |
-| 0.10.0 | core 适配器化：`engines/registry` + mz/mv adapter 包住现有逻辑；新增 `export`、`launch`、`config`；全部命令 `--json` 稳定 | 253 个测试不降，新增契约测试 |
+| 0.10.0 | core 适配器化：`engines/registry` + mz/mv adapter 包住现有逻辑；新增 `export`、`launch`、`config`；全部命令 `--json` 稳定 | 既有测试全绿不降，新增适配器契约测试 |
 | 0.11.0 | Electron MVP：拖拽、卡片、启动、导出、LLM 设置、翻译进度、对比编辑 | 真机拖入 4 款游戏跑通 |
 | 0.12.0 | 译文导入导出 round-trip（TSV/CSV）、verify 问题面板与就地修复 | 外部工具改过的表能回灌 |
 | 1.0.0 | 便携 exe、图标、无控制台、最近游戏、`native/` 脚手架（不含具体引擎 hook） | 双击 exe 可用 |

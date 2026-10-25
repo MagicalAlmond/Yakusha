@@ -53,3 +53,12 @@
   `trad` 命中 23 / 56 / 0 / 0 条（0.02%–0.28%），`speaker` 只在装了 `\N<名字>`
   插件的那款上有 411 条 error —— 全部是「同一个角色在别处译过、这里还留着日文名」，
   属于玩家能直接看到的日文，所以定成 error 而不是 warn。
+
+- **暂无 GUI**：当前只有 CLI（`bin/yakusha.js`）。Electron 外壳按 [architecture.md](architecture.md)
+  的 0.11 计划落地，还没有打包好的 exe / 安装包；拖拽、设置面板、进度条这些都要等 0.11。
+- **多引擎尚未实现**：适配器层要到 0.10 才落地；当前只支持 MZ / MV。Ren'Py、Unity、Godot、
+  Wolf、Kirikiri 等不在当前版本内，`inject` 档（原生注入）只有契约、没有实现。
+- **没有 `config` / `export` / `launch` 命令**：配置目前只认命令行参数与环境变量，密钥不落盘；
+  这三个命令在 0.10 计划里（`config` 会明确 `yakusha/config.json` 的字段与密钥存储策略）。
+- **没有译文导入导出**：目前只能直接编辑 `yakusha/dictionary.json`；TSV / CSV round-trip
+  在 0.12 计划里。

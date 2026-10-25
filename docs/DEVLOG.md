@@ -443,17 +443,27 @@ warn（还有 2 条没翻、2 条被校验拒收），结尾 `verdict : usable w
 
 ## 8. 下一步（backlog，按优先级）
 
-1. **push 到 GitHub**（用户说过"顶多公布到 github"，但还没要求立即推送）。
-2. 可选：给 `translate` 的 glossary 加条数上限（按请求过滤后已经省了 90%+，
+1. ~~push 到 GitHub~~ —— **0.9.0 已完成**：仓库已发布，CI 在 Node 22 / 24 上全绿。
+2. **0.10.0 适配器层**：`src/engines/{adapter,registry}` + `mz/adapter.js` + `mv/adapter.js`
+   包住现有逻辑；`openProject` 等对外入口经 `src/index.js` 稳定导出，别让库用户撞上内部路径。
+3. **0.10.0 三个命令**：`export`（稳定载荷）、`launch`（启动游戏，可选调试端口）、
+   `config`（`yakusha/config.json`）；同时把 `--json` 输出固化成契约（`docs/json-contract.md`），
+   GUI 直接消费。
+4. **0.10.0 配套文档**：`docs/config.md`（字段、优先级、密钥策略）、
+   `docs/engines.md`（如何加引擎 + 契约测试 + fixture）、`docs/export-format.md`；
+   `docs/limitations.md` 补「暂无 GUI / 多引擎未实现 / 无 config」。
+5. **0.11.0 GUI 前**：`docs/gui.md` 用户指南、`CHANGELOG.md`（DEVLOG 是内部日志，
+   公开仓库需要面向使用者的变更记录）、`docs/limitations.md` 补 Electron 打包与密钥存储。
+6. 可选：给 `translate` 的 glossary 加条数上限（按请求过滤后已经省了 90%+，
    但词表上万条时仍会让每请求的过滤变慢，届时值得加）。
-3. ~~给 `verify` 加 `--write-report <file>`，并把 `speaker` 的 `--names` 模板一起生成~~
+7. ~~给 `verify` 加 `--write-report <file>`，并把 `speaker` 的 `--names` 模板一起生成~~
    —— **0.7.0 已完成**（`--write-report` / `--write-names`，见第 3 节与第 6 节）。
-4. 可选：把运行时截图驱动脚本（CDP 解冻 / readPixels 回读 / 冻结后原子渲染）整理成
+8. 可选：把运行时截图驱动脚本（CDP 解冻 / readPixels 回读 / 冻结后原子渲染）整理成
    `tools/` 下的取证工具，便于以后验收新游戏时复用。**注意：这类脚本会碰游戏进程，
    不建议随工具分发，只作开发期验证用。**
-5. 可选：MV 老 nw 的运行时取证目前靠临时注入脚本，如果能找到不注入的办法（例如日志钩子）更好。
-6. 可选：`terms` 目前只认数据库 name 字段；若以后要挖地名/技能术语，需要另找锚点
-   （例如 `System.json` 的 `terms` 分组），且必须先解决「没有正确答案」的判定问题。
+9. 可选：MV 老 nw 的运行时取证目前靠临时注入脚本，如果能找到不注入的办法（例如日志钩子）更好。
+10. 可选：`terms` 目前只认数据库 name 字段；若以后要挖地名/技能术语，需要另找锚点
+    （例如 `System.json` 的 `terms` 分组），且必须先解决「没有正确答案」的判定问题。
 
 ## 9. 继续工作的方法
 
