@@ -93,8 +93,8 @@ node bin/yakusha.js terms "/games/MyGame"
 字典里 `Actors.json:name` 这类名字条目只有几百个，但它们在正文里被提到几千次。这条
 命令把正文里**实际在用的译法**统计出来，和名字条目比对：对不上就叫 drift。
 
-真实案例（38,044 条的游戏）：名字表写的是「フェイリン → 费琳」，但提到她的 3,653 行里
-**96% 写的是「菲琳」**，只有 4% 用名字表的写法。这不是算法挑剔，是名字表本身错了。
+匿名案例（MZ-A，38,044 条）：名字表写的是「アリア → 艾莉亚」，但提到她的 3,653 行里
+**96% 写的是「阿莉亚」**，只有 4% 用名字表的写法。这不是算法挑剔，是名字表本身错了。
 
 | 状态 | 含义 |
 | --- | --- |
@@ -121,8 +121,8 @@ node bin/yakusha.js translate "/games/MyGame" --glossary yakusha/terms.json --gl
   字段里，给它算「主流译法」没有意义。
 - **互为子串不算漂移**（`哥布` 与 `哥布林` 是同一个译法的长短形式），只建议取更长的那个。
 
-实测四款游戏：格闘娘 `names 510/612, mined 52, drift 5`；常識改変者 `156/215, 20, 2`；
-用时间停止 `145/148, 6, 0`；与傲娇妹妹 `45/45, 3, 0, missing 3`（官方中文，名字表反而缺）。
+实测四款游戏：MZ-A `names 510/612, mined 52, drift 5`；MV-G `156/215, 20, 2`；
+MV-H `145/148, 6, 0`；MZ-G `45/45, 3, 0, missing 3`（官方中文，名字表反而缺）。
 
 ## doctor：装好之后，游戏更新了怎么办
 
@@ -134,7 +134,7 @@ node bin/yakusha.js doctor "/games/MyGame"
 ```
 
 ```
-game      : 格闘娘はお金が無い！ (RPG Maker MZ 1.7.0, 51 data files)
+game      : Example Game (RPG Maker MZ 1.7.0, 51 data files)
   engine      ok    RPG Maker MZ 1.7.0
   dictionary  ok    38044 entries (38042 translated, 2 pending, 2 rejected)
   progress    warn  2 entries are still empty - run: yakusha translate <game>
@@ -270,10 +270,10 @@ node bin/yakusha.js speaker "/games/MyGame" --write-names names.json
 node bin/yakusha.js speaker "/games/MyGame" --names names.json
 ```
 
-实测《用时间停止肆意妄为》（MV）：`verify` 报 411 个 speaker error，`speaker` 一次改掉
-414 条（23 个名字），剩 3 条是全文未译的 `水泳部員`，`--names` 补上后 error 归零；
-再用 `--include-drift` 把 `雏田`/`雏田爸爸`/`雏田妈妈`/`沙耶加` 等 8 个名字统一到主流写法，
-warn 也从 51 归零。两轮都只改字典，不调用模型。
+实测 MV-H：`verify` 报 411 个 speaker error，`speaker` 一次改掉
+414 条（23 个名字），剩 3 条是全文未译的名字，`--names` 补上后 error 归零；
+再用 `--include-drift` 把 8 个存在多种写法的名字（例如「写法 A」改成「写法 B」）
+统一到主流写法，warn 也从 51 归零。两轮都只改字典，不调用模型。
 
 ## 术语表（glossary）
 
@@ -287,7 +287,7 @@ node bin/yakusha.js translate "/games/MyGame" --glossary my-terms.json
 ```json
 {
   "entries": {
-    "フェイリン": "费琳",
+    "アリア": "艾莉亚",
     "ゴブリン": "哥布林",
     "はい": "是",
     "いいえ": "否"

@@ -10,12 +10,7 @@ scan  →  extract  →  translate  →  install
 看有多少   建字典      LLM 填译文    装运行时插件
 ```
 
-![地图对话](docs/screenshots/dialogue-main.png)
-
-![桜御前的地图实时对白与立绘](docs/screenshots/sakura-dialogue-cn.png)
-
-（实测游戏《格闘娘はお金が無い！》《桜御前》，均为 MZ 1.7.0、运行时替换，原图见
-[docs/screenshots](docs/screenshots)。支持范围与实测数据见 [docs/games.md](docs/games.md)。）
+运行时效果不在仓库里放截图；支持范围、匿名实测数据与编号见 [docs/games.md](docs/games.md)。
 
 ## 安装
 
@@ -39,7 +34,7 @@ node bin/yakusha.js scan "/games/MyGame"
 ```
 
 ```
-game      : 格闘娘はお金が無い！
+game      : Example Game
 engine    : mz 1.7.0
 data files: 51
 strings   : 38044 unique / 80502 total
@@ -153,7 +148,8 @@ src/core/                项目发现、数据解码、文本抽取、字典、�
 src/pipeline/            provider、批处理、校验、折行、verify、terms、speaker、报告
 src/plugin/              运行时插件模板
 test/                    单元与 CLI 端到端测试
-docs/                    设计说明、命令参考、契约、实测记录、已知限制、DEVLOG
+docs/                    设计说明、命令参考、契约、实测记录、已知限制
+  docs/dev/                内部开发日志（DEVLOG）
 ```
 
 ## 已知限制
@@ -175,7 +171,7 @@ docs/                    设计说明、命令参考、契约、实测记录、�
 
 分支模型是 **trunk-based**：只有 `main` 一条长期分支，工作分支当天合回；合并前 `npm test`
 必须全绿，每个工作包走一个 self-PR（以 CI status check 为准）并 squash 合并；发布用
-`vX.Y.Z` annotated tag 标记。完整规则与命令见 [docs/DEVLOG.md](docs/DEVLOG.md) §9。
+`vX.Y.Z` annotated tag 标记。完整规则与命令见 [docs/dev/DEVLOG.md](docs/dev/DEVLOG.md) §9。
 
 ## 文档
 
@@ -189,9 +185,9 @@ docs/                    设计说明、命令参考、契约、实测记录、�
 | [docs/export-format.md](docs/export-format.md) | 0.10 设计稿：JSON 导出格式、排序、原子写与覆盖规则 |
 | [docs/platforms.md](docs/platforms.md) | 平台支持矩阵与决策记录（Windows-only 的原因与重评条件） |
 | [docs/design.md](docs/design.md) | 为什么走运行时钩子、文本面覆盖、转义码、设计约束、作为库用 |
-| [docs/games.md](docs/games.md) | 已实测的 15 款游戏、全量翻译记录、官中游戏的处理方式 |
+| [docs/games.md](docs/games.md) | 匿名记录的 15 款实测游戏、全量翻译数据、官中游戏的处理方式 |
 | [docs/limitations.md](docs/limitations.md) | 已知限制全表 |
-| [docs/DEVLOG.md](docs/DEVLOG.md) | 内部开发日志（阶段、决策、实测、教训） |
+| [docs/dev/DEVLOG.md](docs/dev/DEVLOG.md) | 内部开发日志（阶段、决策、实测、教训） |
 
 ## 许可
 

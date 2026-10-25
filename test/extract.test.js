@@ -12,7 +12,7 @@ test("extract finds the fixture strings", () => {
   const result = extractProject(FIXTURE);
   const texts = new Set(result.entries.keys());
   // database fields
-  assert.ok(texts.has("フェイリン"));
+  assert.ok(texts.has("アリア"));
   assert.ok(texts.has("ポーション"));
   assert.ok(texts.has("HPを50回復する。"));
   assert.ok(texts.has("火炎"));
@@ -23,7 +23,7 @@ test("extract finds the fixture strings", () => {
   assert.ok(texts.has("常時ダッシュ"));
   // common events and maps
   assert.ok(texts.has("おっさん"));
-  assert.ok(texts.has("お金が無い！"));
+  assert.ok(texts.has("お金が足りない！"));
   assert.ok(texts.has("はい"));
   assert.ok(texts.has("酒場"));
   assert.ok(texts.has("スクロールテキスト"));
@@ -32,8 +32,8 @@ test("extract finds the fixture strings", () => {
 test("extract keeps escape codes byte identical", () => {
   const result = extractProject(FIXTURE);
   const texts = [...result.entries.keys()];
-  assert.ok(texts.includes(String.raw`本当に\C[2]無い\C[0]のか？`));
-  assert.ok(texts.includes(String.raw`泥沼の戦争はそのまま続き…\N[1]`));
+  assert.ok(texts.includes(String.raw`本当に\C[2]足りない\C[0]のか？`));
+  assert.ok(texts.includes(String.raw`旅の途中で古い橋に差し掛かった…\N[1]`));
 });
 
 test("extract counts duplicates instead of collapsing them", () => {
@@ -48,7 +48,7 @@ test("extract counts duplicates instead of collapsing them", () => {
 test("CommonEvents yields both its name and its commands", () => {
   const result = extractProject(FIXTURE);
   assert.deepEqual([...result.entries.get("共通").contexts], ["CommonEvents.json:name"]);
-  assert.deepEqual([...result.entries.get("お金が無い！").contexts], ["CommonEvents.json:401"]);
+  assert.deepEqual([...result.entries.get("お金が足りない！").contexts], ["CommonEvents.json:401"]);
 });
 
 test("extract records per file counts and command counts", () => {
@@ -63,7 +63,7 @@ test("extract records per file counts and command counts", () => {
 
 test("extract attaches context labels", () => {
   const result = extractProject(FIXTURE);
-  assert.deepEqual([...result.entries.get("お金が無い！").contexts], ["CommonEvents.json:401"]);
+  assert.deepEqual([...result.entries.get("お金が足りない！").contexts], ["CommonEvents.json:401"]);
   assert.deepEqual([...result.entries.get("酒場").contexts], ["Map001.json:displayName"]);
   assert.deepEqual([...result.entries.get("レベル").contexts], ["System.json:terms.basic[]"]);
 });

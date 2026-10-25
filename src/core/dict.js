@@ -5,7 +5,7 @@
  * On disk (`yakusha/dictionary.json`):
  * {
  *   "format": "yakusha/1",
- *   "game": "格闘娘はお金が無い！",
+ *   "game": "Example Game",
  *   "updatedAt": "2026-...",
  *   "entries": { "<source>": { "text": "<translation>", "contexts": ["Map003:401"] } }
  * }

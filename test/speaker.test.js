@@ -1,8 +1,8 @@
 /**
  * Tests for the speaker name repair.
  *
- * Every case comes from a real dictionary: the 用时间停止肆意妄为 MV game writes its
- * speaker into the line as "\N<ひなた>"…"", translates that name on some lines and
+ * The cases mirror a real dictionary pattern: an MV game writes its speaker
+ * into the line as "\N<ひなた>"…"", translates that name on some lines and
  * leaves it in Japanese on others, so the same character is read in two languages.
  * The repair replaces the leftover with the rendering the game already uses
  * hundreds of times elsewhere — it never invents a name.

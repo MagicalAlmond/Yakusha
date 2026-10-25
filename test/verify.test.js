@@ -302,7 +302,7 @@ test("verify: a tie between two renderings picks the Chinese one", () => {
 });
 
 test("verify: angle brackets holding code are not speaker names", () => {
-  // Games using Chimaki_Lang write expressions such as <50*\v[65]> in the line.
+  // Games using 某个消息插件 write expressions such as <50*\v[65]> in the line.
   const result = verifyDictionary(
     dictionary({
       [String.raw`<50*\v[65]>テスト`]: { text: "<50*\\v[65]>测试" },

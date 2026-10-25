@@ -8,8 +8,8 @@
  * independently, in different batches, by a model that never sees the name
  * entry. So the two surfaces drift apart:
  *
- *   フェイリン  as a name  -> 费琳   (what the name entry says)
- *   フェイリン  in dialogue -> 菲琳   (3,490 lines, 96% of all mentions)
+ *   アリア  as a name  -> 艾莉亚   (what the name entry says)
+ *   アリア  in dialogue -> 阿莉亚   (3,490 lines, 96% of all mentions)
  *
  * Nobody notices by reading the name entry, and the player sees one character
  * spelled two ways. verify() cannot catch this: both spellings are valid

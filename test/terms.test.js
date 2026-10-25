@@ -87,13 +87,13 @@ test("terms: a name whose dialogue agrees with the entry is ok", () => {
 });
 
 test("terms: a name the dialogue spells differently is drift", () => {
-  // This is the フェイリン case: the name entry says 费琳, but 96% of the lines
-  // that mention her say 菲琳. The dictionary is what is wrong.
-  const result = mineTerms(dictionary(mentions("フェイリン", "费琳", "菲琳", 9, 10, "费琳")));
+  // This is the アリア case: the name entry says 艾莉亚, but 96% of the lines
+  // that mention her say 阿莉亚. The dictionary is what is wrong.
+  const result = mineTerms(dictionary(mentions("アリア", "艾莉亚", "阿莉亚", 9, 10, "艾莉亚")));
   assert.equal(result.terms.length, 1);
   assert.equal(result.terms[0].status, "drift");
-  assert.equal(result.terms[0].dominant, "菲琳");
-  assert.equal(result.terms[0].suggested, "菲琳");
+  assert.equal(result.terms[0].dominant, "阿莉亚");
+  assert.equal(result.terms[0].suggested, "阿莉亚");
   assert.equal(result.terms[0].dbSupport, 0.1);
 });
 
@@ -195,15 +195,15 @@ test("terms: glossary only carries entries that have a rendering", () => {
 test("terms: glossary honours the limit and driftOnly", () => {
   const rows = [
     ...mentions("ゴブリン", "哥布林", "哥布林", 9, 9),
-    ...mentions("フェイリン", "费琳", "菲琳", 8, 8),
+    ...mentions("アリア", "艾莉亚", "阿莉亚", 8, 8),
     ...mentions("ミスティ", "迷雾", "米丝蒂", 7, 7),
   ];
   const terms = mineTerms(dictionary(rows)).terms;
   assert.equal(Object.keys(toGlossary(terms, { limit: 2 }).entries).length, 2);
   // A term that already agrees is not worth pinning down; only the two that
   // disagree need to reach the prompt.
-  assert.deepEqual(Object.keys(toGlossary(terms, { driftOnly: true }).entries).sort(), ["フェイリン", "ミスティ"]);
-  assert.equal(toGlossary(terms, { driftOnly: true }).entries["フェイリン"], "菲琳");
+  assert.deepEqual(Object.keys(toGlossary(terms, { driftOnly: true }).entries).sort(), ["アリア", "ミスティ"]);
+  assert.equal(toGlossary(terms, { driftOnly: true }).entries["アリア"], "阿莉亚");
 });
 
 test("terms: the glossary format is what translate --glossary reads", () => {
