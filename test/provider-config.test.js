@@ -19,6 +19,9 @@ import { fileURLToPath } from "node:url";
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const BIN = path.join(HERE, "..", "bin", "yakusha.js");
 const FIXTURE = path.join(HERE, "fixtures", "mini-mz");
+// A missing provider/model must be a property of the fixture, not of the
+// developer's real %APPDATA%\yakusha\config.json.
+const CONFIG_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "yakusha-provider-config-"));
 
 /** @returns {string} a private copy of the fixture, safe to mutate */
 function tempGame() {
@@ -40,7 +43,7 @@ function cleanEnv(extra = {}) {
   for (const key of Object.keys(env)) {
     if (/^YAKUSHA_/i.test(key) || /^OPENAI_API_KEY$/i.test(key)) delete env[key];
   }
-  return { ...env, ...extra };
+  return { ...env, YAKUSHA_CONFIG_DIR: CONFIG_DIR, ...extra };
 }
 
 /** @returns {{ code: number, stdout: string, stderr: string }} */

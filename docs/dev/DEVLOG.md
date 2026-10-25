@@ -1,12 +1,12 @@
 # 开发交接文档（DEVLOG）
 
 > 这份文档记录**阶段目标、已完成项、决策理由和下一步**，随开发进程更新。
-> 最后更新：2026-10-25（0.9.0 发布；0.10 完成 WP2）。
+> 最后更新：2026-10-25（0.9.0 发布；0.10 完成 WP3）。
 > 0.9.0 项目改名 **Yakusha**，字典目录、插件文件、环境变量与备份后缀全部随之改名；
 > 仓库已发布到 https://github.com/MagicalAlmond/Yakusha（`main` 分支）。
 > 0.8.0 的 `doctor`、0.7.1 的 `uninstall` 漂移保护、0.7.0 的报告/模板见下）。
 > 0.10 的五篇契约已冻结（`json-contract` / `config` / `engines` / `export-format` /
-> `platforms`），实现按 WP1–WP6 推进：WP1–WP2 已完成，其余进行中。分支模型是
+> `platforms`），实现按 WP1–WP6 推进：WP1–WP3 已完成，其余进行中。分支模型是
 > **trunk-based**（只有 `main` 一条长期分支，规则见 §9）。
 >
 > **内部日志**：这份文档记录开发过程与决策，主要读者是维护者；面向使用者的命令说明
@@ -37,8 +37,8 @@
 | 项 | 状态 |
 | --- | --- |
 | 版本 | 0.9.0（package.json）；0.10.0 在 WP6 提升，版本号已收敛到 `src/version.js` 单一真源 |
-| 0.10 契约 | 五篇设计稿已冻结（json-contract / config / engines / export-format / platforms）；**WP1–WP2 已实现**，WP3–WP6 进行中 |
-| 测试 | **302 个，全绿**（`npm test`，约 7–7.5s） |
+| 0.10 契约 | 五篇设计稿已冻结（json-contract / config / engines / export-format / platforms）；**WP1–WP3 已实现**，WP4–WP6 进行中 |
+| 测试 | **317 个，全绿**（`npm test`，约 7.5–8s） |
 | 持续集成 | GitHub Actions：`npm test` 在 Node 22 / 24（**windows-latest**，WP1 已从 ubuntu 切换） |
 | 平台 | Windows 10/11 x64 为唯一支持与验收环境（0.10 明确，见 [platforms.md](../platforms.md)） |
 | 支持引擎 | RPG Maker **MZ 1.3.2–1.9.0**、**MV 1.6.1–1.6.2** |
@@ -124,7 +124,13 @@
       `install` / `uninstall` 增加 realpath 越界守卫（项目外路径 `E_IO`），插件里的
       `VERSION` 改由 `installPlugin` 从 `src/version.js` 渲染；新增
       `test/engine-contract.test.js`（18 条）与 `test/fixtures/mini-mv`。
-- [ ] WP3 config
+- [x] WP3 config：新增 `src/cli/config.js` 与 `config` 命令（用户级唯一一份，
+      `%APPDATA%\yakusha\config.json`，`YAKUSHA_CONFIG_DIR` 可注入目录）。只存
+      provider / model / baseUrl，密钥永不落盘、永不回显；写入用同目录临时文件 + rename，
+      保留未知键，`schema` 固定首位。`translate` 改为从 flag → 环境变量 → 文件 → 默认
+      逐级取值；坏文件对 `translate` 只 warn，对 `config` 子命令 `E_CONFIG`；`--dry-run`
+      完全不读配置。`config` 不接游戏目录，只允许全局 `--json`。新增 `test/config.test.js`
+      （15 条）并把 CLI/契约/配置前置测试的 `YAKUSHA_CONFIG_DIR` 隔离到临时目录。
 - [ ] WP4 export
 - [ ] WP5 launch / attach stub
 - [ ] WP6 文档与 0.10.0
@@ -135,6 +141,7 @@
 bin/yakusha.js             CLI 薄壳（解析参数 → 分派命令 → emit；不再直接拼 JSON）
 src/cli/envelope.js        0.10 信封、错误对象、sanitizeMessage、EXIT 码
 src/cli/args.js            0.10 严格参数解析（未知选项 / 缺值 / 多余参数即 E_USAGE）
+src/cli/config.js          用户级配置读写（provider / model / baseUrl，密钥不落盘）
 src/version.js             版本单一真源（读 package.json）
 src/engines/adapter.js     MZ/MV 共享适配器逻辑（detect / scan / extract / 安装）
 src/engines/registry.js    MZ→MV 注册表与 detectProject（判别式，不抛）
@@ -159,7 +166,7 @@ src/pipeline/terms.js     名字/术语的主流译法挖掘与漂移检测
 src/pipeline/speaker.js   说话人标记的识别、房规统计与按房规修复
 src/pipeline/report.js    verify 结果的 markdown 报告（只格式化，不重算）
 src/plugin/YAKUSHA_Translator.js  运行时插件模板（install 时注入规则表）
-test/                     302 个测试（含 CLI 端到端、0.10 信封契约、配置前置与引擎契约）
+test/                     317 个测试（含 CLI 端到端、0.10 信封契约、配置命令/前置与引擎契约）
 docs/design.md            为什么走运行时钩子、文本面覆盖、转义码、设计约束、作为库用
 docs/commands.md          十个命令的完整选项与 verify / terms / speaker 判据
 docs/games.md             15 款实测游戏、全量翻译记录、官中游戏的处理
@@ -167,7 +174,7 @@ docs/limitations.md       已知限制全表
 docs/architecture.md      分层、引擎适配器契约、plugin/debug/inject 三种运行时模式、GUI 与 core 边界
 docs/json-contract.md     0.10 设计稿：--json 信封、错误码、退出码、严格参数解析
 docs/engines.md           0.10 设计稿：adapter 契约、能力矩阵、安装/卸载、launch 与 attach
-docs/config.md            0.10 设计稿：用户级配置、密钥优先级、威胁模型（密钥不落盘）
+docs/config.md            0.10 实现：用户级配置、密钥优先级、威胁模型（密钥不落盘）
 docs/export-format.md     0.10 设计稿：JSON 导出格式、排序、原子写与覆盖规则
 docs/platforms.md         平台支持矩阵与决策记录（Windows-only 的原因与重评条件）
 ```
@@ -478,6 +485,22 @@ attach 桩，以及包自引用 `import("yakusha")` 与深路径导入。
 所有插件渲染测试一起挂；改成先 `test()` 再 `replace()`。另一处：`assertInsideRoot`
 必须同时守住 install 与 uninstall，且要在删除插件文件之前执行，否则越界路径会先删后报。
 
+### 0.10.0 WP3 用户级配置
+
+`npm test`：302 → **317 个**，耗时约 7.9s（新增 15 条配置命令测试）。测试覆盖：空目录
+`list` 返回默认值且不创建文件；`set` 后 `schema` 首位、2 空格、LF、末尾换行、磁盘无
+`apiKey`；`get` 的 `file` / `env` / `default` / `none` 来源；未知键与敏感键在 `set`/`unset`
+后保留；非法 provider / model / baseUrl（相对路径、ftp、query、fragment、userinfo）
+`E_USAGE` 且文件不变；损坏 JSON 与 `schema:2` 对 `config` 子命令 `E_CONFIG` 且不覆盖、
+对 `translate --provider mock` 只 warn；`--dry-run` 连坏配置都不读；非默认 `baseUrl`
+在 JSON 模式只进 stderr；相对 `YAKUSHA_CONFIG_DIR`、缺 `APPDATA` 均 `E_CONFIG`；
+`config` 缺子命令 / 未知 action / 多余位置参数 `E_USAGE`。
+
+测试隔离是这一包最容易漏的事：三份既有 CLI 测试清掉 `YAKUSHA_*` 后，`config` 会去读
+开发机真实的 `%APPDATA%\yakusha\config.json`，`provider-config` 的「缺 provider」断言
+会随本机配置时绿时红。现在每个 spawn 都注入一个 `mkdtemp` 出来的空
+`YAKUSHA_CONFIG_DIR`，测试不再依赖开发机状态。
+
 ## 7. 已知限制
 
 1. 只处理 `data/` 里的文本；插件 `js/plugins/*.js` 里硬编码的 UI 文案不动。
@@ -541,8 +564,8 @@ attach 桩，以及包自引用 `import("yakusha")` 与深路径导入。
    关键取舍：扁平信封 + `outcome` + 退出码 0/1/2；`detect` 改判别式；
    不做项目级配置、密钥不落盘；launch 只认根目录唯一 `.exe`；Windows-only；
    契约测试平铺（`npm test` 不收子目录）。
-3. **0.10.0 实现（进行中）**：WP1（信封、严格参数、版本单一真源、CI）与
-   WP2（适配器、registry、detect、门面）已完成；剩余 WP3–WP6。
+3. **0.10.0 实现（进行中）**：WP1（信封、严格参数、版本单一真源、CI）、
+   WP2（适配器、registry、detect、门面）与 WP3（用户级 config）已完成；剩余 WP4–WP6。
    `src/engines/{adapter,registry}` +
    `mz/adapter.js` + `mv/adapter.js` 薄包装现有 core；`src/index.js` 门面 +
    `package.json` 的 `main`/`exports`；`src/cli/envelope.js` + `src/cli/args.js`
@@ -711,3 +734,13 @@ git push origin v0.10.0
 - **越界守卫要覆盖所有写/删动作，并且在动手之前跑**：路径 containment 只加在 install、
   或加在删文件之后，都等于没有；`assertInsideRoot` 对 plugins.js、备份、插件文件逐个检查，
   install 与 uninstall 共用。
+- **不是每个命令都接一个游戏目录**：`main` 原来把所有命令都按「恰好一个 game-dir」校验，
+  加 `config` 时如果不特判，`config list` 会被当成「缺游戏目录」。位置参数形状属于命令契约，
+  要跟 payload 一样在分派处显式写明，不能假设所有命令同构。
+- **`--dry-run` 不能偷偷读取外部状态**：`translate --dry-run` 连配置文件都不读，否则一个
+  损坏的 `%APPDATA%\yakusha\config.json` 会把离线预览也挡住；同理，坏配置对 `translate`
+  只 warn、对 `config` 子命令才是 `E_CONFIG`——「读配置是为了用」和「读配置是为了改」
+  失败策略不同。
+- **用户级配置必须给测试一个可注入的目录**：清空 `YAKUSHA_*` 只能保证不继承环境变量，
+  不能阻止代码去读开发机真实的 `%APPDATA%`；CLI 测试要显式设 `YAKUSHA_CONFIG_DIR`
+  指向 `mkdtemp` 的空目录，否则断言的绿红取决于本机有没有配置文件。

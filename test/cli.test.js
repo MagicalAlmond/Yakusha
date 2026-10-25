@@ -17,6 +17,10 @@ import { fileURLToPath } from "node:url";
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const BIN = path.join(HERE, "..", "bin", "yakusha.js");
 const FIXTURE = path.join(HERE, "fixtures", "mini-mz");
+// The config file is user level, so a developer machine would otherwise leak a
+// real provider/model/key into every command. One empty directory per process
+// keeps the suite hermetic without giving each spawn a fresh file.
+const CONFIG_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "yakusha-cli-config-"));
 
 /** @returns {string} a private copy of the fixture, safe to mutate */
 export function tempGame() {
@@ -39,6 +43,7 @@ function cleanEnv() {
   for (const key of Object.keys(env)) {
     if (/^YAKUSHA_/i.test(key) || /^OPENAI_API_KEY$/i.test(key)) delete env[key];
   }
+  env.YAKUSHA_CONFIG_DIR = CONFIG_DIR;
   return env;
 }
 

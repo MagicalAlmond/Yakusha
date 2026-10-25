@@ -71,6 +71,7 @@ const VALUE = [
 
 /** Per command option names; GLOBAL is always allowed. */
 const COMMAND_OPTIONS = {
+  config: [],
   scan: [],
   extract: [],
   status: [],
