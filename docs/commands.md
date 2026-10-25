@@ -26,8 +26,8 @@ yakusha <command> <game-dir> [options]
   doctor      查安装、备份、字典是否还与这版游戏对得上
 
 translate:
-  --provider <name>   openai（默认）或 mock
-  --model <name>      模型 id
+  --provider <name>   openai / compatible / mock（真实调用必须显式指定）
+  --model <name>      模型 id（真实调用必须配置）
   --base-url <url>    OpenAI 兼容端点
   --api-key <key>     API key
   --glossary <file>   术语表 JSON
@@ -39,7 +39,7 @@ translate:
   --save-every <n>    每 n 条落盘一次（默认 200）
   --max-length <n>    把超过 n 显示列的译文自动换行（0 = 关闭，默认 0）
   --no-rewrap         不动已经翻好的条目（默认会按新宽度重新折行）
-  --dry-run           用 mock provider 且不落盘
+  --dry-run           强制 mock provider、不落盘、不读配置
   --glossary-only     只应用术语表，不联网
   --overwrite         允许术语表覆盖已经翻好的条目
 
@@ -79,9 +79,9 @@ install:
 
 | 变量 | 用途 |
 | --- | --- |
-| `YAKUSHA_API_KEY` | API key（回退到 `OPENAI_API_KEY`） |
-| `YAKUSHA_MODEL` | 模型 id（默认 `gpt-4o-mini`） |
-| `YAKUSHA_BASE_URL` | 端点（默认 `https://api.openai.com/v1`） |
+| `YAKUSHA_API_KEY` | API key（真实调用必须配置；回退到 `OPENAI_API_KEY`） |
+| `YAKUSHA_MODEL` | 模型 id（无默认，真实调用必须配置） |
+| `YAKUSHA_BASE_URL` | 端点（OpenAI 官方为默认；`compatible` 必须显式配置） |
 
 ## terms：挖出人名/术语的主流译法
 

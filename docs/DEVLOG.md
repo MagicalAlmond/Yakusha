@@ -30,7 +30,7 @@
 | --- | --- |
 | 版本 | 0.9.0（package.json）；0.10.0 在 WP6 提升，版本号已收敛到 `src/version.js` 单一真源 |
 | 0.10 契约 | 五篇设计稿已冻结（json-contract / config / engines / export-format / platforms）；**WP1 已实现**，WP2–WP6 进行中 |
-| 测试 | **274 个，全绿**（`npm test`，约 6.5s） |
+| 测试 | **283 个，全绿**（`npm test`，约 6–7s） |
 | 持续集成 | GitHub Actions：`npm test` 在 Node 22 / 24（**windows-latest**，WP1 已从 ubuntu 切换） |
 | 平台 | Windows 10/11 x64 为唯一支持与验收环境（0.10 明确，见 [platforms.md](platforms.md)） |
 | 支持引擎 | RPG Maker **MZ 1.3.2–1.9.0**、**MV 1.6.1–1.6.2** |
@@ -104,6 +104,12 @@
       `yakusha <version>` 且优先于任何命令/选项（不套信封）；`package.json` 补 `main`/`exports`。
 - [x] WP1 契约测试：新增 `test/json-contract.test.js`（17 条）与 `test/version.test.js`（4 条）；
       CLI 测试统一清空 `YAKUSHA_*` / `OPENAI_API_KEY`，不再继承开发机环境。
+- [x] WP1 配置前置（用户要求）：去掉内置模型 `gpt-4o-mini` 与隐式 `openai` provider。
+      真实调用必须显式配置 provider、model、密钥（`--flag` / 环境变量 / 0.10 配置文件）；
+      缺任何一项都在发请求前 `E_CONFIG`/2。`--dry-run` 固定 mock（忽略并警告其他
+      `--provider`）、`--provider mock`、`--glossary-only` 不需要配置；
+      `provider=compatible` 没有 `--base-url`/`YAKUSHA_BASE_URL` 也拒绝，避免把 key
+      发到 `api.openai.com`。新增 `test/provider-config.test.js`。
 - [ ] WP2 引擎适配器 / registry / detect / facade
 - [ ] WP3 config
 - [ ] WP4 export
@@ -135,7 +141,7 @@ src/pipeline/terms.js     名字/术语的主流译法挖掘与漂移检测
 src/pipeline/speaker.js   说话人标记的识别、房规统计与按房规修复
 src/pipeline/report.js    verify 结果的 markdown 报告（只格式化，不重算）
 src/plugin/YAKUSHA_Translator.js  运行时插件模板（install 时注入规则表）
-test/                     274 个测试（含 CLI 端到端与 0.10 信封契约）
+test/                     283 个测试（含 CLI 端到端、0.10 信封契约与配置前置）
 docs/design.md            为什么走运行时钩子、文本面覆盖、转义码、设计约束、作为库用
 docs/commands.md          十个命令的完整选项与 verify / terms / speaker 判据
 docs/games.md             15 款实测游戏、全量翻译记录、官中游戏的处理
@@ -158,6 +164,7 @@ docs/platforms.md         平台支持矩阵与决策记录（Windows-only 的�
 | **改名不保留旧路径兼容分支** | 兼容别名会把旧名写回代码与文档，等于规则白立；旧目录只用一次性迁移脚本处理（脚本在仓库外），代码里只有 `yakusha` 一个名字。 |
 | **`--json` 用固定信封，三件事分开** | `schema` / `command` / `ok` / `outcome` / `error` 是保留键，其余载荷平铺；`ok` 只表示“命令成功”，`outcome` 才区分 ok / findings / error；退出码 0 / 1 / 2。修复类命令（translate/speaker/status）有问题仍是 ok，发布闸门交给 `verify`。理由：机器消费者要能区分“发现缺陷”和“命令失败”，而现有 `ok` 一字段两义（[json-contract.md](json-contract.md)）。 |
 | **0.10 不做项目级配置，密钥不落盘** | 项目里的一份 `config.json` 能把用户环境变量里的 key 重定向到任意 `baseUrl`；Windows 上 `chmod 0600` 实测仍是 0666（`mode & 0o777 === 0o666`）。所以 0.10 只做用户级非敏感配置，key 只走 `--api-key` / 环境变量；持久化留到 0.11 的 GUI `safeStorage`（[config.md](config.md)）。 |
+| **没有默认 provider / model / 密钥，真实调用前必须配置** | 内置 `gpt-4o-mini` 会让一次没配置好的运行看起来是“能跑”，实际只会在端点上报错；如果同时换了 `baseUrl` 却没配 key，还可能把请求发到错误的地址。缺 provider / model / key，或 `compatible` 缺 `baseUrl`，一律在任何请求前 `E_CONFIG`（退出码 2）；`mock` / `--dry-run` / `--glossary-only` 不读这些配置。理由：错误应在本地、在花钱之前暴露，而不是让用户猜为什么 401。 |
 | **launch 只认项目根的直接子 `.exe`** | exe 不得来自配置、字典或游戏内任意路径；`--exe` 只接受裸文件名；spawn 用 `shell:false` + `detached` + `stdio:ignore`，并从子进程 env 删除 `YAKUSHA_API_KEY` / `OPENAI_API_KEY`。理由：分享的游戏目录本身就是不可信输入（[engines.md](engines.md) §8）。 |
 | **trunk-based：一条 `main` + 短分支 + self-PR squash** | 单人开发没有并行评审需求，`develop`/`release` 这类长期分支只会制造同步债；短分支让 CI 在合并前跑一遍，squash 保持 `main` 线性、可读、可回滚。发布用 `vX.Y.Z` tag；只有旧版本确实有人在用时，才从 tag 切维护分支（规则见 §9）。 |
 | **Windows-only，Linux/macOS 不做也不测** | 单人开发，需求证据与验收机器都没有；macOS 还要签名/公证，且在 macOS 上注入类引擎一个都跑不了。写成决策记录，避免以后“顺手加一个平台”把测试面乘二（[platforms.md](platforms.md)）。 |
@@ -425,12 +432,19 @@ warn（还有 2 条没翻、2 条被校验拒收），结尾 `verdict : usable w
 
 ### 0.10.0 WP1 契约与耗时
 
-`npm test`：253 → **274 个**，耗时 5.9s → 约 6.5s（新增 17 条信封契约 + 4 条版本）。
+`npm test`：253 → **283 个**，耗时 5.9s → 约 6–7s（新增 17 条信封契约 + 4 条版本 + 9 条配置前置）。
 契约测试直接跑 `bin/yakusha.js`（`spawnSync` + 清空环境变量），逐条验证：每个命令的
 stdout 恰好一行、五个保留键在最前、`ok === (outcome === "ok")`、payload 没有 `data` 包装、
 `outcome` 与退出码一致；`verify` 有 error / `doctor` broken 为 `findings`/1，
 只有警告是 `ok`/0，写报告失败是 `E_IO`/2（error 压过 findings）；未知命令/选项退出 2 且
 错误消息不带 usage 全文；`--version` 在 `scan --bogus --version` 下仍只打印版本行。
+
+用户随后要求“没有配置好 API 和 provider 就不许访问 LLM”：`openaiProvider` 不再回退
+`gpt-4o-mini`，`translate` 缺少显式 provider / model / key 时在构造 provider 时直接
+`E_CONFIG`（还没有发请求）；`--dry-run` 固定 mock（若同时给了别的 `--provider` 打一行
+warning），`--provider mock` 与 `--glossary-only` 不读配置。新增 9 条测试覆盖缺 provider /
+缺 model / 缺 key / `compatible` 缺 baseUrl / mock 与 dry-run 可跑 / 环境变量不能代替
+provider / 未知 provider 仍是 `E_PROVIDER`。
 
 ## 7. 已知限制
 
@@ -655,3 +669,6 @@ git push origin v0.10.0
 - **测试里不要写字面量密码 / URL userinfo**：本机工具链会把 `user:pass@host` 脱敏成占位符，
   fixture 与断言会悄悄对不上；改成拼接构造（`"https://user:" + password + "@host"`），
   断言脱敏后的 `https://***@host`。
+- **默认值会把「没配置」变成延迟失败**：内置 `gpt-4o-mini` 让一次没配置 provider/key 的运行
+  看起来能跑，实际在端点上才失败；换了第三方 `baseUrl` 后甚至可能把请求发到默认 OpenAI
+  地址。把必填项前移成发请求前的 `E_CONFIG`，错误才出现在用户能修、也免费的地方。

@@ -463,7 +463,29 @@ async function cmdTranslate(dir) {
   const { file, data } = requireDictionary(project);
 
   const glossaryOnly = flags["glossary-only"] === true;
-  const providerName = typeof flags.provider === "string" ? flags.provider : flags["dry-run"] ? "mock" : "openai";
+  const dryRun = flags["dry-run"] === true;
+  const requestedProvider = typeof flags.provider === "string" ? flags.provider : null;
+  // --dry-run is documented as the mock provider: it must never spend money,
+  // even if the user also passed a real --provider.
+  if (dryRun && requestedProvider && requestedProvider.toLowerCase() !== "mock") {
+    process.stderr.write("warning: --dry-run always uses the mock provider; --provider " + requestedProvider + " ignored\n");
+  }
+  // 0.10 has no default provider. A real run must say where it is going;
+  // guessing meant a missing setup only failed after a request was attempted.
+  const providerName = glossaryOnly ? null : dryRun ? "mock" : requestedProvider;
+  if (!glossaryOnly && !dryRun && !providerName) {
+    throw new CliError("E_CONFIG", "no provider configured: pass --provider openai or --provider compatible");
+  }
+  // A third-party endpoint has no sensible default, and sending the key to
+  // api.openai.com because baseUrl was omitted would be both wrong and surprising.
+  if (
+    providerName !== null &&
+    providerName.toLowerCase() === "compatible" &&
+    typeof flags["base-url"] !== "string" &&
+    !process.env.YAKUSHA_BASE_URL
+  ) {
+    throw new CliError("E_CONFIG", "no base URL configured for provider compatible: pass --base-url or set YAKUSHA_BASE_URL");
+  }
   // Glossary only mode never talks to a model, so do not even build a provider.
   let provider;
   try {
@@ -478,7 +500,10 @@ async function cmdTranslate(dir) {
           maxTokens: numberFlag("max-tokens", undefined),
         });
   } catch (error) {
-    throw new CliError("E_PROVIDER", error && error.message ? error.message : String(error));
+    // Missing configuration stays E_CONFIG so the user is told to configure the
+    // tool; anything else from provider construction is the provider's fault.
+    const code = error && typeof error.code === "string" && /^E_[A-Z][A-Z_]*$/.test(error.code) ? error.code : "E_PROVIDER";
+    throw new CliError(code, error && error.message ? error.message : String(error));
   }
 
   /** @type {Record<string,string>} */
@@ -522,10 +547,10 @@ async function cmdTranslate(dir) {
     maxColumns: maxLength,
     // Existing translations are re-fitted too, so adding the flag later repairs
     // a dictionary instead of only affecting new entries.
-    rewrapExisting: maxLength > 0 && !flags["no-rewrap"] && !flags["dry-run"],
+    rewrapExisting: maxLength > 0 && !flags["no-rewrap"] && !dryRun,
     onProgress: (progress) => {
       // Persist periodically so an interrupted run resumes instead of restarting.
-      if (saveEvery > 0 && !flags["dry-run"]) {
+      if (saveEvery > 0 && !dryRun) {
         const translatedNow = progress.translated;
         if (translatedNow - lastSaved >= saveEvery) {
           lastSaved = translatedNow;
@@ -550,7 +575,7 @@ async function cmdTranslate(dir) {
   // never the key; the text output may still show the model.
   const providerLabel = String(provider.name).split(":")[0];
 
-  if (flags["dry-run"]) {
+  if (dryRun) {
     const payload = {
       dryRun: true,
       provider: providerLabel,
@@ -756,8 +781,8 @@ const USAGE = [
   "  doctor     check the install, the backup and the dictionary against this build",
   "",
   "translate options:",
-  "  --provider <name>   openai (default) or mock",
-  "  --model <name>      model id, defaults to $YAKUSHA_MODEL or gpt-4o-mini",
+  "  --provider <name>   openai, compatible or mock (required for a real run)",
+  "  --model <name>      model id (required for a real run; $YAKUSHA_MODEL)",
   "  --base-url <url>    OpenAI compatible endpoint, defaults to $YAKUSHA_BASE_URL",
   "  --api-key <key>     API key, defaults to $YAKUSHA_API_KEY or $OPENAI_API_KEY",
   "  --glossary <file>   JSON map of source -> fixed translation",

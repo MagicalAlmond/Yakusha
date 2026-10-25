@@ -46,9 +46,13 @@ Windows 上无法满足 0600。0.10 的配置里没有秘密，分享游戏目�
 
 | 键 | 类型 | 默认 | 校验 |
 | --- | --- | --- | --- |
-| `provider` | 字符串 | `openai` | `openai` / `compatible` / `mock`；`compatible` 是 OpenAI 兼容端点的别名 |
-| `model` | 字符串 | `gpt-4o-mini` | 非空、≤200 字符、不含控制字符 |
-| `baseUrl` | 字符串 | `https://api.openai.com/v1` | 绝对 `http(s)` URL；不含 userinfo、query、fragment；≤2000 字符；去掉结尾 `/` |
+| `provider` | 字符串 | 无（必填） | `openai` / `compatible` / `mock`；`compatible` 是 OpenAI 兼容端点的别名 |
+| `model` | 字符串 | 无（必填） | 非空、≤200 字符、不含控制字符 |
+| `baseUrl` | 字符串 | `https://api.openai.com/v1`（仅 `provider=openai`）；`compatible` 必填 | 绝对 `http(s)` URL；不含 userinfo、query、fragment；≤2000 字符；去掉结尾 `/` |
+
+没有内置模型：不配置 `model` 时不会替你假设 `gpt-4o-mini`，而是直接 `E_CONFIG`。
+真实调用（`openai` / `compatible`）必须同时具备 provider、model 和密钥；缺任何一项都在
+发请求前失败，不会带着默认值去试。`mock`、`--dry-run`、`--glossary-only` 不需要这三项。
 
 无效值分两种处理：
 
@@ -62,12 +66,14 @@ Windows 上无法满足 0600。0.10 的配置里没有秘密，分享游戏目�
 
 | 值 | 从高到低 |
 | --- | --- |
-| provider | `--provider` → 配置文件 → 默认 `openai` |
-| model | `--model` → `YAKUSHA_MODEL` → 配置文件 → 默认 `gpt-4o-mini` |
-| baseUrl | `--base-url` → `YAKUSHA_BASE_URL` → 配置文件 → 默认 |
-| apiKey | `--api-key` → `YAKUSHA_API_KEY` → `OPENAI_API_KEY` → 空（报错由 provider 决定） |
+| provider | `--provider` → 配置文件 → 无（缺则 `E_CONFIG`） |
+| model | `--model` → `YAKUSHA_MODEL` → 配置文件 → 无（缺则 `E_CONFIG`） |
+| baseUrl | `--base-url` → `YAKUSHA_BASE_URL` → 配置文件 → `provider=openai` 时默认 `https://api.openai.com/v1`；`compatible` 无默认（缺则 `E_CONFIG`） |
+| apiKey | `--api-key` → `YAKUSHA_API_KEY` → `OPENAI_API_KEY` → 空（真实调用缺则 `E_CONFIG`） |
 
 - 环境变量高于配置文件：CI 和临时切换端点不需要改用户的文件。
+- 程序不预置 provider / model / 密钥：没有配置就调用真实模型会在本地失败（`E_CONFIG`），
+  不会带着默认值发出请求；错误发生在花钱之前，也发生在把 key 发到错误端点之前。
 - `--dry-run` 强制 `mock`，**不读配置文件**，所以配置文件坏了也能离线跑。
 - `--glossary-only` 不调用模型；配置文件坏了只 warn，不阻断（它不需要 key）。
 - `--provider mock` 显式指定时不读 key；`baseUrl` 也不参与。
@@ -95,15 +101,17 @@ yakusha config unset <key>
   "file": "C:\\Users\\me\\AppData\\Roaming\\yakusha\\config.json",
   "exists": true,
   "values": {
-    "provider": { "value": "openai", "source": "default" },
-    "model": { "value": "gpt-4o-mini", "source": "file" },
+    "provider": { "value": null, "source": "none" },
+    "model": { "value": null, "source": "none" },
     "baseUrl": { "value": "https://api.openai.com/v1", "source": "default" }
   },
   "apiKey": { "set": true, "source": "YAKUSHA_API_KEY" }
 }
 ```
 
-- `source`：`file` / `env` / `default`。`env` 只可能出现在 `model` 与 `baseUrl`。
+- `source`：`file` / `env` / `default` / `none`。`env` 只可能出现在 `model` 与 `baseUrl`。
+  `none` 表示没有配置，真实调用会 `E_CONFIG`；`baseUrl` 在 `provider=openai` 时仍有默认值，
+  `compatible` 时也可以是 `none`。
 - `apiKey` 只报“有没有、来自哪个变量”，永不回显值。
 - `baseUrl` 不是默认值时，文本模式额外打一行 warning，提示请求会发往该地址；
   JSON 模式该 warning 走 stderr，不污染 stdout。
@@ -147,10 +155,10 @@ yakusha config unset <key>
 
 `loadConfig()` 的规则：
 
-1. 没有文件 → 返回默认值，`exists:false`，不 warn。
+1. 没有文件 → 返回空配置（`provider` / `model` 未设置，`baseUrl` 取默认），`exists:false`，不 warn。
 2. 读失败（权限等）→ `E_IO`；这是环境问题，不该假装没配置。
-3. JSON 解析失败 → warn 一行（含文件路径与“using defaults”），返回默认值，`broken:true`。
-4. `schema` 不是 `1` → warn（`unsupported config schema N; ignoring`），返回默认值。
+3. JSON 解析失败 → warn 一行（含文件路径与“using defaults”），返回空配置，`broken:true`。
+4. `schema` 不是 `1` → warn（`unsupported config schema N; ignoring`），返回空配置。
 5. 已知键值非法 → 每个键 warn 一行，忽略该键。
 6. 未知键忽略；敏感键名忽略并 warn。
 7. 顶层不是对象（数组、字符串、`null`）→ 按损坏处理。
@@ -191,6 +199,9 @@ yakusha config unset <key>
 
 - [ ] `config set/get/list/unset` 在临时 `YAKUSHA_CONFIG_DIR` 下全绿；文件内容可预测。
 - [ ] `config set apiKey` 返回 `E_USAGE`，且临时目录里没有出现密钥字符串。
+- [ ] 真实调用缺 provider / model / key，或 `provider=compatible` 缺 `baseUrl` 时都是
+      `E_CONFIG`（退出码 2），且没有发出网络请求；`--dry-run` / `--provider mock` /
+      `--glossary-only` 在空配置下照常工作。
 - [ ] 文件损坏时：翻译仍能跑（warn）；`config list` 返回 `E_CONFIG`；`config set` 不覆盖。
 - [ ] 未知键在 `set` / `unset` 后仍保留。
 - [ ] 优先级测试：flag > env > file > default；`--dry-run` 不读配置。

@@ -63,8 +63,11 @@ export YAKUSHA_API_KEY=sk-...
 export YAKUSHA_MODEL=deepseek-chat
 export YAKUSHA_BASE_URL=https://api.deepseek.com/v1
 
-node bin/yakusha.js translate "/games/MyGame" --concurrency 4
+node bin/yakusha.js translate "/games/MyGame" --provider openai --concurrency 4
 ```
+
+没有默认模型：provider、model 和 key 都必须显式配置，缺任何一项会在发请求前报
+`E_CONFIG`（0.10 起；`--dry-run` / `--provider mock` 不需要配置）。
 
 实测：DeepSeek 上 400 条 / 19 秒（并发 4、每批 40 条），3.8 万条约 30 分钟。
 
@@ -138,9 +141,9 @@ verdict   : usable with 2 warning(s)
 
 | 变量 | 用途 |
 | --- | --- |
-| `YAKUSHA_API_KEY` | API key（回退到 `OPENAI_API_KEY`） |
-| `YAKUSHA_MODEL` | 模型 id（默认 `gpt-4o-mini`） |
-| `YAKUSHA_BASE_URL` | 端点（默认 `https://api.openai.com/v1`） |
+| `YAKUSHA_API_KEY` | API key（真实调用必须配置；回退到 `OPENAI_API_KEY`） |
+| `YAKUSHA_MODEL` | 模型 id（无默认，真实调用必须配置） |
+| `YAKUSHA_BASE_URL` | 端点（OpenAI 官方为默认；`compatible` 必须显式配置） |
 
 ## 目录结构
 
