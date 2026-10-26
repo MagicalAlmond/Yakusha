@@ -7,7 +7,9 @@
 
 1. **core 零第三方依赖**：`bin/yakusha.js` 和 `src/` 只用 Node 标准库，Node >= 22 直接能跑。
    Electron 只进 devDependencies，打包成 exe 时是外壳，不是 core 的依赖。
-2. **默认路线可逆**：MZ/MV 走插件，磁盘只多一个文件加 `plugins.js` 一行，`uninstall` 逐字节还原。
+2. **交付按引擎分档，每档写清卸载后的状态**：MZ/MV 走插件（插件档：删掉插件与 `plugins.js` 那一行即还原）；
+   将来 RGSS / KRKR 走无原生注入（文件不改，退出即恢复）。没有"全局可逆"这个产品承诺，
+   只有每一档对玩家可验证的实际影响，见 [dev/ENGINE-STRATEGY.md](dev/ENGINE-STRATEGY.md) §5.5。
 3. **模型不可信**：译文先过校验再写字典；任何新引擎的接入都不能绕过这条流水线。
 
 GUI 的定位是**壳**：玩家拖游戏进来、点按钮、看进度；汉化者仍然可以用 CLI 和脚本。
@@ -69,7 +71,7 @@ export default {
   extract(project) { ... },            // 生成字典条目（带 context）
 
   installRuntime(project, opts) { ... },   // 装插件 / 写钩子配置 / 准备注入
-  uninstallRuntime(project) { ... },       // 必须可逆，或显式声明 irreversible
+  uninstallRuntime(project) { ... },       // 卸载后必须回到原版可运行状态（四档见战略稿 §5.5）
 
   launch(project, opts) { ... },           // spawn 游戏进程，返回 {pid, exe}
   attach(project) { ... },                 // 仅 debug / inject 模式：返回会话
@@ -86,7 +88,7 @@ attach 在 0.10 明确报 not-implemented。用例清单见 [engines.md](engines
 
 ## 4. 三种运行时模式
 
-| 模式 | 适用 | 机制 | 可逆 | 现状 |
+| 模式 | 适用 | 机制 | 卸载后 | 现状 |
 | --- | --- | --- | --- | --- |
 | `plugin` | MZ / MV | 装一个 JS 插件，包装 `DataManager.onXhrLoad`（MZ）或 `onLoad`（MV） | 逐字节还原 | **已实现**，4 款游戏验收 |
 | `debug` | NW.js / Electron / Chromium 系（含某些多引擎工具自带的运行时、部分 Unity WebGL 壳） | 启动参数 `--remote-debugging-port`，用 CDP `Runtime.evaluate` 注入钩子 | 结束即恢复 | **机制已实机验证**：MZ 加参数后可读 `SceneManager`、可改写 `startMessage`；但 `attach` 命令不在 0.10 内（能力表 `attach:false`），MV 旧版不吃该参数 |
@@ -136,7 +138,7 @@ attach 在 0.10 明确报 not-implemented。用例清单见 [engines.md](engines
 ## 7. 目标目录结构
 
 ```
-bin/yakusha.js            CLI 薄壳（保持零依赖）
+bin/yakusha.js            CLI 薄壳（core 零第三方依赖；GUI 阶段才引入 Electron）
 src/core/                引擎无关：dict、datafile、textkey、pluginsfile、config…
 src/engines/
   adapter.js             契约与辅助（detect 结果形状、capability 常量）
@@ -159,19 +161,27 @@ test/fixtures/           各引擎最小夹具（mini-mz、mini-mv）
    sha256、支持的引擎版本区间；文件缺失时 GUI 显示"此引擎需要原生组件，未随包提供"。
 3. **会话生命周期**：`attach()` 返回 `{status, detach(), on('exit')}`；
    注入失败必须能回退到原版启动并告诉玩家原因，不能把游戏弄成打不开。
-4. **权限与误报**：注入在用户权限下运行（非管理员优先）；杀软误报写进 FAQ；
-   代码签名留到真要发布时再考虑。
+4. **权限与误报**：注入在用户权限下运行（非管理员优先）；杀软误报写进 FAQ。
+   代码签名已决定 0.10/0.11 不做（纯 JS，用户跑的是自己签名的 node.exe）；
+   0.12 起有原生组件，那时必须重新评估——不签名的四道拦截见战略稿 §9.4。
 5. **引擎专属规则挂在 adapter 上**：MZ 的转义码、行宽、说话人判定不能硬编码进
    pipeline；新引擎只实现自己的 `validate(entry)`。
 
 ## 9. 分批计划
 
+> 本节排期已按 2026-10-25 的决定更新，权威版本见 [dev/ENGINE-STRATEGY.md](dev/ENGINE-STRATEGY.md) §6.3。
+> 本文件冻结的是**接口契约**（信封、错误码、adapter 形状），不是版本排期；排期变动不改契约。
+
 | 版本 | 内容 | 验收 |
 | --- | --- | --- |
 | 0.10.0 | core 适配器化：`engines/registry` + mz/mv adapter 包住现有逻辑；新增 `export`、`launch`、`config`；全部命令 `--json` 稳定；契约先冻结（见下文五篇设计稿） | 既有测试全绿不降，新增适配器契约测试 |
-| 0.11.0 | Electron MVP：拖拽、卡片、启动、导出、LLM 设置、翻译进度、对比编辑 | 真机拖入 4 款游戏跑通 |
-| 0.12.0 | 译文导入导出 round-trip（TSV/CSV）、verify 问题面板与就地修复 | 外部工具改过的表能回灌 |
-| 1.0.0 | 便携 exe、图标、无控制台、最近游戏、`native/` 脚手架（不含具体引擎 hook） | 双击 exe 可用 |
+| 0.10.x | 引擎拆缝 refactor：把 `data/*.json` 假设、MZ 系统提示词、假名校验从 core/pipeline 挪到 adapter 后（行为不变，纯重构） | 全部既有测试不改断言仍绿 |
+| 0.11.0 | Ren'Py 实验：`.rpy` + `.rpyc` 提取、translation-file 投递、通用内容导入 v1 | 真机一款 Ren'Py 游戏 L2–L4 |
+| 0.12.0 | RGSS 注入 + 原生 helper：injector、hook DLL、按引擎下载与 manifest 校验的基础设施 | 失败时游戏不坏、能卸载干净 |
+| 0.13.0 | 字典导出 v2（TSV/CSV）+ KRKR 提取 | 外部工具改过的表能回灌 |
+| 0.14.0 | GUI（Electron）：拖 exe → 识别 → 启动 → 按能力矩阵加载译文；附 NScripter | 真机拖入多款游戏跑通 |
+| 0.15.0 | KRKR 注入 + Wolf / SRPG Studio spike | 各一款真实游戏验收 |
+| 1.0.0 | 10 个引擎 + 能力矩阵 + 便携 exe（图标、无控制台、最近游戏） | 双击 exe 可用 |
 
 ## 10. 风险
 
@@ -181,8 +191,8 @@ test/fixtures/           各引擎最小夹具（mini-mz、mini-mv）
 - **Electron 体积与杀软**：便携包约 120–180 MB，首次运行可能被 Defender 拦一下；
   这是壳的成本，不影响 CLI 用户。
 - **版本碎片**：MZ 已锁定 1.3.2–1.9.0；未来每加一个引擎都要维护版本区间与 fixture。
-- **注入的不可逆风险**：注入类引擎必须能在崩溃后自恢复，否则玩家会丢存档进度——
-  这是 `inject` 上线前必须有的验收项。
+- **注入的失败风险**：注入类引擎必须能在崩溃后自恢复、能 detach 干净，否则玩家会丢存档进度——
+  上线前的验收标准是"失败时游戏不坏、用户看得懂、能卸载干净"。
 
 ## 11. 与现有文档的关系
 

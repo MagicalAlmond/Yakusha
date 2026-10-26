@@ -62,7 +62,7 @@
   见 [design.md](design.md)），这条不因仓库用 LF 而放松。
 - 源码、文档、JSON 输出统一 LF；Windows 上写文件也不要额外转 CRLF。
 
-### 3.5 GUI（0.11 起）
+### 3.5 GUI（原计划 0.11，现排到 0.14，见 [dev/ENGINE-STRATEGY.md](dev/ENGINE-STRATEGY.md) §6.3）
 
 - Electron 外壳只在 Windows 10/11 上验收；不写 macOS 菜单栏、不写 Linux 桌面集成。
 - 拖拽路径用 `webUtils.getPathForFile`，在 Windows 上验证；不承诺其它平台。

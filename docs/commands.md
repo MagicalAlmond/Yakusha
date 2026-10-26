@@ -1,189 +1,495 @@
 # 命令参考
 
-十个原有命令的完整选项、判据与实测数据，加上 0.10 新增的 `config`、`export` 与
-`launch`。
+本文是 yakusha 0.10.0 的命令行参考手册：13 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。
 
-> **0.10 实现进度**：`--json` 统一信封、错误码、退出码 0/1/2、严格参数解析、
-> `scan.version` 改名 `engineVersion`、`config`、`export` 与 `launch` 均已实现
-> （WP1–WP5）；`attach` 仍是库层桩（没有 CLI 入口）。冻结内容见
-> [json-contract.md](json-contract.md)；引擎与启动契约见 [engines.md](engines.md)；
-> 配置见 [config.md](config.md)；导出见 [export-format.md](export-format.md)。
-> 十三个命令全部实现；本文其余描述在 WP6 按 0.10 最终行为统一重写。
+文中每一条输出都是在仓库夹具 `test/fixtures/mini-mz`（7 个数据文件、32 条唯一串的玩具项目）和 `test/fixtures/mini-mv`（2 个数据文件、3 条串）上真跑出来的；凡涉及配置的示例都把 `YAKUSHA_CONFIG_DIR` 指向临时目录，不碰真实 `%APPDATA%`。
+
+字段清单与破坏性变更见 [json-contract.md](json-contract.md)，配置文件格式与威胁模型见 [config.md](config.md)。
 
 ## 命令一览
 
-```
-yakusha <command> <game-dir> [options]
-
-  scan        报告可翻译的量
-  extract     建/刷新 yakusha/dictionary.json
-  status      查看翻译进度
-  translate   调 LLM 填字典
-  verify      体检字典（发布前自检）
-  speaker     按本作自己的写法修复说话人名
-  terms       挖人名/术语的主流译法，报出漂移
-  install     装运行时插件
-  uninstall   卸载并还原
-  doctor      查安装、备份、字典是否还与这版游戏对得上
-  export      把已翻译条目导出成 JSON 快照
-  config      读写用户级配置（不接游戏目录）
-  launch      启动游戏 exe（仅 Windows）
-
-translate:
-  --provider <name>   openai / compatible / mock（真实调用必须显式指定）
-  --model <name>      模型 id（真实调用必须配置）
-  --base-url <url>    OpenAI 兼容端点
-  --api-key <key>     API key
-  --glossary <file>   术语表 JSON
-  --limit <n>         最多翻 n 条
-  --context <text>    只翻位置含该文本的条目（如 Map029）；可重复，任一命中即选
-  --batch-size <n>    每请求条数（默认 40）
-  --char-budget <n>   每请求字符上限（默认 6000）
-  --concurrency <n>   并发数（默认 2）
-  --save-every <n>    每 n 条落盘一次（默认 200）
-  --max-length <n>    把超过 n 显示列的译文自动换行（0 = 关闭，默认 0）
-  --no-rewrap         不动已经翻好的条目（默认会按新宽度重新折行）
-  --dry-run           强制 mock provider、不落盘、不读配置
-  --glossary-only     只应用术语表，不联网
-  --overwrite         允许术语表覆盖已经翻好的条目
-
-verify:
-  --kind <list>       只报这些类型，逗号分隔
-                      （kana / echo / codes / slots / lines / width / no-text / trad / speaker / rejected）
-  --max-length <n>    同时检查超过 n 显示列的行
-  --limit <n>         最多打印多少条（默认 20）
-  --write-report <f>  把全部问题写成一份 markdown 报告
-
-speaker:
-  --include-drift     连中文写法不一致的也统一（默认只修没翻的）
-  --names <file>      给本作从没翻过的名字补一份映射表
-  --write-names <f>   把这些名字写成待填的 JSON 模板
-  --dry-run           只报会改什么，不落盘
-  --limit <n>         最多打印多少个名字（默认 20）
-
-terms:
-  --status <list>     只列这些状态（ok / drift / missing）
-  --min-holders <n>   名字要被提到多少次才挖（默认 5）
-  --min-support <n>   主流译法的最低占比（默认 0.5）
-  --drift-only        只写对不上的条目
-  --max-terms <n>     术语表条数上限（0 = 全部）
-  --limit <n>         最多打印多少条（默认 20）
-  --write <file>      存成术语表，可直接给 translate --glossary
-  --dry-run           只报会写什么，不落盘
-
-install:
-  --embed             把译文嵌进插件文件（离线分发用）
-
-export:
-  --out <file>        目标文件（必填，不写 stdout）
-  --format <name>     json（默认；tsv / csv 在 0.12）
-  --flat              条目值写成字符串，而不是 {text, contexts}
-  --force             允许覆盖已存在的目标文件
-
-launch:
-  --exe <name>        项目根有多个 exe 时指定一个（只收裸文件名）
-
-全局选项（所有命令都支持）：
-  --json              机器可读输出
-```
-
-## 环境变量
-
-
-| 变量 | 用途 |
+| 命令 | 用途 |
 | --- | --- |
-| `YAKUSHA_API_KEY` | API key（真实调用必须配置；回退到 `OPENAI_API_KEY`） |
-| `YAKUSHA_MODEL` | 模型 id（无默认，真实调用必须配置） |
-| `YAKUSHA_BASE_URL` | 端点（OpenAI 官方为默认；`compatible` 必须显式配置） |
+| `scan` | 报告什么可以翻译：数据文件数、字符串数、带控制码的字符串数 |
+| `extract` | 建立或刷新 `yakusha/dictionary.json` |
+| `status` | 看翻译进度 |
+| `translate` | 调用模型把字典填满 |
+| `verify` | 按十条判据审计字典里的坏条目 |
+| `speaker` | 用游戏自己的渲染方式修复行内说话人名字 |
+| `terms` | 挖掘名字写法并报告漂移 |
+| `install` | 把运行时插件装进游戏 |
+| `uninstall` | 卸掉运行时插件 |
+| `doctor` | 对着当前版本体检安装、备份与字典 |
+| `export` | 把已翻译条目导出成 JSON 快照 |
+| `launch` | 启动游戏可执行文件（仅 Windows） |
+| `config` | 读写用户级配置（不接游戏目录） |
 
-## terms：挖出人名/术语的主流译法
+除 `config` 外，每个命令接且只接一个 `<game-dir>`：可以是游戏根目录本身，也可以是它上面最多 3 层内的任意目录，项目根会自动发现。`scan`、`extract`、`status`、`uninstall` 没有命令专属选项（`doctor` 只有一个 `--max-length`，`--help` 里没有 doctor 段，该选项只写在本文的 doctor 一节）。以下是 `--help` 原文里列出的选项块，逐字照抄。
 
+### translate
 
-```bash
-node bin/yakusha.js terms "/games/MyGame"
+```text
+--provider <name>   openai, compatible or mock (required for a real run)
+--model <name>      model id (required for a real run; $YAKUSHA_MODEL)
+--base-url <url>    OpenAI compatible endpoint, defaults to $YAKUSHA_BASE_URL
+--api-key <key>     API key, defaults to $YAKUSHA_API_KEY or $OPENAI_API_KEY
+--glossary <file>   JSON map of source -> fixed translation
+--limit <n>         translate at most n pending entries
+--context <text>    only entries whose context contains text; repeat to
+                    accept any of several
+--batch-size <n>    entries per request (default 40)
+--char-budget <n>   characters per request (default 6000)
+--concurrency <n>   parallel requests (default 2)
+--save-every <n>    write the dictionary every n translations (default 200)
+--max-length <cols> wrap translated lines wider than n display columns (0 = off)
+--no-rewrap         leave existing translations alone (no re-wrap)
+--dry-run           use the mock provider and do not save
+--glossary-only     apply --glossary and never call a model
+--overwrite         let --glossary replace entries that are already translated
 ```
 
-字典里 `Actors.json:name` 这类名字条目只有几百个，但它们在正文里被提到几千次。这条
-命令把正文里**实际在用的译法**统计出来，和名字条目比对：对不上就叫 drift。
+白名单里还有 5 个 `--help` 没列出来的选项：`--temperature`（默认 0.3）、`--timeout`、`--max-tokens`、`--target-lang`、`--allow-code-drift`。它们能用，但没有写进帮助，属于内部接线，不要当成稳定接口。
 
-匿名案例（MZ-A，38,044 条）：名字表写的是「アリア → 艾莉亚」，但提到她的 3,653 行里
-**96% 写的是「阿莉亚」**，只有 4% 用名字表的写法。这不是算法挑剔，是名字表本身错了。
+### verify
 
-| 状态 | 含义 |
+```text
+--kind <list>       only report these kinds, comma separated
+                    (kana, echo, codes, slots, lines, width, no-text, trad, speaker, rejected)
+--max-length <cols> also report lines wider than n display columns
+--limit <n>         how many problems to print (default 20)
+--write-report <f>  write every finding as a markdown report
+```
+
+### speaker
+
+```text
+--include-drift     also replace a Chinese rendering that differs from the
+                    one used elsewhere (style call, off by default)
+--names <file>      JSON map of source name -> Chinese, for names this game
+                    never translated (so no rendering can be copied)
+--write-names <f>   write a JSON template of the names --names must supply
+--dry-run           report what would change without writing
+--limit <n>         how many names to print (default 20)
+```
+
+### terms
+
+```text
+--status <list>     only list these statuses (ok, drift, missing)
+--min-holders <n>   mentions a name needs before it is mined (default 5)
+--min-support <n>   share of mentions the dominant spelling needs (default 0.5)
+--drift-only        write only the entries that disagree
+--max-terms <n>     cap the glossary (0 = every mined term)
+--limit <n>         how many terms to print (default 20)
+--write <file>      save the glossary for translate --glossary
+--dry-run           report what --write would save, without saving
+```
+
+### export
+
+```text
+--out <file>        target file (required; never stdout)
+--format <name>     json (default; tsv/csv are not available yet)
+--flat              write source -> text instead of {text, contexts}
+--force             overwrite an existing target
+```
+
+### launch
+
+```text
+--exe <name>        pick one executable when the project root has several
+```
+
+### install
+
+```text
+--embed             embed the translations into the plugin file
+```
+
+## 全局约定
+
+### --json：一个对象加一个换行
+
+带 `--json` 时 stdout 上只有一个 JSON 对象和它后面的一个换行，没有别的内容。信封五个键的顺序固定，命令载荷平铺在这五个键旁边（不套一层 `data`）：
+
+```json
+{"schema":1,"command":"scan","ok":true,"outcome":"ok","error":null,"root":"C:\\game","engine":"mz","engineVersion":"1.7.0","gameTitle":"テストゲーム","dataFiles":7,"uniqueStrings":32,"totalStrings":32,"stringsWithControlCodes":2,"encodings":{"json":7},"undecodable":[],"perFile":{"Actors.json":3,"CommonEvents.json":6,"Items.json":2,"Map001.json":3,"MapInfos.json":1,"Skills.json":3,"System.json":14}}
+```
+
+| 键 | 值 |
 | --- | --- |
-| `ok` | 正文用法与名字条目一致 |
-| `drift` | 正文的主流译法与名字条目不同，且主流占比达到 `--min-support` 并领先 20% 以上 |
-| `missing` | 名字条目还没翻译，但正文里已经有稳定译法（官方中文游戏常见） |
+| `schema` | 信封版本，0.10 恒为 `1` |
+| `command` | 命令名；无命令时是 `null` |
+| `ok` | 严格等于 `outcome === "ok"`，不单独计算 |
+| `outcome` | `ok` / `findings` / `error` 三选一 |
+| `error` | 成功时 `null`，失败时是错误对象 |
 
-```bash
-node bin/yakusha.js terms "/games/MyGame" --status drift --limit 50    # 只看对不上的
-node bin/yakusha.js terms "/games/MyGame" --drift-only --write yakusha/terms.json
-node bin/yakusha.js translate "/games/MyGame" --glossary yakusha/terms.json --glossary-only --overwrite
+载荷里不能再用这五个名字，库在拼信封时直接抛错。进度条、警告、调试信息一律走 stderr，不会混进 stdout 的 JSON。
+
+### 退出码
+
+| `outcome` | 退出码 | 谁能产生 |
+| --- | --- | --- |
+| `ok` | 0 | 全部命令 |
+| `findings` | 1 | 只有检查类命令：`verify` 报了 error 级问题，或 `doctor` 的 verdict 是 `broken` |
+| `error` | 2 | 全部命令 |
+
+规则和细节：
+
+- 只有检查类命令用 `findings`。`translate` 有 `rejected > 0`、`speaker` 改完仍留 `errorsAfter > 0`、`status` 的 `withError > 0`，都还是 `ok`；这些是「发生了，但不算失败」。
+- 同一命令既 error 又 findings 时 error 优先，例如 `verify --write-report` 报告写不进去，报 `E_IO` 并退出 2，不再谈 findings。
+- 文本模式的退出码和 JSON 模式完全一致，脚本只看退出码即可。
+
+### 错误对象与 13 个错误码
+
+失败时 `error` 是 `{code, message, details?}`：`code` 是 `E_` 开头的字符串，`message` 是给人看的一行，`details` 只放该码声明过的结构化字段（实测最常见的是 `launch` 的 `details.candidates`）。
+
+| 错误码 | 含义与实测触发 |
+| --- | --- |
+| `E_USAGE` | 命令行用错：未知命令、未知选项、缺值、多余位置参数、取值校验失败。出现频率最高 |
+| `E_NOT_PROJECT` | 目录里（或下 3 层内）找不到 RPG Maker 项目 |
+| `E_MULTI_ROOT` | 目录下同时有多个项目，必须直接指定其中一个：`found 2 RPG Maker projects under <dir>, pass one of them instead: <a>, <b>` |
+| `E_NO_DICTIONARY` | 还没有 `yakusha/dictionary.json`，先跑 `extract` |
+| `E_DICTIONARY` | 字典 JSON 解析失败或结构不对，message 是解析器原文，例如 `Expected property name or '}' in JSON at position 2 (line 1 column 3)` |
+| `E_EXISTS` | 目标已存在且没给覆盖开关；`export` 拒绝覆盖项目字典本身，即使加了 `--force` |
+| `E_EXE` | `launch` 找不到 .exe，或候选不唯一 |
+| `E_PROVIDER` | provider 名字不认识（`unknown provider: nope (expected openai or mock)`），或模型返回不可用响应 |
+| `E_CONFIG` | 配置缺失或非法：没有 provider、没有 key、compatible 缺 baseUrl、配置文件损坏 |
+| `E_IO` | 读写文件失败；文件系统错误码（ENOENT / EACCES / EISDIR / ENOSPC 等）统一映射到这里 |
+| `E_NOT_IMPLEMENTED` | API 已声明但没实现。0.10 只有 `attach` 这个桩，且它没有 CLI 入口，`yakusha attach` 是未知命令 |
+| `E_UNSUPPORTED_PLATFORM` | 当前平台不支持该命令。0.10 只有 `launch`（仅 Windows）会报 |
+| `E_INTERNAL` | 未预期异常，兜底。不该出现，出现就是 bug |
+
+错误码不区分「用户输入错」和「环境错」，一律退出 2，脚本不需要按码分流。
+
+### 消息脱敏
+
+- `message` 单行、最长 500 字符；换行折成空格，ANSI 转义和 C0 控制字符被删掉。
+- stack 永不进 JSON。`YAKUSHA_DEBUG=1` 时才把 `CliError: <message>` 加 8 行 stack 打到 stderr（实测里面会带 `file:///D:/...` 这样的绝对路径），stdout 的 JSON 一个字节都不变。
+- 凭据一律打码：`sk-` 开头且长度 ≥ 8 的 key 变成 `sk-***`，`Bearer <token>` 变成 `Bearer ***`，URL 里的 userinfo（`https://user:pass@host`）变成 `***@`。
+- home 目录显示成 `~`（实测 `C:\Users\me\x` 变 `~\x`）；命令自己解析出的其他绝对路径保留，否则报错没法定位文件。
+- provider 返回的响应体既不进 `message` 也不进 stderr，只留 `provider returned HTTP <status>`；响应体可能回显 `Authorization`，0.10 一律不落盘、不打印，只在 `YAKUSHA_DEBUG=1` 时仍靠 stack 定位调用点。
+- 文本模式下模型调用失败同样有独立一行 `request failed: <message>`（见 translate 一节），它和信封里的 `E_PROVIDER` 是两条出口。
+
+### stdout 与 stderr
+
+- JSON 模式：stdout 只有一个 JSON 对象；进度、警告、调试全部 stderr，警告带 `warning: ` 前缀。
+- 文本模式：结果走 stdout，错误与警告走 stderr。两者不混排，重定向 stdout 拿到的永远是结果。
+
+### --help 与 --version
+
+- `--help` / `-h`：永远 stdout 纯文本、退出 0，即使同时给了 `--json`；`scan -h` 也一样打整段帮助。连未知命令都投降：`nope --help` 打帮助、退出 0。
+- `--version`：永远 stdout 一行 `yakusha <version>`、退出 0，并且优先于一切——`--help --version` 只打 `yakusha 0.10.0`，`--json --version` 也不产出 JSON。
+- 无命令：文本模式把整段 USAGE 打到 stderr、退出 2；`--json` 时输出 `command: null` 的信封，`message` 是 `no command`。
+- 未知命令：stderr 两行 `error: unknown command: nope` 和 `run 'yakusha --help' for usage`，退出 2，不再打印整段 USAGE。
+
+### 参数解析
+
+- `--flag value` 与 `--flag=value` 等价。
+- 布尔选项不吃值：`--json=1` 报 `option --json does not take a value`。
+- 值的下一个 token 不能以 `--` 开头：`--out --force` 报 `option --out requires a value`，`--out=` 同样。
+- `--` 之后全部按位置参数处理，不再当选项；多出来的位置参数报 `unexpected argument: <arg>`。
+- 全局选项 `--json` / `--help` / `-h` / `--version` 可出现在任意位置；其余选项按命令白名单校验：`scan --limit 3` 报 `unknown option for scan: --limit`，不认识的长选项报 `unknown option: --bogus`。
+- 只有 `-h` 一个短选项，`-j` 之类报 `unknown option: -j`。
+- 标量选项重复时最后一个生效（`--out a.json --out b.json` 只写 b.json）；布尔重复幂等；只有 `--context` 可以重复，语义是「任一命中」。
+- 位置参数个数按命令校验：`config` 不接游戏目录，其余命令恰好一个，缺了报 `no game directory given`。
+- 解析在任何副作用之前完成：`translate --bogus /nope` 报的是未知选项，不是「目录不是项目」。
+
+## config：用户级配置
+
+`config` 读写一份用户级配置，不接游戏目录。0.10 不做项目级配置：游戏目录里没有任何东西能改 provider 或 baseUrl。
+
+```text
+yakusha config list
+yakusha config get <provider|model|baseUrl>
+yakusha config set <provider|model|baseUrl> <value>
+yakusha config unset <provider|model|baseUrl>
 ```
 
-上面三行是**一条完整的修复回路**：挖出漂移 → 存成词表 → 覆盖回去。第三步必须带
-`--overwrite`，因为漂移条目本身就是「已经翻译过」的条目，默认的词表应用只补空缺。
+文件在 `%APPDATA%\yakusha\config.json`（实测 `C:\Users\<name>\AppData\Roaming\yakusha\config.json`）。`YAKUSHA_CONFIG_DIR` 可以换目录——是目录不是文件，必须是绝对路径，文件名固定仍是 `config.json`；不展开 `~`，也不看 `XDG_CONFIG_HOME`。两个都没设时读配置直接 `E_CONFIG`。
 
-判据（改之前先读 `src/pipeline/terms.js` 顶部注释）：
+### 三个键与优先级
 
-- **候选必须是 2 字以上的中文连续串**，取字频最高者的 90% 以内**最长**的那个。只取最高频
-  会切出碎片：`哥布林` 的每个子串出现次数都一样多，纯频次会选中 `哥布`。
-- **候选首字不能是中文虚词**（的、了、在、把等）。这是 `丰满的胸部` 变出 `的胸部`
-  这种假漂移的根源。`向` 刻意没进黑名单：它既是助词，也是真名字的首字（向阳处）。
-- **源名是假名且超过 4 个字符的，当散文跳过**。`激しくピストン` 这类短语被游戏填在名字
-  字段里，给它算「主流译法」没有意义。
-- **互为子串不算漂移**（`哥布` 与 `哥布林` 是同一个译法的长短形式），只建议取更长的那个。
+| 键 | 取值与校验 | 优先级（高 → 低） |
+| --- | --- | --- |
+| `provider` | `openai` / `compatible` / `mock`，无默认 | `--provider` → 文件 → 无（`E_CONFIG`） |
+| `model` | 非空、≤ 200 字符、无控制字符，无默认 | `--model` → `YAKUSHA_MODEL` → 文件 → 无（`E_CONFIG`） |
+| `baseUrl` | 绝对 http(s)、无 userinfo/query/fragment、≤ 2000 字符 | `--base-url` → `YAKUSHA_BASE_URL` → 文件 → 只有 openai 有默认 `https://api.openai.com/v1` |
+| `apiKey` | 只在内存里，从不落盘 | `--api-key` → `YAKUSHA_API_KEY` → `OPENAI_API_KEY` → 无（`E_CONFIG`） |
 
-实测四款游戏：MZ-A `names 510/612, mined 52, drift 5`；MV-G `156/215, 20, 2`；
-MV-H `145/148, 6, 0`；MZ-G `45/45, 3, 0, missing 3`（官方中文，名字表反而缺）。
+- 默认 baseUrl 只对 `provider=openai` 生效；`compatible` 必须自己给，否则 `E_CONFIG`：`no base URL configured for provider compatible: pass --base-url, set YAKUSHA_BASE_URL, or run: yakusha config set baseUrl <url>`。
+- 没有内置模型。什么都不配时 `translate` 报 `E_CONFIG`：`no provider configured: pass --provider openai or --provider compatible, or run: yakusha config set provider openai`。
+- `--provider mock`、`--dry-run`、`--glossary-only` 三者都不需要配置，`--dry-run` 甚至不读配置文件（配置文件坏了也照跑）。
 
-## export：导出 JSON 快照
+### apiKey 永远不落盘
 
-```bash
-node bin/yakusha.js export "/games/MyGame" --out backup.json
-node bin/yakusha.js export "/games/MyGame" --out flat.json --flat --force
+- 文件里没有 apiKey 键。`config set apiKey ...` 和 `config get apiKey` 都报同一条 `E_USAGE`：`the API key is not stored in the config file; use --api-key or YAKUSHA_API_KEY`。
+- 手写进文件的 `apiKey`（以及 `key` / `token` / `authorization`）会被忽略并在 stderr 警告：`warning: ignoring sensitive key "apiKey" in <path>; keys are not stored in the config file`。未知键（实测 `"wat": 1`）原样保留，`set` / `unset` 只改目标键。
+- 不靠文件权限挡密钥（Windows 上 chmod 0600 无效），所以干脆不存。GUI 的「记住密钥」留到后续版本用系统凭据存储。
+
+### 写盘与损坏的文件
+
+落盘格式实测（2 空格缩进、LF、末尾一个换行）：
+
+```json
+{
+  "schema": 1,
+  "provider": "openai",
+  "model": "gpt-x"
+}
 ```
 
-只导出 `text` 非空的条目，`error` 不会出现；`game` / `updatedAt` 原样复制字典里的值。
-默认形状是 `{text, contexts}`，`--flat` 改成 `source -> text`。条目键按 UTF-16 码元排序，
-同一份字典重复导出字节一致；输出是 UTF-8、无 BOM、LF、2 空格缩进、末尾换行。
+顶层 `schema` 是文件格式版本，当前只认 `1`：文件里没有这个键时按 `1` 处理，写盘时总是先写 `"schema": 1`。写成别的值等于文件不可用——`config` 系列报 `E_CONFIG`（`unsupported config schema 2 in <path> (fix or delete it)`，且不覆盖原文件），`translate` 则按坏文件处理：stderr 一行 `warning: unsupported config schema 2 in <path>; using defaults`，然后照常跑。
 
-目标已存在时没有 `--force` 会报 `E_EXISTS` 且不碰原文件；目标是项目字典本身时即使带
-`--force` 也拒绝。目标在游戏目录内、但不在 `yakusha/` 下时会往 stderr 打一行 warning。
-这是投影，不是备份：未翻译条目和它们的 contexts 不会进导出文件。完整规则见
-[export-format.md](export-format.md)。
+- 写入是先写同目录临时文件再 rename；失败报 `E_IO`，原文件不动。目录不存在会连父目录一起创建。
+- 文件是坏 JSON 时：`translate` 只在 stderr 打一行 `warning: config file is not valid JSON: <path>; using defaults`，然后照常跑（实测真的翻译成功了）；`config list/get/set/unset` 必须失败 `E_CONFIG`，message 是 `config file is not valid JSON in <path> (fix or delete it)`，并且绝不覆盖原文件（实测文件字节不变）。
+- 取值校验在写盘之前：`provider must be openai, compatible or mock`、`baseUrl must use http or https`、`model must not be empty`，都是 `E_USAGE` 且一个字都不写。
+- 子命令缺省也算用错：光给 `config` 报 `config needs a subcommand: list, get, set or unset`，`config nope` 报 `unknown config action: nope`，`config get` 报 `config get needs a key`。
 
-## launch：启动游戏 exe
+### 载荷的 action 字段
 
-```bash
-node bin/yakusha.js launch "/games/MyGame"
-node bin/yakusha.js launch "/games/MyGame" --exe "Game.exe"
+`config` 的 `command` 恒为 `"config"`，载荷靠 `action` 区分，取值只可能是 `list` / `get` / `set` / `unset`：
+
+| action | 载荷 |
+| --- | --- |
+| `list` | `{action, file, exists, values{provider, model, baseUrl}, apiKey{set, source}}`，每个键是 `{value, source}` |
+| `get` | `{action, key, value, source}` |
+| `set` | `{action, key, value, file, changed}` |
+| `unset` | `{action, key, file, changed}`，没有 `value` |
+
+`source` 是 `none` / `default` / `file` / `env` 四选一（`env` 只可能出现在 model 与 baseUrl）；`apiKey` 只报 `set` 与来源名（实测可以是 `OPENAI_API_KEY`），永远不回显值。同值 `set`、不存在的键 `unset` 都是 `changed: false`，仍算 `ok`、退出 0。
+
+`config list` 实测文本输出（空配置）：
+
+```text
+file    : <abs>\config.json
+exists  : false
+provider: (not set)
+model   : (not set)
+baseUrl : https://api.openai.com/v1 (default)
+apiKey  : (not set)
 ```
 
-只支持 Windows（其他平台 `E_UNSUPPORTED_PLATFORM`）。只看游戏根目录的直接子文件：
-恰好一个 `.exe` 时直接启动；0 个或多个时报 `E_EXE`，JSON 的 `details.candidates`
-最多列出 20 个文件名，用 `--exe` 指定。`--exe` 只接受裸文件名（不含 `/`、`\`、`..`，
-不是绝对路径），大小写不敏感匹配，但最终用磁盘上的真实文件名。
+有文件值时后缀变 ` (file)`，来自环境变量时变 ` (env)`。baseUrl 被设成非默认地址后，list 会额外在 stderr 打一条 `warning: requests will be sent to <url>`（JSON 模式也走 stderr）。
 
-启动后工具立即退出，不等待、不接管输出、不 kill；子进程环境会删掉
-`YAKUSHA_API_KEY` / `OPENAI_API_KEY`（含大小写变体），避免把翻译密钥传给游戏。
-`attach` 调试注入在 0.10 仍是桩（`E_NOT_IMPLEMENTED`），没有 CLI 入口。
+为什么不做项目级配置、`--api-key` 的暴露面、`launch` 如何清掉子进程里的密钥环境变量，完整威胁模型见 [config.md](config.md)。
 
-## doctor：装好之后，游戏更新了怎么办
+## scan、extract、status：盘点与建库
 
+`scan` 只读，不写任何文件。实测输出（夹具 mini-mz）：
 
-最常遇到的事故是「游戏更新以后中文没了」。三种原因外观一样，`doctor` 把它们分开：
-
-```bash
-node bin/yakusha.js doctor "/games/MyGame"
+```text
+game      : テストゲーム
+root      : <abs>
+engine    : mz 1.7.0
+data files: 7
+strings   : 32 unique / 32 total
+w/ codes  : 2
+  System.json             14
+  CommonEvents.json       6
+  ...
 ```
 
+末段按条数降序列出每个数据文件的字符串数。载荷键：`root` / `engine` / `engineVersion` / `gameTitle` / `dataFiles` / `uniqueStrings` / `totalStrings` / `stringsWithControlCodes` / `encodings` / `undecodable` / `perFile`。MV 项目实测 `engine: "mv"`、`engineVersion: "1.6.2"`（mini-mv 夹具：2 个数据文件、3 条串、0 条带控制码）。
+
+`extract` 建 `yakusha/dictionary.json`，只加新串、不改已有译文，可以反复跑：
+
+```text
+dictionary: <abs>\yakusha\dictionary.json
+added     : 32
+progress  : 0/32 translated, 32 pending
 ```
-game      : Example Game (RPG Maker MZ 1.7.0, 51 data files)
+
+第二次跑 `added` 变 0。载荷：`file` / `added` / `total` / `translated` / `pending`。缺字典时 `status`、`verify`、`speaker`、`terms`、`export`、`install --embed` 都报 `E_NO_DICTIONARY`。
+
+`status` 只读一行进度：`progress  : 32/32 translated, 0 pending`。载荷多一个 `withError`（模型拒答或被校验挡下的条目数），`withError > 0` 仍算 `ok`。
+
+## translate：调用模型填字典
+
+`translate` 是唯一会写字典正文并花钱的命令。实测（mock provider）：
+
+```text
+provider  : mock
+translated: 32/32 this run
+progress  : 32/32 translated, 0 pending
+elapsed   : 0.0s
+```
+
+进度条走 stderr。载荷：`file` / `provider` / `elapsedMs` / `total` / `translated` / `overwritten` / `rejected` / `failedBatches` / `rewrapped` / `progress{total,translated,pending}`。
+
+- `--dry-run` 只算不写：`dry run   : 32 of 32 would be translated (not saved)`，载荷换成 `{dryRun, provider, total, translated, rejected}`；同时给了 `--provider` 会警告 `warning: --dry-run always uses the mock provider; --provider openai ignored`。
+- `--glossary <file>` 收两种形状：`{"entries": {...}}` 或裸映射 `{"アリア": "艾莉亚"}`。文件不存在报 `E_IO`：`glossary file not found: <path>`。
+- `--glossary-only` 只套词表、绝不调模型，此时 `provider` 是 `glossary`；不带 `--glossary` 也成功，只是 0 条。
+- `--limit` / `--context` / `--batch-size` / `--char-budget` / `--concurrency` / `--save-every` / `--max-length` / `--no-rewrap` 控制批量、并发、落盘节奏与重排宽度；数字选项给了非有限值（如 `--limit abc`）会静默回到默认值，不报错。
+- 有 `rejected > 0` 时仍 `ok`、退出 0——坏条目留给 `verify` 报。
+
+## verify：十条判据
+
+`verify` 读字典，不调模型、不写字典（除非 `--write-report`）。判据实现是固定的十条：
+
+| kind | 级别 | 判据（实现里的 detail 原文） |
+| --- | --- | --- |
+| `kana` | warn | `Japanese kana left in the translation` |
+| `echo` | error | `target is identical to a Japanese source` |
+| `codes` | error | 译文里的控制码集合与原文不一致 |
+| `slots` | error | 译文里的占位符与原文不一致 |
+| `lines` | warn | `line breaks differ: N vs M` |
+| `width` | warn | `line is N columns, limit is M`，只在给了 `--max-length` 时启用 |
+| `no-text` | warn | `no Han characters in the translation` |
+| `trad` | warn | `traditional characters: <chars>` |
+| `speaker` | error / warn | `speaker name left in Japanese: <name>`、`speaker name left untranslated: <name>`、`speaker name rendered as ... , elsewhere ...` |
+| `rejected` | warn | 模型拒答或被校验挡下的条目 |
+
+`echo`、`codes`、`slots`、`speaker` 是阻断级（error），其余只算警告。`--kind` 用逗号分隔可限流，给一个不认识的名字不是错误——实测 `--kind bogus` 得到 `counts: {}`、`problems: []`、`outcome: ok`，静默过滤。
+
+实测（mock 翻译后的夹具）：32 条已译文本上有 20 条 kana 警告；把一条译文改成与原文相同后变成 21 条、`counts: {"kana": 20, "echo": 1}`，`outcome` 变 `findings`、退出 1：
+
+```text
+entries   : 32 (32 translated, 0 pending)
+problems  : 21 (echo 1, kana 20)
+  [warn] kana "アリア"
+        Japanese kana left in the translation
+  ... 17 more, raise --limit or pass --json
+result    : FAILED, 1 error(s)
+```
+
+列表按字典键顺序输出、kind 交错（不是按 kind 分组；只有 `--write-report` 生成的 markdown 才按 kind 分组），每条下一行缩进 8 空格写 detail，`--limit`（默认 20）截断后补一行提示。全绿时末行是 `result    : OK with 20 warning(s)`、退出 0；0 条已译时只有两行 `entries` 和 `problems  : none`。载荷：`file` / `maxColumns` / `total` / `translated` / `pending` / `errors` / `warnings` / `rejected` / `counts` / `problems[]`，每个 problem 是 `{kind, severity, key, target, detail}`。
+
+### 判据的边界
+
+- 中点 `・`（U+30FB）和长音符 `ー`（U+30FC）不算假名，不会被 `kana` 报。
+- 形如 `MAP001`、`ＨＰ` 的纯 ASCII／全角字母数字不报 `no-text`；整行拟声词也不强制要求汉字。
+- `trad` 只报原文里没有的繁体字，字表来自 OpenCC 的 TSCharacters（Apache-2.0），只收「一繁对一简且不同」的字，排除 乾 / 藉 / 於 / 瞭 / 徵 这类两边都合法的。
+- `speaker` 按三档判级：名字还是日文（error）、名字没翻（error）、同一名字在本作里出现多种写法（warn，只有 `speaker --include-drift` 会去改）；尖括号里的代码表达式（如 `<50*\v[65]>`）不会被误认成名字。
+
+### --write-report
+
+`--write-report <file>` 把全部发现写成一份 markdown，载荷多一个 `report` 字段，文本模式多一行 `report    : <abs>`。报告真实结构：
+
+```text
+# yakusha verify report
+
+| field | value |
+| --- | --- |
+| game | テストゲーム |
+| dictionary | `<abs>` |
+| generated | 2026-10-26T10:59:37.979Z |
+| max-length | 0 (width check off) |
+| entries | 32 (32 translated, 0 pending, 0 rejected) |
+| problems | 20 (0 errors, 20 warnings) |
+
+**OK with 20 warning(s)** - nothing blocks a release.
+
+## kana (20)
+
+_kana the player will see; onomatopoeia often keeps one on purpose_
+
+1. warning: `アリア` -> `译:アリア`
+   Japanese kana left in the translation
+```
+
+0 条发现时正文是 `**OK** - no findings at all.`。报告里换行显示成 `⏎`（U+23CE），这样一条多行台词在一行里看得完。
+
+## speaker：行内说话人名字
+
+RPG Maker 的台词常把说话人写在正文里（`\N<名字>` 这类尖括号标记），`speaker` 从游戏自己的渲染里统计每个名字的主流写法，再把不一致的改过来——不调模型，只改字典。
+
+```text
+names     : every speaker tag already matches the rest of this game
+result    : no change
+```
+
+- `--include-drift` 才处理「同一名字多种写法」的风格问题（默认不动，因为那是编辑判断）。
+- `--write-names <file>` 生成一份供 `--names` 填的模板（实测落盘 `{"entries": {}}`），文本模式首行 `names file: <abs> (nothing to fill in)`；`--names <file>` 补上「游戏里从没翻译过、因此无从抄写法」的名字，文件不存在报 `E_IO`。
+- 载荷：`file` / `includeDrift` / `dryRun` / `supplied` / `saved` / `entries` / `tags` / `names[]` / `namesFile` / `namesNeeded` / `errorsBefore` / `errorsAfter` / `warningsBefore` / `warningsAfter`。
+
+实测（一款 MV 长篇，词典规模见上一节）：`verify` 报 411 个 speaker error，`speaker` 一次改掉 414 条、涉及 23 个名字，剩 3 条是全文没译过的名字，用 `--names` 补上后 error 归零；再用 `--include-drift` 把 8 个存在多种写法的名字统一到主流写法，`warn` 从 51 归零。两轮都只动字典，没有调用模型。
+
+## terms：名字写法挖掘与漂移
+
+`terms` 从已译条目里反推每个名字的主流写法，报告三种状态：`ok`（一致）、`drift`（同一名字有少数派写法）、`missing`（游戏里出现过但没有任何可抄的译法）。
+
+```text
+names     : 3 mined from 3 name entries
+skipped   : 0 untranslated, 0 too short, 0 prose-like
+terms     : none (needs at least 5 translated lines mentioning a name)
+glossary  : 0 entries, pass --write <file> to save them
+```
+
+阈值由 `--min-holders`（默认 5：一个名字至少被 5 条已译文本提到才挖）和 `--min-support`（默认 0.5：主流写法至少要占一半）控制；夹具只有 32 条串，所以一条也挖不出来——这是正常结果，不是失败。载荷：`file` / `names` / `nameEntries` / `skipped{untranslated, short, prose}` / `holdersMin` / `supportMin` / `mined` / `listed` / `drift` / `missing` / `glossary` / `written` / `terms[]`。
+
+`--write <file>` 把词表写成 `translate --glossary` 吃的格式（`{"format": "yakusha/glossary/1", "game": ..., "generatedAt": ..., "entries": {...}}`），文本末行变 `glossary  : N entries written to <abs>`；`--dry-run` 只报不写（`--dry-run, not written`）；没写文件时 JSON 的 `written` 是 `null`。
+
+### 为什么值得看 drift
+
+实测一款 38,044 条唯一串的 MZ 长篇：名字表里写的是 アリア → 艾莉亚，但正文提到她的 3,653 行里 96% 写的是 阿莉亚，只有 4% 用名字表写法。玩家会在同一段剧情里看到两个名字，而这在 `verify` 里一条都不报——它只查假名、回显、控制码这类机械问题，名字一致性是 `terms` 的活。
+
+四款作品的实测分布（`terms` 全量跑一遍）：
+
+| 作品 | 名字条目 | 挖出的名字 | drift | missing |
+| --- | --- | --- | --- | --- |
+| MZ-A | 510 / 612 | 52 | 5 | 0 |
+| MV-G | 156 / 215 | 20 | 2 | 0 |
+| MV-H | 145 / 148 | 6 | 0 | 0 |
+| MZ-G | 45 / 45 | 3 | 0 | 3 |
+
+## 术语表（glossary）
+
+`translate --glossary <file>` 是一张「原文 → 固定译文」的表：命中就跳过模型，保证人名、地名、招式名全篇一致。`--overwrite` 才允许它覆盖已译条目（默认只填空条目）；`--glossary-only` 只套表、绝不调模型。
+
+词表值得花时间做，但别指望它替掉全量翻译。实测在一款 38,044 条唯一串的作品上，127 条人工词表覆盖了 18.4% 的文本出现次数；要做到 42% 覆盖得靠前 5,000 条。词表是「统一术语」的工具，剧情的机器翻译必须跑全量。
+
+## install 与 uninstall
+
+`install` 把运行时插件写进游戏并注册到 `js/plugins.js`，第一次会备份原文件：
+
+```text
+plugin    : <abs>\js\plugins\YAKUSHA_Translator.js
+registered: yes
+backup    : <abs>\js\plugins.js.yakusha-backup
+dictionary: yakusha/dictionary.json (loaded at runtime)
+```
+
+- 重复安装是幂等的：`state` 停在 `unchanged`，`backupPath` 为 `null`、`createdBackup: false`。`state` 取值 `added` / `enabled` / `unchanged`。
+- `--embed` 把译文编译进插件文件（末行多 `embedded  : 32 translations`），适合不想让玩家看到 `yakusha/dictionary.json` 的场合；缺字典报 `E_NO_DICTIONARY` 并提示先 `extract`。装完后 `doctor` 的 runtime 行变 `translations compiled into the plugin (32 entries)`。
+- `uninstall` 删掉插件条目并从备份恢复 `js/plugins.js`：文本输出 `plugin removed` 与 `plugins.js restored from backup`。载荷：`removed` / `restored` / `backupPath` / `drifted` / `keptBackup`。从未装过时全部 `false` / `null`，仍 `ok`、退出 0。`drifted` 表示备份之后 `plugins.js` 又被别的插件动过，此时保留备份、只删自己的条目。
+
+## doctor：体检
+
+`doctor` 是唯一会同时看引擎、字典、`plugins.js`、备份和 `verify` 的命令，只读。它给四种结论（`verdict`）：`ready` / `usable` / `not-installed` / `broken`。
+
+```text
+game      : テストゲーム (RPG Maker MZ 1.7.0, 7 data files)
   engine      ok    RPG Maker MZ 1.7.0
+  dictionary  ok    32 entries (32 translated, 0 pending)
+  sync        ok    every dictionary key still appears in data/
+  install     info  not installed - run: yakusha install <game>
+  runtime     info  the game reads yakusha/dictionary.json at load time once installed
+  verify      ok    0 error, 20 warning(s)
+verdict   : not installed yet - run: yakusha install <game>
+```
+
+每行是 `id` / `level` / 消息三列，`level` 取 `ok` / `info` / `warn` / `fail`。判定很直接：任何 `fail` → `broken`（`outcome` 转 `findings`、退出 1）；install 检查还是 `info` → `not-installed`（退出 0）；有 `warn` → `usable`；否则 `ready`。载荷：`verdict` / `checks[]` / `failure` / `game` / `dictionary` / `sync` / `install` / `runtime` / `verify`。
+
+`doctor` 唯一的命令专属选项是 `--max-length <n>`：它只影响 `verify` 那一行（把宽度判据打开，`n=0` 关闭，默认 0），其余检查不受影响。`--help` 里没有 doctor 段，所以这个选项只能在本节看到。
+
+实测过的几种状态：
+
+| 症状 | doctor 说什么 | 怎么办 |
+| --- | --- | --- |
+| 中文全没了，插件还在 | `install fail`（`$plugins` 条目丢了） | 重跑 `yakusha install <game>` |
+| 一启动就报错 | `plugins.js fail` `js/plugins.js is not readable (...)` | 从 `js/plugins.js.yakusha-backup` 恢复，再 install |
+| 一部分台词变回日文 | `sync warn` `N text not in the dictionary, M dictionary key no longer in the game` | 重跑 `extract` 再 `translate` |
+| 部署版 MV 放在 `www/` 下 | `runtime ok`（两处路径都试） | 不用管 |
+| 有 32 条空条目 | `progress warn` `32 entries are still empty - run: yakusha translate <game>` | 翻完即可，`verdict` 是 `usable` |
+
+大型项目的完整体检实测（一款 51 个数据文件、38,044 条串的 MZ 作品）：
+
+```text
+game      : Example Game (RPG Maker MZ 1.7.0, 51 data files)
   dictionary  ok    38044 entries (38042 translated, 2 pending, 2 rejected)
-  progress    warn  2 entries are still empty - run: yakusha translate <game>
-  rejected    warn  2 entries failed validation - run: yakusha verify
+  progress    warn  2 entries are still empty
+  rejected    warn  2 entries failed validation
   sync        ok    every dictionary key still appears in data/
   install     ok    js/plugins/YAKUSHA_Translator.js registered in js/plugins.js
   backup      ok    uninstall can restore js/plugins.js byte for byte
@@ -192,158 +498,64 @@ game      : Example Game (RPG Maker MZ 1.7.0, 51 data files)
 verdict   : usable with 2 warning(s)
 ```
 
-| 症状 | 看哪一行 | 怎么办 |
-| --- | --- | --- |
-| 中文全没了，插件文件还在 | `install  fail` | 重跑 `install`（`$plugins` 里的条目被更新覆盖了） |
-| 游戏一启动就报错 | `plugins.js  fail` | 从 `js/plugins.js.yakusha-backup` 恢复，或重装游戏 |
-| 一部分台词变回日文 | `sync  warn` | 重跑 `extract` 补上新 key，再 `translate` |
-| 部署版 MV 把游戏放在 `www/` 下 | `runtime  ok` | 不用管，插件在根目录和 `www/` 下都会找 |
+## export：JSON 快照
 
-`sync` 是最有用的那一行：它把字典每个 key 拿回 `data/` 里找一遍。游戏更新改写了台词，
-key 就找不到了——这比插件坏了更常见，而且不重新抽文本就发现不了。
+`export` 把已译条目投影成一个 JSON 文件，给外部工具或审校用；它只写 `--out` 指定的那一个文件，永远不写 stdout。
 
-结尾四种：`broken`（有 fail，退出码 1）、`not installed`（还没装）、`usable`（能用但
-有警告）、`ready`（全绿）。`--json` 输出完整的 `checks` 数组。`warn` 不让命令失败——
-诊断不该因为「还有 2 条没翻」就把脚本打断。
-
-## verify：发布前自检
-
-
-```bash
-node bin/yakusha.js verify "/games/MyGame"
+```text
+exported 32 entries to <abs> (4159 B)
 ```
 
-字典会被逐条体检，只读不写。问题分两档：`error` 会让命令以失败退出（
-`--json` 里 `ok:false`），`warn` 只提示、退出码仍是 0。
-
-| 类型 | 档位 | 含义 |
-| --- | --- | --- |
-| `echo` | error | 译文与日文原文完全相同（模型原样回显） |
-| `codes` | error | 转义码与原文不一致 |
-| `slots` | error | `%1` `%2` 占位符被丢弃或改名 |
-| `kana` | warn | 译文里还残留假名（多为拟声词里的 `ッ`） |
-| `lines` | warn | 换行数与原文不同（`--max-length` 会主动改写） |
-| `width` | warn | 单行超过 `--max-length` 指定的列数 |
-| `no-text` | warn | 原文有汉字、译文一个汉字都没有（词被吃掉了） |
-| `trad` | warn | 译文里混进了原文没有的繁体字（模型偶发切到繁体） |
-| `speaker` | error / warn | 说话人标记 `\N<名字>` 的内容没翻（error）或同一名字有多种写法（warn） |
-| `rejected` | warn | 流水线放弃的条目，运行时显示原文 |
-
-```bash
-node bin/yakusha.js verify "/games/MyGame" --max-length 48      # 顺带查超宽行
-node bin/yakusha.js verify "/games/MyGame" --kind echo,codes    # 只看致命项
-node bin/yakusha.js verify "/games/MyGame" --json --limit 500   # 机器可读，全量列出
-node bin/yakusha.js verify "/games/MyGame" --write-report verify.md  # 写一份 markdown 报告
-```
-
-终端只适合边改边看：192 条警告滚过去就没法对照了。`--write-report` 把同样的结果写成
-一份自包含的 markdown——摘要表、按类型分节、每条问题的原文与译文，可以直接贴进 issue，
-也可以存档对比两个版本。命令失败时同样会写，因为那正是需要读它的时候。
-
-```markdown
-| entries | 38044 (38042 translated, 2 pending, 2 rejected) |
-| problems | 192 (0 errors, 192 warnings) |
-
-**OK with 192 warning(s)** - nothing blocks a release.
-
-## kana (106)
-1. warning: `ラスボス敗北時(通常)(テ)` -> `最终BOSS败北时(通常)(テ)`
-   Japanese kana left in the translation
-```
-
-报告里换行显示为 `⏎`，否则一条多行台词会和两条问题混在一起。
-
-判据是踩过坑之后定下来的，改之前请先读 `src/pipeline/verify.js` 顶部的注释：
-`・`（U+30FB）和 `ー`（U+30FC）**不算**假名（它们在中译文里是正常标点，早期版本
-把 `睡眠・沈黙` 判成未翻译，是最大的假阳性来源）；`MAP001`、`ＨＰ` 这类必须原样保留
-的标签不会被报；整行拟声词（`ッ…♡♡♡`）不会被要求出现汉字。
-
-`trad` 只报**原文里没有的**繁体字。日文原文本来就大量使用繁体形汉字（`愛`、`動`、
-`書`、`員`、`婦`），把它们算成泄漏会让每一行都命中；比对源文本后就只剩模型自己
-新引入的那些。字表来自 OpenCC 的 TSCharacters（Apache-2.0），只收「一繁对一简且不同」
-的行——`乾`、`藉`、`於`、`瞭`、`徵` 这些在简体里也是合法写法的多目标字必须排除，
-否则全是假阳性。
-
-`speaker` 针对 MV 插件把 `\N<名字>` 渲染成独立姓名窗的那类游戏（标记内容原样显示
-给玩家）。三条判级：
-
-- 名字含假名，但**同一游戏别处翻过这个名字** → error（玩家会看到一个日文名混在中文里）
-- 名字全汉字且与源相同，但含繁体专用字（`水泳部員`、`主婦`、`運転手`）→ error
-  （仍是日文；`少女`、`入浴女性` 两语同形，不含这类字，不会报）
-- 同一源名出现多种非假名写法 → warn（译名漂移）
-
-尖括号里放代码表达式的游戏（`<50*\v[65]>`、`<\s[25] ? " OFF ":" ON " >`）不会被
-误认成名字：标记内容必须是纯中文/假名/空白才算。
-
-## speaker：修掉没翻的说话人名
-
-
-`verify` 只报不修，而「同一角色的名字在别处翻过、这一行还留日文」这种问题的正确答案
-**已经在这个字典里**（用了 490 次的那个写法），不该再问模型一次：
-
-```bash
-node bin/yakusha.js speaker "/games/MyGame"               # 按本作自己用得最多的写法统一
-node bin/yakusha.js speaker "/games/MyGame" --dry-run     # 只看会改什么
-node bin/yakusha.js speaker "/games/MyGame" --include-drift
-```
-
-默认只改两类，都是「这一行没翻，别处翻过」：
-没翻的假名（`ひなた` → `日向`）和原样照抄的汉字名（`主婦` → `主妇`）。
-两种不同的中文写法属于风格选择（`沙耶香` vs `沙耶加`），要显式 `--include-drift` 才统一。
-
-房规的取法有一条关键规则：**真正的译文优先于「原样照抄的源名」**，同层再比出现次数，
-平票取非假名。否则 `先生`（既是「老师」也是日语称谓）、`主婦` 这类名字会让「留日文」
-以票数取胜，反过来把正确的中文译文报成漂移。
-
-有些名字在这款游戏里**一次都没翻过**，字典里没有可抄的写法，机械修复帮不上忙。
-`speaker` 会把它们点出来，用一份一行的映射表补上：
-
-```bash
-node bin/yakusha.js speaker "/games/MyGame" --names my-names.json
-```
-
-```json
-{ "entries": { "水泳部員": "游泳社员" } }
-```
-
-名字多的时候不用手抄：`--write-names` 会把它挑出来的名字（只含本作一次都没翻过、
-机械修复帮不上的那些）写成一个空模板，填空后再用 `--names` 传回去。
-
-```bash
-node bin/yakusha.js speaker "/games/MyGame" --write-names names.json
-# 编辑 names.json，把每个名字的中文填进 value
-node bin/yakusha.js speaker "/games/MyGame" --names names.json
-```
-
-实测 MV-H：`verify` 报 411 个 speaker error，`speaker` 一次改掉
-414 条（23 个名字），剩 3 条是全文未译的名字，`--names` 补上后 error 归零；
-再用 `--include-drift` 把 8 个存在多种写法的名字（例如「写法 A」改成「写法 B」）
-统一到主流写法，warn 也从 51 归零。两轮都只改字典，不调用模型。
-
-## 术语表（glossary）
-
-
-人名、技能名、选项这类必须锁定一致性的词，用人工词表覆盖，不经过模型：
-
-```bash
-node bin/yakusha.js translate "/games/MyGame" --glossary my-terms.json
-```
+落盘形状（rich 格式，`--flat` 时 `text` 直接变成字符串）：
 
 ```json
 {
+  "format": "yakusha/1",
+  "game": "テストゲーム",
+  "updatedAt": "2026-10-26T10:59:37.104Z",
   "entries": {
-    "アリア": "艾莉亚",
-    "ゴブリン": "哥布林",
-    "はい": "是",
-    "いいえ": "否"
+    "HPを50回復する。": {
+      "text": "译:HPを50回復する。",
+      "contexts": ["Items.json:description"]
+    }
   }
 }
 ```
 
-词表命中直接写入（同样过校验），其余条目才发给模型；`--glossary-only` 则完全不联网。
+- `--out` 必填、没有默认文件名；`--out -` 被拒：`error: export --out must be a file path, not -`。
+- `--format` 只有 `json`。TSV / CSV 不在 0.10 范围内，给了报 `E_USAGE`（`--help` 那行写的是 `tsv/csv are not available yet`）。
+- `--force` 才允许覆盖已有文件；没有它报 `E_EXISTS`：`refusing to overwrite <path> (pass --force)`。目标是项目字典本身时，即使 `--force` 也拒绝：`refusing to overwrite the project dictionary at <path> (export is a projection, not a backup)`。
+- 目标是游戏目录内但不在 `yakusha/` 下时 stderr 警告：`warning: export target is inside the game directory but outside yakusha/: <path>`。
+- 空字典也能导出：`exported 0 entries to <abs> (120 B)`，载荷 `entries: 0`。载荷：`out` / `format` / `flat` / `entries`（条数，不是对象）/ `bytes`（实际写入的 UTF-8 字节数）。
+- 序列化细节（键排序、不导出 `error`、`updatedAt` 原样复制）见 [export-format.md](export-format.md)。
 
-手工词表之外，`terms` 能从字典自身挖出术语表（见上文 terms 一节），格式与这里完全一致，可以直接当
-`--glossary` 用。
+## launch：启动游戏（仅 Windows）
 
-实测在 38,044 条唯一串的游戏上，127 条人工词表覆盖了 **18.4% 的文本出现次数**——
-术语表划算，但长尾极重（前 5000 条才覆盖 42%），**剧情的机器翻译必须跑全量**。
+`launch` 在项目根里找唯一的 `.exe` 并脱离父进程启动。0.10 只支持 Windows，其他平台报 `E_UNSUPPORTED_PLATFORM`。
+
+- 只扫项目根的直接子项（不递归），大小写不敏感地匹配 `.exe` 结尾的普通文件；符号链接和目录不算。
+- 恰好一个才启动；0 个报 `E_EXE`：`no .exe found in <dir> (start the game once, or pass --exe <name>)`；多个也报 `E_EXE`：`found 2 .exe files in <dir>, pass --exe <name>`，`details.candidates` 列出候选文件名（最多 20 个，`MAX_CANDIDATES`；`message` 里的总数不受这个上限影响）。
+- `--exe` 必须是裸文件名：`Game` 报 `--exe must be a bare .exe file name: Game`，`../x.exe` 同样被拒；文件不存在报 `no NOPE.exe in <dir>`。不做任何「帮用户修正输入」的事。
+- spawn 时 `shell: false`、无参数、`cwd` 设为项目根，CLI 退出后游戏继续跑，不接管 stdout/stderr、不等待、不 kill。启动前会把 `YAKUSHA_API_KEY` 和 `OPENAI_API_KEY`（含大小写变体）从子进程环境里删掉。
+- 成功载荷：`root` / `exe` / `pid`，`pid` 只用于展示。
+
+## 环境变量
+
+| 变量 | 作用 |
+| --- | --- |
+| `YAKUSHA_API_KEY` | 模型 API key，优先于 `OPENAI_API_KEY`；`--api-key` 最优先 |
+| `OPENAI_API_KEY` | 模型 API key 的兜底；`launch` 会把两者都从游戏进程环境里删掉 |
+| `YAKUSHA_MODEL` | 模型 id，优先于配置文件，低于 `--model` |
+| `YAKUSHA_BASE_URL` | OpenAI 兼容端点，优先于配置文件，低于 `--base-url` |
+| `YAKUSHA_CONFIG_DIR` | 换掉配置文件所在目录（绝对路径，文件名固定 `config.json`）；不设时用 `%APPDATA%\yakusha` |
+| `YAKUSHA_DEBUG` | 设为 `1` 时把异常 stack 打到 stderr（含绝对路径，只用于排查）；stdout 的 JSON 一个字节不变 |
+
+## 相关文档
+
+- [json-contract.md](json-contract.md)：信封、退出码、错误码、每个命令的稳定载荷字段、0.10 的破坏性变更
+- [config.md](config.md)：配置文件格式、键的校验与优先级、密钥的处理与威胁模型
+- [export-format.md](export-format.md)：导出文件的序列化规则与字段语义
+- [engines.md](engines.md)：引擎识别、`launch` 的启动契约、`attach` 桩的边界
+- [architecture.md](architecture.md)、[design.md](design.md)：流水线与模块划分
+- [limitations.md](limitations.md)、[platforms.md](platforms.md)：已知限制与平台差异
+- [README.md](../README.md)：安装、快速上手、与 GUI 的关系

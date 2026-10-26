@@ -119,8 +119,9 @@ export function openaiProvider(options = {}) {
         const text = await response.text();
         if (!response.ok) {
           // The body can echo the whole request, Authorization header included,
-          // so it must never reach an error message. The status is enough to
-          // act on; YAKUSHA_DEBUG=1 shows the body on stderr elsewhere.
+          // so it must never reach an error message or stderr: the status alone
+          // is what every caller acts on, and YAKUSHA_DEBUG only ever widens
+          // stack traces, never response bodies.
           const error = new Error("provider returned HTTP " + response.status);
           error.code = "E_PROVIDER";
           throw error;

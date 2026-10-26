@@ -165,8 +165,8 @@
 - 密钥脱敏：`sk-[A-Za-z0-9_-]{8,}` → `sk-***`；`Bearer <token>` → `Bearer ***`。
 - URL 里的 userinfo（`https://user:pass@host`）→ `https://***@host`。
 - 把当前用户 home 目录替换成 `~`，避免报告被转发时带出用户名。
-- provider 的响应体不进 `message`：只保留状态码，例如
-  `provider returned HTTP 401`；响应体前 300 字符只在 `YAKUSHA_DEBUG=1` 时进 stderr。
+- provider 的响应体既不进 `message` 也不进 stderr：只保留状态码，例如
+  `provider returned HTTP 401`。响应体可能回显 `Authorization`，0.10 一律不打印。
 - 本地绝对路径可以保留（排查需要），但只能来自命令自己解析出的路径，不能回显任意输入。
 
 ## 5. stdout / stderr 分工
@@ -270,10 +270,12 @@
 
 ## 10. 验收清单
 
-- [ ] 13 个命令 × 3 种结局都有测试；没有任何命令在 JSON 模式往 stdout 写第二个对象。
-- [ ] `ok === (outcome === "ok")` 与 `error` 的非空条件在测试里逐条断言。
-- [ ] 退出码只有 0/1/2；`verify` / `doctor` 的 findings 退出 1。
-- [ ] 所有错误出口经过 `sanitizeMessage()`；错误里没有 stack、密钥、provider 响应体。
-- [ ] `--help` 与 `--version` 的行为与本文一致，且有测试。
-- [ ] `scan.version` / `doctor.game.version` 不再出现；`engineVersion` 有测试。
-- [ ] 0.9.0 的既有断言按上表迁移，`npm test` 全绿。
+0.10.0 交付时逐条核过，全部有测试兜底（落点见表后的括注）：
+
+- [x] 13 个命令都在 JSON 模式下有测试；没有任何命令往 stdout 写第二个对象（`test/json-contract.test.js` 的 `envelope()` 断言 stdout 恰好一行并以换行结尾；`config` 在 `test/config.test.js`，`launch` 在 `test/launch.test.js`）。
+- [x] `ok === (outcome === "ok")` 与 `error` 的非空条件在测试里逐条断言（`assertShape()`，每个用例都过一遍）。
+- [x] 退出码只有 0/1/2；`verify` / `doctor` 的 findings 退出 1（`EXPECTED_CODE` 映射 + 两条 findings 用例 + doctor broken 用例）。
+- [x] 所有错误出口经过 `sanitizeMessage()`；错误里没有 stack、密钥、provider 响应体（`sk-`、`Bearer`、userinfo、home→`~`、500 字符截断都有用例；响应体从不打印，见 §4.2）。
+- [x] `--help` 与 `--version` 的行为与本文一致，且有测试（`test/json-contract.test.js` 的 help 用例 + `test/version.test.js` 的 5 条）。
+- [x] `scan.version` / `doctor.game.version` 不再出现；`engineVersion` 有测试（三条断言分别覆盖 `scan`、`doctor` 和 `scan` 的 `version` 缺席）。
+- [x] 0.9.0 的既有断言按 §7 的改名表迁移，`npm test` 全绿（346 个用例）。

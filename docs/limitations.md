@@ -8,8 +8,9 @@
 - **MZ/MV 不会横向自动换行。** `Window_Base.flushTextState` 把整行一次性 `drawText` 到位图，
   超出 `contents` 宽度的部分直接被裁（只有纵向有 `needsNewPage` 分页）。默认仍以 prompt 里
   的"保持紧凑"约束为主，需要硬保证时加 `--max-length 54`：它按显示列宽（全角算 2 列）在标点处
-  断行，转义码宽度算 0、不会被拆开；断点落在标点前时会把标点提到上一行（禁则处理），
-  避免"！？"被拆到两行。这个折行发生在`校验通过之后`，所以模型输出仍然逐字比对。
+  断行，转义码宽度算 0、不会被拆开；断点落在标点前时会**尽量**把标点提到上一行（禁则处理），
+  避免"！？"被拆到两行——但上一行已经排满时提不动，此时标点仍可能落在行首（实测
+  `--max-length 10` 这种极端窄宽下 `！` 就会顶格）。这个折行发生在`校验通过之后`，所以模型输出仍然逐字比对。
   对已经翻完的字典重复执行同一条命令即可把旧译文也重新折行（本地计算，不重新请求模型）；
   不想动旧条目就加 `--no-rewrap`。
   实测 4 款跑完全量翻译的游戏，**没有任何一行超出窗口**（MZ-C 最长 84 列 < 预算 104 列，
@@ -51,20 +52,26 @@
   人名一致性有一部分交给 `terms`（见上文 terms 一节），但 `terms` 也只统计、不判断对错。
   实测在四款跑完的游戏上，`echo`/`codes`/`slots` 三类致命项**都是 0**，
   留下的 `kana` 全是拟声词里故意保留的 `ッ`（MZ-A 106 条，占 0.28%）。
-  `trad` 命中 23 / 56 / 0 / 0 条（0.02%–0.28%），`speaker` 只在装了 `\N<名字>`
+  `trad` 命中 23 / 56 / 0 / 0 条（0.06%–0.23%），`speaker` 只在装了 `\N<名字>`
   插件的那款上有 411 条 error —— 全部是「同一个角色在别处译过、这里还留着日文名」，
   属于玩家能直接看到的日文，所以定成 error 而不是 warn。
 
-- **暂无 GUI**：当前只有 CLI（`bin/yakusha.js`）。Electron 外壳按 [architecture.md](architecture.md)
-  的 0.11 计划落地，还没有打包好的 exe / 安装包；拖拽、设置面板、进度条这些都要等 0.11。
+- **暂无 GUI**：当前只有 CLI（`bin/yakusha.js`）。Electron 外壳排到 0.14，0.10 没有打包好的
+  exe / 安装包；拖拽、设置面板、进度条这些都要等 GUI 迭代。排期权威版本见
+  [dev/ENGINE-STRATEGY.md](dev/ENGINE-STRATEGY.md) §6.3。
 - **只在 Windows 10/11 x64 上支持与验收**：Linux 与 macOS 不在当前范围（原因与重评条件见
   [platforms.md](platforms.md)）；WSL、Wine、Proton 也不作为受支持环境。
 - **多引擎只有 MZ / MV 适配器**：0.10 的 registry / adapter 层已落地，但只注册这两个引擎；
   Ren'Py、Unity、Godot、Wolf、Kirikiri 等不在当前版本内，`inject` 档（原生注入）只有契约、
-  没有实现。
+  没有实现。0.10.x 先把 core 里的 MZ 假设拆到 adapter 后面，0.11 才接 Ren'Py。
 - **`config`、`export` 与 `launch` 已实现，`attach` 还是桩**：用户级配置、密钥不落盘与
   优先级见 [config.md](config.md)；JSON 导出格式见 [export-format.md](export-format.md)；
   启动只认项目根唯一 `.exe` 的规则见 [engines.md](engines.md) §8；`attach` 的调试注入没有
   CLI 入口，仍未实现，见 [engines.md](engines.md) §9。
+- **发布渠道只有 `--json` 与文本两种输出**：13 条命令全部支持 `--json`（一个对象 + 换行），
+  退出码统一 0 成功 / 1 发现（仅 `verify` 的 error 级问题与 `doctor` 的 broken 判定）/
+  2 错误；参数解析严格，未声明的选项、缺值、多余位置参数一律 `E_USAGE` 退出 2，
+  不认识的命令也是退出 2。完整约定见 [json-contract.md](json-contract.md)。
 - **没有译文导入**：目前只能直接编辑 `yakusha/dictionary.json`；`export` 是单向投影，
-  不含未翻译条目，也不能代替字典备份；TSV / CSV round-trip 在 0.12 计划里。
+  不含未翻译条目，也不能代替字典备份。TSV / CSV round-trip 与字典 v2 排在 0.13，
+  不在 0.10 范围内。

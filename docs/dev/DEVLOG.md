@@ -1,12 +1,12 @@
 # 开发交接文档（DEVLOG）
 
 > 这份文档记录**阶段目标、已完成项、决策理由和下一步**，随开发进程更新。
-> 最后更新：2026-10-25（0.9.0 发布；0.10 完成 WP5）。
+> 最后更新：2026-10-25（0.10.0 完成，WP1–WP6 全部交付；代码在 `feat/0.10-docs` 分支，未打 tag）。
 > 0.9.0 项目改名 **Yakusha**，字典目录、插件文件、环境变量与备份后缀全部随之改名；
 > 仓库已发布到 https://github.com/MagicalAlmond/Yakusha（`main` 分支）。
 > 0.8.0 的 `doctor`、0.7.1 的 `uninstall` 漂移保护、0.7.0 的报告/模板见下）。
 > 0.10 的五篇契约已冻结（`json-contract` / `config` / `engines` / `export-format` /
-> `platforms`），实现按 WP1–WP6 推进：WP1–WP5 已完成，WP6 进行中。分支模型是
+> `platforms`），实现按 WP1–WP6 推进：**六包全部完成**，0.10.0 在 `feat/0.10-docs` 分支上做完、待合入 `main`（未打 tag）。分支模型是
 > **trunk-based**（只有 `main` 一条长期分支，规则见 §9）。
 >
 > **内部日志**：这份文档记录开发过程与决策，主要读者是维护者；面向使用者的命令说明
@@ -36,16 +36,16 @@
 
 | 项 | 状态 |
 | --- | --- |
-| 版本 | 0.9.0（package.json）；0.10.0 在 WP6 提升，版本号已收敛到 `src/version.js` 单一真源 |
-| 0.10 契约 | 五篇设计稿已冻结（json-contract / config / engines / export-format / platforms）；**WP1–WP5 已实现**，WP6 进行中 |
+| 版本 | **0.10.0**（`package.json` 单一真源，`src/version.js` 读取它；插件模板的 `VERSION` 由安装器替换） |
+| 0.10 契约 | 五篇设计稿已冻结（json-contract / config / engines / export-format / platforms）；**WP1–WP6 全部实现并交付** |
 | 测试 | **346 个，全绿**（`npm test`，约 7.4s） |
 | 持续集成 | GitHub Actions：`npm test` 在 Node 22 / 24（**windows-latest**，WP1 已从 ubuntu 切换） |
 | 平台 | Windows 10/11 x64 为唯一支持与验收环境（0.10 明确，见 [platforms.md](../platforms.md)） |
 | 支持引擎 | RPG Maker **MZ 1.3.2–1.9.0**、**MV 1.6.1–1.6.2** |
 | 实测游戏 | 15 款可识别（本机全量普查），其中 **4 款**全量翻译 + 运行时验收 |
-| 磁盘改动 | 只加 1 个插件文件 + `plugins.js` 里 1 条注册，卸载逐字节还原 |
+| 磁盘改动 | 插件档：只加 1 个插件文件 + `plugins.js` 里 1 条注册，卸载还原到安装前（四档交付见 [ENGINE-STRATEGY.md](ENGINE-STRATEGY.md) §5.5） |
 | 运行时依赖 | 无第三方依赖（Node >= 22） |
-| 产品形态 | CLI 为内核；Electron GUI 在 0.11 落地（见 [architecture.md](../architecture.md)） |
+| 产品形态 | CLI 为内核；Electron GUI 按战略稿排到 **0.14**（见 [ENGINE-STRATEGY.md](ENGINE-STRATEGY.md) §6.3） |
 | 许可 | GPL-3.0-or-later |
 | 仓库 | https://github.com/MagicalAlmond/Yakusha（`main`） |
 
@@ -99,7 +99,7 @@
       `www/` 找到字典。结果分 `broken` / `not installed` / `usable` / `ready` 四态，
       只在 `broken` 时退出 1。`plugins.js` 被手写坏时也照常出报告（初版会抛栈）。
 
-### C 阶段（0.10.0，进行中）
+### C 阶段（0.10.0，已完成）
 
 - [x] WP1 基础设施：`--json` 信封（`schema/command/ok/outcome/error` 五个保留键 + 扁平 payload）、
       13 个错误码与 `sanitizeMessage`（ANSI / 换行 / `sk-` / `Bearer` / URL userinfo / 家目录 /
@@ -146,7 +146,18 @@
       `attach` 在两个适配器仍是 `E_NOT_IMPLEMENTED` 桩，`capabilities.attach:false`。
       新增 `test/launch.test.js`（15 条，注入假 spawn，从不真启动 exe）；`failureFor`
       保留 `error.details`，`E_EXE` 的 candidates 才能进信封。
-- [ ] WP6 文档与 0.10.0
+- [x] WP6 文档与 0.10.0：`package.json` 升 0.10.0（`test/plugin-runtime.test.js` 里硬编码的
+      `0.9.0` 改为断言 `src/version.js` 的 `VERSION`，否则升版即挂）；`docs/commands.md`
+      按 13 条命令的最终行为整篇重写（新增「全局约定」与「config」两节，删掉"WP1–WP5 已实现、
+      其余待重写"的横幅）；`docs/architecture.md` 把"默认路线可逆 / uninstall 逐字节还原 /
+      必须可逆 / 可逆列 / 注入的不可逆风险"改为按四档交付描述实际影响，§9 分批计划表按
+      [ENGINE-STRATEGY.md](ENGINE-STRATEGY.md) §6.3 重排（0.10.x 拆缝 → 0.11 Ren'Py →
+      0.12 RGSS 注入 → 0.13 字典导出 → 0.14 GUI → 0.15 KRKR → 1.0），并注明"本文件冻结的是
+      接口契约、不是排期"；`docs/limitations.md` 补 0.10 最终口径（`--json` 信封、退出码
+      0/1/2、严格参数解析、GUI 排到 0.14、TSV/CSV 排到 0.13 而非"0.12 计划里"）；
+      `README.md` 去掉"逐字节还原 / 无第三方运行时依赖 / 完全还原"这类全局卖点措辞，
+      改为按档说明实际影响，并新增「给脚本用：--json 与退出码」一节与环境变量
+      `YAKUSHA_CONFIG_DIR` / `YAKUSHA_DEBUG`。测试数不变（**346 个，全绿**）。
 
 ## 4. 文件地图
 
@@ -203,7 +214,7 @@ docs/platforms.md         平台支持矩阵与决策记录（Windows-only 的�
 | **改名为 Yakusha（訳者），字典目录与产品同名** | 旧缩写既像「机器翻译」，又和那个多引擎汉化工具撞脸，当窗口标题、exe 名、CLI 命令都不合适。`yakusha` 是「译者」，与游戏文化同源，短、好念、好打；目录跟着产品走，`<游戏>/yakusha/` 一眼知道是谁放的。 |
 | **改名不保留旧路径兼容分支** | 兼容别名会把旧名写回代码与文档，等于规则白立；旧目录只用一次性迁移脚本处理（脚本在仓库外），代码里只有 `yakusha` 一个名字。 |
 | **`--json` 用固定信封，三件事分开** | `schema` / `command` / `ok` / `outcome` / `error` 是保留键，其余载荷平铺；`ok` 只表示“命令成功”，`outcome` 才区分 ok / findings / error；退出码 0 / 1 / 2。修复类命令（translate/speaker/status）有问题仍是 ok，发布闸门交给 `verify`。理由：机器消费者要能区分“发现缺陷”和“命令失败”，而现有 `ok` 一字段两义（[json-contract.md](../json-contract.md)）。 |
-| **0.10 不做项目级配置，密钥不落盘** | 项目里的一份 `config.json` 能把用户环境变量里的 key 重定向到任意 `baseUrl`；Windows 上 `chmod 0600` 实测仍是 0666（`mode & 0o777 === 0o666`）。所以 0.10 只做用户级非敏感配置，key 只走 `--api-key` / 环境变量；持久化留到 0.11 的 GUI `safeStorage`（[config.md](../config.md)）。 |
+| **0.10 不做项目级配置，密钥不落盘** | 项目里的一份 `config.json` 能把用户环境变量里的 key 重定向到任意 `baseUrl`；Windows 上 `chmod 0600` 实测仍是 0666（`mode & 0o777 === 0o666`）。所以 0.10 只做用户级非敏感配置，key 只走 `--api-key` / 环境变量；持久化留到 GUI 版本的 `safeStorage`（现排期 0.14，[config.md](../config.md)）。 |
 | **没有默认 provider / model / 密钥，真实调用前必须配置** | 内置 `gpt-4o-mini` 会让一次没配置好的运行看起来是“能跑”，实际只会在端点上报错；如果同时换了 `baseUrl` 却没配 key，还可能把请求发到错误的地址。缺 provider / model / key，或 `compatible` 缺 `baseUrl`，一律在任何请求前 `E_CONFIG`（退出码 2）；`mock` / `--dry-run` / `--glossary-only` 不读这些配置。理由：错误应在本地、在花钱之前暴露，而不是让用户猜为什么 401。 |
 | **launch 只认项目根的直接子 `.exe`** | exe 不得来自配置、字典或游戏内任意路径；`--exe` 只接受裸文件名；spawn 用 `shell:false` + `detached` + `stdio:ignore`，并从子进程 env 删除 `YAKUSHA_API_KEY` / `OPENAI_API_KEY`。理由：分享的游戏目录本身就是不可信输入（[engines.md](../engines.md) §8）。 |
 | **trunk-based：一条 `main` + 短分支 + self-PR squash** | 单人开发没有并行评审需求，`develop`/`release` 这类长期分支只会制造同步债；短分支让 CI 在合并前跑一遍，squash 保持 `main` 线性、可读、可回滚。发布用 `vX.Y.Z` tag；只有旧版本确实有人在用时，才从 tag 切维护分支（规则见 §9）。 |
@@ -547,6 +558,49 @@ contexts 顺序与重复保留、空 `text` 与 `error` 不导出；entries 键�
 `launchProject`），测试注入假 `spawn` 和假 platform，**从不真正启动游戏 exe**。
 `launch` 只负责把进程拉起来：不等待、不读输出、不 kill；`pid` 只放进 payload。
 
+### 0.10.0 WP6 文档与版本收尾
+
+`npm test`：**346 个，全绿**，耗时约 7.4–8.3s（本包不动逻辑，只改版本号与文档）。
+唯一一处代码改动是 `test/plugin-runtime.test.js` 里硬编码的 `"0.9.0"`：
+改成从 `src/version.js` 导入 `VERSION` 后断言，否则升到 0.10.0 当天这条就挂。
+插件模板 `src/plugin/YAKUSHA_Translator.js` 的 `const VERSION = "0.9.0"` 是占位符，
+由 `renderPlugin()` 的正则替换，**不要手改**（`test/version.test.js` 守着三者一致）。
+
+文档这一包的实际改动量：`docs/commands.md` 整篇重写（按 13 条命令的最终行为，
+新增「全局约定」与「config」两节）；`docs/architecture.md` 改 5 处旧措辞
+（"默认路线可逆 / uninstall 逐字节还原 / 必须可逆 / 可逆列 / 注入的不可逆风险"）
++ §9 排期表按 [ENGINE-STRATEGY.md](ENGINE-STRATEGY.md) §6.3 重排；
+`docs/limitations.md` 补 0.10 口径并把"TSV/CSV 在 0.12 计划里"改成"排在 0.13、不在 0.10"；
+`README.md` 去掉全局卖点措辞、新增 `--json` 与退出码一节、环境变量补
+`YAKUSHA_CONFIG_DIR` / `YAKUSHA_DEBUG`；`docs/config.md` / `docs/export-format.md` /
+`docs/design.md` / `docs/platforms.md` 里的旧排期版本号（GUI=0.11、TSV/CSV=0.12）
+统一改成"以战略稿 §6.3 为准"的写法，避免同一件事在三篇文档里挂三个版本号。
+本包还把 `docs/engine-strategy` 分支合了进来（`docs/dev/ENGINE-STRATEGY.md` 711 行），
+否则上面这些 `§5.5` / `§6.3` / `§9.4` 引用在 `main` 上全是死链。
+
+重写完做了一轮**只读对照审计**：拿三份主文档逐条重放命令、比对源码，找出 10 处「文档说的」与「代码做的」不一致，全部按代码改文档（不改行为）。最值得记的一条是
+**provider 响应体从来不打印**：`docs/commands.md`、`README.md`、`docs/json-contract.md` 三处都写着
+「`YAKUSHA_DEBUG=1` 时把响应体前 300 字符打到 stderr」，而 `grep` 证明 `YAKUSHA_DEBUG` 全仓库只有
+`bin/yakusha.js` 的 `reportFailure` 一个使用点（只打 stack），`src/pipeline/provider.js` 连一句
+`process.stderr.write` 都没有。处理方式是**删掉承诺而不是补实现**：响应体可能回显
+`Authorization`（`provider.js:121-123` 的注释就写着这点），把它打到 stderr 是凭空开一个泄密面；
+而且补实现要让 pipeline 反向 import `src/cli/envelope.js` 的 `sanitizeMessage()`，破坏目前
+`src/pipeline/` 与 `src/engines/` 对 `src/cli/` 零依赖的方向。顺手把 `provider.js:123` 那句
+"shows the body on stderr elsewhere" 的假注释改成如实描述。
+
+其余 9 处都是小口径：`doctor` 其实有 `--max-length`、`verify` 的列表是**按字典键顺序**而非按 kind 分组、
+`launch` 的 `details.candidates` 封顶 20、`terms` 也要字典、配置文件顶层 `schema` 认 1 不认其它、
+`trad` 命中率是 0.06%–0.23% 而不是 0.02%–0.28%、README 的「400 条 / 19 秒」在仓库里找不到出处
+（改成不承诺吞吐，指向本节实测）、禁则处理「上一行排满时提不动」、`contexts` 的数组字段带 `[]`。
+两份验收清单（`json-contract.md` §10 七条、`config.md` §9 九条）从 `[ ]` 改 `[x]`，每条都注明
+守它的测试文件——清单存在的意义是能被重放，不是走个仪式。
+
+写这一包时确认的两条判断：一是**文档里不要写"整个产品可逆"**——四档交付里只有
+plugin 档是"删文件即还原"，inject 档是"文件不改、退出即恢复"，L3-only 什么也不保证；
+把三种说成一句就是在承诺做不到的事。二是**路线排期不该写在冻结的接口文档里**——
+`architecture.md` 冻结的是信封、错误码、adapter 形状，排期改到战略稿并留一行指针，
+否则每次调整路线都要动"契约文档"。
+
 ## 7. 已知限制
 
 1. 只处理 `data/` 里的文本；插件 `js/plugins/*.js` 里硬编码的 UI 文案不动。
@@ -610,30 +664,49 @@ contexts 顺序与重复保留、空 `text` 与 `error` 不导出；entries 键�
    关键取舍：扁平信封 + `outcome` + 退出码 0/1/2；`detect` 改判别式；
    不做项目级配置、密钥不落盘；launch 只认根目录唯一 `.exe`；Windows-only；
    契约测试平铺（`npm test` 不收子目录）。
-3. **0.10.0 实现（进行中）**：WP1（信封、严格参数、版本单一真源、CI）、
-   WP2（适配器、registry、detect、门面）、WP3（用户级 config）、WP4（JSON export）
-   与 WP5（launch、attach 桩）已完成；剩余 WP6。
-   `src/engines/{adapter,registry}` +
-   `mz/adapter.js` + `mv/adapter.js` 薄包装现有 core；`src/index.js` 门面 +
-   `package.json` 的 `main`/`exports`；`src/cli/envelope.js` + `src/cli/args.js`
-   收敛 12 个 JSON 出口；`config` / `export` / `launch` 已落地；
-   版本单一真源；`test/engine-contract.test.js` + `test/json-contract.test.js` +
-   `test/fixtures/mini-mv`。验收以五篇设计稿为准。
-4. **0.10.0 平台与 CI（WP1 已完成）**：workflow 改 `windows-latest`（Node 22/24，删 ubuntu）；
-   加 `.gitattributes`（`* text=auto eol=lf`）防止 CRLF 夹具在 CI 上漂；
-   版本号升 0.10.0 时同步插件模板与测试。
-5. **0.11.0 GUI 前**：`docs/gui.md` 用户指南、`CHANGELOG.md`（DEVLOG 是内部日志，
-   公开仓库需要面向使用者的变更记录）、`docs/limitations.md` 补 Electron 打包与密钥存储。
-6. 可选：给 `translate` 的 glossary 加条数上限（按请求过滤后已经省了 90%+，
+3. ~~**0.10.0 实现**~~ —— **已完成**：WP1（信封、严格参数、版本单一真源、CI）、
+   WP2（适配器、registry、detect、门面）、WP3（用户级 config）、WP4（JSON export）、
+   WP5（launch、attach 桩）与 WP6（文档与 0.10.0）全部落地，`npm test` 346 条全绿。
+4. ~~**0.10.0 平台与 CI**~~ —— **已完成**：workflow 改 `windows-latest`（Node 22/24，删 ubuntu）；
+   加 `.gitattributes`（`* text=auto eol=lf`）；版本号升 0.10.0 时同步了插件模板与测试。
+5. **0.10.x 引擎拆缝（下一包，refactor/engine-seams）**：把写死在 core / pipeline 里的
+   MZ 假设挪到 adapter 后面——`src/core/extract.js` 的 `data/*.json` 遍历、
+   `src/pipeline/translate.js` 的系统提示词、`src/pipeline/verify.js` 的假名人名判据、
+   `src/core/doctor.js` 的 "RPG Maker" 措辞、`src/core/textkey.js` 的 MZ 转义分词。
+   要求是**行为不变、既有测试不改断言仍绿**；不新增引擎，只拆缝。
+   这是 0.11 Ren'Py 的前置，否则接非 RM 引擎会变成"在 RM 假设上再焊一层"。
+6. **0.11.0 Ren'Py 前**：`docs/gui.md` 用户指南、`CHANGELOG.md`（DEVLOG 是内部日志，
+   公开仓库需要面向使用者的变更记录）。Ren'Py 落地时 `docs/limitations.md` 要补
+   `.rpyc` 反编译边界与 translation-file 投递的卸载语义。
+7. 可选：给 `translate` 的 glossary 加条数上限（按请求过滤后已经省了 90%+，
    但词表上万条时仍会让每请求的过滤变慢，届时值得加）。
-7. ~~给 `verify` 加 `--write-report <file>`，并把 `speaker` 的 `--names` 模板一起生成~~
+8. 可选（0.10.x）：`verify --kind` 目前不校验取值，写错名字静默过滤成 `counts: {}` /
+   `outcome: ok`（`docs/commands.md` 已如实写明）。要么补白名单校验报 `E_USAGE`，
+   要么维持"过滤而非校验"的语义；属于行为变更 + 加测试，不在 WP6 文档包里顺手改。
+9. ~~给 `verify` 加 `--write-report <file>`，并把 `speaker` 的 `--names` 模板一起生成~~
    —— **0.7.0 已完成**（`--write-report` / `--write-names`，见第 3 节与第 6 节）。
-8. 可选：把运行时取证脚本（CDP 解冻 / readPixels 回读 / 冻结后原子渲染）整理成
+10. 可选：把运行时取证脚本（CDP 解冻 / readPixels 回读 / 冻结后原子渲染）整理成
    `tools/` 下的取证工具，便于以后验收新游戏时复用。**注意：这类脚本会碰游戏进程，
    不建议随工具分发，只作开发期验证用。**
-9. 可选：MV 老 nw 的运行时取证目前靠临时注入脚本，如果能找到不注入的办法（例如日志钩子）更好。
-10. 可选：`terms` 目前只认数据库 name 字段；若以后要挖地名/技能术语，需要另找锚点
+11. 可选：MV 老 nw 的运行时取证目前靠临时注入脚本，如果能找到不注入的办法（例如日志钩子）更好。
+12. 可选：`terms` 目前只认数据库 name 字段；若以后要挖地名/技能术语，需要另找锚点
     （例如 `System.json` 的 `terms` 分组），且必须先解决「没有正确答案」的判定问题。
+
+### 8.1 待用户拍板清单（先记下，不阻塞开发）
+
+用户 2026-10-25 明确"先搁置、之后再讨论"的事项，遇到时不要自行决定：
+
+| # | 事项 | 现在的默认做法（未拍板就一直这样） |
+| --- | --- | --- |
+| 1 | Windows 代码签名 | **0.10/0.11 不做**（纯 JS，用户跑自己签名的 `node.exe`）。0.12 起有原生组件，届时必须重新评估；不签名的四道拦截见 [ENGINE-STRATEGY.md](ENGINE-STRATEGY.md) §9.4。 |
+| 2 | 原生组件托管渠道 | 暂按 GitHub Release + 仓库内 manifest（二进制不进仓库）。CDN 方案未定。 |
+| 3 | 原生组件安装命令名 | 暂记 `yakusha native install <engine>`，**属于新命令、要过契约评审**，不是既定事实。 |
+| 4 | RGSS 三版本验收基线 | 需要几款真实游戏才能算 L4 通过，未定。 |
+| 5 | 0.13 字典 v2 字段 | 是否加 `engine` / `locator` 字段未定；0.13 之前不加。 |
+| 6 | 非 ja→zh 语言 | en→zh 何时进未定；en→ja 用户已明确"先不考虑"。 |
+| 7 | 目标用户与商业目标 | 未定。影响 GUI 功能取舍与文档语气。 |
+| 8 | README / architecture 旧卖点措辞 | 已在 WP6 按"四档交付说明实际影响"改掉；若用户希望保留更强的表述，回退点是本包 commit。 |
+| 9 | `CHANGELOG.md` | 公开仓库还没有；建议 0.11 前补，未拍板。 |
 
 ## 9. 继续工作的方法
 

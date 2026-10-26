@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import vm from "node:vm";
 
 import { renderPlugin } from "../src/core/install.js";
+import { VERSION } from "../src/version.js";
 
 /**
  * Run the generated plugin inside a sandbox that mimics just enough of the MZ
@@ -39,7 +40,7 @@ function load(context, name, src, data) {
 test("the plugin installs its hook and exposes window.__YAKUSHA", () => {
   const { context, api } = runPlugin({});
   assert.ok(api, "window.__YAKUSHA missing");
-  assert.equal(api.version, "0.9.0");
+  assert.equal(api.version, VERSION);
   assert.equal(typeof api.translate, "function");
   assert.equal(typeof api.translateDocument, "function");
   assert.ok(api.rules.dbFields["Actors.json"]);

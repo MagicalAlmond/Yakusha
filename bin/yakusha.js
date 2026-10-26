@@ -704,7 +704,7 @@ async function cmdExport(dir) {
   if (rawOut === "-") throw new CliError("E_USAGE", "export --out must be a file path, not -");
   const formatName = typeof flags.format === "string" ? flags.format.toLowerCase() : "json";
   if (formatName !== "json") {
-    throw new CliError("E_USAGE", "export supports --format json only (tsv/csv arrive in 0.12)");
+    throw new CliError("E_USAGE", "export supports --format json only (tsv/csv are not available yet)");
   }
   const out = path.resolve(rawOut);
   const { project } = requireProject(dir);
@@ -1003,7 +1003,7 @@ const USAGE = [
   "",
   "export options:",
   "  --out <file>        target file (required; never stdout)",
-  "  --format <name>     json (default; tsv/csv arrive in 0.12)",
+  "  --format <name>     json (default; tsv/csv are not available yet)",
   "  --flat              write source -> text instead of {text, contexts}",
   "  --force             overwrite an existing target",
   "",

@@ -1,6 +1,8 @@
 # 译文导出格式（0.10）
 
-> **状态：0.10 已实现（WP4）。** `yakusha export` 只做 JSON；TSV / CSV 推迟到 0.12。
+> **状态：0.10 已实现（WP4）。** `yakusha export` 只做 JSON；TSV / CSV 不在 0.10 范围内。
+> 本文冻结的是**格式契约**，不是排期；TSV/CSV 与字典 v2 排在 0.13，排期权威版本见
+> [dev/ENGINE-STRATEGY.md](dev/ENGINE-STRATEGY.md) §6.3。
 > 实现与测试见 `src/cli/export.js`、`test/export.test.js`；信封与退出码见
 > [json-contract.md](json-contract.md)。
 
@@ -64,7 +66,7 @@ yakusha export <game-dir> --out <file> [--format json] [--flat] [--force] [--jso
 - 只导出 `text` 为非空字符串的条目（与 `translatedOnly()` 一致）。
 - `text` 为空的条目（未翻 / 被拒）不导出；导出文件不是“待办清单”。
 - 没有做“按 context 过滤”的选项：0.10 的导出是整份快照；需要子集时先用
-  `--context` 跑翻译/校验，或等 0.12 的表格导出。
+  `--context` 跑翻译/校验，或等 0.13 的表格导出。
 - 字典为空（0 条已翻译）时仍然成功：`entries: {}`、`entries` 计数 0，
   outcome `ok`。这不是错误，首次建库后马上导出是合法动作。
 
@@ -139,17 +141,17 @@ yakusha export <game-dir> --out <file> [--format json] [--flat] [--force] [--jso
 - 导出不是备份：它只含已翻译条目，丢了未翻条目的 `contexts` 与 `error`。
   要备份就复制 `yakusha/dictionary.json`。
 - 导出文件可以被外部工具消费（字幕、校对表、CAT），但 0.10 不承诺任何
-  外部工具写回后能无损导入；那是 0.12 round-trip 的验收项。
+  外部工具写回后能无损导入；那是 0.13 round-trip 的验收项。
 - 如果字典里的 `game` 为空（手工建的字典），导出照常，`game` 为空字符串；
   不根据项目路径反推标题。
 
-## 8. 0.12 的 TSV / CSV（仅记录边界，不是契约）
+## 8. TSV / CSV（排在 0.13；仅记录边界，不是契约）
 
 推迟的原因：表格要处理引号、换行、逗号、BOM、Excel 公式注入、`contexts` 的
 多值编码，还要定义“导入时如何合并”。这些都需要独立的 round-trip 测试，
 不该在 0.10 顺手做半套。
 
-0.12 再定：列名、是否带表头、`contexts` 的分隔符、空译文行是否保留、
+0.13 再定：列名、是否带表头、`contexts` 的分隔符、空译文行是否保留、
 导入时的冲突策略（覆盖 / 只填空 / 拒绝）。在那一版之前，`--format tsv` / `csv`
 明确报 `E_USAGE`。
 

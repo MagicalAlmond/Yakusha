@@ -12,7 +12,7 @@
    没有 `apiKey` 这个键；出现也忽略并警告。
 3. **0.10 不声称“文件权限能保护密钥”。** Windows 上 `chmod 0600` 实测无效
    （`mode & 0o777` 仍是 `0o666`），所以不设计“写一个 0600 文件存 key”的方案。
-   GUI 的“记住密钥”留到 0.11，用 Electron `safeStorage`（Windows 上是 DPAPI）单独存。
+   GUI 的“记住密钥”留到 GUI 版本，用 Electron `safeStorage`（Windows 上是 DPAPI）单独存。
 
 这三条一起消掉了评审里的两个阻断项：项目配置把密钥重定向到攻击者端点、
 Windows 上无法满足 0600。0.10 的配置里没有秘密，分享游戏目录也不会带出秘密。
@@ -185,26 +185,30 @@ yakusha config unset <key>
 “按项目覆盖 provider/baseUrl”。加密一个不含密钥的文件没有意义；后两者都会把
 配置变成可随游戏分发的攻击面。
 
-## 8. 与 0.11 / 0.12 的边界
+## 8. 与后续版本（GUI / 项目级配置）的边界
 
-- **0.11（GUI）**：主进程用 Electron `safeStorage.encryptString()` 存 key（Windows 走 DPAPI），
+本节冻结的是**边界与禁止项**；版本排期以 [dev/ENGINE-STRATEGY.md](dev/ENGINE-STRATEGY.md) §6.3 为准。
+
+- **GUI（现排期 0.14）**：主进程用 Electron `safeStorage.encryptString()` 存 key（Windows 走 DPAPI），
   存在 `%APPDATA%\yakusha\credentials`，只有用户勾选“记住密钥”才写；读不出来时提示重输，
   不回退到明文。CLI 仍不读这个文件，避免两套密钥来源打架。
-- **0.12（项目级配置）**：只在有明确需求时做，且必须是字段白名单（例如 `maxLength`、
+- **项目级配置（未排期）**：只在有明确需求时做，且必须是字段白名单（例如 `maxLength`、
   术语表路径），**永远不允许** `apiKey` / `baseUrl` / `provider`。
 - **不做**：`YAKUSHA_CONFIG` 指向任意文件、环境变量里放整份 JSON、注册表配置。
   这些都会扩大解析面，收益不足。
 
 ## 9. 验收清单
 
-- [ ] `config set/get/list/unset` 在临时 `YAKUSHA_CONFIG_DIR` 下全绿；文件内容可预测。
-- [ ] `config set apiKey` 返回 `E_USAGE`，且临时目录里没有出现密钥字符串。
-- [ ] 真实调用缺 provider / model / key，或 `provider=compatible` 缺 `baseUrl` 时都是
+0.10.0 交付时逐条核过（`test/config.test.js` 15 条 + `test/provider-config.test.js` 9 条）：
+
+- [x] `config set/get/list/unset` 在临时 `YAKUSHA_CONFIG_DIR` 下全绿；文件内容是 `schema` 在前的 2 空格缩进 LF。
+- [x] `config set apiKey` 返回 `E_USAGE`，且临时目录里没有出现密钥字符串。
+- [x] 真实调用缺 provider / model / key，或 `provider=compatible` 缺 `baseUrl` 时都是
       `E_CONFIG`（退出码 2），且没有发出网络请求；`--dry-run` / `--provider mock` /
       `--glossary-only` 在空配置下照常工作。
-- [ ] 文件损坏时：翻译仍能跑（warn）；`config list` 返回 `E_CONFIG`；`config set` 不覆盖。
-- [ ] 未知键在 `set` / `unset` 后仍保留。
-- [ ] 优先级测试：flag > env > file > default；`--dry-run` 不读配置。
-- [ ] `config list` 不回显 key，只报 `set` 与来源。
-- [ ] `launch` 的 child env 里没有 `YAKUSHA_API_KEY` / `OPENAI_API_KEY`（用注入的 spawn 断言）。
-- [ ] Windows CI 通过；测试不写 `chmod` 断言。
+- [x] 文件损坏时：翻译仍能跑（warn）；`config list` 返回 `E_CONFIG`；`config set` 不覆盖。
+- [x] 未知键在 `set` / `unset` 后仍保留。
+- [x] 优先级测试：flag > env > file > default；`--dry-run` 不读配置。
+- [x] `config list` 不回显 key，只报 `set` 与来源。
+- [x] `launch` 的 child env 里没有 `YAKUSHA_API_KEY` / `OPENAI_API_KEY`（`test/launch.test.js` 用注入的 spawn 断言，含大小写变体）。
+- [x] Windows CI（`windows-latest`，Node 22 / 24）通过；测试与实现里都没有 `chmod` 代码或断言。

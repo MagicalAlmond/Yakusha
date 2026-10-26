@@ -3,7 +3,10 @@
 **非侵入式 RPG Maker 运行时翻译工具。**
 
 把 RPG Maker MZ / MV 游戏的文本抽出来交给任意 LLM 翻译，再让游戏**在运行时**显示中文。
-磁盘上只多一个插件文件、`js/plugins.js` 里多一行注册；`uninstall` 会把它逐字节还原。
+MZ / MV 走"插件档"：游戏目录只多一个插件文件、`js/plugins.js` 里多一行注册，
+`uninstall` 会把这两处还原到安装前。每一档交付对游戏文件的实际影响写在该档的文档里
+（[docs/limitations.md](docs/limitations.md)、[docs/engines.md](docs/engines.md)），
+没有"整个产品都绝对可逆"的说法。
 
 ```
 scan  →  extract  →  translate  →  install
@@ -21,7 +24,8 @@ node --version   # 需要 22 或更高
 npm test         # 全部测试，应该全绿
 ```
 
-无第三方运行时依赖。
+CLI 只用 Node 标准库，没有第三方运行时依赖（`package.json` 也没有 `dependencies`）；
+将来 GUI 迭代会引入 Electron，那是外壳的成本，不影响 CLI。
 
 ## 五步上手
 
@@ -35,6 +39,7 @@ node bin/yakusha.js scan "/games/MyGame"
 
 ```
 game      : Example Game
+root      : /games/MyGame
 engine    : mz 1.7.0
 data files: 51
 strings   : 38044 unique / 80502 total
@@ -47,7 +52,7 @@ node bin/yakusha.js extract "/games/MyGame"
 ```
 
 在 `/games/MyGame/yakusha/dictionary.json` 生成一份**空译文**的字典，每个 key 都带它出现的
-位置（`Map029.json:401`、`System.json:terms.commands`……）。重复执行会合并，不覆盖已有译文。
+位置（`Map029.json:401`、`System.json:terms.commands[]`……数组字段带 `[]` 后缀）。重复执行会合并，不覆盖已有译文。
 
 ### 3. translate：翻译
 
@@ -64,7 +69,10 @@ node bin/yakusha.js translate "/games/MyGame" --provider openai --concurrency 4
 没有默认模型：provider、model 和 key 都必须显式配置，缺任何一项会在发请求前报
 `E_CONFIG`（0.10 起；`--dry-run` / `--provider mock` 不需要配置）。
 
-实测：DeepSeek 上 400 条 / 19 秒（并发 4、每批 40 条），3.8 万条约 30 分钟。
+真实端点下的耗时取决于模型、并发和限流，仓库不承诺固定吞吐数字：`translate` 一次请求的成本主要在排队，
+3.8 万条这种量级请按「跑一整晚」估算。能调的是 `--batch-size`（默认 40 条/批）和
+`--concurrency`（默认 2 条批并发），各款游戏的条数与 verify/doctor 耗时实测见
+[docs/dev/DEVLOG.md](docs/dev/DEVLOG.md) §6。
 
 **流水线不信任模型。** 每条译文都要过五道校验才会写进字典：转义码序列、`%1` 占位符、
 换行数、长度比（0.12x–4x）、`U+FFFD`。不合格会重试一次，仍不合格就**记为未翻译并留下
@@ -80,7 +88,7 @@ node bin/yakusha.js install "/games/MyGame"
 `js/plugins/YAKUSHA_Translator.js`。启动游戏，中文就出来了。
 
 ```bash
-node bin/yakusha.js uninstall "/games/MyGame"   # 完全还原
+node bin/yakusha.js uninstall "/games/MyGame"   # 摘掉插件那一行并还原 plugins.js
 ```
 
 装好之后如果 `plugins.js` 又被改过（游戏更新、另装插件、编辑器存过档），`uninstall`
@@ -111,6 +119,10 @@ node bin/yakusha.js doctor "/games/MyGame"
 verdict   : usable with 2 warning(s)
 ```
 
+（摘录，省掉了 engine / dictionary / progress / verify 几行。`doctor` 先打一行游戏与引擎
+摘要，再按 engine → dictionary → progress →（有被拒条目时）rejected → sync → install →
+（装好之后）backup → runtime → verify 逐项检查，最后一行是 verdict。）
+
 ### 可选：export 导出译文
 
 译文要备份、做校对或交给别人时，导出一份 JSON 快照（不是字典备份）：
@@ -127,7 +139,8 @@ node bin/yakusha.js launch "/games/MyGame"
 
 仅 Windows。项目根恰好一个 `.exe` 时直接启动；多个时用 `--exe <name>` 指定
 （只收裸文件名）。启动后工具立即退出，游戏继续运行；子进程环境会删掉
-`YAKUSHA_API_KEY` / `OPENAI_API_KEY`。`attach` 调试注入在 0.10 仍是桩。
+`YAKUSHA_API_KEY` / `OPENAI_API_KEY`。`attach` 调试注入在 0.10 仍是桩，
+能力表里 `attach: false`，没有 CLI 入口。
 
 ## 命令一览
 
@@ -153,6 +166,25 @@ node bin/yakusha.js launch "/games/MyGame"
 
 完整选项、判据、实测见 [docs/commands.md](docs/commands.md)。
 
+## 给脚本用：`--json` 与退出码
+
+13 条命令都支持 `--json`，标准输出**恰好一个 JSON 对象加一个换行**，没有进度条、
+没有装饰文本；payload 是扁平对象，前五个键固定为
+
+```json
+{ "schema": 1, "command": "scan", "ok": true, "outcome": "ok", "error": null }
+```
+
+`outcome` 取 `ok` / `findings` / `error`，`ok` 恒等于 `outcome === "ok"`，
+`error` 只在 `outcome: "error"` 时非空。退出码统一三档：**0** 成功、**1** 有发现
+（只有 `verify` 的 error 级问题与 `doctor` 的 broken 判定）、**2** 错误（含用法错误与
+未知命令）。错误对象形如 `{"code": "E_USAGE", "message": "..."}`，共 13 个错误码，
+message 保证是单行、不含堆栈与密钥。`YAKUSHA_DEBUG=1` 时堆栈只进 stderr。
+
+`--help` / `--version` 永远是纯文本 stdout 加退出 0（即使同时传了 `--json`）；
+参数解析严格，未声明的选项、缺值、多余位置参数都是 `E_USAGE` 退出 2。
+完整约定见 [docs/json-contract.md](docs/json-contract.md)。
+
 ## 环境变量
 
 | 变量 | 用途 |
@@ -160,6 +192,8 @@ node bin/yakusha.js launch "/games/MyGame"
 | `YAKUSHA_API_KEY` | API key（真实调用必须配置；回退到 `OPENAI_API_KEY`） |
 | `YAKUSHA_MODEL` | 模型 id（无默认，真实调用必须配置） |
 | `YAKUSHA_BASE_URL` | 端点（OpenAI 官方为默认；`compatible` 必须显式配置） |
+| `YAKUSHA_CONFIG_DIR` | 把用户级配置目录指到别处（必须是绝对路径，不做 `~` 展开） |
+| `YAKUSHA_DEBUG` | 设为 `1` 时把异常堆栈打到 stderr（仅排查用，不进 JSON） |
 
 ## 目录结构
 
@@ -180,7 +214,8 @@ docs/                    设计说明、命令参考、契约、实测记录、�
 
 - 只处理 `data/` 里的文本：插件 `js/plugins/*.js` 里硬编码的 UI 文案、图片里的文字不处理。
 - 只支持 RPG Maker **MZ / MV**。XP/VX/VX Ace（`.rxdata` 二进制）、Unity、Godot、Kirikiri、
-  Ren'Py 等其它引擎不在范围内。
+  Ren'Py 等其它引擎不在 0.10 范围内；多引擎路线与每一档的验收标准见
+  [docs/dev/ENGINE-STRATEGY.md](docs/dev/ENGINE-STRATEGY.md)。
 - 图片文字、插件自定义的说话人容器（`\N<名字>` 之外）看不到。
 - `verify` 只查结构性缺陷，译文风格与剧情上下文它判断不了。
 
@@ -202,7 +237,8 @@ docs/                    设计说明、命令参考、契约、实测记录、�
 | 文件 | 内容 |
 | --- | --- |
 | [docs/commands.md](docs/commands.md) | 所有命令的完整选项、`verify` 十类判据、`terms`/`speaker` 算法说明 |
-| [docs/architecture.md](docs/architecture.md) | 三层结构（CLI 内核 / Electron 壳 / 引擎适配器）、引擎能力分档、载荷契约、0.10–1.0 分批计划 |
+| [docs/architecture.md](docs/architecture.md) | 三层结构（CLI 内核 / Electron 壳 / 引擎适配器）、引擎能力分档、载荷契约、分批计划 |
+| [docs/dev/ENGINE-STRATEGY.md](docs/dev/ENGINE-STRATEGY.md) | 多引擎战略稿（内部）：竞品适配方法、目标架构、四档交付、版本顺序、质量门禁、代码签名成本 |
 | [docs/json-contract.md](docs/json-contract.md) | 0.10 契约（已实现）：`--json` 信封、错误码、退出码、严格参数解析、破坏性变更 |
 | [docs/engines.md](docs/engines.md) | 0.10 契约：adapter、能力矩阵、安装/卸载、launch（已实现）；attach 桩 |
 | [docs/config.md](docs/config.md) | 0.10 实现：用户级配置、密钥优先级与威胁模型（不落盘） |
