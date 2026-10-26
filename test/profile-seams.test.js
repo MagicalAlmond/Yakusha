@@ -8,7 +8,8 @@ import { rmFilePlan, extractProject } from "../src/core/extract.js";
 import { systemPrompt, validateTranslation } from "../src/pipeline/translate.js";
 import { verifyDictionary } from "../src/pipeline/verify.js";
 import { wrapText, displayColumns } from "../src/pipeline/wrap.js";
-import { getAdapters } from "../src/engines/registry.js";
+import { getAdapter } from "../src/engines/registry.js";
+import { renpyProfile } from "../src/engines/renpy/profile.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE = path.join(HERE, "fixtures", "mini-mz");
@@ -18,11 +19,24 @@ const FIXTURE = path.join(HERE, "fixtures", "mini-mz");
 // against the profile itself, so a future edit to one side cannot silently
 // diverge from the other.
 
-test("both adapters expose the RPG Maker profile without touching rules", () => {
-  for (const adapter of getAdapters()) {
+test("the RPG Maker adapters expose the RPG Maker profile without touching rules", () => {
+  for (const id of ["mz", "mv"]) {
+    const adapter = getAdapter(id);
     assert.equal(adapter.profile, rmProfile);
     assert.deepEqual(adapter.rules, { controlCodes: true, maxColumns: 0 });
   }
+});
+
+// Ren'Py keeps the same rules (control codes are significant, no column limit)
+// but must never inherit the RPG Maker grammar: {…} tags and […] substitutions
+// are its control codes and backslash is not.
+test("the Ren'Py adapter exposes its own profile", () => {
+  const adapter = getAdapter("renpy");
+  assert.equal(adapter.profile, renpyProfile);
+  assert.notEqual(adapter.profile, rmProfile);
+  assert.deepEqual(adapter.rules, { controlCodes: true, maxColumns: 0 });
+  assert.deepEqual(adapter.profile.grammar.controlCodes("Hello {i}world{/i} [name]!"), ["{i}", "{/i}", "[name]"]);
+  assert.deepEqual(rmProfile.grammar.controlCodes("Hello {i}world{/i} [name]!"), []);
 });
 
 test("rmProfile reproduces the hardcoded prompt wording", () => {

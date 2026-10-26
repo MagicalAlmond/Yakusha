@@ -1,8 +1,8 @@
-# JSON 输出契约（0.10 设计稿）
+# JSON 输出契约
 
-> **状态：0.10 已实现（WP1）。** 本文是冻结后的契约；0.9.0 的 `--json` 是各命令各自拼的 `{ok, ...}`：
-> `error` 是字符串，`ok` 有时在信封、有时在载荷里，`scan` 的 `version` 是引擎版本。
-> 本文冻结 0.10 起的形状。实现落地前，实际输出以 [commands.md](commands.md) 为准。
+> **状态：0.10 冻结并实现，0.11 原样沿用。** 信封、退出码、命令清单、错误码清单一个都没动；
+> 0.11 只新增按引擎（RPG Maker MZ/MV 与 Ren'Py）的语义澄清，见 §7.1，不新增保留键、不改字段类型。
+> 本文冻结的形状自 0.10 起不再变化，实际输出以 [commands.md](commands.md) 为准。
 
 ## 1. 目标与适用范围
 
@@ -23,7 +23,7 @@
   "ok": true,
   "outcome": "ok",
   "error": null,
-  "root": "D:\\Games\\example",
+  "root": "/games/MyGame",
   "engine": "mz",
   "engineVersion": "1.7.0",
   "uniqueStrings": 38044
@@ -39,7 +39,7 @@
   "ok": false,
   "outcome": "findings",
   "error": null,
-  "file": "D:\\Games\\example\\yakusha\\dictionary.json",
+  "file": "/games/MyGame/yakusha/dictionary.json",
   "errors": 1,
   "warnings": 2,
   "problems": [
@@ -48,7 +48,7 @@
       "severity": "error",
       "key": "勇者",
       "target": "勇者",
-      "detail": "translation equals the source"
+      "detail": "target is identical to a Japanese source"
     }
   ]
 }
@@ -64,7 +64,7 @@
   "outcome": "error",
   "error": {
     "code": "E_NO_DICTIONARY",
-    "message": "no dictionary yet: D:\\Games\\example\\yakusha\\dictionary.json"
+    "message": "no dictionary yet: /games/MyGame/yakusha/dictionary.json"
   }
 }
 ```
@@ -75,7 +75,7 @@
 
 | 键 | 类型 | 说明 |
 | --- | --- | --- |
-| `schema` | 整数 | 信封版本，0.10 为 `1`；只有保留键或退出码语义破坏时才加 |
+| `schema` | 整数 | 信封版本，0.10 起为 `1`，0.11 未变；只有保留键或退出码语义破坏时才加 |
 | `command` | 字符串或 `null` | 实际执行的命令名；未知命令回显原始 token；`config` 的子命令放载荷的 `action`；无命令为 `null` |
 | `ok` | 布尔 | **严格等于** `outcome === "ok"` |
 | `outcome` | 字符串 | `"ok"` / `"findings"` / `"error"` |
@@ -140,17 +140,17 @@
 | code | 何时 | 典型命令 |
 | --- | --- | --- |
 | `E_USAGE` | 未知命令 / 未知选项 / 缺参数 / 值非法 / 缺 `--out` / 拒绝 `config set apiKey` | 全部 |
-| `E_NOT_PROJECT` | 在给定目录及向下 3 层内找不到 MZ/MV 项目 | 除 `config` 外全部 |
-| `E_MULTI_ROOT` | 同层有多个项目，必须让用户指定其中一个 | 除 `config` 外全部 |
-| `E_NO_DICTIONARY` | 命令需要字典，但 `yakusha/dictionary.json` 不存在 | status/translate/verify/speaker/terms/install --embed/export/doctor |
-| `E_DICTIONARY` | 字典存在但无法解析，或 `format` 不是 `yakusha/1` | 同上 |
+| `E_NOT_PROJECT` | 在给定目录及向下 3 层内找不到 MZ/MV 或 Ren'Py 项目；检测顺序是 MZ → MV → Ren'Py，空目录报的是 RPG Maker 措辞 | 除 `config` 外全部 |
+| `E_MULTI_ROOT` | 同层有多个项目，必须让用户指定其中一个；文案按引擎不同（`found 2 RPG Maker projects under…` / `found 2 Ren'Py projects under…`），候选路径只拼进 `message`，CLI 不输出 `details` | 除 `config` 外全部 |
+| `E_NO_DICTIONARY` | 命令需要字典，但 `yakusha/dictionary.json` 不存在（`doctor` 不报此码，它把缺字典记成 `dictionary: fail` / `verdict: broken` / 退出 1）；Ren'Py 的 `install` 另有「字典存在但一条都没译」的第二种情形 | status/translate/verify/speaker/terms/export；`install` 只在带 `--embed`（读译文编译进插件）或 Ren'Py（安装时就要写译文）时报，RPG Maker 的普通 `install` 不读字典、缺字典也能装成功 |
+| `E_DICTIONARY` | 字典存在但无法解析（`message` 就是解析器原文），或 `format` 不是 `yakusha/1` | status/translate/verify/speaker/terms/export。`extract` 遇到坏字典会重建、`doctor` 记成 `dictionary: fail` 并走 findings/1；RPG Maker 的 `install` 不读字典；Ren'Py 的 `install` 要读，坏字典时退出 2，但 `code` 是 `E_INTERNAL`（解析器原文直接冒到捕获不到该码的地方），脚本不要指望这时拿到 `E_DICTIONARY` |
 | `E_EXISTS` | `export` 目标已存在且没有 `--force`，或目标就是项目字典 | export |
 | `E_EXE` | `launch` 在项目根找不到唯一的 `.exe`，或 `--exe` 不合法 | launch |
-| `E_PROVIDER` | provider 网络错误、非 2xx、响应无法解析 | translate |
+| `E_PROVIDER` | provider 名字不认识（`unknown provider: …`）。单条请求的失败（网络错误、非 2xx、响应无法解析）不进这个码：它们被 `translate` 记进载荷的 `rejected`，命令仍是 `ok` | translate |
 | `E_CONFIG` | 配置文件损坏、目录不可写、`APPDATA` 缺失 | config、translate（读配置时） |
 | `E_IO` | 读写文件失败、路径逃出项目根、权限不足 | 全部 |
-| `E_NOT_IMPLEMENTED` | 能力尚未实现（0.10 只有 `attach`） | 库调用；0.10 无 CLI 入口 |
-| `E_UNSUPPORTED_PLATFORM` | 该操作只支持 Windows，当前不是 Windows（0.10 只有 `launch`） | launch |
+| `E_NOT_IMPLEMENTED` | 能力尚未实现（0.10 引入的桩，到 0.11 仍只有 `attach`） | 库调用；0.11 仍无 CLI 入口 |
+| `E_UNSUPPORTED_PLATFORM` | 该操作只支持 Windows，当前不是 Windows（0.11 只有 `launch`） | launch |
 | `E_INTERNAL` | 未预期异常（bug） | 全部 |
 
 错误码不区分“用户输入错”与“环境错”的退出码：都属于 `error`，一律退出 2。
@@ -163,10 +163,10 @@
 - 去掉 ANSI/C0 控制字符（保留可读空格），换行折成空格，截断到 500 字符。
 - 去掉 stack trace：`Error.stack` 永远不进 JSON；`YAKUSHA_DEBUG=1` 时只打印到 stderr。
 - 密钥脱敏：`sk-[A-Za-z0-9_-]{8,}` → `sk-***`；`Bearer <token>` → `Bearer ***`。
-- URL 里的 userinfo（`https://user:pass@host`）→ `https://***@host`。
+- URL 里的 userinfo（`https://<user>:<password>@host` 这种形状）→ `https://***@host`。
 - 把当前用户 home 目录替换成 `~`，避免报告被转发时带出用户名。
 - provider 的响应体既不进 `message` 也不进 stderr：只保留状态码，例如
-  `provider returned HTTP 401`。响应体可能回显 `Authorization`，0.10 一律不打印。
+  `provider returned HTTP 401`。响应体可能回显 `Authorization`，从 0.10 起一律不打印，0.11 未变。
 - 本地绝对路径可以保留（排查需要），但只能来自命令自己解析出的路径，不能回显任意输入。
 
 ## 5. stdout / stderr 分工
@@ -206,16 +206,16 @@
 
 | 命令 | 默认 outcome | 载荷（稳定字段） | 备注 |
 | --- | --- | --- | --- |
-| `scan` | ok | `root, engine, engineVersion, gameTitle, dataFiles, uniqueStrings, totalStrings, stringsWithControlCodes, encodings, undecodable, perFile` | 原 `version` 改名 `engineVersion`，避免与工具版本混淆 |
+| `scan` | ok | `root, engine, engineVersion, gameTitle, dataFiles, uniqueStrings, totalStrings, stringsWithControlCodes, encodings, undecodable, perFile` | 原 `version` 改名 `engineVersion`，避免与工具版本混淆；Ren'Py 下的取值差异见 §7.1 |
 | `extract` | ok | `file, added, total, translated, pending` | 只增不删已有条目 |
 | `status` | ok | `file, total, translated, pending, withError` | `withError > 0` 仍是 ok |
 | `translate` | ok | `file, provider, elapsedMs, total, translated, overwritten, rejected, failedBatches, rewrapped, progress` | `rejected > 0` 仍是 ok；`--dry-run` 时载荷为 `dryRun, provider, total, translated, rejected`，不写文件 |
 | `verify` | ok / findings | `file, maxColumns, report, total, translated, pending, errors, warnings, counts, problems` | `errors > 0` → findings / 1；只有 warning → ok / 0；`report` 仅在 `--write-report` 时出现 |
 | `speaker` | ok | `file, includeDrift, dryRun, supplied, saved, entries, tags, names, namesFile, namesNeeded, errorsBefore, errorsAfter, warningsBefore, warningsAfter` | 修复类命令，残留 error 仍是 ok |
 | `terms` | ok | `file, names, nameEntries, skipped, holdersMin, supportMin, mined, listed, drift, missing, glossary, written, terms` | `--write` 只是建议 |
-| `install` | ok | `pluginPath, registered, backupPath, createdBackup, staleBackup, state` | 幂等；`--embed` 额外写插件内嵌字典 |
-| `uninstall` | ok | `removed, restored, backupPath, drifted, keptBackup` | 漂移时不还原 |
-| `doctor` | ok / findings | `verdict, checks, failure, game{title, engine, engineVersion, root, dataFiles}, dictionary, sync, install, runtime, verify` | `broken` → findings / 1；`game.version` 改名 `game.engineVersion` |
+| `install` | ok | `pluginPath, registered, backupPath, createdBackup, staleBackup, state` | 幂等；`--embed` 额外写插件内嵌字典；Ren'Py 下仍是这 6 键，含义见 §7.1 |
+| `uninstall` | ok | `removed, restored, backupPath, drifted, keptBackup` | 漂移时不还原；Ren'Py 下 `restored` 恒 `false`、`backupPath` 与 `keptBackup` 恒 `null` |
+| `doctor` | ok / findings | `verdict, checks, failure, game{title, engine, engineVersion, root, dataFiles}, dictionary, sync, install, runtime, verify` | `broken` → findings / 1；`game.version` 改名 `game.engineVersion`；Ren'Py 下 `checks` 少 `plugins.js` 与 `backup` 两项，`install` / `runtime` 子对象见 §7.1 |
 | `config` | ok | `action, ...` | 子命令字段见 [config.md](config.md) |
 | `export` | ok | `out, format, flat, entries, bytes` | 字段见 [export-format.md](export-format.md) |
 | `launch` | ok | `root, exe, pid` | 只 spawn，不接管 |
@@ -227,6 +227,36 @@
   `ok | info | warn | fail`。顶层不再有第二个 `ok`。
 - `verify` 的 `problems` 结构不变；`report` 只给路径，报告内容在文件里。
 - `install` / `uninstall` 的路径字段必须是命令自己解析出的绝对路径。
+
+### 7.1 按引擎的语义（0.11）
+
+0.11 支持 Ren'Py 之后，同一批键名在两个引擎上含义略有不同。**没有新增或改名任何键**，
+消费者按下面的表理解取值即可；需要区分引擎时读 `scan` 的 `engine`（`"mz"` / `"mv"` / `"renpy"`）
+或 `doctor` 的 `game.engine`。
+
+| 字段 | RPG Maker（MZ/MV） | Ren'Py |
+| --- | --- | --- |
+| `scan.dataFiles` | `data/` 下的 `.json` 数据文件数 | `game/` 下的脚本数（`.rpy` 或 `.rpyc`；同 stem 的 `.rpy` 优先） |
+| `scan.engineVersion` | MZ/MV 的引擎版本 | `game/options.rpy` 里 `define config.version` 的值，没有就是 `null` |
+| `scan.encodings` | `{"json": N}` | `{"rpy": N, "rpyc": N}`，脚本格式计数 |
+| `scan.undecodable` | 字符串数组，元素是文件名 | 字符串数组，元素是 `"<相对路径>: <解码错误>"` |
+| `scan.perFile` / 字典 `contexts` | `Items.json:description` | `game/script.rpy:12`（`.rpyc` 无行号时只有路径） |
+| `install.pluginPath` | `js/plugins/YAKUSHA_Translator.js` 绝对路径 | `game/yakusha_translation.rpy` 绝对路径 |
+| `install.registered` | 插件是否已写进 `js/plugins.js` | 恒 `true`（文件写成就等于注册） |
+| `install.backupPath` / `createdBackup` / `staleBackup` | 备份 `js/plugins.js`，可能为 `null` | 恒 `null` / `false` / `false`（没有要备份的原文件） |
+| `install.state` | `added` / `enabled` / `unchanged` | `added` / `unchanged` |
+| `uninstall.restored` / `backupPath` / `keptBackup` | 真值视备份情况而定 | 恒 `false` / `null` / `null` |
+| `doctor.game.dataFiles` | 数据文件数 | 脚本数 |
+| `doctor.install.pluginFile` | 插件绝对路径 | 翻译脚本绝对路径 |
+| `doctor.install.pluginFilePresent` | 插件文件是否存在 | 翻译脚本是否存在 |
+| `doctor.install.entryPresent` | `js/plugins.js` 里是否有自己的条目 | 与 `pluginFilePresent` 同值 |
+| `doctor.install.entryParameters` | `{dictionaryPath, strictCodes, debug}` | `{"language": "<lang>"}`，语言从生成的翻译脚本里读回 |
+| `doctor.install.backup` | `{path, stale}` 或 `null` | 恒 `null` |
+| `doctor.runtime` | `{embedded, entries, path, found}`，`path` 是 `yakusha/dictionary.json` | 同四键，`path` 是 `game/yakusha_translation.rpy`，`found` 是它的绝对路径 |
+
+**Ren'Py 的 `install` 不多带任何键。** 文本模式会打印 `strings    : 7 (schinese)`，那两段信息
+来自 adapter 的返回值，CLI 只把上表那 6 个键放进信封——`--json` 实测没有 `entries`，
+也没有 `language`。要拿语言名读 `doctor.install.entryParameters.language`。
 
 ## 8. 兼容性与 0.10 的破坏变更
 
@@ -248,15 +278,27 @@
 `schema` 只在破坏信封/退出码语义时递增；单个命令的载荷改名不单独升 `schema`，
 但必须写进 CHANGELOG（0.10 的两次改名已列在上表）。
 
+**0.11 没有破坏性变更。** `schema` 仍是 `1`；信封、退出码、13 个命令、13 个错误码都没有增删改；
+§7 的载荷键名一个没动，Ren'Py 只补语义（§7.1），没有新增保留键。
+
+MZ/MV 侧唯一可见的变化在文本模式：重复执行 `install`（备份已存在、这次没有新建备份）时，
+第三行从打印旧的备份路径改成输出 `backup    : (none)`，与 JSON 里一直以来的
+`backupPath: null` 对齐。JSON 输出不变，解析 JSON 的脚本不受影响。
+
+Ren'Py 是新增的引擎支持，不属于 MZ/MV 的兼容性变更；它产生的新文案（例如
+`found 2 Ren'Py projects under…`、`translation removed`）都在 `message` 与文本输出层面，
+脚本不应依赖 `message` 原文。
+
 ## 9. 实现落点
 
 - 新增 `src/cli/envelope.js`：`emit(payload)`、`emitError(code, message, details)`、
   `sanitizeMessage()`、`EXIT` 常量。
 - 新增 `src/cli/args.js`：全局/命令选项表、严格解析、`E_USAGE` 构造。
 - `bin/yakusha.js` 只做：解析 → 选 adapter → 调 core → `emit()`。
-- 现有 12 个 `JSON.stringify` 出口（`bin/yakusha.js` 的 96, 164, 215, 230, 270, 359, 437,
-  594, 615, 643, 661, 687 行）全部收敛到 `envelope.js`；测试可以 grep 保证 bin 里
-  不再直接写 JSON。
+- 0.10 起所有 JSON 出口都收敛到 `envelope.js`，`bin/yakusha.js` 不再自己拼信封。
+  bin 里剩下的 `JSON.stringify`（`problem.key`、`name.source`、rejected 的 key、
+  `check.samples`）只用于给文本模式加引号，以及写 `--write-names` / `terms --write`
+  的落盘文件，都不产生信封。
 - 新增 `test/json-contract.test.js`（平铺，不放 `test/contract/`）：
   - 每个命令成功时信封五键齐全、`ok === (outcome === "ok")`、
     `error === null`；

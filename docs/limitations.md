@@ -2,8 +2,9 @@
 
 这些是当前版本明确不处理的范围，以及工具的边界。
 
-- 只处理 `data/` 里的文本；插件 `js/plugins/*.js` 里硬编码的 UI 文案不动。
-- 图片里的文字（`img/pictures`）不处理。
+- 只处理游戏自己的文本资源：MZ/MV 是 `data/` 里的 JSON，Ren'Py 是 `game/` 下脚本里的
+  对话、选项、`_()` 字符串与 screen 文本。插件 `js/plugins/*.js` 里硬编码的 UI 文案不动。
+- 图片里的文字（`img/pictures`，Ren'Py 的 `game/images/`）不处理；字体、配音同样不碰。
 - MV 的 `.rpgmvp` 加密图不影响文本，但 MV 的 `data/` 若用了别的混淆方案可能解不出（会报 `undecodable`）。
 - **MZ/MV 不会横向自动换行。** `Window_Base.flushTextState` 把整行一次性 `drawText` 到位图，
   超出 `contents` 宽度的部分直接被裁（只有纵向有 `needsNewPage` 分页）。默认仍以 prompt 里
@@ -44,8 +45,8 @@
   机械修复帮不上忙，得用 `--names` 人工补一行。`--include-drift` 会改写已有的中文译文
   （比如把 38 条「写法 A」改成「写法 B」），跑之前先看一眼 `--dry-run` 的输出。
 - **`doctor` 只诊断，不修**：它不改字典、不重装插件、不碰游戏文件。`sync` 能发现
-  「字典里的 key 在新 `data/` 里不存在」，但发现不了「游戏新增了台词」——后者要看
-  `extract` 报的 new 计数。
+  「字典里的 key 在新文本里不存在」（RPG Maker 扫 `data/`，Ren'Py 扫 `game/`），
+  但发现不了「游戏新增了台词」——后者要看 `extract` 报的 new 计数。
 - **`verify` 只查字典能查的东西**：译文风格、和剧情上下文是否吻合，这些它看不出来；
   它只保证没有结构性缺陷（原样回显、转义码损坏、占位符丢失、超宽行、繁体字混入、
   说话人名漏译）。
@@ -56,22 +57,37 @@
   插件的那款上有 411 条 error —— 全部是「同一个角色在别处译过、这里还留着日文名」，
   属于玩家能直接看到的日文，所以定成 error 而不是 warn。
 
-- **暂无 GUI**：当前只有 CLI（`bin/yakusha.js`）。Electron 外壳排到 0.14，0.10 没有打包好的
+- **暂无 GUI**：当前只有 CLI（`bin/yakusha.js`）。Electron 外壳排到 0.14，0.11 没有打包好的
   exe / 安装包；拖拽、设置面板、进度条这些都要等 GUI 迭代。排期权威版本见
   [dev/ENGINE-STRATEGY.md](dev/ENGINE-STRATEGY.md) §6.3。
 - **只在 Windows 10/11 x64 上支持与验收**：Linux 与 macOS 不在当前范围（原因与重评条件见
   [platforms.md](platforms.md)）；WSL、Wine、Proton 也不作为受支持环境。
-- **多引擎只有 MZ / MV 适配器**：0.10 的 registry / adapter 层已落地，但只注册这两个引擎；
-  Ren'Py、Unity、Godot、Wolf、Kirikiri 等不在当前版本内，`inject` 档（原生注入）只有契约、
-  没有实现。0.10.x 先把 core 里的 MZ 假设拆到 adapter 后面，0.11 才接 Ren'Py。
+- **多引擎只接了 MZ / MV / Ren'Py 三个**：0.11 把 Ren'Py 注册进 registry，走的是
+  translation 档（写一个翻译脚本），不是 `inject` 档。Unity、Godot、Wolf、Kirikiri 与
+  RPG Maker XP / VX / VX Ace 不在当前版本内，`inject` 档（原生注入）只有契约、没有实现。
+- **Ren'Py 只处理 `game/` 下的脚本**：`.rpy` 与 `.rpyc` 里的对话、选项、`_()` 字符串、
+  screen 文本会抽走；图片文字、字体、配音都不处理。
+- **Ren'Py 不读 `game/tl/`**：那目录放的是译文输出而不是源文本，工具会整体跳过它——
+  已经装过社区中文补丁的游戏，工具不会把那批译文当原文再翻一遍，也不会合并进字典。
+- **Ren'Py 同 stem 的 `.rpyc` 只当编译产物**：`.rpy` 与 `.rpyc` 同时存在时只读 `.rpy`
+  （源码优先），所以 `scan` 的 `encodings` 里 `rpyc` 计为 0。只有 `.rpyc` 的游戏仍能抽，
+  多数节点带行号，`context` 还是 `game/script.rpyc:30` 这种形态；只有节点本身没记行号时
+  才退化成纯路径。
+- **Ren'Py 的译文语言只能是 Python 标识符，且 0.11 固定 `schinese`**：语言名要匹配
+  `^[A-Za-z_][A-Za-z0-9_]*$` 且不能是 `None` / `True` / `False`，否则报 `E_USAGE`。
+  命令行没有选语言的入口，库调用才能传别的语言名。
+- **Ren'Py 的运行时投递不改原脚本**：`install` 只在 `game/` 下生成
+  `yakusha_translation.rpy`（`translate <lang> strings:` 块），不改任何游戏脚本、不改
+  `options.rpy`；`uninstall` 就是删这一个文件。代价是每条能替换的都是**整串精确匹配**，
+  一句台词里只改一半做不到。
 - **`config`、`export` 与 `launch` 已实现，`attach` 还是桩**：用户级配置、密钥不落盘与
   优先级见 [config.md](config.md)；JSON 导出格式见 [export-format.md](export-format.md)；
-  启动只认项目根唯一 `.exe` 的规则见 [engines.md](engines.md) §8；`attach` 的调试注入没有
-  CLI 入口，仍未实现，见 [engines.md](engines.md) §9。
+  启动只认项目根唯一 `.exe` 的规则见 [engines.md](engines.md) §8；`attach` 的调试注入到
+  0.11 仍没有 CLI 入口、仍未实现（能力表 `attach: false`），见 [engines.md](engines.md) §9。
 - **发布渠道只有 `--json` 与文本两种输出**：13 条命令全部支持 `--json`（一个对象 + 换行），
   退出码统一 0 成功 / 1 发现（仅 `verify` 的 error 级问题与 `doctor` 的 broken 判定）/
   2 错误；参数解析严格，未声明的选项、缺值、多余位置参数一律 `E_USAGE` 退出 2，
   不认识的命令也是退出 2。完整约定见 [json-contract.md](json-contract.md)。
 - **没有译文导入**：目前只能直接编辑 `yakusha/dictionary.json`；`export` 是单向投影，
   不含未翻译条目，也不能代替字典备份。TSV / CSV round-trip 与字典 v2 排在 0.13，
-  不在 0.10 范围内。
+  0.11 仍然没有。

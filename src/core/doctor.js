@@ -2,10 +2,15 @@
  * Diagnose a translated game.
  *
  * The three questions a person actually has when the Chinese stops showing up
- * are: is the dictionary still about *this* build of the game, is the plugin
- * installed the way the last install said it was, and will the game find the
- * dictionary at runtime. Each one is answered by a check with a level, so the
- * command can be used both by a human and from a script.
+ * are: is the dictionary still about *this* build of the game, is the delivery
+ * installed the way the last install said it was, and will the game find it at
+ * runtime. Each one is answered by a check with a level, so the command can be
+ * used both by a human and from a script.
+ *
+ * Delivery is engine-specific: RPG Maker reads a plugin plus a dictionary file,
+ * Ren'Py reads one generated translation script. Everything else here is
+ * shared, and an adapter hands over its own pieces through `adapter.diagnostics`
+ * (see `diagnose` options) instead of core importing an engine module.
  *
  * @module core/doctor
  */
@@ -68,7 +73,17 @@ export function runtimeLookup(root, dictionaryPath) {
 
 /**
  * @param {import("./mzproject.js").Project} project
- * @param {{ dictionary?: object|null, dictionaryFile?: string, maxColumns?: number, engineLabel?: string, profile?: import("../engines/profile.js").EngineProfile }} [options]
+ * @param {{
+ *   dictionary?: object|null,
+ *   dictionaryFile?: string,
+ *   maxColumns?: number,
+ *   engineLabel?: string,
+ *   profile?: import("../engines/profile.js").EngineProfile,
+ *   extract?: () => object,
+ *   dataFiles?: number,
+ *   sourceLabel?: string,
+ *   delivery?: { path: string|null, exists: boolean, language: string|null, entries: number }|null,
+ * }} [options]
  */
 export function diagnose(project, options = {}) {
   const dictionary = options.dictionary || null;
@@ -87,17 +102,21 @@ export function diagnose(project, options = {}) {
   const engineLabel = options.engineLabel || "RPG Maker " + project.engine.toUpperCase();
   add("engine", "ok", engineLabel + (project.version ? " " + project.version : ""));
 
+  // Engines without a plugin registry (Ren'Py) leave pluginsFile null: there is
+  // nothing to parse and no check to report, not a failure.
   let pluginsOk = true;
-  try {
-    parsePluginsJs(fs.readFileSync(project.pluginsFile, "utf8"));
-  } catch (error) {
-    pluginsOk = false;
-    const message = error && error.message ? error.message : String(error);
-    add(
-      "plugins.js",
-      "fail",
-      "js/plugins.js is not readable (" + message.split("\n")[0].slice(0, 120) + ") - restore it from the backup or reinstall the game"
-    );
+  if (project.pluginsFile) {
+    try {
+      parsePluginsJs(fs.readFileSync(project.pluginsFile, "utf8"));
+    } catch (error) {
+      pluginsOk = false;
+      const message = error && error.message ? error.message : String(error);
+      add(
+        "plugins.js",
+        "fail",
+        "js/plugins.js is not readable (" + message.split("\n")[0].slice(0, 120) + ") - restore it from the backup or reinstall the game"
+      );
+    }
   }
 
   let dictionarySummary = null;
@@ -122,15 +141,16 @@ export function diagnose(project, options = {}) {
 
   let sync = null;
   if (dictionary) {
+    const sourceLabel = options.sourceLabel || "data/";
     try {
-      const extracted = extractProject(project.root);
+      const extracted = (options.extract || ((root) => extractProject(root)))(project.root);
       const current = new Set(extracted.entries.keys());
       const known = new Set(Object.keys(dictionary.entries || {}));
       const stale = [...known].filter((key) => !current.has(key));
       const fresh = [...current].filter((key) => !known.has(key));
       sync = { stale: stale.length, new: fresh.length };
       if (stale.length === 0 && fresh.length === 0) {
-        add("sync", "ok", "every dictionary key still appears in data/");
+        add("sync", "ok", "every dictionary key still appears in " + sourceLabel);
       } else {
         const parts = [];
         if (fresh.length) parts.push(fresh.length + " text" + (fresh.length === 1 ? "" : "s") + " not in the dictionary");
@@ -144,55 +164,101 @@ export function diagnose(project, options = {}) {
         );
       }
     } catch (error) {
-      add("sync", "warn", "could not re-read data/: " + (error && error.message ? error.message : String(error)));
+      add("sync", "warn", "could not re-read " + sourceLabel + ": " + (error && error.message ? error.message : String(error)));
     }
   }
 
-  const installed = isInstalled(project);
-  const entry = pluginsOk ? installedEntry(project) : null;
-  const embed = installed.installed ? detectEmbeddedTranslations(fs.readFileSync(installed.pluginPath, "utf8")) : { embedded: false, entries: 0 };
-  let installCheck;
-  if (!pluginsOk) {
-    installCheck = add("install", "info", "skipped: js/plugins.js is damaged");
-  } else if (!installed.installed && !entry) {
-    installCheck = add("install", "info", "not installed - run: yakusha install <game>");
-  } else if (installed.installed && entry) {
-    installCheck = add("install", "ok", "js/plugins/" + path.basename(installed.pluginPath) + " registered in js/plugins.js");
-  } else if (installed.installed) {
-    installCheck = add("install", "fail", "the plugin file is there but its $plugins entry is gone (game update?) - run install again");
-  } else {
-    installCheck = add("install", "fail", "$plugins still lists YAKUSHA_Translator but the plugin file is missing - run install again");
-  }
-
-  const backup = backupStatus(project);
-  if (pluginsOk && (installed.installed || entry)) {
-    if (!backup.exists) {
-      add("backup", "info", "no backup - uninstall will only remove the $plugins entry");
-    } else if (!backup.readable) {
-      add("backup", "warn", "could not compare plugins.js with the backup - check both files by hand");
-    } else if (backup.stale) {
-      add("backup", "warn", "backup no longer matches js/plugins.js - uninstall keeps it and removes only the entry");
-    } else {
-      add("backup", "ok", "uninstall can restore js/plugins.js byte for byte");
-    }
-  }
-
-  const dictPath = String((entry && entry.parameters && entry.parameters.dictionaryPath) || DEFAULT_DICT_PATH);
+  // Two delivery models, one payload. RPG Maker: a plugin file plus its
+  // $plugins entry plus a dictionary the plugin reads at load time. Ren'Py: a
+  // single generated translation script, so the file *is* the registration and
+  // there is no backup to compare. The adapter hands its own state over as
+  // `delivery`; when that is absent the RPG Maker path runs unchanged.
+  const delivery = options.delivery || null;
   let runtime = null;
-  if (embed.embedded) {
-    runtime = { embedded: true, entries: embed.entries, path: dictPath, found: null };
-    add("runtime", "ok", "translations compiled into the plugin (" + embed.entries + " entries)");
-  } else if (!installed.installed) {
-    runtime = { embedded: false, entries: 0, path: dictPath, found: null };
-    add("runtime", "info", "the game reads " + dictPath + " at load time once installed");
-  } else {
-    const lookup = runtimeLookup(project.root, dictPath);
-    runtime = { embedded: false, entries: 0, path: dictPath, found: lookup.found };
-    if (lookup.found) {
-      add("runtime", "ok", dictPath + " (found)");
+  let installPayload;
+  let installCheck;
+  let backup = null;
+
+  if (delivery) {
+    const deliveryPath = delivery.path || null;
+    const present = Boolean(delivery.exists);
+    const relPath = deliveryPath && project.root ? path.relative(project.root, deliveryPath).split(path.sep).join("/") : deliveryPath;
+    installCheck = present
+      ? add("install", "ok", relPath + " (written by install)")
+      : add("install", "info", "not installed - run: yakusha install <game>");
+    if (present) {
+      const language = delivery.language || null;
+      runtime = { embedded: false, entries: delivery.entries || 0, path: relPath, found: deliveryPath };
+      add(
+        "runtime",
+        "ok",
+        relPath + " (" + (delivery.entries || 0) + " string" + ((delivery.entries || 0) === 1 ? "" : "s") + (language ? ", language " + language : "") + ")"
+      );
     } else {
-      add("runtime", "fail", "runtime dictionary not found: tried " + lookup.candidates.join(" and ") + " - the game will run untranslated");
+      runtime = { embedded: false, entries: 0, path: relPath, found: null };
+      add("runtime", "info", "the game reads " + relPath + " at startup once installed");
     }
+    installPayload = {
+      pluginFile: deliveryPath,
+      pluginFilePresent: present,
+      // There is no separate registry: the file is the registration.
+      entryPresent: present,
+      entryParameters: delivery.language ? { language: delivery.language } : null,
+      backup: null,
+    };
+  } else {
+    const installed = isInstalled(project);
+    const entry = pluginsOk ? installedEntry(project) : null;
+    const embed = installed.installed ? detectEmbeddedTranslations(fs.readFileSync(installed.pluginPath, "utf8")) : { embedded: false, entries: 0 };
+    if (!pluginsOk) {
+      installCheck = add("install", "info", "skipped: js/plugins.js is damaged");
+    } else if (!installed.installed && !entry) {
+      installCheck = add("install", "info", "not installed - run: yakusha install <game>");
+    } else if (installed.installed && entry) {
+      installCheck = add("install", "ok", "js/plugins/" + path.basename(installed.pluginPath) + " registered in js/plugins.js");
+    } else if (installed.installed) {
+      installCheck = add("install", "fail", "the plugin file is there but its $plugins entry is gone (game update?) - run install again");
+    } else {
+      installCheck = add("install", "fail", "$plugins still lists YAKUSHA_Translator but the plugin file is missing - run install again");
+    }
+
+    backup = backupStatus(project);
+    if (pluginsOk && (installed.installed || entry)) {
+      if (!backup.exists) {
+        add("backup", "info", "no backup - uninstall will only remove the $plugins entry");
+      } else if (!backup.readable) {
+        add("backup", "warn", "could not compare plugins.js with the backup - check both files by hand");
+      } else if (backup.stale) {
+        add("backup", "warn", "backup no longer matches js/plugins.js - uninstall keeps it and removes only the entry");
+      } else {
+        add("backup", "ok", "uninstall can restore js/plugins.js byte for byte");
+      }
+    }
+
+    const dictPath = String((entry && entry.parameters && entry.parameters.dictionaryPath) || DEFAULT_DICT_PATH);
+    if (embed.embedded) {
+      runtime = { embedded: true, entries: embed.entries, path: dictPath, found: null };
+      add("runtime", "ok", "translations compiled into the plugin (" + embed.entries + " entries)");
+    } else if (!installed.installed) {
+      runtime = { embedded: false, entries: 0, path: dictPath, found: null };
+      add("runtime", "info", "the game reads " + dictPath + " at load time once installed");
+    } else {
+      const lookup = runtimeLookup(project.root, dictPath);
+      runtime = { embedded: false, entries: 0, path: dictPath, found: lookup.found };
+      if (lookup.found) {
+        add("runtime", "ok", dictPath + " (found)");
+      } else {
+        add("runtime", "fail", "runtime dictionary not found: tried " + lookup.candidates.join(" and ") + " - the game will run untranslated");
+      }
+    }
+
+    installPayload = {
+      pluginFile: installed.pluginPath,
+      pluginFilePresent: installed.installed,
+      entryPresent: Boolean(entry),
+      entryParameters: entry && entry.parameters ? entry.parameters : null,
+      backup: backup.exists ? { path: backup.path, stale: backup.stale } : null,
+    };
   }
 
   let verify = null;
@@ -230,17 +296,12 @@ export function diagnose(project, options = {}) {
       // version, and the json contract names the game's one explicitly.
       engineVersion: project.version,
       root: project.root,
-      dataFiles: listDataFiles(project).length,
+      dataFiles:
+        typeof options.dataFiles === "number" ? options.dataFiles : listDataFiles(project).length,
     },
     dictionary: dictionarySummary,
     sync,
-    install: {
-      pluginFile: installed.pluginPath,
-      pluginFilePresent: installed.installed,
-      entryPresent: Boolean(entry),
-      entryParameters: entry && entry.parameters ? entry.parameters : null,
-      backup: backup.exists ? { path: backup.path, stale: backup.stale } : null,
-    },
+    install: installPayload,
     runtime,
     verify,
   };

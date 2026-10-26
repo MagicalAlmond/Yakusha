@@ -423,7 +423,7 @@ TextGrammar = {
 | --- | --- | --- | --- | --- |
 | Maker JS | MZ、MV | `data/*.json` + JS 插件 | `plugin` | 已做到 L4，维护版本矩阵 |
 | Maker RGSS | XP、VX、VX Ace | `Data/*.rxdata`（Ruby Marshal）+ 脚本 | `inject`（原生 helper，已拍板） | 高：Ruby Marshal 解析 + RGSS hook + 原生组件分发/签名 |
-| Ren'Py | Ren'Py | `.rpy` 明文 + `.rpyc` 编译（**两者都要**） | `translation-file` | 中：编译文件解析、翻译资源合并、UI 文本 |
+| Ren'Py | Ren'Py | `.rpy` 明文 + `.rpyc` 编译（**两者都要**） | `translation-file` | 已做到 L4-resource（0.11 交付，`src/engines/renpy/`，契约见 [engines.md](../engines.md) §13.2）；屏幕语言 UI 文本仍是已知边界 |
 | TJS 系 | KiriKiri | `.xp3` 归档 + `.ks`/`.tjs` | `patch` 或 `inject` | 高：归档格式/加密、脚本 hook |
 | JS 视觉小说 | TyranoScript（可选） | `.ks` / `.js` | `plugin` 或 `patch` | 中：脚本结构相对简单，归档/编码要处理 |
 | NScripter | NScripter | `.nscript` / `.nsa` | `patch` | 中：文本简单，归档和编码要处理 |
@@ -484,7 +484,7 @@ TextGrammar = {
 | 档 | 含义 | 例子 |
 | --- | --- | --- |
 | L4-plugin | 加插件即可，删文件即还原 | MZ、MV |
-| L4-resource | 生成/替换引擎自带的翻译资源 | Ren'Py |
+| L4-resource | 生成/替换引擎自带的翻译资源 | Ren'Py（0.11 已交付） |
 | L4-inject | 需要下载原生组件，启动时注入 | RGSS、KRKR |
 | L3-only | 只能提取/翻译/校验，交付靠用户自己 | 未做运行时的家族 |
 
@@ -522,8 +522,8 @@ TextGrammar = {
 | 版本 | 主目标 | 附带 | 验收 |
 | --- | --- | --- | --- |
 | 0.10.0 | 收尾（WP6） | — | 文档/版本号/测试全绿 |
-| 0.10.x | 拆缝 `refactor/engine-seams` | Ren'Py detect/extract fixture | 现有测试全绿、CLI 契约不变 |
-| 0.11 | Ren'Py L2–L4：`.rpy` + `.rpyc`、translation-file 交付 | 通用内容导入 v1（文件型） | 真实 Ren'Py 游戏 extract/translate/verify/运行时；`.rpyc` 覆盖率有数字 |
+| 0.10.x | 拆缝 `refactor/engine-seams`（**已交付**） | Ren'Py detect/extract fixture | 现有测试全绿、CLI 契约不变 |
+| 0.11 | Ren'Py L2–L4：`.rpy` + `.rpyc`、translation-file 交付（**已交付**，`feat/0.11-renpy`） | 通用内容导入 v1（文件型）——**未随 0.11 交付，顺延**（源码里没有导入入口） | 一套 8.5.3 SDK 的 585 个 `.rpyc` 全部解码、0 失败、81,041 条字符串、70,728 个 AST 节点、格式版本一律 5003000；两个示例游戏 extract 0 undecodable |
 | 0.12 | RGSS inject + 原生 helper（XP/VX/VX Ace） | 原生组件分发/签名/manifest 基础设施 | 真实游戏注入成功、卸载后原版可跑、崩溃隔离验证、版本矩阵 |
 | 0.13 | 字典导出（TSV/CSV + 字典 v2） | KRKR 提取（L1–L3） | round-trip；v2 向后兼容；旧运行时不受影响 |
 | 0.14 | GUI（Electron）：拖 exe → 识别 → 启动 → 按能力矩阵加载译文 | NScripter 提取/补丁 | GUI 验收通过；MZ/MV + Ren'Py + RGSS 三条链路都能一键跑通 |
@@ -532,8 +532,10 @@ TextGrammar = {
 
 说明：
 
-- **0.11 必须先做 Ren'Py**，否则 0.12 的 RGSS 会变成“在 RM 假设上再焊一层”，第二家族
-  的抽象永远没被验证过。若 0.10.x 拆缝没做完，0.11 先补完再开工。
+- **0.11 先做 Ren'Py 这个判断已被验证**（2026-10-27 回顾）：结论是 0.10.x 拆出来的缝
+  够用——`src/pipeline/` 与 `src/core/` 的主循环一行未改，新增代码全在 `src/engines/renpy/`
+  里，`doctor` 只是长出了四个注入口。真正花时间的是引擎侧的数据格式（pickle 栈机 +
+  `.rpyc` 容器），不是架构。0.12 的 RGSS 因此不必在 RM 假设上再焊一层。
 - **0.12 是风险最高的一版**：原生组件、注入、签名、杀软、崩溃隔离全在这一版第一次落地。
   它的验收标准不是“能跑”，而是“失败时游戏不坏、用户看得懂、能卸载干净”。
 - **0.13 的字典导出按用户要求放在 RGSS 之后**：先证明运行时交付能覆盖三种模式，

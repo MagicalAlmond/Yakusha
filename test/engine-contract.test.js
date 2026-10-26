@@ -58,10 +58,17 @@ function snapshot(dir) {
   return out;
 }
 
+// The RPG Maker engines. Ren'Py shares the adapter shape but not the fixture
+// layout, the plugin registry or the install semantics, so the cases that are
+// about RPG Maker stay written against these two and the Ren'Py contract lives
+// in test/renpy-adapter.test.js.
 const ENGINES = [
   { id: "mz", version: "1.7.0" },
   { id: "mv", version: "1.6.2" },
 ];
+
+/** Every adapter the registry ships, ids only. */
+const ALL_ENGINES = ["mz", "mv", "renpy"];
 
 after(() => {
   for (const dir of tempDirs) fs.rmSync(dir, { recursive: true, force: true });
@@ -69,7 +76,7 @@ after(() => {
 
 test("registry: adapters are ordered and capabilities are complete", () => {
   const adapters = getAdapters();
-  assert.deepEqual(adapters.map((adapter) => adapter.id), ["mz", "mv"]);
+  assert.deepEqual(adapters.map((adapter) => adapter.id), ALL_ENGINES);
   for (const adapter of adapters) {
     assert.equal(typeof adapter.name, "string");
     for (const name of ["extract", "export", "runtime", "launch", "debuggable", "attach", "liveReload"]) {
@@ -77,7 +84,13 @@ test("registry: adapters are ordered and capabilities are complete", () => {
     }
     assert.equal(adapter.capabilities.extract, true);
     assert.equal(adapter.capabilities.export, true);
-    assert.equal(adapter.capabilities.runtime, "plugin");
+    // Delivery differs per engine: RPG Maker ships a plugin plus a dictionary
+    // file, Ren'Py a generated translation script. Both are implemented.
+    assert.equal(
+      adapter.capabilities.runtime,
+      adapter.id === "renpy" ? "translation" : "plugin",
+      adapter.id + " runtime tier"
+    );
     assert.equal(adapter.capabilities.launch, true);
     assert.equal(adapter.capabilities.attach, false);
     assert.equal(adapter.capabilities.liveReload, false);
@@ -91,16 +104,21 @@ test("registry: adapters are ordered and capabilities are complete", () => {
   assert.equal(getAdapter("nope"), null);
   const copy = getAdapters();
   copy.length = 0;
-  assert.equal(getAdapters().length, 2);
+  assert.equal(getAdapters().length, ALL_ENGINES.length);
 });
 
-test("detect: an empty directory is E_NOT_PROJECT for both engines", () => {
+test("detect: an empty directory is E_NOT_PROJECT for every engine", () => {
   const empty = tempDir();
+  const expected = {
+    mz: /not an RPG Maker project/,
+    mv: /not an RPG Maker project/,
+    renpy: /not a Ren'Py project/,
+  };
   for (const adapter of getAdapters()) {
     const result = adapter.detect(empty);
     assert.equal(result.ok, false);
     assert.equal(result.code, "E_NOT_PROJECT");
-    assert.match(result.message, /not an RPG Maker project/);
+    assert.match(result.message, expected[adapter.id]);
   }
 });
 
@@ -175,7 +193,9 @@ test("detect: two sibling projects are E_MULTI_ROOT with sorted candidates", () 
     fs.cpSync(MZ, path.join(parent, name), { recursive: true });
   }
   const expected = [path.join(parent, "alpha"), path.join(parent, "beta")];
-  for (const adapter of getAdapters()) {
+  // Only the RPG Maker adapters can see this layout; Ren'Py reports its own
+  // "not a project" and is covered in test/renpy-adapter.test.js.
+  for (const adapter of ENGINES.map((engine) => getAdapter(engine.id))) {
     const result = adapter.detect(parent);
     assert.equal(result.ok, false);
     assert.equal(result.code, "E_MULTI_ROOT");

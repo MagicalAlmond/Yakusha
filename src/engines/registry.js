@@ -1,21 +1,33 @@
 /**
  * Engine registry.
  *
- * Detection order is part of the public contract: MZ first, MV second, and a
- * multi-root directory stops the search immediately. Adding an engine means
- * adding one adapter here, not teaching the CLI about it.
+ * Detection order is part of the public contract: MZ first, MV second, Ren'Py
+ * third, and a multi-root directory stops the search immediately. Adding an
+ * engine means adding one adapter here, not teaching the CLI about it.
  *
  * @module engines/registry
  */
 
 import { adapter as mzAdapter } from "./mz/adapter.js";
 import { adapter as mvAdapter } from "./mv/adapter.js";
+import { adapter as renpyAdapter } from "./renpy/adapter.js";
 
-const ADAPTERS = [mzAdapter, mvAdapter];
+const ADAPTERS = [mzAdapter, mvAdapter, renpyAdapter];
+
+/**
+ * Prefixes of the "nothing here" message every adapter writes.
+ *
+ * Kept as a list so a new engine only adds its own wording: an unrecognised
+ * E_NOT_PROJECT means the search should keep going instead of stopping.
+ */
+const NOT_PROJECT_PREFIXES = ["not an RPG Maker project", "not a Ren'Py project"];
 
 /** True for the generic "nothing here" failure, false for a diagnosed root. */
 function isGenericNotProject(result) {
-  return result.code === "E_NOT_PROJECT" && result.message.startsWith("not an RPG Maker project");
+  return (
+    result.code === "E_NOT_PROJECT" &&
+    NOT_PROJECT_PREFIXES.some((prefix) => result.message.startsWith(prefix))
+  );
 }
 
 /**

@@ -1,7 +1,7 @@
 # 开发交接文档（DEVLOG）
 
 > 这份文档记录**阶段目标、已完成项、决策理由和下一步**，随开发进程更新。
-> 最后更新：2026-10-25（0.10.0 完成；0.10.x 引擎拆缝 refactor/engine-seams 完成并推送，未打 tag）。
+> 最后更新：2026-10-27（0.11.0 Ren'Py 接入完成于 `feat/0.11-renpy`，未合入 `main`、未打 tag）。
 > 0.9.0 项目改名 **Yakusha**，字典目录、插件文件、环境变量与备份后缀全部随之改名；
 > 仓库已发布到 https://github.com/MagicalAlmond/Yakusha（`main` 分支）。
 > 0.8.0 的 `doctor`、0.7.1 的 `uninstall` 漂移保护、0.7.0 的报告/模板见下）。
@@ -36,14 +36,14 @@
 
 | 项 | 状态 |
 | --- | --- |
-| 版本 | **0.10.0**（`package.json` 单一真源，`src/version.js` 读取它；插件模板的 `VERSION` 由安装器替换） |
-| 0.10 契约 | 五篇设计稿已冻结（json-contract / config / engines / export-format / platforms）；**WP1–WP6 全部实现并交付** |
-| 测试 | **346 个，全绿**（`npm test`，约 7.4s） |
+| 版本 | **0.11.0**（`package.json` 单一真源，`src/version.js` 读取它；插件模板的 `VERSION` 由安装器替换） |
+| 契约 | 0.10 的五篇设计稿（json-contract / config / engines / export-format / platforms）已冻结并全部实现；0.11 只有 `engines.md` 真正扩了内容（三个引擎、新增 §13.2 Ren'Py），`json-contract.md` 与 `platforms.md` 补了「0.11 复查后不变」的复核标注（形状一个字段都没动），`config.md` / `export-format.md` 未动 |
+| 测试 | **459 个，全绿**（`npm test`，约 9–10s） |
 | 持续集成 | GitHub Actions：`npm test` 在 Node 22 / 24（**windows-latest**，WP1 已从 ubuntu 切换） |
 | 平台 | Windows 10/11 x64 为唯一支持与验收环境（0.10 明确，见 [platforms.md](../platforms.md)） |
-| 支持引擎 | RPG Maker **MZ 1.3.2–1.9.0**、**MV 1.6.1–1.6.2** |
-| 实测游戏 | 15 款可识别（本机全量普查），其中 **4 款**全量翻译 + 运行时验收 |
-| 磁盘改动 | 插件档：只加 1 个插件文件 + `plugins.js` 里 1 条注册，卸载还原到安装前（四档交付见 [ENGINE-STRATEGY.md](ENGINE-STRATEGY.md) §5.5） |
+| 支持引擎 | RPG Maker **MZ 1.3.2–1.9.0**、**MV 1.6.1–1.6.2**；**Ren'Py 8.x 脚本**（`.rpy` 明文 + `.rpyc` 编译） |
+| 实测游戏 | 15 款可识别（本机全量普查），其中 **4 款**全量翻译 + 运行时验收；Ren'Py 侧用一套 8.5.3 SDK 的两个示例游戏做抽文本与覆盖率验收（§6） |
+| 磁盘改动 | MZ/MV 走插件档：只加 1 个插件文件 + `plugins.js` 里 1 条注册，卸载还原到安装前；Ren'Py 走 translation 档：只在 `game/` 下新建 1 个 `yakusha_translation.rpy`，卸载删它（四档交付见 [ENGINE-STRATEGY.md](ENGINE-STRATEGY.md) §5.5） |
 | 运行时依赖 | 无第三方依赖（Node >= 22） |
 | 产品形态 | CLI 为内核；Electron GUI 按战略稿排到 **0.14**（见 [ENGINE-STRATEGY.md](ENGINE-STRATEGY.md) §6.3） |
 | 许可 | GPL-3.0-or-later |
@@ -159,6 +159,25 @@
       改为按档说明实际影响，并新增「给脚本用：--json 与退出码」一节与环境变量
       `YAKUSHA_CONFIG_DIR` / `YAKUSHA_DEBUG`。测试数不变（**346 个，全绿**）。
 
+### D 阶段（0.11.0，已完成）
+
+- [x] Ren'Py 接入：新增 `src/engines/renpy/` 8 个模块——`pickle.js`（Python pickle
+      虚拟机，protocol 0–5，纯 JS 不 eval）、`rpyc.js`（`.rpyc` 容器解析 + AST 字符串
+      收集）、`rpyscript.js`（`.rpy` 明文抽取）、`project.js`（`game/` 定位、脚本遍历、
+      身份读取）、`extract.js`（两种源合成一份单元表）、`profile.js`（Ren'Py 的
+      tokenize / validate / verify）、`runtime.js`（translation 档投递）、`adapter.js`
+      （能力位与 CLI 入口）。`src/pipeline/` 与 `src/core/` 主循环一行未动。
+- [x] 注册表与注入点：`src/engines/registry.js` 从「MZ→MV」改成三引擎，并把「不是本项目」
+      的判定集中成 `NOT_PROJECT_PREFIXES`——两个引擎的 not-a-project 前缀都算「继续试
+      下一个」，诊断型失败（如 `E_MULTI_ROOT`）仍然立即返回；`src/core/doctor.js` 改成
+      注入式（`extract` / `dataFiles` / `sourceLabel` / `delivery` 四个注入口 +
+      `diagnostics()`），MZ/MV 的默认值保持不变；`bin/yakusha.js` 按 `adapter.dataUnit`
+      与 `capabilities.runtime` 分支打印。
+- [x] 真实 SDK 样本驱动的四项抽取精度修复：同 stem 只读 `.rpy`、跳过 `game/tl/`、跳过
+      自己生成的 translation 文件、字面量说话人只取台词。每项为什么错见 §6。
+- [x] 测试：新增 `test/renpy-{adapter,extract,rpyc,rpyscript,runtime}.test.js` 共 104 条，
+      `engine-contract` 与 `profile-seams` 改成按引擎断言，合计 **459 个，全绿**。
+
 ## 4. 文件地图
 
 ```
@@ -169,9 +188,17 @@ src/cli/config.js          用户级配置读写（provider / model / baseUrl，
 src/cli/export.js          字典 → JSON 快照（UTF-16 键序、原子写、覆盖保护）
 src/version.js             版本单一真源（读 package.json）
 src/engines/adapter.js     MZ/MV 共享适配器逻辑（detect / scan / extract / 安装）
-src/engines/registry.js    MZ→MV 注册表与 detectProject（判别式，不抛）
+src/engines/registry.js    MZ→MV→Ren'Py 注册表与 detectProject（判别式，不抛）
 src/engines/mz/adapter.js  MZ 能力位与薄包装
 src/engines/mv/adapter.js  MV 能力位与薄包装
+src/engines/renpy/adapter.js Ren'Py 能力位、scan/install 入口与 diagnostics
+src/engines/renpy/pickle.js Python pickle 虚拟机（protocol 0–5，纯 JS 不 eval）
+src/engines/renpy/rpyc.js  .rpyc 容器解析与 AST 字符串收集
+src/engines/renpy/rpyscript.js .rpy 明文抽取（字面量求值、转义、说话人）
+src/engines/renpy/project.js game/ 定位、脚本遍历（跳过 tl/）与身份读取
+src/engines/renpy/extract.js 两种源合成单元表，逐条标不可解码
+src/engines/renpy/profile.js Ren'Py 的 prompt / grammar / validate / verify
+src/engines/renpy/runtime.js translation 档投递（生成 / 删除 yakusha_translation.rpy）
 src/engines/launch.js      Windows exe 发现、子进程环境清理与 spawn
 src/index.js               库门面（openProject / detectProject / … / VERSION）
 src/core/fields.js        字段表与指令表（纯数据，会嵌进插件）
@@ -192,14 +219,17 @@ src/pipeline/terms.js     名字/术语的主流译法挖掘与漂移检测
 src/pipeline/speaker.js   说话人标记的识别、房规统计与按房规修复
 src/pipeline/report.js    verify 结果的 markdown 报告（只格式化，不重算）
 src/plugin/YAKUSHA_Translator.js  运行时插件模板（install 时注入规则表）
-test/                     346 个测试（含 CLI 端到端、0.10 信封契约、配置/前置、引擎/启动契约与导出）
+test/                     459 个测试（含 CLI 端到端、0.10 信封契约、配置/前置、引擎/启动契约、
+                          三个引擎的适配器契约与 Ren'Py 的 .rpy/.rpyc 抽取）
 docs/design.md            为什么走运行时钩子、文本面覆盖、转义码、设计约束、作为库用
 docs/commands.md          所有命令的完整选项与 verify / terms / speaker 判据
 docs/games.md             15 款实测游戏、全量翻译记录、官中游戏的处理
 docs/limitations.md       已知限制全表
-docs/architecture.md      分层、引擎适配器契约、plugin/debug/inject 三种运行时模式、GUI 与 core 边界
+docs/architecture.md      分层、引擎适配器契约、plugin/translation/debug/inject 四种运行时模式、
+                          GUI 与 core 边界
 docs/json-contract.md     0.10 契约（已实现）：--json 信封、错误码、退出码、严格参数解析
-docs/engines.md           0.10 契约：adapter、能力矩阵、安装/卸载、launch（已实现）、attach 桩
+docs/engines.md           引擎契约（0.11）：adapter、能力矩阵、安装/卸载、launch、attach 桩，
+                          §13.2 是 Ren'Py 的抽取契约
 docs/config.md            0.10 实现：用户级配置、密钥优先级、威胁模型（密钥不落盘）
 docs/export-format.md     0.10 实现：JSON 导出格式、排序、原子写与覆盖规则
 docs/platforms.md         平台支持矩阵与决策记录（Windows-only 的原因与重评条件）
@@ -219,8 +249,8 @@ docs/platforms.md         平台支持矩阵与决策记录（Windows-only 的�
 | **launch 只认项目根的直接子 `.exe`** | exe 不得来自配置、字典或游戏内任意路径；`--exe` 只接受裸文件名；spawn 用 `shell:false` + `detached` + `stdio:ignore`，并从子进程 env 删除 `YAKUSHA_API_KEY` / `OPENAI_API_KEY`。理由：分享的游戏目录本身就是不可信输入（[engines.md](../engines.md) §8）。 |
 | **trunk-based：一条 `main` + 短分支 + self-PR squash** | 单人开发没有并行评审需求，`develop`/`release` 这类长期分支只会制造同步债；短分支让 CI 在合并前跑一遍，squash 保持 `main` 线性、可读、可回滚。发布用 `vX.Y.Z` tag；只有旧版本确实有人在用时，才从 tag 切维护分支（规则见 §9）。 |
 | **Windows-only，Linux/macOS 不做也不测** | 单人开发，需求证据与验收机器都没有；macOS 还要签名/公证，且在 macOS 上注入类引擎一个都跑不了。写成决策记录，避免以后“顺手加一个平台”把测试面乘二（[platforms.md](../platforms.md)）。 |
-| **detect 返回判别式，openProject 继续抛** | 库调用方已经依赖 `openProject` 抛错；CLI 不应靠解析异常文本决定错误码。`adapter.detect` 把预期失败变成 `{ok:false,code,message,candidates?}`；registry 按 MZ→MV 顺序，`E_MULTI_ROOT` 立即返回，缺 `data/`、缺 `plugins.js` 的具体文案优先于另一个引擎的通用失败。适配器只薄包装 core，不搬文件。 |
-| **引擎适配器 + 三种运行时模式，注入不是前提** | 长期要像成熟的多引擎汉化工具一样支持多引擎，但 MZ/MV 用插件就够；CDP（`--remote-debugging-port`）还能覆盖一整类 Chromium 壳。把 `inject` 留在契约里，pipeline 与 GUI 不因新引擎返工。 |
+| **detect 返回判别式，openProject 继续抛** | 库调用方已经依赖 `openProject` 抛错；CLI 不应靠解析异常文本决定错误码。`adapter.detect` 把预期失败变成 `{ok:false,code,message,candidates?}`；registry 按 MZ→MV 顺序（0.11 起加上 Ren'Py 排第三），`E_MULTI_ROOT` 立即返回，缺 `data/`、缺 `plugins.js` 的具体文案优先于另一个引擎的通用失败。适配器只薄包装 core，不搬文件。 |
+| **引擎适配器 + 四种运行时模式，注入不是前提** | 长期要像成熟的多引擎汉化工具一样支持多引擎，但 MZ/MV 用插件就够；CDP（`--remote-debugging-port`）还能覆盖一整类 Chromium 壳。把 `inject` 留在契约里，pipeline 与 GUI 不因新引擎返工。0.11 加进第四种 `translation`（Ren'Py，见 §6）：它证明不写原生代码也不改游戏脚本就能覆盖一整个家族；`debug` / `inject` 仍只有契约位，`debug` 的机制已在 MZ 上实机验证、`attach` 命令未实现，`inject` 完全未实现。 |
 | **运行时载荷形状先定死（`format` + `rules` + `entries`）** | 插件、调试注入、原生 hook 吃同一份数据；以后加投递通道不用改游戏侧钩子。 |
 | **字典 key = 原文** | 不用 hash/自增 id：译文要能人工校对，key 必须是玩家能看懂的原文。 |
 | **校验在写之前** | 宁可留日文，也不留一条会显示成乱码或吞掉转义码的译文。 |
@@ -252,6 +282,10 @@ docs/platforms.md         平台支持矩阵与决策记录（Windows-only 的�
 | **`doctor` 只在 `broken` 时退出 1，`warn` 不算失败** | 诊断命令的职责是报告，不是闸门：还有 2 条没翻、192 条风格警告都是正常状态，让它们退出 1 只会让脚本里到处加 `|| true`，闸门形同虚设。真正的发布闸门是 `verify`（error 才失败），`doctor` 回答的是「这台机器上现在是什么形状」。 |
 | **README 只留能照着做的步骤，判据与实测拆到 `docs/`** | README 一度 650 行，安装步骤、十类判据、15 款游戏普查、19 条限制全堆在一起，想照着做的人要翻过一半文档才找得到命令。现在 README 只回答「怎么装、怎么跑、出问题看哪」；为什么这样实现（design）、完整选项与判据（commands）、跑过哪些游戏（games）、边界（limitations）各归一处。`docs/dev/DEVLOG.md` 仍是内部开发日志，不面向使用者。 |
 | **损坏的 `plugins.js` 要报出来，不能让 doctor 崩栈** | 手改坏或写了一半的文件，正是最需要诊断的时候。初版 `backupStatus` 直接 `parsePluginsJs` 抛异常，doctor 打出一段 stack trace 而不是「哪里坏了」；现在解析失败记成 `plugins.js fail`，并跳过依赖它的 `install` / `backup` 两项检查，其余照常输出。 |
+| **pickle 只解码数据，不执行** | `.rpyc` 是游戏分发的字节，里面的 `GLOBAL` / `STACK_GLOBAL` / `REDUCE` 本来就够拼出任意调用。实现成「记录点分类名 + 合并参数」的纯数据栈机，不 import、不 eval、不构造真对象：读者拿得到需要的 AST 字段，而恶意构造的 `.rpyc` 最坏只是解出一个形状古怪的对象。 |
+| **`.rpyc` 尾部的 MD5 不校验** | 那 16 字节是编译期一致性戳，只有 Ren'Py 自己读它。校验它不会让任何一句译文变好，却会让「玩家本来能跑、只是 md5 对不上」的游戏被工具拒收——工具的价值在游戏能跑时的文本，不在替引擎做完整性检查。 |
+| **Ren'Py 走 translation 档，只新增一个文件** | 有 `translate <lang> strings:` 这条官方扩展点，就没有理由去改别人的 `.rpy` 或 `options.rpy`：多改一个文件就多一份「游戏更新后对不上」的风险，卸载也不再是一句话（删一个文件即可）。代价是只能投 `schinese` 一种语言，且依赖游戏自身的翻译机制（§7）。 |
+| **py2 的 `.rpyc` 明确报 undecodable，不做兼容猜测** | Ren'Py 7.x 的游戏用 Python 2.7 编译，pickle 里的构造与 8.x 不同。猜着解会得到「看起来成功、字段却是错的」的树，而这种错会一路静默流进译文；宁可让这个文件计进 `undecodable` 并在 `scan` 里显示出来，也不要给出一个不可信的文本表。 |
 
 ## 6. 实测数据（可复现的基准）
 
@@ -615,7 +649,37 @@ plugin 档是"删文件即还原"，inject 档是"文件不改、退出即恢复
 - 新增 `test/profile-seams.test.js`（8 条）：双 adapter 的 `profile === rmProfile` 且 rules 三键不变；带/不带 profile 的 systemPrompt 字节相等、validateTranslation/verifyDictionary/wrapText/extractProject 结果相等；自定义 profile 冒烟（改 prompt 措辞、关闭 kana 审计、自定义 extract plan）。
 
 结果：**354 pass / 0 fail**（原 346 + 新 8），`node bin/yakusha.js --version` 仍为 `yakusha 0.10.0`，禁用词 0 命中。判断：拆缝的实质是把「引擎专属」从「写在哪个文件」变成「谁有权改这份数据」——现在 pipeline 只认识 profile 接口，0.11 Ren'Py 只需新增一个 profile + plan，不必再动 verify/translate 的主循环。
-。
+
+### 0.11 Ren'Py（feat/0.11-renpy）
+
+当初的目标写在 [ENGINE-STRATEGY.md](ENGINE-STRATEGY.md) §6.3，口径是「0.11 必须先做 Ren'Py」，否则 0.12 的 RGSS 会变成「在 RM 假设上再焊一层」，第二家族的抽象永远没被验证过（那句现在已改成回顾）。所以这一版的验收不是"多支持一个引擎"，而是**上一版拆出来的缝在非 RPG Maker 的引擎上够不够用**。结论是够用：`src/pipeline/` 与 `src/core/` 的主循环一行未改（`doctor.js` 只是长出了注入口，见下），新增代码全在 `src/engines/renpy/` 里。
+
+- 新增 `src/engines/renpy/pickle.js`（1,077 行）：Python pickle 虚拟机，protocol 0–5，纯 JS、同步、无 `eval`。Python 对象一律降级成**带 `__class` 的纯数据**（点分名来自 `GLOBAL` / `STACK_GLOBAL`，只记录不执行），dict 用 `Object.create(null)` 建（否则 `__proto__` 会撞上 `Object.prototype`），超出 `Number.MAX_SAFE_INTEGER` 的整数保留 `BigInt`。Python 2 专有构造不猜，直接报 undecodable——理由写在文件头：树里一个猜错的字段会静默污染下游每一句台词，不如整条拒收。
+- 新增 `src/engines/renpy/rpyc.js`（365 行）：`.rpyc` 容器解析 + AST 字符串收集。容器是 10 字节 `RENPY RPC2` + 每 12 字节一组 `uint32 LE (slot, start, length)` 到 `slot === 0` 为止，数据区是 zlib；无头的 v1 格式（整文件一个 zlib 流）也认。**尾部 16 字节 MD5 不校验**：它只是编译期一致性戳，校验它只会让工具拒收玩家本来能跑的游戏。`walkNode` 只跟随 `block` / `items` / `after` 三个结构字段，并用 `Set` 做环守卫。
+- 新增 `src/engines/renpy/rpyscript.js`（667 行）：`.rpy` 明文抽取，重新实现 Ren'Py 对字面量的求值（转义、三重引号 monologue、`{b}` 与 `[name]` 原样保留、`\[` → `[[`）。产出四类 kind：`say` / `menu` / `string` / `screen`。
+- 新增 `src/engines/renpy/project.js`（266 行）、`extract.js`（229 行）、`profile.js`（207 行）、`runtime.js`（446 行）、`adapter.js`（320 行）：分别是项目定位（`game/`、向下 3 层、`SKIP_DIRS` 含 `tl`）、两种源合成一份单元表、Ren'Py 的 prompt / grammar / validate / verify、translation 档投递、能力位与 CLI 入口。
+- `src/engines/registry.js`：`ADAPTERS` 变三个，并把「不是本项目」的判定抽成 `NOT_PROJECT_PREFIXES`（`"not an RPG Maker project"` / `"not a Ren'Py project"`）。两种前缀都算「继续试下一个引擎」；`E_MULTI_ROOT` 与其它诊断型失败立即返回，不会被后面的引擎吞掉。
+- `src/core/doctor.js`：`diagnose(project, options)` 新增四个注入口 `extract` / `dataFiles` / `sourceLabel` / `delivery`，外加从 adapter 取的 `diagnostics()`。MZ/MV 不传时走默认值，行为与 0.10 一致；Ren'Py 传进来的是 `sourceLabel: "game/"` 与一份 `delivery`（单文件投递，只有 1 个文件可查，没有备份可比对）。`pluginsFile` 为 null 的引擎跳过 plugins.js 检查而不是判失败。
+- `bin/yakusha.js`：`scan` 与 `doctor` 的表头按 `adapter.dataUnit` 在 `data files` 与 `scripts` 之间选词，`install` / `uninstall` 在 `capabilities.runtime === "translation"` 时多打一行 `translation: …`。
+- 新增 5 个测试文件：`test/renpy-adapter.test.js`（14）、`renpy-extract`（14）、`renpy-rpyc`（19）、`renpy-rpyscript`（24）、`renpy-runtime`（33）；`engine-contract` 改成对三个引擎统一断言 + 按引擎分表断言文案，`profile-seams` 加一条「Ren'Py 用自己的 profile」（8 → 9）。
+
+**四项抽取精度修复**：都是拿 SDK 8.5.3 自带的两个示例游戏（`the_question`、`tutorial`，都带完整 `.rpy` 源码）跑真数据时暴露的，改动前每项都先复现出错现象：
+
+1. **同 stem 只读 `.rpy`**：`the_question` 只读 `.rpy` 是 229 条出现 / 202 条唯一，只读 `.rpyc` 是 74 条；两边都读就变成 303 条出现，而唯一串仍是 202——**出现次数虚增 32%，唯一串不变**。更糟的是 kind 分布变了：`.rpy` 侧 `{string:130, screen:24, say:70, menu:5}`，`.rpyc` 侧只剩 `{say:69, menu:5}`，屏幕语言与 `_` 包装的字符串在编译形态的 AST 上取不到。所以规则是「有 `.rpy` 就跳过同名 `.rpyc`」，编译文件只当开发版缺失时的退路。
+2. **跳过 `game/tl/`**：那是游戏**已有的**译文目录（`the_question` 47 个 `.rpy` 脚本，分在 12 个语言目录；`tutorial` 212 个，分在 10 个——两边另有一个非语言的 `tl/None/`，只放 `common.rpym`）。不跳过的后果不是计数错，而是**把别人翻好的中文当源文本再翻一遍**——语义错误，比数字错更难发现。实测这些脚本经 `collectScriptStrings` 取到 **0 条**字符串（47 + 212 个文件全为 0）——它们整个文件都在 `translate <lang> strings:` / `translate <lang> <label>:` 块里，抽取器在 `translate` 栈内不收集任何文本，所以跳过它们也不损失任何源文本。
+3. **跳过自己写的 `game/yakusha_translation.rpy`**：`walkScripts` 会列出它（装完后 11 个条目里就有它）。去掉这条跳过规则，`scripts` 会从 `{rpy:5, rpyc:0}` 变成 `{rpy:6, rpyc:0}`——**install 前后计数漂移**，同一个游戏装一次就"多一个脚本"。文本数不受影响（生成的文件是 `translate … strings:` 形态，抽到 0 条），但计数漂移会让 `scan` / `doctor` 的输出失去可比性。往返实测：install → `{path, language:"schinese", entries:3}`、uninstall → `{removed:true}`，前后 `totalStrings` 229 → 229 → 229、`scripts` 不变。
+4. **字面量说话人只取台词**：Ren'Py 允许把角色名写成字符串字面量放在台词前面（一个语句里两个串，第一个是说话人、第二个才是玩家读到的台词）。按字符串字面量顺序收会把角色名也收成一条可译文本，译出来角色名就跟着变了。规则改成只取第二个串，与编译形态（`Say.who` 是 `PyExpr`、`Say.what` 是台词的字符串常量）保持一致。
+
+**.rpyc 覆盖率实测**（一套 Ren'Py 8.5.3 SDK 里的全部 585 个 `.rpyc`）：585 个全部解码成功、**0 失败**，共 **81,041 条字符串**（`string` 71,407 / `say` 9,588 / `menu` 46）、**70,728 个 AST 节点**；读出的脚本格式版本**一律 5003000**（585/585）。对照 `.rpy` 源码：SDK 里 `.rpy` 587 个、`.rpyc` 585 个，**581 个 stem 两种形态并存**（4 个 `.rpyc` 没有同名 `.rpy`），其中 **517 个**的 `.rpyc` 覆盖该 `.rpy` 的全部字符串，**64 个有缺失共 1,562 条**（按出现次数；去重后是 1,387 条唯一串）。缺失不是解码失败——原句在 slot 1 的 zlib 解压结果里明确存在——而是**走不到**：一类是屏幕语言（`screen` 语句编译成 `renpy.sl2.slast` 树 + `renpy.astsupport.PyExpr`，解码后只剩 `{__class, value, args}`，表达式文本 `_("History")` 作为字节留着但没有 AST 路径能取），另一类是 `example:` 演示块里的台词，挂在 `renpy.ast.UserStatement.code_block` 下，而 `walkNode` 只跟 `block` / `items` / `after`。这两类都记在 [limitations.md](../limitations.md) 里；它们不影响"有 `.rpy` 源码时以源码为准"的路径，只影响**只有编译文件**的游戏。
+
+结果：**459 pass / 0 fail**（原 354 + 新 105：五个 renpy 测试文件 14+14+19+24+33 = 104，`profile-seams` 8 → 9 一条；`engine-contract` 是原地改写、条数不变），`node bin/yakusha.js --version` 为 `yakusha 0.11.0`，`npm test` 约 9–10s，禁用词 0 命中。判断：拆缝这一版押的注押对了——`profile` 接口原样能吃下第二家族，唯一需要新长出来的东西是 `doctor` 的注入口与 `bin` 的两处措辞分支；真正花时间的是引擎侧的**数据格式**（pickle 栈机 + 容器格式），不是架构。
+
+**0.11 明确没做的事**（都是有意的取舍）：
+
+- **语言只能投 `schinese`**：Ren'Py 的语言名必须是 Python 标识符，CLI 没有 `--language`，`installRuntime` 不传就恒取 `DEFAULT_LANGUAGE`。库调用方可以传别的（要过 `/^[A-Za-z_][A-Za-z0-9_]*$/` 且不是 `None` / `True` / `False`），CLI 不给这个口子。
+- **不改原脚本，也不改 `options.rpy`**：投递只有一个新文件 `game/yakusha_translation.rpy`，里面是 `init python:`（仅在 `config.default_language is None` 时设语言，玩家在设置里选的必须赢）+ 一个 `translate <lang> strings:` 块。卸载只删这一个文件。同一个语言里出现重复的 `old` 是引擎启动期的硬报错（不是警告），所以写文件前按源文本去重并稳定排序——这条是踩出来的，不是预防性设计。
+- **通用内容导入 v1 顺延**：战略稿 §6.3 把它排在 0.11 的"附带"列，这一版没有交付——源码里没有导入入口，命令表也没变。0.11 只做了 Ren'Py 本身。
+- **`attach` 仍是桩**，而且 `notImplemented()` 里那句 `"is not implemented in 0.10"` **故意没改**：字符串写在 `src/engines/adapter.js:157`，被 `test/engine-contract.test.js:409` 与 `test/renpy-adapter.test.js:326` 各断言一次，`docs/engines.md` §9 还专门写了一段"这是历史措辞，不要改"。三个引擎共用同一个桩，所以要改就三处一起改，留到真正实现 attach 的那次，不单独为改一句文案开一次 PR。
 
 ## 7. 已知限制
 
@@ -626,7 +690,10 @@ plugin 档是"删文件即还原"，inject 档是"文件不改、退出即恢复
    超宽即裁，只有纵向 `needsNewPage` 分页。默认靠 prompt 约束，硬保证加 `--max-length`。
 5. 老 MV（2019/2020 的 nw.js）不吃 `--remote-debugging-port`，MV 的运行时取证不能靠 CDP。
 6. 有些 MV 游戏把说话人写成 `\N<名字>`（插件自定义标记，非 RPG Maker 转义码），译文必须原样保留。
-7. 不支持 XP/VX/VX Ace（`.rxdata` 二进制）、Unity / Godot / Kirikiri / Ren'Py 等其它引擎。
+7. 不支持 XP/VX/VX Ace（`.rxdata` 二进制）、Unity / Godot / Kirikiri 等其它引擎。
+   Ren'Py 从 0.11 起支持，但只到 `game/` 里的脚本文本（`.rpy` / `.rpyc`）：屏幕语言的
+   UI 文案、`example:` 演示块里的台词，以及只有编译文件时屏幕语言那一部分取不到（§6），
+   `.rpyc` 里结构上不可达的字符串不计入。
 8. `verify` 只看字典里的结构性问题（回显 / 转义码 / 占位符 / 换行 / 宽度 / 假名残留 /
    繁体字混入 / 说话人名漏译），看不出风格、语义是否贴切；那部分仍需人工抽读。
 9. `verify` 的 width 档只在显式传 `--max-length` 时才有意义——不传就不知道窗口宽度该是多少。
@@ -690,9 +757,11 @@ plugin 档是"删文件即还原"，inject 档是"文件不改、退出即恢复
    `rmFilePlan`；translate / verify / wrap / doctor 全部改为从 `options.profile` 读引擎判据，
    缺省回退与原实现逐字节一致；mz/mv adapter 挂 `profile` 字段，`rules` 三键契约未动。
    实测见 §6；这是 0.11 Ren'Py 的前置——接新引擎只需新 profile + plan，不再动 pipeline 主循环。
-6. **0.11.0 Ren'Py 前**：`docs/gui.md` 用户指南、`CHANGELOG.md`（DEVLOG 是内部日志，
-   公开仓库需要面向使用者的变更记录）。Ren'Py 落地时 `docs/limitations.md` 要补
-   `.rpyc` 反编译边界与 translation-file 投递的卸载语义。
+   0.11 的实践印证了这一条：`src/pipeline/` 与 `src/core/` 的主循环一行未改。
+6. ~~**0.11.0 Ren'Py 前**：`docs/gui.md` 用户指南、`CHANGELOG.md`~~ —— **已完成**：0.11.0
+   交付 Ren'Py（translation 档），`CHANGELOG.md` 与 `docs/gui.md` 已补，`docs/limitations.md`
+   补了 `.rpyc` 反编译边界与 translation-file 投递的卸载语义，`docs/engines.md` 扩成三引擎
+   契约（新增 §13.2 Ren'Py）。实测见 §6。
 7. 可选：给 `translate` 的 glossary 加条数上限（按请求过滤后已经省了 90%+，
    但词表上万条时仍会让每请求的过滤变慢，届时值得加）。
 8. 可选（0.10.x）：`verify --kind` 目前不校验取值，写错名字静默过滤成 `counts: {}` /
@@ -721,7 +790,7 @@ plugin 档是"删文件即还原"，inject 档是"文件不改、退出即恢复
 | 6 | 非 ja→zh 语言 | en→zh 何时进未定；en→ja 用户已明确"先不考虑"。 |
 | 7 | 目标用户与商业目标 | 未定。影响 GUI 功能取舍与文档语气。 |
 | 8 | README / architecture 旧卖点措辞 | 已在 WP6 按"四档交付说明实际影响"改掉；若用户希望保留更强的表述，回退点是本包 commit。 |
-| 9 | `CHANGELOG.md` | 公开仓库还没有；建议 0.11 前补，未拍板。 |
+| 9 | `CHANGELOG.md` | **已补**（0.11.0 起有面向使用者的变更记录）。 |
 
 ## 9. 继续工作的方法
 
@@ -784,7 +853,7 @@ node bin/yakusha.js doctor "D:/H/Games/<game>" --json
 3. **每个工作包开 self-PR**：CI 在 `push main` 与 `pull_request` 上都会跑；
    分支保护只要求 **status check 通过**，不要求人工 approve（单人无法 approve 自己的 PR）。
    合并方式固定 **squash**，保持 `main` 一条线。
-4. **发布打 annotated tag**：`vX.Y.Z` 指向 `main` 上的提交；`CHANGELOG.md` 在 0.11 前补。
+4. **发布打 annotated tag**：`vX.Y.Z` 指向 `main` 上的提交；`CHANGELOG.md` 从 0.11.0 起要先写好再打 tag。
 5. **紧急修复从 tag 切**：`fix/0.10.1` 修完合回 `main` 并打新 tag；只有 `main` 已经跑远、
    旧版本仍有人在用时，才建长期的 `0.10.x` 维护分支。
 6. **并行 agent 用 `git worktree`**：同一个工作目录不能同时切两个分支，否则两边互相踩。
@@ -896,3 +965,17 @@ git push origin v0.10.0
 - **信封要保留错误的结构化 `details`**：`E_EXE` 的候选列表原本在 `failureFor` 里被
   丢掉，只剩一句 “found N .exe files”；CLI 错误转换必须复制 `error.details`，否则
   调用方拿不到 `candidates`，JSON 契约里写的字段就只是摆设。
+- **pickle 的空容器是独立 opcode，不是 MARK 的重载**：写栈机时想当然地按「有 MARK 就
+  收集、没有就返回空」处理 `DICT` / `LIST` / `TUPLE`，结果 `EMPTY_DICT`（0x7d）、
+  `EMPTY_LIST`（0x5d）、`EMPTY_TUPLE`（0x29）是各自的 opcode，与 `DICT`（0x64）、
+  `LIST`（0x6c）、`TUPLE`（0x74）不是同一个值。凭记忆写 opcode 表一定会错，
+  表要从 `pickle.py` / `pickletools` 的常量逐条抄，并用真实样本的第一段字节验一遍。
+- **覆盖率要分清「解码失败」和「解码成功但取不到」**：`.rpyc` 全集跑出 0 失败很容易
+  让人得出「全覆盖」，但把 `.rpy` 与 `.rpyc` 的字符串集合逐个 stem 对齐后才发现，
+  屏幕语言与 `example:` 块里的文本在 AST 上根本没有路径可达（字节在、句柄不在）。
+  两个指标回答两个问题：解码率说明「格式支持做完了没有」，覆盖对照说明「文本面做完
+  了没有」。只看前者会把能力边界写成 100%。
+- **两种数据源并存时，优先级要写进代码而不是留在注释里**：同一 stem 的 `.rpy` 与
+  `.rpyc` 都读，出现次数虚增 32% 而唯一串不变——这种错不会被唯一串的断言抓到。
+  规则必须是显式的一条（有 `.rpy` 就跳过同名 `.rpyc`），并且要有测试直接钉住
+  `scripts` 的计数，否则下次谁加一个循环就会把它破坏掉。

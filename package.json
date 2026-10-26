@@ -1,7 +1,7 @@
 {
   "name": "yakusha",
-  "version": "0.10.0",
-  "description": "Non-invasive runtime translation toolkit for RPG Maker MZ and MV games",
+  "version": "0.11.0",
+  "description": "Non-invasive runtime translation toolkit for RPG Maker MZ, RPG Maker MV and Ren'Py games",
   "type": "module",
   "main": "./src/index.js",
   "exports": {
@@ -24,6 +24,7 @@
     "rpg-maker",
     "rpgmaker-mz",
     "rpgmaker-mv",
+    "renpy",
     "translation",
     "localization",
     "llm",

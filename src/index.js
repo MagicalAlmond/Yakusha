@@ -11,6 +11,9 @@
 export { openProject, findProjectRoot, findProjectRoots } from "./core/mzproject.js";
 export { detectProject, getAdapter, getAdapters } from "./engines/registry.js";
 export { extractProject } from "./core/extract.js";
+export { openRenpyProject, findRenpyRoot, findRenpyRoots } from "./engines/renpy/project.js";
+export { extractRenpyProject, collectRenpyUnits } from "./engines/renpy/extract.js";
+export { installTranslation, uninstallTranslation, translationStatus } from "./engines/renpy/runtime.js";
 export { loadDictionary, saveDictionary, dictionaryPath } from "./core/dict.js";
 export { translateDictionary } from "./pipeline/translate.js";
 export { verifyDictionary } from "./pipeline/verify.js";

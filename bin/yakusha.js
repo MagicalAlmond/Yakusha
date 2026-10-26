@@ -134,7 +134,7 @@ async function cmdScan(dir) {
   console.log("game      : " + (project.gameTitle || "(untitled)"));
   console.log("root      : " + project.root);
   console.log("engine    : " + project.engine + (project.version ? " " + project.version : ""));
-  console.log("data files: " + payload.dataFiles);
+  console.log((adapter.dataUnit === "scripts" ? "scripts   : " : "data files: ") + payload.dataFiles);
   console.log("strings   : " + payload.uniqueStrings + " unique / " + payload.totalStrings + " total");
   console.log("w/ codes  : " + payload.stringsWithControlCodes);
   const encodings = Object.entries(payload.encodings || {});
@@ -669,11 +669,19 @@ async function cmdInstall(dir) {
     );
   }
   if (json) return done;
-  console.log("plugin    : " + result.pluginPath);
-  console.log("registered: " + (result.registered ? "yes" : "already present"));
-  console.log("backup    : " + result.backupPath);
-  if (embed) console.log("embedded  : " + Object.keys(embed).length + " translations");
-  else console.log("dictionary: yakusha/dictionary.json (loaded at runtime)");
+  if (adapter.capabilities && adapter.capabilities.runtime === "translation") {
+    // Ren'Py: the delivered file is the translation script, there is no
+    // registry entry and no backup to take.
+    console.log("translation: " + result.pluginPath);
+    console.log("strings    : " + (result.entries || 0) + " (" + (result.language || "unknown") + ")");
+    console.log("uninstall  : yakusha uninstall \"" + project.root + "\"");
+  } else {
+    console.log("plugin    : " + result.pluginPath);
+    console.log("registered: " + (result.registered ? "yes" : "already present"));
+    console.log("backup    : " + (result.backupPath === null ? "(none)" : result.backupPath));
+    if (embed) console.log("embedded  : " + Object.keys(embed).length + " translations");
+    else console.log("dictionary: yakusha/dictionary.json (loaded at runtime)");
+  }
   return done;
 }
 
@@ -689,6 +697,10 @@ async function cmdUninstall(dir) {
   };
   const done = { payload };
   if (json) return done;
+  if (adapter.capabilities && adapter.capabilities.runtime === "translation") {
+    console.log(result.removed ? "translation removed" : "translation file was not installed");
+    return done;
+  }
   console.log(result.removed ? "plugin removed" : "plugin was not installed");
   if (result.restored) {
     console.log("plugins.js restored from backup");
@@ -749,12 +761,20 @@ async function cmdDoctor(dir) {
       data = null;
     }
   }
+  // The adapter owns the engine-specific bits doctor needs: its extractor, its
+  // file count and, for engines without a plugin registry, the state of the
+  // delivered translation file.
+  const own = typeof adapter.diagnostics === "function" ? adapter.diagnostics(project) : {};
   const result = diagnose(project, {
     dictionary: data,
     dictionaryFile: file,
     maxColumns: numberFlag("max-length", 0),
     engineLabel: adapter.name,
     profile: adapter.profile,
+    extract: own.extract,
+    dataFiles: own.dataFiles,
+    sourceLabel: own.sourceLabel,
+    delivery: own.translation || null,
   });
   const payload = {
     verdict: result.verdict,
@@ -778,7 +798,9 @@ async function cmdDoctor(dir) {
       (game.engineVersion ? " " + game.engineVersion : "") +
       ", " +
       game.dataFiles +
-      " data files)"
+      " " +
+      (adapter.dataUnit === "scripts" ? (game.dataFiles === 1 ? "script" : "scripts") : "data files") +
+      ")"
   );
   for (const check of result.checks) {
     console.log(("  " + check.id).padEnd(14) + check.level.padEnd(6) + check.message);

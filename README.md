@@ -1,16 +1,21 @@
 # Yakusha
 
-**非侵入式 RPG Maker 运行时翻译工具。**
+**非侵入式游戏运行时翻译工具，支持 RPG Maker MZ / MV 与 Ren'Py。**
 
-把 RPG Maker MZ / MV 游戏的文本抽出来交给任意 LLM 翻译，再让游戏**在运行时**显示中文。
-MZ / MV 走"插件档"：游戏目录只多一个插件文件、`js/plugins.js` 里多一行注册，
-`uninstall` 会把这两处还原到安装前。每一档交付对游戏文件的实际影响写在该档的文档里
-（[docs/limitations.md](docs/limitations.md)、[docs/engines.md](docs/engines.md)），
-没有"整个产品都绝对可逆"的说法。
+把游戏文本抽出来交给任意 LLM 翻译，再让游戏**在运行时**显示中文。当前覆盖两档交付：
+
+- **插件档（MZ / MV）**：游戏目录只多一个插件文件、`js/plugins.js` 里多一行注册，
+  `uninstall` 会把这两处还原到安装前。
+- **translation 档（Ren'Py）**：`install` 在 `game/` 下生成一个
+  `yakusha_translation.rpy`，用引擎自己的 `translate <lang> strings:` 块替换源文；
+  游戏脚本一个字节都不改，`uninstall` 只删这一个文件。
+
+每一档对游戏文件的实际影响写在该档的文档里（[docs/limitations.md](docs/limitations.md)、
+[docs/engines.md](docs/engines.md)），没有"整个产品都绝对可逆"的说法。
 
 ```
 scan  →  extract  →  translate  →  install
-看有多少   建字典      LLM 填译文    装运行时插件
+看有多少   建字典      LLM 填译文    装进游戏
 ```
 
 运行时效果不在仓库里放截图；支持范围、匿名实测数据与编号见 [docs/games.md](docs/games.md)。
@@ -37,6 +42,8 @@ CLI 只用 Node 标准库，没有第三方运行时依赖（`package.json` 也�
 node bin/yakusha.js scan "/games/MyGame"
 ```
 
+RPG Maker 数 `data/` 里的数据文件，Ren'Py 数 `game/` 下的脚本，所以中段两行不一样：
+
 ```
 game      : Example Game
 root      : /games/MyGame
@@ -45,6 +52,21 @@ data files: 51
 strings   : 38044 unique / 80502 total
 ```
 
+```
+game      : Example Game
+root      : /games/MyGame
+engine    : renpy 1.0
+scripts   : 2
+strings   : 6 unique / 6 total
+w/ codes  : 0
+encodings : rpy 2, rpyc 0
+```
+
+两块都是摘录：MZ 那块只留到 `strings`，Ren'Py 那块省掉了末尾的逐文件计数。
+`encodings` 只在解出多种格式时才打印（MZ/MV 只有 JSON，所以没有这行），它是解出的
+`.rpy` 与 `.rpyc` 个数；同一个 stem 两种文件都在时只读 `.rpy`，所以 `rpyc` 会是 0。
+解不开的脚本记进 `undecodable` 并继续跑，不会中断。
+
 ### 2. extract：建字典
 
 ```bash
@@ -52,7 +74,8 @@ node bin/yakusha.js extract "/games/MyGame"
 ```
 
 在 `/games/MyGame/yakusha/dictionary.json` 生成一份**空译文**的字典，每个 key 都带它出现的
-位置（`Map029.json:401`、`System.json:terms.commands[]`……数组字段带 `[]` 后缀）。重复执行会合并，不覆盖已有译文。
+位置（MZ/MV 是 `Map029.json:401`、`System.json:terms.commands[]`……数组字段带 `[]` 后缀；
+Ren'Py 是 `game/script.rpy:12` 这样的相对项目根路径加行号）。重复执行会合并，不覆盖已有译文。
 
 ### 3. translate：翻译
 
@@ -84,8 +107,8 @@ error 原因**，绝不写假译文。每 200 条自动落盘，中断可续跑�
 node bin/yakusha.js install "/games/MyGame"
 ```
 
-只做三件事：备份 `js/plugins.js`、在 `$plugins` 末尾加一条 `YAKUSHA_Translator`、写入
-`js/plugins/YAKUSHA_Translator.js`。启动游戏，中文就出来了。
+**MZ / MV** 只做三件事：备份 `js/plugins.js`、在 `$plugins` 末尾加一条
+`YAKUSHA_Translator`、写入 `js/plugins/YAKUSHA_Translator.js`。启动游戏，中文就出来了。
 
 ```bash
 node bin/yakusha.js uninstall "/games/MyGame"   # 摘掉插件那一行并还原 plugins.js
@@ -94,6 +117,20 @@ node bin/yakusha.js uninstall "/games/MyGame"   # 摘掉插件那一行并还原
 装好之后如果 `plugins.js` 又被改过（游戏更新、另装插件、编辑器存过档），`uninstall`
 **不会**拿旧备份盖掉这些改动，只摘掉自己那条、把备份留在原地给你核对。
 细节见 [docs/design.md](docs/design.md)。
+
+**Ren'Py** 只写一个文件：`game/yakusha_translation.rpy`。它内含 `translate schinese strings:`
+块，每条把字典里的原文映射到译文；游戏自己的脚本、`options.rpy` 一个字节都不改。
+
+```
+translation: /games/MyGame/game/yakusha_translation.rpy
+strings    : 6 (schinese)
+uninstall  : yakusha uninstall "/games/MyGame"
+```
+
+`uninstall` 就是删掉这一个文件，游戏随即读回原版文本。字典里还没有任何译文时
+`install` 会直接拒绝（`E_NO_DICTIONARY`，提示先跑 `translate`），不会写出空翻译文件。
+命令行没有选语言的入口，这一版固定投 `schinese`；文件里还会加一段
+`if config.default_language is None` 的守卫，不覆盖玩家自己在设置里选的语言。
 
 ### 5. verify / doctor：自检
 
@@ -105,8 +142,8 @@ node bin/yakusha.js verify "/games/MyGame"
 `warn` 只提示（残留假名、超宽行、繁体字、被拒条目）。`--write-report report.md` 把全部
 问题写成一份可贴进 issue 的 markdown。
 
-游戏更新后中文没了，先跑 `doctor` 分清是插件条目丢了、备份对不上，还是字典与这版
-`data/` 脱节：
+游戏更新后中文没了，先跑 `doctor` 分清是安装产物丢了、备份对不上，还是字典与这版游戏
+脱节（RPG Maker 看 `data/`，Ren'Py 看 `game/`）：
 
 ```bash
 node bin/yakusha.js doctor "/games/MyGame"
@@ -123,6 +160,16 @@ verdict   : usable with 2 warning(s)
 摘要，再按 engine → dictionary → progress →（有被拒条目时）rejected → sync → install →
 （装好之后）backup → runtime → verify 逐项检查，最后一行是 verdict。）
 
+Ren'Py 的首行与 `sync` 文案跟 RPG Maker 不同（没有 `plugins.js` 与备份两项检查）：
+
+```
+game      : Example Game (Ren'Py 1.0, 2 scripts)
+  sync        ok    every dictionary key still appears in game/
+  install     ok    game/yakusha_translation.rpy (written by install)
+  runtime     ok    game/yakusha_translation.rpy (6 strings, language schinese)
+verdict   : ready
+```
+
 ### 可选：export 导出译文
 
 译文要备份、做校对或交给别人时，导出一份 JSON 快照（不是字典备份）：
@@ -137,9 +184,9 @@ node bin/yakusha.js export "/games/MyGame" --out yakusha-export.json
 node bin/yakusha.js launch "/games/MyGame"
 ```
 
-仅 Windows。项目根恰好一个 `.exe` 时直接启动；多个时用 `--exe <name>` 指定
-（只收裸文件名）。启动后工具立即退出，游戏继续运行；子进程环境会删掉
-`YAKUSHA_API_KEY` / `OPENAI_API_KEY`。`attach` 调试注入在 0.10 仍是桩，
+仅 Windows，三个引擎共用同一套规则：项目根恰好一个 `.exe` 时直接启动；多个时用
+`--exe <name>` 指定（只收裸文件名）。启动后工具立即退出，游戏继续运行；子进程环境会删掉
+`YAKUSHA_API_KEY` / `OPENAI_API_KEY`。`attach` 调试注入到 0.11 仍是桩，
 能力表里 `attach: false`，没有 CLI 入口。
 
 ## 命令一览
@@ -153,9 +200,9 @@ node bin/yakusha.js launch "/games/MyGame"
 | `verify` | 体检字典（发布前自检） |
 | `speaker` | 按本作自己的写法修复说话人名 |
 | `terms` | 挖人名/术语的主流译法，报出漂移 |
-| `install` | 装运行时插件 |
-| `uninstall` | 卸载并还原 |
-| `doctor` | 查安装、备份、字典是否还与这版游戏对得上 |
+| `install` | 装进游戏：MZ/MV 装插件，Ren'Py 写 `game/yakusha_translation.rpy` |
+| `uninstall` | 卸载并还原：删插件与注册行，或删那个翻译文件 |
+| `doctor` | 查安装产物、备份（Ren'Py 无）、字典是否还与这版游戏对得上 |
 | `export` | 把已翻译条目导出成 JSON 快照 |
 | `config` | 读写用户级配置（`provider` / `model` / `baseUrl`，不存密钥） |
 | `launch` | 启动项目根的游戏 exe（仅 Windows） |
@@ -200,22 +247,27 @@ message 保证是单行、不含堆栈与密钥。`YAKUSHA_DEBUG=1` 时堆栈只
 ```
 bin/yakusha.js            CLI 薄壳，当前十三个命令
 src/cli/                  JSON 信封、严格参数解析、用户级配置、JSON 导出
-src/engines/              MZ/MV 适配器与 registry（detect 返回判别式）
+src/engines/              适配器与 registry（MZ/MV 插件档、Ren'Py translation 档）
+  src/engines/renpy/      .rpy / .rpyc 解析、身份读取、translation 文件生成与状态
 src/index.js              库门面（与 CLI 共用同一套实现）
-src/core/                项目发现、数据解码、文本抽取、字典、安装、doctor
-src/pipeline/            provider、批处理、校验、折行、verify、terms、speaker、报告
-src/plugin/              运行时插件模板
-test/                    单元与 CLI 端到端测试
-docs/                    设计说明、命令参考、契约、实测记录、已知限制
-  docs/dev/                内部开发日志（DEVLOG）
+src/core/                 项目发现、数据解码、文本抽取、字典、安装、doctor（引擎无关）
+src/pipeline/             provider、批处理、校验、折行、verify、terms、speaker、报告
+src/plugin/               运行时插件模板
+test/                     单元与 CLI 端到端测试
+docs/                     设计说明、命令参考、契约、实测记录、已知限制
+  docs/dev/               内部开发日志（DEVLOG）
 ```
 
 ## 已知限制
 
-- 只处理 `data/` 里的文本：插件 `js/plugins/*.js` 里硬编码的 UI 文案、图片里的文字不处理。
-- 只支持 RPG Maker **MZ / MV**。XP/VX/VX Ace（`.rxdata` 二进制）、Unity、Godot、Kirikiri、
-  Ren'Py 等其它引擎不在 0.10 范围内；多引擎路线与每一档的验收标准见
+- 只处理游戏自己的文本资源：MZ/MV 是 `data/` 里的 JSON，Ren'Py 是 `game/` 下
+  `.rpy` / `.rpyc` 里的对话、选项、`_()` 字符串与 screen 文本。插件 `js/plugins/*.js`
+  里硬编码的 UI 文案、图片里的文字不处理。
+- 支持 RPG Maker **MZ / MV** 与 **Ren'Py**。Unity、Godot、Wolf、Kirikiri 与 RPG Maker
+  XP / VX / VX Ace（`.rxdata` 二进制）不支持；多引擎路线与每一档的验收标准见
   [docs/dev/ENGINE-STRATEGY.md](docs/dev/ENGINE-STRATEGY.md)。
+- Ren'Py 只投 `schinese` 一种语言（命令行没有选语言的入口）；`game/tl/` 下已有的
+  译文不读也不合并。
 - 图片文字、插件自定义的说话人容器（`\N<名字>` 之外）看不到。
 - `verify` 只查结构性缺陷，译文风格与剧情上下文它判断不了。
 
@@ -239,13 +291,13 @@ docs/                    设计说明、命令参考、契约、实测记录、�
 | [docs/commands.md](docs/commands.md) | 所有命令的完整选项、`verify` 十类判据、`terms`/`speaker` 算法说明 |
 | [docs/architecture.md](docs/architecture.md) | 三层结构（CLI 内核 / Electron 壳 / 引擎适配器）、引擎能力分档、载荷契约、分批计划 |
 | [docs/dev/ENGINE-STRATEGY.md](docs/dev/ENGINE-STRATEGY.md) | 多引擎战略稿（内部）：竞品适配方法、目标架构、四档交付、版本顺序、质量门禁、代码签名成本 |
-| [docs/json-contract.md](docs/json-contract.md) | 0.10 契约（已实现）：`--json` 信封、错误码、退出码、严格参数解析、破坏性变更 |
-| [docs/engines.md](docs/engines.md) | 0.10 契约：adapter、能力矩阵、安装/卸载、launch（已实现）；attach 桩 |
+| [docs/json-contract.md](docs/json-contract.md) | `--json` 信封、错误码、退出码、严格参数解析、破坏性变更（0.10 冻结，0.11 沿用） |
+| [docs/engines.md](docs/engines.md) | adapter 契约、能力矩阵、各引擎的安装/卸载、launch；attach 桩 |
 | [docs/config.md](docs/config.md) | 0.10 实现：用户级配置、密钥优先级与威胁模型（不落盘） |
 | [docs/export-format.md](docs/export-format.md) | 0.10 实现：JSON 导出格式、排序、原子写与覆盖规则 |
 | [docs/platforms.md](docs/platforms.md) | 平台支持矩阵与决策记录（Windows-only 的原因与重评条件） |
 | [docs/design.md](docs/design.md) | 为什么走运行时钩子、文本面覆盖、转义码、设计约束、作为库用 |
-| [docs/games.md](docs/games.md) | 匿名记录的 15 款实测游戏、全量翻译数据、官中游戏的处理方式 |
+| [docs/games.md](docs/games.md) | 匿名记录的实测游戏（RPG Maker 15 款、Ren'Py SDK 自带项目）、全量翻译数据、官中游戏的处理方式 |
 | [docs/limitations.md](docs/limitations.md) | 已知限制全表 |
 | [docs/dev/DEVLOG.md](docs/dev/DEVLOG.md) | 内部开发日志（阶段、决策、实测、教训） |
 
