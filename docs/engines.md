@@ -409,7 +409,7 @@ export { VERSION } from "./version.js";
 | RGSS (XP/VX/VX Ace) | `.rxdata` 二进制 | `inject` | 不做 |
 
 新引擎必须自带：adapter、capabilities、fixture、契约测试、启动规则（如果有 exe）。
-不允许把引擎特判写进 `src/pipeline`；引擎专属校验规则挂在 adapter 的 `rules` 上。
+不允许把引擎特判写进 `src/pipeline`；引擎专属校验规则挂在 adapter 上——0.10.x 起是一份 `profile` 数据（`src/engines/profile.js`，含 prompt / grammar / validate / verify），`rules` 三键保持不变。
 
 ## 15. 验收清单
 

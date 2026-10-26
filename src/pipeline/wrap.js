@@ -107,22 +107,25 @@ export function charColumns(ch) {
 
 /**
  * Display columns of a string, escape codes excluded.
+ *
  * @param {string} text
+ * @param {typeof tokenize} [tokenizeFn] engine escape-code grammar; defaults to the RPG Maker tokenizer
  * @returns {number}
  */
-export function displayColumns(text) {
+export function displayColumns(text, tokenizeFn) {
   let total = 0;
-  for (const atom of atomsOf(String(text))) total += atom.width;
+  for (const atom of atomsOf(String(text), tokenizeFn)) total += atom.width;
   return total;
 }
 
 /**
  * @param {string} line
+ * @param {typeof tokenize} [tokenizeFn]
  * @returns {{ text: string, width: number, code: boolean }[]}
  */
-function atomsOf(line) {
+function atomsOf(line, tokenizeFn) {
   const atoms = [];
-  for (const tok of tokenize(line)) {
+  for (const tok of (tokenizeFn || tokenize)(line)) {
     if (tok.t === "code") {
       atoms.push({ text: tok.v, width: 0, code: true });
       continue;
@@ -149,10 +152,11 @@ function joinTrimmed(atoms) {
  *
  * @param {string} line
  * @param {number} limit
+ * @param {typeof tokenize} [tokenizeFn]
  * @returns {string}
  */
-function wrapLine(line, limit) {
-  const atoms = atomsOf(line);
+function wrapLine(line, limit, tokenizeFn) {
+  const atoms = atomsOf(line, tokenizeFn);
   // Never touch a line that already fits: trimming or rejoining it would make
   // the stored text differ from the validated model output for no reason.
   if (widthOf(atoms, atoms.length) <= limit) return line;
@@ -185,15 +189,15 @@ function wrapLine(line, limit) {
   }
 
   if (current.length > 0) out.push(joinTrimmed(current));
-  if (out.length > 1 && displayColumns(out[out.length - 1]) < limit * 0.35) {
-    const balanced = rebalance(out[out.length - 2], out[out.length - 1], limit);
+  if (out.length > 1 && displayColumns(out[out.length - 1], tokenizeFn) < limit * 0.35) {
+    const balanced = rebalance(out[out.length - 2], out[out.length - 1], limit, tokenizeFn);
     if (balanced) {
       out[out.length - 2] = balanced[0];
       out[out.length - 1] = balanced[1];
     }
   }
   // Runs last: rebalancing moves a break and could reintroduce a leading mark.
-  kinsoku(out, limit);
+  kinsoku(out, limit, tokenizeFn);
   return out.join("\n");
 }
 
@@ -207,14 +211,14 @@ function wrapLine(line, limit) {
  * @param {string[]} lines
  * @param {number} limit
  */
-function kinsoku(lines, limit) {
+function kinsoku(lines, limit, tokenizeFn) {
   for (let i = 1; i < lines.length; i += 1) {
     let guard = 0;
     while (guard < 4 && lines[i].length > 0 && NO_START.has(lines[i][0])) {
-      const prev = [...atomsOf(lines[i - 1])];
+      const prev = [...atomsOf(lines[i - 1], tokenizeFn)];
       if (prev.length < 2) break;
       const last = prev[prev.length - 1];
-      const head = [...atomsOf(lines[i])];
+      const head = [...atomsOf(lines[i], tokenizeFn)];
       const nextWidth = widthOf(head, head.length) + last.width;
       if (nextWidth > limit) break;
       lines[i - 1] = joinTrimmed(prev.slice(0, prev.length - 1));
@@ -235,8 +239,8 @@ function kinsoku(lines, limit) {
  * @param {number} limit
  * @returns {[string,string]|null}
  */
-function rebalance(first, second, limit) {
-  const atoms = [...atomsOf(first), ...atomsOf(second)];
+function rebalance(first, second, limit, tokenizeFn) {
+  const atoms = [...atomsOf(first, tokenizeFn), ...atomsOf(second, tokenizeFn)];
   if (widthOf(atoms, atoms.length) > limit * 2) return null;
   // Only move the break to a punctuation mark. Splitting mid word would read
   // worse than a short last line, and the caller already produced a valid pair.
@@ -270,13 +274,15 @@ function rebalance(first, second, limit) {
  *
  * @param {string} text
  * @param {number} maxColumns
+ * @param {{ tokenize?: typeof tokenize }} [options] engine grammar override
  * @returns {string}
  */
-export function wrapText(text, maxColumns) {
+export function wrapText(text, maxColumns, options) {
   const limit = Number(maxColumns);
   if (!Number.isFinite(limit) || limit <= 0) return text;
+  const tokenizeFn = options && typeof options.tokenize === "function" ? options.tokenize : tokenize;
   return String(text)
     .split("\n")
-    .map((line) => wrapLine(line, limit))
+    .map((line) => wrapLine(line, limit, tokenizeFn))
     .join("\n");
 }

@@ -34,15 +34,100 @@ const COMMAND_ONLY_FILES = new Set(["CommonEvents.json", "Troops.json"]);
  */
 
 /**
+ * @typedef {object} FileMatcher
+ * @property {(name: string) => boolean} matches decide whether this rule owns a file
+ * @property {(data: any, name: string, add: (text: string, context: string) => void, counts: Record<string, number>) => void} collect
+ *   pull every player visible string out of the parsed document
+ */
+
+/**
+ * @typedef {object} ExtractPlan
+ * @property {string} dataDir directory below the project root holding the data files
+ * @property {FileMatcher[]} files ordered rules; the first matches() hit owns the file
+ * @property {FileMatcher} [fallback] rule for files no listed rule claimed
+ */
+
+/**
+ * The RPG Maker file plan: which data files exist and which fields of each hold
+ * player visible text. Kept beside the other engine facts so a new engine ships
+ * its own plan instead of editing this loop (docs/engines.md).
+ *
+ * @type {ExtractPlan}
+ */
+export const rmFilePlan = {
+  dataDir: "data",
+  files: [
+    {
+      matches: (name) => name === "System.json",
+      collect: (data, name, add) => {
+        for (const field of SYSTEM_FIELDS) {
+          for (const value of collectAt(data, field)) add(value, name + ":" + field);
+        }
+      },
+    },
+    {
+      matches: (name) => name === "MapInfos.json",
+      collect: (data, name, add) => {
+        if (Array.isArray(data)) {
+          for (const info of data) {
+            if (info && typeof info.name === "string") add(info.name, name + ":name");
+          }
+        }
+      },
+    },
+    {
+      matches: (name) => /^Map\d+\.json$/i.test(name),
+      collect: (data, name, add, counts) => {
+        if (data && typeof data.displayName === "string") add(data.displayName, name + ":displayName");
+        extractCommands(data, name, add, counts);
+      },
+    },
+    {
+      matches: (name) => COMMAND_ONLY_FILES.has(name),
+      // CommonEvents entries also carry a name; both surfaces are translated by
+      // the runtime plugin, so both are extracted here.
+      collect: (data, name, add, counts) => {
+        const fields = DB_FIELDS[name];
+        if (fields && Array.isArray(data)) {
+          for (const record of data) {
+            if (!record || typeof record !== "object") continue;
+            for (const field of fields) {
+              if (typeof record[field] === "string") add(record[field], name + ":" + field);
+            }
+          }
+        }
+        extractCommands(data, name, add, counts);
+      },
+    },
+  ],
+  fallback: {
+    matches: () => true,
+    collect: (data, name, add) => {
+      const fields = DB_FIELDS[name];
+      if (fields && Array.isArray(data)) {
+        for (const record of data) {
+          if (!record || typeof record !== "object") continue;
+          for (const field of fields) {
+            const value = record[field];
+            if (typeof value === "string") add(value, name + ":" + field);
+          }
+        }
+      }
+    },
+  },
+};
+/**
  * Collect every player visible string of a project.
  *
  * @param {string} projectRoot directory containing data/
+ * @param {ExtractPlan} [plan] engine file plan; defaults to the RPG Maker plan
  * @returns {ExtractionResult}
  */
-export function extractProject(projectRoot) {
+export function extractProject(projectRoot, plan) {
+  const enginePlan = plan || rmFilePlan;
   /** @type {ExtractionResult} */
   const result = { entries: new Map(), perFile: {}, totalStrings: 0, commandCounts: {}, undecodable: [], encodings: {} };
-  const dataDir = path.join(projectRoot, "data");
+  const dataDir = path.join(projectRoot, enginePlan.dataDir);
 
   const add = (text, context) => {
     if (typeof text !== "string" || text.length === 0) return;
@@ -68,44 +153,10 @@ export function extractProject(projectRoot) {
     const data = file.data;
     const before = result.totalStrings;
 
-    if (name === "System.json") {
-      for (const field of SYSTEM_FIELDS) {
-        for (const value of collectAt(data, field)) add(value, name + ":" + field);
-      }
-    } else if (name === "MapInfos.json") {
-      if (Array.isArray(data)) {
-        for (const info of data) {
-          if (info && typeof info.name === "string") add(info.name, name + ":name");
-        }
-      }
-    } else if (/^Map\d+\.json$/i.test(name)) {
-      if (data && typeof data.displayName === "string") add(data.displayName, name + ":displayName");
-      extractCommands(data, name, add, result.commandCounts);
-    } else if (COMMAND_ONLY_FILES.has(name)) {
-      // CommonEvents entries also carry a name; both surfaces are translated by
-      // the runtime plugin, so both are extracted here.
-      const fields = DB_FIELDS[name];
-      if (fields && Array.isArray(data)) {
-        for (const record of data) {
-          if (!record || typeof record !== "object") continue;
-          for (const field of fields) {
-            if (typeof record[field] === "string") add(record[field], name + ":" + field);
-          }
-        }
-      }
-      extractCommands(data, name, add, result.commandCounts);
-    } else {
-      const fields = DB_FIELDS[name];
-      if (fields && Array.isArray(data)) {
-        for (const record of data) {
-          if (!record || typeof record !== "object") continue;
-          for (const field of fields) {
-            const value = record[field];
-            if (typeof value === "string") add(value, name + ":" + field);
-          }
-        }
-      }
-    }
+    // The first matching rule owns the file; the plan's fallback catches the
+    // ordinary database files. A different engine swaps the plan, not this loop.
+    const rule = enginePlan.files.find((candidate) => candidate.matches(name)) || enginePlan.fallback;
+    if (rule) rule.collect(data, name, add, result.commandCounts);
 
     const strings = result.totalStrings - before;
     if (strings > 0) result.perFile[name] = strings;

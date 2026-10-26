@@ -16,6 +16,7 @@ import {
   scanProject,
   uninstallRuntime as uninstallRuntimeCore,
 } from "../adapter.js";
+import { rmProfile } from "../profile.js";
 import { launchProject } from "../launch.js";
 
 export const adapter = {
@@ -59,6 +60,12 @@ export const adapter = {
   },
 
   rules: { controlCodes: true, maxColumns: 0 },
+
+  /**
+   * Grammar, prompt wording and language-pair judgements the pipeline reads.
+   * The frozen contract on `rules` is untouched; this field is additive.
+   */
+  profile: rmProfile,
 };
 
 export default adapter;

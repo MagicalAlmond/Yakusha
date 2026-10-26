@@ -19,6 +19,20 @@ import { controlCodes, visibleText } from "../core/textkey.js";
 import { wrapText } from "./wrap.js";
 
 /**
+ * Wrapping needs the engine's escape-code grammar: which \\C[6] runs count as
+ * zero width atoms. Without a profile the wrap module's own RPG Maker default
+ * is used.
+ *
+ * @param {{ profile?: import("../engines/profile.js").EngineProfile }} options
+ * @returns {{ tokenize?: (line: string) => Array<{ t: string, v: string }> } | undefined}
+ */
+function wrapOptions(options) {
+  const grammar = options && options.profile && options.profile.grammar;
+  if (!grammar || typeof grammar.tokenize !== "function") return undefined;
+  return { tokenize: grammar.tokenize };
+}
+
+/**
  * @typedef {object} PendingItem
  * @property {string} key source text
  * @property {string[]} contexts
@@ -52,6 +66,7 @@ import { wrapText } from "./wrap.js";
  * @property {(progress: {done: number, total: number, translated: number, rejected: number}) => void} [onProgress]
  * @property {(message: string) => void} [log]
  * @property {AbortSignal} [signal]
+ * @property {import("../engines/profile.js").EngineProfile} [profile] engine grammar, prompt and validation rules
  */
 
 /**
@@ -131,21 +146,32 @@ const ESCAPE_EXAMPLES = [
 /**
  * The instruction block sent with every request.
  *
- * @param {{ targetLang?: string, glossary?: Record<string,string>, maxColumns?: number }} options
+ * An engine profile (options.profile) supplies the task line and the escape
+ * examples; without one the RPG Maker defaults below are used, which keeps the
+ * prompt byte identical for every existing caller.
+ *
+ * @param {{ targetLang?: string, glossary?: Record<string,string>, maxColumns?: number, profile?: import("../engines/profile.js").EngineProfile }} options
  * @returns {string}
  */
 export function systemPrompt(options = {}) {
   const lang = options.targetLang || "Simplified Chinese";
   const maxColumns = Number(options.maxColumns);
+  const prompt = (options.profile && options.profile.prompt) || null;
+  const task =
+    prompt && typeof prompt.task === "function"
+      ? prompt.task(lang)
+      : "You translate RPG Maker MZ game text from Japanese into " + lang + ".";
+  const escapeExamples =
+    prompt && typeof prompt.escapeExamples === "string" ? prompt.escapeExamples : ESCAPE_EXAMPLES;
   const lines = [
     "You are a professional game localiser.",
-    "You translate RPG Maker MZ game text from Japanese into " + lang + ".",
+    task,
     "",
     "Rules:",
     "1. Reply with JSON only, no prose, no markdown fences.",
     "2. Translate every item independently; never merge or split items.",
     "3. Keep every escape code exactly as written, in the same order.",
-    "   Escape codes look like " + ESCAPE_EXAMPLES + ".",
+    "   Escape codes look like " + escapeExamples + ".",
     "   Never translate or reorder them, and never add new ones.",
     "4. Preserve the number of line breaks of each item.",
     "4b. Keep %1, %2 ... placeholders exactly as written; they are filled in by the game.",
@@ -346,7 +372,7 @@ export function hasKanaOutsideMarkup(text) {
  *
  * @param {string} source
  * @param {string} target
- * @param {{ strictCodes?: boolean, requireLines?: boolean, maxLengthRatio?: number, minLengthRatio?: number }} [options]
+ * @param {{ strictCodes?: boolean, requireLines?: boolean, maxLengthRatio?: number, minLengthRatio?: number, profile?: import("../engines/profile.js").EngineProfile }} [options]
  * @returns {{ ok: boolean, reason?: string }}
  */
 export function validateTranslation(source, target, options = {}) {
@@ -354,6 +380,13 @@ export function validateTranslation(source, target, options = {}) {
   const requireLines = options.requireLines !== false;
   const maxRatio = options.maxLengthRatio || 4;
   const minRatio = options.minLengthRatio || 0.12;
+  // The echo test and the placeholder syntax are engine decisions; the RPG
+  // Maker profile is also what every pre-profile caller gets by falling back.
+  const judge = (options.profile && options.profile.validate) || null;
+  const codesOf = options.profile && options.profile.grammar && options.profile.grammar.controlCodes
+    ? options.profile.grammar.controlCodes
+    : controlCodes;
+  const slotsPattern = judge && judge.slots instanceof RegExp ? judge.slots : /%[0-9]+/g;
 
   if (typeof target !== "string" || target.trim().length === 0) return { ok: false, reason: "empty" };
 
@@ -364,13 +397,14 @@ export function validateTranslation(source, target, options = {}) {
   // games write the speaker name inside the line ("\N<ひなた>“好开心♡”") and an
   // already localised line then still contains kana in the speaker tag. Only
   // kana that the player actually sees means "this was not translated".
-  if (target === source && hasKanaOutsideMarkup(source)) {
+  const untranslated = judge && typeof judge.isUntranslated === "function" ? judge.isUntranslated : hasKanaOutsideMarkup;
+  if (target === source && untranslated(source)) {
     return { ok: false, reason: "identical to source (untranslated echo)" };
   }
 
   if (strictCodes) {
-    const a = controlCodes(source);
-    const b = controlCodes(target);
+    const a = codesOf(source);
+    const b = codesOf(target);
     if (a.length !== b.length || a.some((code, i) => code !== b[i])) {
       return { ok: false, reason: "escape codes differ: " + JSON.stringify(a) + " vs " + JSON.stringify(b) };
     }
@@ -378,8 +412,8 @@ export function validateTranslation(source, target, options = {}) {
 
   // MZ expands %1 %2 in skill and state messages with the actor name, so a
   // translation that drops or renumbers them prints the wrong text.
-  const sourceSlots = source.match(/%[0-9]+/g) || [];
-  const targetSlots = target.match(/%[0-9]+/g) || [];
+  const sourceSlots = source.match(new RegExp(slotsPattern.source, slotsPattern.flags.includes("g") ? slotsPattern.flags : slotsPattern.flags + "g")) || [];
+  const targetSlots = target.match(new RegExp(slotsPattern.source, slotsPattern.flags.includes("g") ? slotsPattern.flags : slotsPattern.flags + "g")) || [];
   if (sourceSlots.join(",") !== targetSlots.join(",")) {
     return { ok: false, reason: "placeholders differ: " + JSON.stringify(sourceSlots) + " vs " + JSON.stringify(targetSlots) };
   }
@@ -426,6 +460,7 @@ async function runBatch(batch, options) {
         targetLang: options.targetLang,
         glossary: selectGlossary(options.glossary, pending),
         maxColumns: options.maxColumns,
+        profile: options.profile,
       }),
       userPrompt: userPrompt(pending),
       signal: options.signal,
@@ -444,7 +479,7 @@ async function runBatch(batch, options) {
       if (verdict.ok) {
         // Wrapping happens only once the text is known to be faithful, so the
         // validator keeps comparing model output against the source verbatim.
-        accepted.set(item.key, wrapText(candidate, options.maxColumns));
+        accepted.set(item.key, wrapText(candidate, options.maxColumns, wrapOptions(options)));
         rejections.delete(item.key);
       } else {
         rejections.set(item.key, { key: item.key, target: candidate, reason: verdict.reason });
@@ -478,7 +513,7 @@ export async function translateDictionary(dict, options) {
     for (const key of Object.keys(dict.entries)) {
       const entry = dict.entries[key];
       if (!entry.text) continue;
-      const fitted = wrapText(entry.text, options.maxColumns);
+      const fitted = wrapText(entry.text, options.maxColumns, wrapOptions(options));
       if (fitted !== entry.text) {
         entry.text = fitted;
         rewrapped += 1;
@@ -514,7 +549,7 @@ export async function translateDictionary(dict, options) {
         continue;
       }
       if (entry.text && entry.text !== fixed) overwritten += 1;
-      entry.text = wrapText(fixed, options.maxColumns);
+      entry.text = wrapText(fixed, options.maxColumns, wrapOptions(options));
       delete entry.error;
       applied += 1;
     }
@@ -535,7 +570,7 @@ export async function translateDictionary(dict, options) {
     const fixed = glossary[item.key];
     if (typeof fixed === "string" && fixed.length > 0) {
       if (validateTranslation(item.key, fixed, options).ok) {
-        dict.entries[item.key].text = wrapText(fixed, options.maxColumns);
+        dict.entries[item.key].text = wrapText(fixed, options.maxColumns, wrapOptions(options));
         translated += 1;
         continue;
       }

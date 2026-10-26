@@ -19,7 +19,7 @@ import {
   openProject,
   listDataFiles,
 } from "../core/mzproject.js";
-import { extractProject, toSortedArray } from "../core/extract.js";
+import { extractProject, rmFilePlan, toSortedArray } from "../core/extract.js";
 import {
   dictionaryPath,
   emptyDictionary,
@@ -166,7 +166,7 @@ export function notImplemented(what) {
  * @returns {Record<string, unknown>}
  */
 export function scanProject(project) {
-  const result = extractProject(project.root);
+  const result = extractProject(project.root, rmFilePlan);
   const entries = toSortedArray(result);
   const withCodes = entries.filter((entry) => stripCodes(entry.text) !== entry.text).length;
   return {
@@ -194,7 +194,7 @@ export function scanProject(project) {
  * @returns {{ file: string, added: number, total: number, translated: number, pending: number }}
  */
 export function extractIntoDictionary(project) {
-  const result = extractProject(project.root);
+  const result = extractProject(project.root, rmFilePlan);
   const file = dictionaryPath(project.root);
   let existing = null;
   if (fs.existsSync(file)) {

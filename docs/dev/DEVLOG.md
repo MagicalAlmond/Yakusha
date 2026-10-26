@@ -1,7 +1,7 @@
 # 开发交接文档（DEVLOG）
 
 > 这份文档记录**阶段目标、已完成项、决策理由和下一步**，随开发进程更新。
-> 最后更新：2026-10-25（0.10.0 完成，WP1–WP6 全部交付；代码在 `feat/0.10-docs` 分支，未打 tag）。
+> 最后更新：2026-10-25（0.10.0 完成；0.10.x 引擎拆缝 refactor/engine-seams 完成并推送，未打 tag）。
 > 0.9.0 项目改名 **Yakusha**，字典目录、插件文件、环境变量与备份后缀全部随之改名；
 > 仓库已发布到 https://github.com/MagicalAlmond/Yakusha（`main` 分支）。
 > 0.8.0 的 `doctor`、0.7.1 的 `uninstall` 漂移保护、0.7.0 的报告/模板见下）。
@@ -599,7 +599,23 @@ contexts 顺序与重复保留、空 `text` 与 `error` 不导出；entries 键�
 plugin 档是"删文件即还原"，inject 档是"文件不改、退出即恢复"，L3-only 什么也不保证；
 把三种说成一句就是在承诺做不到的事。二是**路线排期不该写在冻结的接口文档里**——
 `architecture.md` 冻结的是信封、错误码、adapter 形状，排期改到战略稿并留一行指针，
-否则每次调整路线都要动"契约文档"。
+否则每次调整路线都要动"契约文档"
+### 0.10.x 引擎拆缝（refactor/engine-seams）
+
+目标来自 §8 backlog 第 5 项：把 MZ 假设从 core/pipeline 挪到 adapter 后面，**行为不变、既有测试不改断言仍绿**。全部改动如下：
+
+- 新增 `src/engines/profile.js`：`rmProfile`（id `rpg-maker`）承载四类引擎事实——`prompt.task(lang)` 与 13 个转义码示例、`grammar`（tokenize/controlCodes/plainText/visibleText，转发 `src/core/textkey.js`）、`validate.isUntranslated` 与 `slots` 正则、`verify.kana/han/traditional/slots`。pipeline 一律从 `options.profile` 读，缺省回退到与原实现逐字节相同的常量。
+- `src/core/extract.js`：新增 `rmFilePlan`（`dataDir: "data"` + 4 条规则 + DB_FIELDS 兜底），原五路 if/else 分支逐行搬进 `collect` 闭包；`extractProject(projectRoot, plan?)` 改为规则表分派。单参调用签名不变。
+- `src/pipeline/wrap.js`：`displayColumns/atomsOf/wrapLine/kinsoku/rebalance/wrapText` 全链增加 `tokenize` 注入参数，缺省仍是模块导入的 RM 分词器。
+- `src/pipeline/translate.js`：`systemPrompt` 的引擎句与转义示例、`validateTranslation` 的回显判据/转义码函数/占位符正则、`runBatch` 的 prompt 构造与 4 处 `wrapText` 调用全部读 `options.profile`。
+- `src/pipeline/verify.js`：kana/Han/繁体/占位符判据与 textkey 三函数改为 profile 派生（`options.profile?.verify` / `?.grammar`），`problems` 顺序与 kind 名未动。
+- `src/core/doctor.js`：`diagnose` 新增 `engineLabel`（engine 检查行）与 `profile`（透传给 verifyDictionary）。
+- `src/engines/adapter.js`：`scanProject/extractIntoDictionary` 显式传 `rmFilePlan`；mz/mv 两个 adapter 增加 `profile: rmProfile` 字段——契约测试锁死的 `rules: {controlCodes, maxColumns}` 三键原样保留。
+- `bin/yakusha.js`：`cmdVerify/cmdSpeaker/cmdTranslate/cmdDoctor` 从 `requireProject` 拿 adapter 并传 `profile`；doctor 文本首行改用 `adapter.name`（"RPG Maker MZ/MV" 输出不变）。
+- 新增 `test/profile-seams.test.js`（8 条）：双 adapter 的 `profile === rmProfile` 且 rules 三键不变；带/不带 profile 的 systemPrompt 字节相等、validateTranslation/verifyDictionary/wrapText/extractProject 结果相等；自定义 profile 冒烟（改 prompt 措辞、关闭 kana 审计、自定义 extract plan）。
+
+结果：**354 pass / 0 fail**（原 346 + 新 8），`node bin/yakusha.js --version` 仍为 `yakusha 0.10.0`，禁用词 0 命中。判断：拆缝的实质是把「引擎专属」从「写在哪个文件」变成「谁有权改这份数据」——现在 pipeline 只认识 profile 接口，0.11 Ren'Py 只需新增一个 profile + plan，不必再动 verify/translate 的主循环。
+。
 
 ## 7. 已知限制
 
@@ -669,12 +685,11 @@ plugin 档是"删文件即还原"，inject 档是"文件不改、退出即恢复
    WP5（launch、attach 桩）与 WP6（文档与 0.10.0）全部落地，`npm test` 346 条全绿。
 4. ~~**0.10.0 平台与 CI**~~ —— **已完成**：workflow 改 `windows-latest`（Node 22/24，删 ubuntu）；
    加 `.gitattributes`（`* text=auto eol=lf`）；版本号升 0.10.0 时同步了插件模板与测试。
-5. **0.10.x 引擎拆缝（下一包，refactor/engine-seams）**：把写死在 core / pipeline 里的
-   MZ 假设挪到 adapter 后面——`src/core/extract.js` 的 `data/*.json` 遍历、
-   `src/pipeline/translate.js` 的系统提示词、`src/pipeline/verify.js` 的假名人名判据、
-   `src/core/doctor.js` 的 "RPG Maker" 措辞、`src/core/textkey.js` 的 MZ 转义分词。
-   要求是**行为不变、既有测试不改断言仍绿**；不新增引擎，只拆缝。
-   这是 0.11 Ren'Py 的前置，否则接非 RM 引擎会变成"在 RM 假设上再焊一层"。
+5. ~~**0.10.x 引擎拆缝（refactor/engine-seams）**~~ —— **已完成**：新增 `src/engines/profile.js`
+   （`rmProfile`：prompt / grammar / validate / verify 四组引擎事实）与 `src/core/extract.js` 的
+   `rmFilePlan`；translate / verify / wrap / doctor 全部改为从 `options.profile` 读引擎判据，
+   缺省回退与原实现逐字节一致；mz/mv adapter 挂 `profile` 字段，`rules` 三键契约未动。
+   实测见 §6；这是 0.11 Ren'Py 的前置——接新引擎只需新 profile + plan，不再动 pipeline 主循环。
 6. **0.11.0 Ren'Py 前**：`docs/gui.md` 用户指南、`CHANGELOG.md`（DEVLOG 是内部日志，
    公开仓库需要面向使用者的变更记录）。Ren'Py 落地时 `docs/limitations.md` 要补
    `.rpyc` 反编译边界与 translation-file 投递的卸载语义。

@@ -68,7 +68,7 @@ export function runtimeLookup(root, dictionaryPath) {
 
 /**
  * @param {import("./mzproject.js").Project} project
- * @param {{ dictionary?: object|null, dictionaryFile?: string, maxColumns?: number }} [options]
+ * @param {{ dictionary?: object|null, dictionaryFile?: string, maxColumns?: number, engineLabel?: string, profile?: import("../engines/profile.js").EngineProfile }} [options]
  */
 export function diagnose(project, options = {}) {
   const dictionary = options.dictionary || null;
@@ -82,7 +82,10 @@ export function diagnose(project, options = {}) {
     return check;
   };
 
-  add("engine", "ok", "RPG Maker " + project.engine.toUpperCase() + (project.version ? " " + project.version : ""));
+  // The adapter names its own engine ("RPG Maker MZ"); the fallback keeps the
+  // pre-profile wording for direct library callers.
+  const engineLabel = options.engineLabel || "RPG Maker " + project.engine.toUpperCase();
+  add("engine", "ok", engineLabel + (project.version ? " " + project.version : ""));
 
   let pluginsOk = true;
   try {
@@ -194,7 +197,7 @@ export function diagnose(project, options = {}) {
 
   let verify = null;
   if (dictionary) {
-    const result = verifyDictionary(dictionary, { maxColumns: options.maxColumns || 0 });
+    const result = verifyDictionary(dictionary, { maxColumns: options.maxColumns || 0, profile: options.profile });
     verify = { errors: result.errors, warnings: result.warnings };
     if (result.errors > 0) {
       add(

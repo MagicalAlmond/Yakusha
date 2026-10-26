@@ -178,11 +178,11 @@ async function cmdStatus(dir) {
 }
 
 async function cmdVerify(dir) {
-  const { project } = requireProject(dir);
+  const { project, adapter } = requireProject(dir);
   const { file, data } = requireDictionary(project);
   const maxColumns = numberFlag("max-length", 0);
   const kinds = typeof flags.kind === "string" ? flags.kind.split(",").map((k) => k.trim()).filter(Boolean) : undefined;
-  const result = verifyDictionary(data, { maxColumns, kinds });
+  const result = verifyDictionary(data, { maxColumns, kinds, profile: adapter.profile });
   const shown = numberFlag("limit", 20);
   // An error makes the command fail, so a release script can gate on it
   // ("verify && install"). The report still goes to stdout: a caller needs the
@@ -253,7 +253,7 @@ async function cmdVerify(dir) {
  * on 400 entries is not realistic.
  */
 async function cmdSpeaker(dir) {
-  const { project } = requireProject(dir);
+  const { project, adapter } = requireProject(dir);
   const { file, data } = requireDictionary(project);
   const includeDrift = flags["include-drift"] === true;
   const dryRun = flags["dry-run"] === true;
@@ -273,9 +273,9 @@ async function cmdSpeaker(dir) {
       throw new CliError("E_USAGE", "names file must be a JSON map of source name -> Chinese name");
     }
   }
-  const before = verifyDictionary(data, { kinds: ["speaker"] });
+  const before = verifyDictionary(data, { kinds: ["speaker"], profile: adapter.profile });
   const result = repairSpeakerNames(data, { includeDrift, names });
-  const after = verifyDictionary(data, { kinds: ["speaker"] });
+  const after = verifyDictionary(data, { kinds: ["speaker"], profile: adapter.profile });
   // The names repair cannot invent a reading, and a name every line leaves in
   // Japanese has nothing to copy. A template is the cheapest way to ask: the
   // user fills in only the names they care about and reruns with --names.
@@ -324,7 +324,7 @@ async function cmdSpeaker(dir) {
     }
     // Everything left is a name this game never translated, so there is no
     // rendering to copy. Say so, and say what would fix it.
-    const remaining = verifyDictionary(data, { kinds: ["speaker"] }).problems.filter((p) => p.severity === "error");
+    const remaining = verifyDictionary(data, { kinds: ["speaker"], profile: adapter.profile }).problems.filter((p) => p.severity === "error");
     console.log("names     : nothing left that this dictionary can fix");
     console.log("untranslated: " + remaining.length + " line(s) use a name this game never translated");
     for (const problem of remaining.slice(0, shown)) {
@@ -447,7 +447,7 @@ async function cmdTerms(dir) {
 }
 
 async function cmdTranslate(dir) {
-  const { project } = requireProject(dir);
+  const { project, adapter } = requireProject(dir);
   const { file, data } = requireDictionary(project);
 
   const glossaryOnly = flags["glossary-only"] === true;
@@ -533,6 +533,7 @@ async function cmdTranslate(dir) {
   const flush = () => dict.saveDictionary(file, data);
   const result = await translateDictionary(data, {
     provider,
+    profile: adapter.profile,
     targetLang: typeof flags["target-lang"] === "string" ? flags["target-lang"] : undefined,
     glossary,
     batchSize: numberFlag("batch-size", undefined),
@@ -738,7 +739,7 @@ async function cmdLaunch(dir) {
 }
 
 async function cmdDoctor(dir) {
-  const { project } = requireProject(dir);
+  const { project, adapter } = requireProject(dir);
   const file = dict.dictionaryPath(project.root);
   let data = null;
   if (fs.existsSync(file)) {
@@ -748,7 +749,13 @@ async function cmdDoctor(dir) {
       data = null;
     }
   }
-  const result = diagnose(project, { dictionary: data, dictionaryFile: file, maxColumns: numberFlag("max-length", 0) });
+  const result = diagnose(project, {
+    dictionary: data,
+    dictionaryFile: file,
+    maxColumns: numberFlag("max-length", 0),
+    engineLabel: adapter.name,
+    profile: adapter.profile,
+  });
   const payload = {
     verdict: result.verdict,
     checks: result.checks,
@@ -766,8 +773,8 @@ async function cmdDoctor(dir) {
   console.log(
     "game      : " +
       (game.title || "(untitled)") +
-      " (RPG Maker " +
-      game.engine.toUpperCase() +
+      " (" +
+      adapter.name +
       (game.engineVersion ? " " + game.engineVersion : "") +
       ", " +
       game.dataFiles +

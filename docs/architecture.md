@@ -175,7 +175,7 @@ test/fixtures/           各引擎最小夹具（mini-mz、mini-mv）
 | 版本 | 内容 | 验收 |
 | --- | --- | --- |
 | 0.10.0 | core 适配器化：`engines/registry` + mz/mv adapter 包住现有逻辑；新增 `export`、`launch`、`config`；全部命令 `--json` 稳定；契约先冻结（见下文五篇设计稿） | 既有测试全绿不降，新增适配器契约测试 |
-| 0.10.x | 引擎拆缝 refactor：把 `data/*.json` 假设、MZ 系统提示词、假名校验从 core/pipeline 挪到 adapter 后（行为不变，纯重构） | 全部既有测试不改断言仍绿 |
+| 0.10.x | ~~引擎拆缝 refactor~~（**已完成**，`refactor/engine-seams`）：引擎事实集中到 `src/engines/profile.js` 与 `rmFilePlan`，pipeline 从 `options.profile` 读、缺省回退原实现 | 354 pass（346 原有断言未改 + 8 条 profile 等价性新测试） |
 | 0.11.0 | Ren'Py 实验：`.rpy` + `.rpyc` 提取、translation-file 投递、通用内容导入 v1 | 真机一款 Ren'Py 游戏 L2–L4 |
 | 0.12.0 | RGSS 注入 + 原生 helper：injector、hook DLL、按引擎下载与 manifest 校验的基础设施 | 失败时游戏不坏、能卸载干净 |
 | 0.13.0 | 字典导出 v2（TSV/CSV）+ KRKR 提取 | 外部工具改过的表能回灌 |
