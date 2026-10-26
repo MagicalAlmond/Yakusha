@@ -82,7 +82,8 @@ export function runtimeLookup(root, dictionaryPath) {
  *   extract?: () => object,
  *   dataFiles?: number,
  *   sourceLabel?: string,
- *   delivery?: { path: string|null, exists: boolean, language: string|null, entries: number }|null,
+ *   delivery?: { path?: string|null, exists?: boolean, language?: string|null, entries?: number,
+ *     pending?: boolean, message?: string }|null,
  * }} [options]
  */
 export function diagnose(project, options = {}) {
@@ -168,18 +169,34 @@ export function diagnose(project, options = {}) {
     }
   }
 
-  // Two delivery models, one payload. RPG Maker: a plugin file plus its
-  // $plugins entry plus a dictionary the plugin reads at load time. Ren'Py: a
-  // single generated translation script, so the file *is* the registration and
-  // there is no backup to compare. The adapter hands its own state over as
-  // `delivery`; when that is absent the RPG Maker path runs unchanged.
+  // Delivery models, one payload. RPG Maker: a plugin file plus its $plugins
+  // entry plus a dictionary the plugin reads at load time. Ren'Py: a single
+  // generated translation script, so the file *is* the registration and there is
+  // no backup to compare. The adapter hands its own state over as `delivery`;
+  // when that is absent the RPG Maker path runs unchanged.
   const delivery = options.delivery || null;
   let runtime = null;
   let installPayload;
   let installCheck;
   let backup = null;
 
-  if (delivery) {
+  if (delivery && delivery.pending) {
+    // An engine without a delivery layer yet. Extraction, translation and
+    // verification all work, but nothing writes the result back into the game,
+    // and saying "not installed" would send the user to a command that refuses
+    // to run. The adapter supplies the reason; this is a warning, not a failure,
+    // because nothing here is broken - it is just not finished.
+    installCheck = add("install", "warn", delivery.message || "this engine has no delivery layer yet");
+    runtime = { embedded: false, entries: 0, path: null, found: null };
+    add("runtime", "info", "nothing is loaded at run time, so the game keeps showing the original text");
+    installPayload = {
+      pluginFile: null,
+      pluginFilePresent: false,
+      entryPresent: false,
+      entryParameters: null,
+      backup: null,
+    };
+  } else if (delivery) {
     const deliveryPath = delivery.path || null;
     const present = Boolean(delivery.exists);
     const relPath = deliveryPath && project.root ? path.relative(project.root, deliveryPath).split(path.sep).join("/") : deliveryPath;

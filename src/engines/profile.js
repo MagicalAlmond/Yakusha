@@ -19,7 +19,7 @@ import { controlCodes, plainText, tokenize, visibleText } from "../core/textkey.
 import { TRADITIONAL_JOINED } from "../data/traditional.js";
 
 /** Traditional-only characters, built once from the flat pair table. */
-const TRADITIONAL = (() => {
+export const TRADITIONAL = (() => {
   const set = new Set();
   for (let i = 0; i + 1 < TRADITIONAL_JOINED.length; i += 2) set.add(TRADITIONAL_JOINED[i]);
   return set;
@@ -32,7 +32,7 @@ const TRADITIONAL = (() => {
  * both are ordinary punctuation in Chinese, so a perfectly translated
  * "睡眠・沈黙" line would otherwise be reported as untranslated.
  */
-const VERIFY_KANA = /[\u3041-\u3096\u30a1-\u30fa]/;
+export const VERIFY_KANA = /[\u3041-\u3096\u30a1-\u30fa]/;
 
 /**
  * Decide that a source line was echoed back without being translated.
@@ -44,7 +44,7 @@ const VERIFY_KANA = /[\u3041-\u3096\u30a1-\u30fa]/;
  * @param {string} text
  * @returns {boolean}
  */
-function isUntranslated(text) {
+export function isUntranslated(text) {
   return /[\u3040-\u30ff]/.test(visibleText(text));
 }
 

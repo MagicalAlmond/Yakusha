@@ -3,8 +3,10 @@
 这些是当前版本明确不处理的范围，以及工具的边界。
 
 - 只处理游戏自己的文本资源：MZ/MV 是 `data/` 里的 JSON，Ren'Py 是 `game/` 下脚本里的
-  对话、选项、`_()` 字符串与 screen 文本。插件 `js/plugins/*.js` 里硬编码的 UI 文案不动。
-- 图片里的文字（`img/pictures`，Ren'Py 的 `game/images/`）不处理；字体、配音同样不碰。
+  对话、选项、`_()` 字符串与 screen 文本，RGSS 是数据文档里事件指令与数据库字段的文本。
+  插件 `js/plugins/*.js` 里硬编码的 UI 文案不动。
+- 图片里的文字（`img/pictures`，Ren'Py 的 `game/images/`，RGSS 的 `Graphics/`）不处理；
+  字体、配音同样不碰。
 - MV 的 `.rpgmvp` 加密图不影响文本，但 MV 的 `data/` 若用了别的混淆方案可能解不出（会报 `undecodable`）。
 - **MZ/MV 不会横向自动换行。** `Window_Base.flushTextState` 把整行一次性 `drawText` 到位图，
   超出 `contents` 宽度的部分直接被裁（只有纵向有 `needsNewPage` 分页）。默认仍以 prompt 里
@@ -57,14 +59,15 @@
   插件的那款上有 411 条 error —— 全部是「同一个角色在别处译过、这里还留着日文名」，
   属于玩家能直接看到的日文，所以定成 error 而不是 warn。
 
-- **暂无 GUI**：当前只有 CLI（`bin/yakusha.js`）。Electron 外壳排到 0.14，0.11 没有打包好的
+- **暂无 GUI**：当前只有 CLI（`bin/yakusha.js`）。Electron 外壳排到 0.14，0.12 没有打包好的
   exe / 安装包；拖拽、设置面板、进度条这些都要等 GUI 迭代。排期权威版本见
   [dev/ENGINE-STRATEGY.md](dev/ENGINE-STRATEGY.md) §6.3。
 - **只在 Windows 10/11 x64 上支持与验收**：Linux 与 macOS 不在当前范围（原因与重评条件见
   [platforms.md](platforms.md)）；WSL、Wine、Proton 也不作为受支持环境。
-- **多引擎只接了 MZ / MV / Ren'Py 三个**：0.11 把 Ren'Py 注册进 registry，走的是
-  translation 档（写一个翻译脚本），不是 `inject` 档。Unity、Godot、Wolf、Kirikiri 与
-  RPG Maker XP / VX / VX Ace 不在当前版本内，`inject` 档（原生注入）只有契约、没有实现。
+- **多引擎只接了 MZ / MV / Ren'Py / RGSS 四个**：0.11 注册的 Ren'Py 走 translation 档
+  （写一个翻译脚本），0.12 注册的 RGSS（XP / VX / VX Ace）只到 L1–L3，**没有交付层**
+  （见下面 RGSS 那组条目）。Unity、Godot、Wolf、Kirikiri 不在当前版本内，`inject` 档
+  （原生注入）只有契约、没有实现。
 - **Ren'Py 只处理 `game/` 下的脚本**：`.rpy` 与 `.rpyc` 里的对话、选项、`_()` 字符串、
   screen 文本会抽走；图片文字、字体、配音都不处理。
 - **Ren'Py 不读 `game/tl/`**：那目录放的是译文输出而不是源文本，工具会整体跳过它——
@@ -80,14 +83,45 @@
   `yakusha_translation.rpy`（`translate <lang> strings:` 块），不改任何游戏脚本、不改
   `options.rpy`；`uninstall` 就是删这一个文件。代价是每条能替换的都是**整串精确匹配**，
   一句台词里只改一半做不到。
+- **RGSS 没有交付层**：0.12 只做到「识别 / 盘点 / 提取 / 翻译 / 校验 / 导出」。
+  `install` 与 `uninstall` 一律报 `E_NOT_IMPLEMENTED`（退出码 2），消息是
+  `install is not implemented for RGSS yet - see the pending decisions in docs/dev/DEVLOG.md`，
+  并且**不写任何文件**，游戏里始终是原文。原因之一是投递方式还没拍板：要么纯 JS 把译文
+  写回 `Data/*.rvdata2`（或重写整个 `.rgss3a`），要么走原生注入器，后者需要本项目
+  目前没有的 C/C++ 工具链。
+- **RGSS 只抽玩家真能读到的位置**：事件指令 `401`（台词）、`405`（滚动文字续行）、
+  `102`（选项标签）、`101`（说话人名，非空才收）、`320`（改角色名），加上数据库文档的
+  `name` / `description` / `message*` 一类字段与 `System` 的游戏标题、货币单位、
+  `@terms` 四张术语表。刻意不收的有：`108` / `408`（编辑器注释）、`355` / `655`
+  （Ruby 脚本行）、`231` / `322`（图片文件名）、`111` / `118` / `119` / `122` /
+  `123` / `283` / `284`（脚本参数）。删掉或改写它们要么不起作用，要么直接把游戏弄坏。
+- **RGSS 不翻译 Ruby 脚本本身**：`Scripts.rvdata2` 里每个脚本的 `codeobj` 是 deflate
+  压缩过的 Ruby 源码，本版不解压、不反编译、不碰脚本内硬编码的 UI 文案；`@note` 是
+  脚本元数据通道（自定义图标标签之类）、`@*_name` 是图片与音频文件名，两者也一律不抽。
+- **RGSS 的归档与 `Data/` 只会读一边**：项目根同时存在 `.rgss3a` / `.rgss2a` /
+  `.rgssad` 时只读归档（三个同名候选按版本号从高到低找），`Data/` 目录被忽略；
+  反过来散装发行就读 `Data/`。官方 RGSS 运行时到底先认哪个，本工具没有实测过，
+  mkxp 这类替代运行时的顺序也和官方不一定一致，所以「打包 + 散装同时存在」的游戏
+  可能和游戏自己的选择不同。
+- **RGSS 的 Marshal 只认 4.x**：`Data/` 里的文档按 Ruby Marshal 4.8 读，主版本不是 4 的
+  直接抛错，文件记进 `undecodable` 后继续走（跟 MZ/MV 的坏 JSON 一个处理方式）。
+  `Game.ini` 按 UTF-8 → Shift_JIS（含假名才用）→ GBK → latin1 的顺序解码，四种都不对
+  的标题会显示成乱码，但项目本身仍能识别。
+- **RGSS 只在一款 RGSS3 / VX Ace 商业游戏上做过全量实测**（644 MB 归档、394 个数据文档、
+  31,730 条唯一串、0 条 `undecodable`、约 380 ms），XP 与 VX 目前只有测试夹具级别的覆盖，
+  三个版本的验收基线（要几款真实游戏才算通过）还没定，见
+  [dev/DEVLOG.md](dev/DEVLOG.md) §8.1。
+- **RGSS 的「写回」从没在真机上验过**：本版虽然能读写 Ruby Marshal（单元测试里读写
+  往返一致）也能重写三种归档（同样的输入两次产生同样的字节），但这些写回路径**没有**
+  接进任何命令，也没有在一款真实游戏上试过「改完 `.rvdata2` 之后游戏还能正常启动」。
 - **`config`、`export` 与 `launch` 已实现，`attach` 还是桩**：用户级配置、密钥不落盘与
   优先级见 [config.md](config.md)；JSON 导出格式见 [export-format.md](export-format.md)；
   启动只认项目根唯一 `.exe` 的规则见 [engines.md](engines.md) §8；`attach` 的调试注入到
-  0.11 仍没有 CLI 入口、仍未实现（能力表 `attach: false`），见 [engines.md](engines.md) §9。
+  0.12 仍没有 CLI 入口、仍未实现（能力表 `attach: false`），见 [engines.md](engines.md) §9。
 - **发布渠道只有 `--json` 与文本两种输出**：13 条命令全部支持 `--json`（一个对象 + 换行），
   退出码统一 0 成功 / 1 发现（仅 `verify` 的 error 级问题与 `doctor` 的 broken 判定）/
   2 错误；参数解析严格，未声明的选项、缺值、多余位置参数一律 `E_USAGE` 退出 2，
   不认识的命令也是退出 2。完整约定见 [json-contract.md](json-contract.md)。
 - **没有译文导入**：目前只能直接编辑 `yakusha/dictionary.json`；`export` 是单向投影，
   不含未翻译条目，也不能代替字典备份。TSV / CSV round-trip 与字典 v2 排在 0.13，
-  0.11 仍然没有。
+  0.12 仍然没有。

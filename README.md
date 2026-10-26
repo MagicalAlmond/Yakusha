@@ -1,14 +1,19 @@
 # Yakusha
 
-**非侵入式游戏运行时翻译工具，支持 RPG Maker MZ / MV 与 Ren'Py。**
+**非侵入式游戏运行时翻译工具，支持 RPG Maker MZ / MV、Ren'Py，以及 RPG Maker XP / VX / VX Ace（只到提取与翻译）。**
 
-把游戏文本抽出来交给任意 LLM 翻译，再让游戏**在运行时**显示中文。当前覆盖两档交付：
+把游戏文本抽出来交给任意 LLM 翻译，再让游戏**在运行时**显示中文。当前覆盖两档交付，
+外加一个只做到提取与翻译的引擎：
 
 - **插件档（MZ / MV）**：游戏目录只多一个插件文件、`js/plugins.js` 里多一行注册，
   `uninstall` 会把这两处还原到安装前。
 - **translation 档（Ren'Py）**：`install` 在 `game/` 下生成一个
   `yakusha_translation.rpy`，用引擎自己的 `translate <lang> strings:` 块替换源文；
   游戏脚本一个字节都不改，`uninstall` 只删这一个文件。
+- **RGSS（XP / VX / VX Ace）本版没有交付层**：`scan`、`extract`、`translate`、`verify`、
+  `terms`、`speaker`、`export`、`doctor` 都能跑，但 `install` 与 `uninstall` 会明确报
+  `E_NOT_IMPLEMENTED`（退出码 2）并且不写任何文件，游戏仍然显示原文。
+  原因与两条候选路线见下面 install 一节和 [docs/limitations.md](docs/limitations.md)。
 
 每一档对游戏文件的实际影响写在该档的文档里（[docs/limitations.md](docs/limitations.md)、
 [docs/engines.md](docs/engines.md)），没有"整个产品都绝对可逆"的说法。
@@ -17,6 +22,9 @@
 scan  →  extract  →  translate  →  install
 看有多少   建字典      LLM 填译文    装进游戏
 ```
+
+本版最后一步只对 MZ / MV / Ren'Py 有效；RGSS 的流程停在 `translate`，
+`install` 会拒绝而不是假装装好。
 
 运行时效果不在仓库里放截图；支持范围、匿名实测数据与编号见 [docs/games.md](docs/games.md)。
 
@@ -42,7 +50,8 @@ CLI 只用 Node 标准库，没有第三方运行时依赖（`package.json` 也�
 node bin/yakusha.js scan "/games/MyGame"
 ```
 
-RPG Maker 数 `data/` 里的数据文件，Ren'Py 数 `game/` 下的脚本，所以中段两行不一样：
+RPG Maker（MZ / MV / RGSS）数 `data/` 里的数据文件，Ren'Py 数 `game/` 下的脚本，
+所以中段两行不一样：
 
 ```
 game      : Example Game
@@ -67,6 +76,11 @@ encodings : rpy 2, rpyc 0
 `.rpy` 与 `.rpyc` 个数；同一个 stem 两种文件都在时只读 `.rpy`，所以 `rpyc` 会是 0。
 解不开的脚本记进 `undecodable` 并继续跑，不会中断。
 
+RGSS 与 MZ / MV 打同一个 `data files:` 标签，但数的是解出来的 `.rxdata` / `.rvdata` /
+`.rvdata2` 文档数：打包发行的游戏直接从 `.rgssad` / `.rgss2a` / `.rgss3a` 归档里读
+（`encodings` 记为 `marshal`），散装目录读 `Data/`（记为对应扩展名）。一款 RGSS3 / VX Ace
+商业游戏实测 394 个数据文档、31,730 条唯一串，样本说明见 [docs/games.md](docs/games.md)。
+
 ### 2. extract：建字典
 
 ```bash
@@ -75,7 +89,9 @@ node bin/yakusha.js extract "/games/MyGame"
 
 在 `/games/MyGame/yakusha/dictionary.json` 生成一份**空译文**的字典，每个 key 都带它出现的
 位置（MZ/MV 是 `Map029.json:401`、`System.json:terms.commands[]`……数组字段带 `[]` 后缀；
-Ren'Py 是 `game/script.rpy:12` 这样的相对项目根路径加行号）。重复执行会合并，不覆盖已有译文。
+Ren'Py 是 `game/script.rpy:12` 这样的相对项目根路径加行号；RGSS 是 `Map001.rvdata2:401`、
+`Actors.rvdata2:name`、`System.rvdata2:terms.params` 这样的「文档名加事件指令码或字段」）。
+重复执行会合并，不覆盖已有译文。
 
 ### 3. translate：翻译
 
@@ -132,6 +148,20 @@ uninstall  : yakusha uninstall "/games/MyGame"
 命令行没有选语言的入口，这一版固定投 `schinese`；文件里还会加一段
 `if config.default_language is None` 的守卫，不覆盖玩家自己在设置里选的语言。
 
+**RGSS（XP / VX / VX Ace）本版装不进去**：这版没有交付层，`install` 与 `uninstall` 都以
+`E_NOT_IMPLEMENTED` 失败、退出码 2、一个文件都不写：
+
+```
+error: install is not implemented for RGSS yet - see the pending decisions in docs/dev/DEVLOG.md
+```
+
+原因很直接：XP / VX / VX Ace 没有插件系统，文本被烤进 `.rxdata` / `.rvdata` / `.rvdata2`
+这些 Ruby Marshal 文档里（打包版藏在归档内），要让游戏显示中文就得把这些文档写回去。
+两条候选路线——纯 JS 把译文写回数据文档或归档，或做一个需要编译器的原生注入器——
+到 0.12 都还没拍板，所以这一版停在字典：`translate` 之后游戏仍然显示原文，
+`doctor` 会把 `install` 报成 warning、`runtime` 报成 info。
+`export` 仍然是拿到译文的出口。
+
 ### 5. verify / doctor：自检
 
 ```bash
@@ -143,7 +173,7 @@ node bin/yakusha.js verify "/games/MyGame"
 问题写成一份可贴进 issue 的 markdown。
 
 游戏更新后中文没了，先跑 `doctor` 分清是安装产物丢了、备份对不上，还是字典与这版游戏
-脱节（RPG Maker 看 `data/`，Ren'Py 看 `game/`）：
+脱节（RPG Maker 与 RGSS 看 `data/`，Ren'Py 看 `game/`）：
 
 ```bash
 node bin/yakusha.js doctor "/games/MyGame"
@@ -170,6 +200,16 @@ game      : Example Game (Ren'Py 1.0, 2 scripts)
 verdict   : ready
 ```
 
+RGSS 的 `install` 与 `runtime` 两项都只有提示，verdict 停在上限 `usable`：
+
+```
+game      : Example Game (RGSS 3, 7 data files)
+  sync        ok    every dictionary key still appears in Data/
+  install     warn  RGSS has no delivery layer yet, so nothing is written back into the game
+  runtime     info  nothing is loaded at run time, so the game keeps showing the original text
+verdict   : usable with 2 warning(s)
+```
+
 ### 可选：export 导出译文
 
 译文要备份、做校对或交给别人时，导出一份 JSON 快照（不是字典备份）：
@@ -184,9 +224,10 @@ node bin/yakusha.js export "/games/MyGame" --out yakusha-export.json
 node bin/yakusha.js launch "/games/MyGame"
 ```
 
-仅 Windows，三个引擎共用同一套规则：项目根恰好一个 `.exe` 时直接启动；多个时用
+仅 Windows，四个引擎共用同一套规则：项目根恰好一个 `.exe` 时直接启动；多个时用
 `--exe <name>` 指定（只收裸文件名）。启动后工具立即退出，游戏继续运行；子进程环境会删掉
-`YAKUSHA_API_KEY` / `OPENAI_API_KEY`。`attach` 调试注入到 0.11 仍是桩，
+`YAKUSHA_API_KEY` / `OPENAI_API_KEY`。RGSS 的启动器就是项目根那个 `.exe`，
+规则与 RPG Maker 完全一样。`attach` 调试注入到 0.12 仍是桩，
 能力表里 `attach: false`，没有 CLI 入口。
 
 ## 命令一览
@@ -200,9 +241,9 @@ node bin/yakusha.js launch "/games/MyGame"
 | `verify` | 体检字典（发布前自检） |
 | `speaker` | 按本作自己的写法修复说话人名 |
 | `terms` | 挖人名/术语的主流译法，报出漂移 |
-| `install` | 装进游戏：MZ/MV 装插件，Ren'Py 写 `game/yakusha_translation.rpy` |
-| `uninstall` | 卸载并还原：删插件与注册行，或删那个翻译文件 |
-| `doctor` | 查安装产物、备份（Ren'Py 无）、字典是否还与这版游戏对得上 |
+| `install` | 装进游戏：MZ/MV 装插件，Ren'Py 写 `game/yakusha_translation.rpy`；RGSS 报 `E_NOT_IMPLEMENTED` |
+| `uninstall` | 卸载并还原：删插件与注册行，或删那个翻译文件；RGSS 同样未实现 |
+| `doctor` | 查安装产物、备份（Ren'Py 无）、字典是否还与这版游戏对得上；RGSS 只报「没有交付层」 |
 | `export` | 把已翻译条目导出成 JSON 快照 |
 | `config` | 读写用户级配置（`provider` / `model` / `baseUrl`，不存密钥） |
 | `launch` | 启动项目根的游戏 exe（仅 Windows） |
@@ -247,8 +288,9 @@ message 保证是单行、不含堆栈与密钥。`YAKUSHA_DEBUG=1` 时堆栈只
 ```
 bin/yakusha.js            CLI 薄壳，当前十三个命令
 src/cli/                  JSON 信封、严格参数解析、用户级配置、JSON 导出
-src/engines/              适配器与 registry（MZ/MV 插件档、Ren'Py translation 档）
+src/engines/              适配器与 registry（MZ/MV 插件档、Ren'Py translation 档、RGSS 仅 L1–L3）
   src/engines/renpy/      .rpy / .rpyc 解析、身份读取、translation 文件生成与状态
+  src/engines/rgss/       .rxdata / .rvdata / .rvdata2 的 Ruby Marshal 读写、三版本归档解密、抽取
 src/index.js              库门面（与 CLI 共用同一套实现）
 src/core/                 项目发现、数据解码、文本抽取、字典、安装、doctor（引擎无关）
 src/pipeline/             provider、批处理、校验、折行、verify、terms、speaker、报告
@@ -261,10 +303,12 @@ docs/                     设计说明、命令参考、契约、实测记录、
 ## 已知限制
 
 - 只处理游戏自己的文本资源：MZ/MV 是 `data/` 里的 JSON，Ren'Py 是 `game/` 下
-  `.rpy` / `.rpyc` 里的对话、选项、`_()` 字符串与 screen 文本。插件 `js/plugins/*.js`
-  里硬编码的 UI 文案、图片里的文字不处理。
-- 支持 RPG Maker **MZ / MV** 与 **Ren'Py**。Unity、Godot、Wolf、Kirikiri 与 RPG Maker
-  XP / VX / VX Ace（`.rxdata` 二进制）不支持；多引擎路线与每一档的验收标准见
+  `.rpy` / `.rpyc` 里的对话、选项、`_()` 字符串与 screen 文本，RGSS 是数据文档里
+  事件指令与数据库字段的文本。插件 `js/plugins/*.js` 里硬编码的 UI 文案、图片里的文字不处理。
+- 支持 RPG Maker **MZ / MV**、**Ren'Py** 与 **RPG Maker XP / VX / VX Ace（RGSS）**。
+  但 RGSS 这一版只有「识别 / 盘点 / 提取 / 翻译 / 校验 / 导出」，**没有运行时交付**：
+  `install` 与 `uninstall` 报 `E_NOT_IMPLEMENTED`，游戏里看不到中文。
+  Unity、Godot、Wolf、Kirikiri 仍然不支持；多引擎路线与每一档的验收标准见
   [docs/dev/ENGINE-STRATEGY.md](docs/dev/ENGINE-STRATEGY.md)。
 - Ren'Py 只投 `schinese` 一种语言（命令行没有选语言的入口）；`game/tl/` 下已有的
   译文不读也不合并。
@@ -291,13 +335,13 @@ docs/                     设计说明、命令参考、契约、实测记录、
 | [docs/commands.md](docs/commands.md) | 所有命令的完整选项、`verify` 十类判据、`terms`/`speaker` 算法说明 |
 | [docs/architecture.md](docs/architecture.md) | 三层结构（CLI 内核 / Electron 壳 / 引擎适配器）、引擎能力分档、载荷契约、分批计划 |
 | [docs/dev/ENGINE-STRATEGY.md](docs/dev/ENGINE-STRATEGY.md) | 多引擎战略稿（内部）：竞品适配方法、目标架构、四档交付、版本顺序、质量门禁、代码签名成本 |
-| [docs/json-contract.md](docs/json-contract.md) | `--json` 信封、错误码、退出码、严格参数解析、破坏性变更（0.10 冻结，0.11 沿用） |
+| [docs/json-contract.md](docs/json-contract.md) | `--json` 信封、错误码、退出码、严格参数解析、破坏性变更（0.10 冻结，0.11、0.12 原样沿用） |
 | [docs/engines.md](docs/engines.md) | adapter 契约、能力矩阵、各引擎的安装/卸载、launch；attach 桩 |
 | [docs/config.md](docs/config.md) | 0.10 实现：用户级配置、密钥优先级与威胁模型（不落盘） |
 | [docs/export-format.md](docs/export-format.md) | 0.10 实现：JSON 导出格式、排序、原子写与覆盖规则 |
 | [docs/platforms.md](docs/platforms.md) | 平台支持矩阵与决策记录（Windows-only 的原因与重评条件） |
 | [docs/design.md](docs/design.md) | 为什么走运行时钩子、文本面覆盖、转义码、设计约束、作为库用 |
-| [docs/games.md](docs/games.md) | 匿名记录的实测游戏（RPG Maker 15 款、Ren'Py SDK 自带项目）、全量翻译数据、官中游戏的处理方式 |
+| [docs/games.md](docs/games.md) | 匿名记录的实测游戏（RPG Maker 15 款、Ren'Py SDK 自带项目、一款 RGSS3 商业游戏）、全量翻译数据、官中游戏的处理方式 |
 | [docs/limitations.md](docs/limitations.md) | 已知限制全表 |
 | [docs/dev/DEVLOG.md](docs/dev/DEVLOG.md) | 内部开发日志（阶段、决策、实测、教训） |
 

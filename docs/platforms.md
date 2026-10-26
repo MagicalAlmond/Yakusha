@@ -1,10 +1,13 @@
-# 平台支持决策（0.11）
+# 平台支持决策（0.12）
 
-> **状态：已决定，0.10 起生效；0.11 复查后不变。** 这是一份决策记录，不是路线图承诺。
+> **状态：已决定，0.10 起生效；0.11 / 0.12 复查后不变。** 这是一份决策记录，不是路线图承诺。
 > 变更它需要新的决策记录，不能靠改代码悄悄扩大支持面。
 >
 > 0.11 加入 Ren'Py 支持，**没有改变下面任何一条平台决定**：Ren'Py 游戏同样只有 Windows
 > x64 被支持，工具不引入新的平台要求（不新增原生依赖、不新增 CI 平台、不改启动方式）。
+> 0.12 加入 RGSS（XP / VX / VX Ace）同样如此：RGSS 提取是纯 JavaScript（解密归档、解析
+> Ruby Marshal 都在 Node 里做），`launch` 沿用同一条 Windows `.exe` 路径，没有新增任何
+> 平台要求。本版 RGSS 只有提取，没有运行时交付层。
 
 ## 1. 决定
 
@@ -25,7 +28,9 @@
 1. **目标游戏以 Windows 为主。** 当前实测的 15 款 MZ/MV 游戏全部带 Windows 启动器；
    `launch` 的契约就是“找到项目根目录里唯一的 `.exe` 并启动”。Linux/macOS 原生版
    RPG Maker 游戏不是这个形状，需要另一套发现与启动逻辑。Ren'Py 发行版是同一个形状
-   （启动器 `.exe` 与 `game/` 并列），所以 0.11 接入它不需要新的平台决策。
+   （启动器 `.exe` 与 `game/` 并列），所以 0.11 接入它不需要新的平台决策。RGSS 游戏也是
+   （Windows exe + `Game.ini`，数据在 `Data/` 或一份 RGSS 归档里，见 [games.md](games.md)），
+   0.12 接入同样不需要新的平台决策。
 2. **单人 + AI 开发，验收带宽是第一约束。** 每多一个平台，就多一套路径规则、换行/权限
    差异、CI 机器和真机验收。当前连 Linux 玩家量都未探明（m13854 的决定：先不投入）。
 3. **CI 已经在云端跑。** GitHub Actions 的 Windows runner 能提供真实 Windows 环境；
@@ -56,7 +61,8 @@
 
 - `launch` 只发现项目根目录下的 `.exe`；不处理 `.app`、AppImage、Flatpak、Steam 启动项。
   Ren'Py 发行版同样是"根目录放一个启动器 `.exe`、旁边是 `game/`"，所以沿用同一条路径，
-  没有为它加任何平台分支。
+  没有为它加任何平台分支。RGSS 的形状也一样（`.exe` + `Game.ini`），0.12 的 RGSS 接入
+  只动提取与扫描，`launch` 仍是这同一条 Windows-only 路径。
 - 非 Windows 调用 `launch` → `E_UNSUPPORTED_PLATFORM`，消息直接说“launch is Windows-only”。
 - 不实现“通过 Wine/Proton 启动”的回退：那会把“启动失败”变成一类无法复现的支持请求。
 
@@ -66,7 +72,8 @@
   会让差分测试随机失败。
 - 游戏文件仍可能是 CRLF：`plugins.js` 重写必须保留原文件的 LF/CRLF 风格（现有能力，
   见 [design.md](design.md)），这条不因仓库用 LF 而放松。Ren'Py 的交付文件是工具新建的
-  （`game/yakusha_translation.rpy`），没有原风格可保留，固定写 LF。
+  （`game/yakusha_translation.rpy`），没有原风格可保留，固定写 LF。RGSS 在 0.12 不写回
+  任何游戏文件（没有交付层，读的是 Marshal 文档），所以它没有引入新的换行问题。
 - 源码、文档、JSON 输出统一 LF；Windows 上写文件也不要额外转 CRLF。
 
 ### 3.5 GUI（原计划 0.11，现排到 0.14，见 [dev/ENGINE-STRATEGY.md](dev/ENGINE-STRATEGY.md) §6.3）
@@ -85,6 +92,7 @@
 
 三条都满足再写新的决策记录。0.10 不预留半成品分支，避免代码里出现“看起来支持”的死路径。
 0.11 接入 Ren'Py 也没有新增平台分支，它跑在和 MZ/MV 完全相同的 Windows 路径上。
+0.12 接入 RGSS 同样如此。
 
 ## 5. macOS 为什么是不支持
 
@@ -96,7 +104,9 @@ CI 不跑 macOS，issue 模板也不把 macOS 列为可选环境。
 
 - `src/core`、`src/pipeline` 不依赖原生模块，算法本身可在 Node 支持的任何系统运行。
   0.11 的 Ren'Py 支持也是纯 JavaScript（读 `.rpy`/解 `.rpyc`、写一个 `.rpy` 文件），
-  没有引入原生模块或外部可执行文件。
+  没有引入原生模块或外部可执行文件。0.12 的 RGSS 提取同理：RGSSAD 归档解密与 Ruby
+  Marshal 解析都是纯 JS，三档（XP/VX/VX Ace）的 L1–L3 在任何平台都能跑，只有 `launch`
+  仍然是 Windows-only。
 - 字典、插件、报告都是纯文本/JS，换平台不改变格式。
 - 因此未来若要支持新平台，主要工作在外壳、路径、启动与验收，而不是重写核心。
   这也是“现在只支持 Windows”不会把路堵死的原因。

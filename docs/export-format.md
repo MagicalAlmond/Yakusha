@@ -4,7 +4,11 @@
 > 本文冻结的是**格式契约**，不是排期；TSV/CSV 与字典 v2 排在 0.13，排期权威版本见
 > [dev/ENGINE-STRATEGY.md](dev/ENGINE-STRATEGY.md) §6.3。
 > 实现与测试见 `src/cli/export.js`、`test/export.test.js`；信封与退出码见
-> [json-contract.md](json-contract.md)。
+> [json-contract.md](json-contract.md)。0.11（Ren'Py）与 0.12（RGSS）接入新引擎**都没有
+> 改动本格式**：`src/cli/export.js` 没有任何按引擎分支的代码，导出仍是 `yakusha/1`、
+> 只投影已翻译条目。RGSS 的字典 key 是 Ruby Marshal 文档里的原文字符串
+> （`src/engines/rgss/marshal.js:344-357`），所以导出的 key 就是原文，和 MZ/MV 同构，
+> 可以跨引擎合并。
 
 ## 1. 命令
 

@@ -1,8 +1,9 @@
-# 引擎适配器契约（0.11 契约）
+# 引擎适配器契约（0.12 契约）
 
-> **状态：0.11 覆盖三个引擎——RPG Maker MZ、RPG Maker MV、Ren'Py。**
+> **状态：0.12 覆盖四个引擎——RPG Maker MZ、RPG Maker MV、Ren'Py、RGSS（XP / VX / VX Ace）。**
 > 0.10 把 MZ 与 MV 包进统一的 adapter，**不搬文件、不重写算法**；0.11 用同一套
-> contract 接入 Ren'Py，作为第三个 adapter 挂在 registry 末位。本文冻结 adapter
+> contract 接入 Ren'Py，作为第三个 adapter 挂在 registry 末位；0.12 接入 RGSS，排在
+> 第四位，只做到 L1–L3（detect / scan / extract），**没有交付层**。本文冻结 adapter
 > 的形状、能力矩阵、安装/启动契约与契约测试的落点；引擎之间真正的差异（文本形态、
 > 投递方式、控制码语法）下沉到 adapter 与 profile 数据里，不进 `src/pipeline`。
 
@@ -17,11 +18,12 @@
 
 非目标：
 
-- 0.11 只做 MZ / MV / Ren'Py 三个引擎，不实现 Unity / Wolf / Kirikiri / RGSS；
-  不实现原生注入（`inject`）。Ren'Py 走引擎自带的 translation 资源档，不是注入档，
-  理由见 [design.md](design.md)。
+- 0.12 的 RGSS 只到 L1–L3（detect / scan / extract + 既有 pipeline），**没有交付层**：
+  `capabilities.runtime` 是 `null`，`install` / `uninstall` 抛 `E_NOT_IMPLEMENTED`
+  （见 §7.7）。本版不实现 Unity / Wolf / Kirikiri，也不实现原生注入（`inject`）。
+  Ren'Py 走引擎自带的 translation 资源档，不是注入档，理由见 [design.md](design.md)。
 - 不搬 `src/core` 的文件。RPG Maker 的 adapter 是薄包装，`core` 仍可被库用户直接使用。
-- 不实现 `attach`（CDP 调试注入），只登记能力与接口；三个引擎的 `attach` 都是 `false`。
+- 不实现 `attach`（CDP 调试注入），只登记能力与接口；四个引擎的 `attach` 都是 `false`。
 
 ## 2. 目录与注册表
 
@@ -29,7 +31,7 @@
 src/engines/
   adapter.js        契约常量、能力默认值、detect 结果形状的辅助函数（无引擎逻辑）
   registry.js       按顺序探测；把 engine id 映射到 adapter
-  launch.js         exe 发现与 spawn（三引擎共用，见 §8）
+  launch.js         exe 发现与 spawn（四引擎共用，见 §8）
   profile.js        RPG Maker 的 profile 数据（prompt / grammar / validate / verify）
   mz/adapter.js     包装 mzproject / extract / install / plugin 模板
   mv/adapter.js     同上，差异只在 detect 的 core 文件与 runtime 能力
@@ -42,28 +44,42 @@ src/engines/
     pickle.js       纯 JS pickle 读取（无依赖、不 eval）
     runtime.js      生成 / 删除 / 读取 game/yakusha_translation.rpy
     profile.js      Ren'Py 的 profile 数据（{tag} 与 [var] 语法）
+  rgss/
+    adapter.js      RGSS adapter：detect / scan / extract；install / uninstall 抛桩
+    project.js      定位 Game.ini / 归档 / Data/，判定 XP / VX / VX Ace 与版本号
+    archive.js      RGSSAD / RGSS2A / RGSS3A 三种归档的读（与写，本版未用于交付）
+    marshal.js      纯 JS Ruby Marshal 4.8 读写（无 eval、不执行任何对象）
+    extract.js      数据文档 → 字典条目；只收玩家能读到的位置（见 §13.3）
+    profile.js      RGSS 的 profile 数据（反斜杠转义码语法）
 src/index.js        公共门面（见 §10）
 ```
 
 `registry.js` 导出：
 
-- `getAdapters()`：按 `mz → mv → renpy` 顺序返回 adapter 数组。
+- `getAdapters()`：按 `mz → mv → renpy → rgss` 顺序返回 adapter 数组。
 - `detectProject(startDir)`：返回与 `adapter.detect` 相同的判别式结果，外加 `adapter`。
 - `getAdapter(engine)`：按 id 取；未知 id 返回 `null`（不抛）。
 
-探测顺序固定：**MZ 优先**。一个目录同时有 `js/rmmz_core.js` 与 `js/rpg_core.js` 时
-按 MZ 处理（与现有 `openProject` 的 `fs.existsSync(MZ_CORE) ? "mz" : "mv"` 一致）。
-Ren'Py 排最后：它按 `game/` 下的 `.rpy` / `.rpyc` 识别，与 RPG Maker 的 core 文件
-不重叠，顺序只影响“三个都不像”时报哪一句。
+探测顺序固定：**MZ → MV → Ren'Py → RGSS**，这是公开契约（`src/engines/registry.js:16`
+的 `ADAPTERS` 数组顺序，模块头注释也这么写）。一个目录同时有 `js/rmmz_core.js` 与
+`js/rpg_core.js` 时按 MZ 处理（与现有 `openProject` 的
+`fs.existsSync(MZ_CORE) ? "mz" : "mv"` 一致）。Ren'Py 按 `game/` 下的 `.rpy` / `.rpyc`
+识别、RGSS 按 `Game.ini` / `RGSSAD` 家族归档 / `Data/` 识别，都与 RPG Maker 的 core
+文件不重叠；顺序只影响“四个都不像”时报哪一句。
 
 `detectProject` 遇到 `E_MULTI_ROOT` 立即返回，不再尝试下一个 adapter：多根意味着
-用户给的是一个装了多款游戏的目录，换引擎试没有意义。Ren'Py 的 `E_MULTI_ROOT` 只出现
-在它自己的 `game/` 搜索里，候选集不会与 RPG Maker 混在一起。
+用户给的是一个装了多款游戏的目录，换引擎试没有意义。Ren'Py 与 RGSS 的 `E_MULTI_ROOT`
+只出现在各自的搜索里，候选集不会与 RPG Maker 混在一起。
 
-registry 把两句 `not a … project`（RPG Maker 一句、Ren'Py 一句）当成“这个引擎不匹配，
+registry 把三句 `not a … project`（RPG Maker 一句、Ren'Py 一句、RGSS 一句，
+`src/engines/registry.js:24-28` 的 `NOT_PROJECT_PREFIXES`）当成“这个引擎不匹配，
 继续试下一个”；其余 `E_NOT_PROJECT`（缺 `data/`、缺 `js/plugins.js`）立即返回——
-那说明引擎已经认出来、只是项目不完整，不该再拿别的引擎去猜。三个都不匹配时返回第一句
+那说明引擎已经认出来、只是项目不完整，不该再拿别的引擎去猜。四个都不匹配时返回第一句
 通用文案，也就是 RPG Maker 那句（见 §4.2）。
+
+RGSS 的 detect 先向上找（`src/engines/rgss/adapter.js:63-72` 的 `containingRoot`，
+最多 3 层），再向下 BFS；用户点的是“装了游戏的文件夹”还是“游戏里的 `Data/`”，
+都能落到同一个 root。
 
 ## 3. Adapter 形状
 
@@ -74,12 +90,12 @@ export default {
 
   capabilities: {
     extract: true,        // 能抽文本
-    export: true,         // 能导出（0.11 只有 JSON）
-    runtime: "plugin",    // 已实现的运行时投递方式：plugin | translation
+    export: true,         // 能导出（0.10 起只有 JSON）
+    runtime: "plugin",    // 已实现的运行时投递方式：plugin | translation | null
     launch: true,         // 能发现并启动游戏 exe
     debuggable: true,     // 引擎本身支持 CDP 调试（不等于工具已实现 attach）
-    attach: false,        // 工具是否实现 attach；0.11 全为 false
-    liveReload: false,    // 改字典后是否自动生效；0.11 只能手动 reload
+    attach: false,        // 工具是否实现 attach；0.10 起全为 false
+    liveReload: false,    // 改字典后是否自动生效；至今只能手动 reload
   },
 
   // 只读探测：不抛预期错误、不写盘、不联网。
@@ -91,7 +107,7 @@ export default {
   installRuntime(project, options) { ... },
   uninstallRuntime(project) { ... },
   launch(project, options) { ... },      // {pid, exe, root}
-  attach(project, options) { ... },      // 0.11 只抛出 E_NOT_IMPLEMENTED
+  attach(project, options) { ... },      // 0.10 起只抛出 E_NOT_IMPLEMENTED
 
   // 引擎专属规则；pipeline 不硬编码 MZ 的转义码
   rules: { controlCodes: true, maxColumns: 0 },
@@ -135,9 +151,36 @@ Ren'Py 的 adapter 用同一个形状，但多两个字段、少一半 project �
   `gameTitle` / `version` 来自 `game/options.rpy` 里的 `define config.name` 与
   `define config.version`，静态读取、不执行脚本，读不到就是 `null`。`gameTitle`
   为 `null` 时回落到项目目录名。
-- `dataUnit` 与 `diagnostics` 只有 Ren'Py 有；CLI 用 `adapter.dataUnit === "scripts"`
-  决定打印 `scripts` 还是 `data files`，用 `diagnostics` 把引擎自己的抽取器与
-  翻译文件状态交给 `doctor`。MZ / MV 不带这两个字段，走原有分支。
+- `dataUnit` 与 `diagnostics` 只有 Ren'Py 与 RGSS 有；CLI 用
+  `adapter.dataUnit === "scripts"` 决定打印 `scripts` 还是 `data files`，用
+  `diagnostics` 把引擎自己的抽取器与交付状态交给 `doctor`。MZ / MV 不带这两个字段，
+  走原有分支。
+
+RGSS 同样用这个形状，带着 `dataUnit: "data files"` 与一个 `diagnostics()`
+（`src/engines/rgss/adapter.js:298-317`）：
+
+```js
+{
+  id: "rgss",
+  name: "RGSS",
+  capabilities: { extract: true, export: true, runtime: null, launch: true,
+                  debuggable: false },   // attach / liveReload 为 false
+  dataUnit: "data files",              // 不是 scripts
+  profile: rgssProfile,                // 反斜杠转义码语法，见 §13.3
+  rules: { controlCodes: true, maxColumns: 0 },
+}
+```
+
+- `runtime: null` 是 0.12 的**诚实取值**，不是漏填：RGSS 既没有插件档也没有
+  translation 档，交付层还没做（见 §7.7）。能力默认值本来就是 `runtime: null`
+  （`src/engines/adapter.js:53-64`），RGSS 不覆盖它。
+- `diagnostics()` 返回 `{extract, dataFiles, delivery, sourceLabel}`，其中
+  `sourceLabel` 是 `"Data/"`，`delivery` 是
+  `{pending: true, message: "RGSS has no delivery layer yet, so nothing is written back into the game"}`。
+  `doctor` 靠这个 `pending` 分支把 install 记成 warn、runtime 记成 info，而不是走
+  RPG Maker 那条读 `pluginsFile` 的分支（RGSS 的 `pluginsFile` 是 `null`）。
+- `pluginDir` / `pluginsFile` / `indexPath` 全为 `null`，`version` 是字符串
+  `"1"` / `"2"` / `"3"`（不是 MZ 那样的 `"1.7.0"`），读不到就是 `null`。
 
 ## 4. `detect` 契约
 
@@ -161,17 +204,22 @@ Ren'Py 的 adapter 用同一个形状，但多两个字段、少一半 project �
 1. **预期失败不抛异常。** 找不到项目、同层多项目、缺 `data/`、缺 `plugins.js` 都走
    `{ok:false}`；只有真正的 I/O 异常（EACCES 等）可以抛，CLI 映射成 `E_IO`。
 2. **不写盘、不联网、不改全局状态。** RPG Maker 只读 core 文件、`data/`、`js/plugins.js`；
-   Ren'Py 只读 `game/` 下脚本的文件名与 `game/options.rpy` 里的两行 `define`。
+   Ren'Py 只读 `game/` 下脚本的文件名与 `game/options.rpy` 里的两行 `define`；
+   RGSS 只读 `Game.ini`、`Data/` 的文件名与归档的目录区
+   （`src/engines/rgss/archive.js:343` 的 `openArchive` 只加载头部窗口，最大 64 MiB）。
 3. **幂等。** 同一目录连续调用两次，结果一致（除了文件系统在这期间被改）。
 4. **有界搜索。** 从 `startDir` 开始，向上找自身，向下最多 `MAX_SEARCH_DEPTH = 3` 层，
    跳过隐藏目录与 `SKIP_DIRS`；与现有 `findProjectRoot` 完全一致。
-5. **顺序稳定。** 多根时 `candidates` 按深度优先排列。第二关键字两个引擎不同（都是
-   既有实现，不是新约定）：RPG Maker 用 `localeCompare`，Ren'Py 用代码元顺序的字符串
-   比较。`candidates` 只列最浅那一层的根——更深的根算是“某个候选项目内部的东西”。
+5. **顺序稳定。** 多根时 `candidates` 按深度优先排列。第二关键字两组不同（都是既有
+   实现，不是新约定）：RPG Maker 用 `localeCompare`（`src/core/mzproject.js:97`），
+   Ren'Py 与 RGSS 用代码元顺序的字符串比较（`src/engines/renpy/project.js:125`、
+   `src/engines/rgss/project.js:272`）。`candidates` 只列最浅那一层的根——更深的根算是
+   “某个候选项目内部的东西”。
 
 ### 4.2 错误文案
 
-0.10 沿用现有文案，避免 CLI 测试与用户习惯同时断掉；Ren'Py 的两句是 0.11 新增：
+0.10 沿用现有文案，避免 CLI 测试与用户习惯同时断掉；Ren'Py 的两句是 0.11 新增，
+RGSS 的两句是 0.12 新增：
 
 - `E_NOT_PROJECT`（RPG Maker）：
   `not an RPG Maker project (no js/rmmz_core.js or js/rpg_core.js found in <dir> or up to 3 levels below it)`
@@ -184,10 +232,17 @@ Ren'Py 的 adapter 用同一个形状，但多两个字段、少一半 project �
   `not a Ren'Py project (no game/ directory with .rpy or .rpyc scripts found in <dir> or up to 3 levels below it)`
 - `E_MULTI_ROOT`（Ren'Py）：
   `found N Ren'Py projects under <dir>, pass one of them instead: <roots>`
+- `E_NOT_PROJECT`（RGSS，`src/engines/rgss/adapter.js:42-48`）：
+  `not an RGSS project (no Game.ini, no .rgssad/.rgss2a/.rgss3a archive and no Data/ directory with .rxdata, .rvdata or .rvdata2 files in <dir> or up to 3 levels below it)`
+- `E_MULTI_ROOT`（RGSS，`src/engines/rgss/project.js:291-293`）：
+  `found N RGSS projects under <dir>, pass one of them instead: <roots>`
+- `E_MULTI_ROOT`（RGSS）的候选只列**最浅那一层**的根
+  （`src/engines/rgss/adapter.js:80-87` 的 `shallowestRoots`），与其他引擎一致。
 
 哪一句会被看到，由 §2 的注册表规则决定：`detectProject` 只在收到本引擎的通用文案时
 继续试下一个 adapter，所以**空目录下用户看到的是 RPG Maker 那句**——它来自第一个
-adapter，与“这个目录是什么游戏”无关。
+adapter，与“这个目录是什么游戏”无关。同理，随便指一个四个引擎都不像的目录给
+`scan`，报的也是 RPG Maker 那句，而不是 RGSS 那句。
 
 adapter 只负责给 `code` + `message`；CLI 负责把它塞进错误信封（`error.code` / `error.message`）。
 消息里的路径必须是 adapter 自己解析出的绝对路径。
@@ -203,28 +258,39 @@ adapter 只负责给 `code` + `message`；CLI 负责把它塞进错误信封（`
 
 ## 5. 能力矩阵
 
-| 能力 | MZ | MV | Ren'Py | 含义 |
-| --- | --- | --- | --- | --- |
-| `extract` | true | true | true | RM：`data/*.json`，明文或单字节 XOR；Ren'Py：`game/` 下的 `.rpy` / `.rpyc` |
-| `export` | true | true | true | 0.11 只有 JSON 导出 |
-| `runtime` | `plugin` | `plugin` | `translation` | RM 装 JS 插件（MZ 包 `onXhrLoad`，MV 包 `loadDataFile` + `onLoad`）；Ren'Py 生成一个翻译脚本 |
-| `launch` | true | true | true | 项目根唯一 `.exe`（Ren'Py 发行版的根目录通常就是启动器所在处） |
-| `debuggable` | true | **false** | false | MZ 可被 `--remote-debugging-port` + CDP 驱动；MV 的旧 nw.js 不吃这个参数；Ren'Py 是 Python 引擎，没有 CDP |
-| `attach` | false | false | false | 0.11 没有实现 |
-| `liveReload` | false | false | false | RM 插件有 `window.__YAKUSHA.reload()`，但没有文件监听；Ren'Py 每次启动重读翻译文件 |
+| 能力 | MZ | MV | Ren'Py | RGSS | 含义 |
+| --- | --- | --- | --- | --- | --- |
+| `extract` | true | true | true | true | RM：`data/*.json`，明文或单字节 XOR；Ren'Py：`game/` 下的 `.rpy` / `.rpyc`；RGSS：`Data/*.rxdata` / `.rvdata` / `.rvdata2` 或 `RGSSAD` 家族归档里的同一批文档 |
+| `export` | true | true | true | true | 0.10 起只有 JSON 导出 |
+| `runtime` | `plugin` | `plugin` | `translation` | **`null`** | RM 装 JS 插件（MZ 包 `onXhrLoad`，MV 包 `loadDataFile` + `onLoad`）；Ren'Py 生成一个翻译脚本；RGSS 本版没有交付层 |
+| `launch` | true | true | true | true | 项目根唯一 `.exe`（Ren'Py 发行版的根目录通常就是启动器所在处） |
+| `debuggable` | true | **false** | false | false | MZ 可被 `--remote-debugging-port` + CDP 驱动；MV 的旧 nw.js 不吃这个参数；Ren'Py 是 Python 引擎，没有 CDP；RGSS 是闭源 C++ 运行时，也没有 |
+| `attach` | false | false | false | false | 从 0.10 起就没有实现 |
+| `liveReload` | false | false | false | false | RM 插件有 `window.__YAKUSHA.reload()`，但没有文件监听；Ren'Py 每次启动重读翻译文件；RGSS 没有可重读的文件 |
+
+RGSS 一列的值由 `src/engines/rgss/adapter.js:199-213` 固定，并在
+`test/engine-contract.test.js:71-93` 里对四个引擎逐个断言
+（`ALL_ENGINES = ["mz","mv","renpy","rgss"]`、`RUNTIME_TIERS = { mz:"plugin", mv:"plugin", renpy:"translation", rgss:null }`）。
 
 三个概念必须分开，否则 GUI 会显示一个点了就报错的按钮：
 
-- `runtime`：**已经实现**的投递方式，0.11 有两档：
+- `runtime`：**已经实现**的投递方式，0.11 有两档，0.12 的 RGSS 是 `null`：
   - `plugin`（MZ、MV）——装一个 JS 插件，运行时由插件读字典替换显示文本；删掉插件
     条目即还原。
   - `translation`（Ren'Py）——生成引擎自带的翻译资源
     `game/yakusha_translation.rpy`，由引擎自己的 `translate <lang> strings:` 机制
     查表替换；删掉这一个文件即还原。
-  - 两档的共同点都是“加一个文件、删掉即还原”，区别在谁执行替换：`plugin` 是 yakusha
-    的插件，`translation` 是引擎本身。`debug` / `inject` 只是预留枚举，0.11 没实现。
+  - `null`（RGSS）——**没有**交付层。XP / VX / VX Ace 没有插件系统、也没有可挂的
+    加载回调，译文只能写回游戏自己的数据文档，那一层还没做，所以这个格子必须是
+    `null` 而不是随便猜一个档位。`doctor` 的 `install` 检查因此是 warn、`runtime`
+    检查是 info（见 §7.7）。
+  - 两档已实现的共同点都是“加一个文件、删掉即还原”，区别在谁执行替换：`plugin` 是
+    yakusha 的插件，`translation` 是引擎本身。`debug` / `inject` 只是预留枚举，
+    0.12 没实现。
 - `debuggable`：**引擎本身**是否支持 CDP。MZ 为 true，是实测结论；不代表工具能用。
-- `attach`：**工具是否实现** attach。0.11 三个引擎都为 false；GUI 只有它为 true 才显示“调试注入”。
+- `attach`：**工具是否实现** attach。从 0.10 起四个引擎都为 false，RGSS 也一样
+  （`src/engines/rgss/adapter.js:268-270` 抛共享的 `notImplemented("attach")`）；
+  GUI 只有它为 true 才显示“调试注入”。
 
 MV 的 `debuggable:false` 有实测依据：2019/2020 年的 nw.js 版本传
 `--remote-debugging-port` 不监听；MZ 1.7.0 可以监听并执行 `Runtime.evaluate`。
@@ -262,15 +328,30 @@ adapter 只是把“装哪个插件、怎么探测”变成统一接口，不改
 | 占位符校验 | `%1` 形式的数字槽 | `[...]` 形式的插值 |
 | 只读来源 | 不读 `js/plugins/*.js` | 跳过 `game/tl/`（引擎自己的翻译目录）与自己生成的翻译文件 |
 
-控制码与占位符的语法差异由 profile 数据承担（`src/engines/profile.js` 与
-`src/engines/renpy/profile.js`），`rules` 仍是 `{controlCodes:true, maxColumns:0}`
-三键不变，pipeline 里没有引擎特判。
+控制码与占位符的语法差异由 profile 数据承担（`src/engines/profile.js`、
+`src/engines/renpy/profile.js` 与 `src/engines/rgss/profile.js`），`rules` 仍是
+`{controlCodes:true, maxColumns:0}` 三键不变，pipeline 里没有引擎特判。
+
+### 6.2 RGSS 与前三个的差异
+
+| 项 | MZ / MV / Ren'Py | RGSS（XP / VX / VX Ace） |
+| --- | --- | --- |
+| 数据形态 | `data/*.json` 明文或单字节 XOR；Ren'Py 是 `.rpy` / `.rpyc` | Ruby Marshal 二进制：`Data/*.rxdata`（XP）、`*.rvdata`（VX）、`*.rvdata2`（VX Ace）；打包版把这批文档放进 `Game.rgssad` / `.rgss2a` / `.rgss3a` 归档 |
+| 识别依据 | `js/rmmz_core.js` / `js/rpg_core.js`；Ren'Py 是 `game/` 直接下层的 `.rpy` / `.rpyc` | `Game.ini`（大小写不敏感）、`Game.rgss{ad,2a,3a}` 归档，或 `Data/` 下有 `.rxdata` / `.rvdata` / `.rvdata2`（`src/engines/rgss/project.js:214-236`） |
+| 引擎版本来源 | core 文件里的 `vX.Y.Z`；Ren'Py 是 `options.rpy` 的 `define config.version` | 归档扩展名 → `Game.ini` 的 `Library=`（`RGSS300`/`301`→3、`RGSS200`-`202`→2、`RGSS100`-`104`→1）→ `Scripts=` 的扩展名 → `Data/` 里的文件扩展名 → `null`；值域是字符串 `"1"` / `"2"` / `"3"`（`src/engines/rgss/project.js:309-326`） |
+| 投递 | 装插件 / 生成翻译资源 | **无**（`runtime: null`，见 §7.7） |
+| 卸载 | 删插件文件 + 摘 `$plugins` 条目 + 还原备份；Ren'Py 删那一个翻译文件 | **无**（`uninstall` 抛 `E_NOT_IMPLEMENTED`） |
+| 备份 | `js/plugins.js.yakusha-backup`；Ren'Py 不需要 | **无**（不改任何原有文件，所以没有要备份的东西） |
+| 计数单位 | data files（`data/` 下的文件数）；Ren'Py 是 scripts | data files，但含义是**实际解码成功的文档数**——打包版磁盘上没有文件可数，只能数归档里读到的文档（`src/engines/rgss/extract.js:385`） |
+| 控制码 | 反斜杠转义（如 `\C[6]`、`\N[1]`）；Ren'Py 是 `{b}` / `[var]` | `\C[n]`、`\V[n]`、`\N[n]`、`\i[n]`、`\!` 等，**同样是反斜杠转义，与 MZ / MV 同族**，所以直接复用 `src/core/textkey.js` 的 tokenizer（`src/engines/rgss/profile.js:22`） |
+| 只读来源 | 不读 `js/plugins/*.js`；Ren'Py 跳过 `game/tl/` 与自己生成的翻译文件 | 跳过 `@note` 与所有资源名字段；不含玩家文本的文档根本不打开（见 §13.3） |
 
 ## 7. 安装 / 卸载契约
 
 安装的产物按 `capabilities.runtime` 分两档，载荷键名相同（6 个 / 5 个），只是
-Ren'Py 下部分键恒为 `null` / `false`。下面 7.1–7.4 是插件档（MZ / MV），7.5 是
-translation 档（Ren'Py）。
+Ren'Py 下部分键恒为 `null` / `false`。下面 7.1–7.4 是插件档（MZ / MV），7.5–7.6 是
+translation 档（Ren'Py），7.7 是 RGSS——`runtime` 为 `null`，`install` / `uninstall`
+只抛 `E_NOT_IMPLEMENTED`。
 
 ### 7.1 写哪些文件（插件档）
 
@@ -315,8 +396,8 @@ translation 档（Ren'Py）。
   消息说明“refusing to write outside the project root”。
 - 拒绝把 `plugins.js` 的备份写到项目外；拒绝跟随指向项目外的符号链接。
 - 不把 containment 当“防恶意游戏”的完整沙箱：游戏文件仍是不可信输入，
-  但 0.11 只读 JSON / JS / `.rpy` 文本与 `.rpyc` 容器，不执行它们，也没有
-  一条路径会把游戏代码跑起来。
+  但本版只读 JSON / JS / `.rpy` 文本 / `.rpyc` 容器 / Ruby Marshal 字节，不执行它们，
+  也没有一条路径会把游戏代码跑起来。
 
 ### 7.5 写哪些文件（translation 档，Ren'Py）
 
@@ -363,7 +444,7 @@ translate schinese strings:
 语言名必须是 Python 标识符（`^[A-Za-z_][A-Za-z0-9_]*$`，且不能是 `None` /
 `True` / `False`），否则 `E_USAGE`：
 `invalid Ren'Py language name: "<value>" (expected a Python identifier such as "schinese")`。
-0.11 的命令行没有选语言的入口，固定写 `schinese`；只有库调用能传别的语言名。
+0.11 起命令行就没有选语言的入口，固定写 `schinese`；只有库调用能传别的语言名。
 
 - **幂等**：重写内容一致时不改文件时间戳，`state` 停在 `unchanged`，
   `created` / `changed` 均为 `false`。
@@ -383,7 +464,65 @@ translate schinese strings:
 - **containment**：写之前对最近的存在祖先做 `realpath`，目标逃出项目根就
   `E_IO` `refusing to write outside the project root: <target>`。
 
-## 8. 启动契约（`launch`，0.10 已实现，0.11 不变）
+### 7.7 RGSS：本版没有交付层
+
+RGSS 的 `capabilities.runtime` 是 `null`，`installRuntime()` 与 `uninstallRuntime()`
+直接抛错（`src/engines/rgss/adapter.js:192-197` 的 `pending()`、`:253-262`）：
+
+```js
+installRuntime() { throw pending("install"); }    // E_NOT_IMPLEMENTED
+uninstallRuntime() { throw pending("uninstall"); } // E_NOT_IMPLEMENTED
+```
+
+消息原文（两个命令只差开头那个动词）：
+
+- `install is not implemented for RGSS yet - see the pending decisions in docs/dev/DEVLOG.md`
+- `uninstall is not implemented for RGSS yet - see the pending decisions in docs/dev/DEVLOG.md`
+
+用户看到的是**退出码 2** 加一个错误信封，`error.code` 是 `E_NOT_IMPLEMENTED`：
+
+```
+$ yakusha install <game-dir>
+error: install is not implemented for RGSS yet - see the pending decisions in docs/dev/DEVLOG.md
+
+$ yakusha install <game-dir> --json
+{"schema":1,"command":"install","ok":false,"outcome":"error","error":{"code":"E_NOT_IMPLEMENTED","message":"install is not implemented for RGSS yet - see the pending decisions in docs/dev/DEVLOG.md"}}
+```
+
+- **不写任何文件**。`test/rgss-adapter.test.js` 的 `install: nothing is written into the game
+  before the layer exists` 用安装前后的目录快照对比证明这一点；`test/rgss-cli.test.js`
+  的 `cli: install says the delivery layer is pending, and writes nothing` 从 CLI 侧再证明一次。
+- **不带 `--embed` 时，没有字典也先报这一句**：普通 `install` 不读字典，
+  `adapter.installRuntime` 之前没有字典校验，所以缺字典时报的仍是 `E_NOT_IMPLEMENTED`
+  （`test/rgss-cli.test.js` 的 `cli: install on a game with no dictionary reports the same
+  pending layer`）。反过来，**带 `--embed` 时先撞的是 CLI 那层通用校验**：没有字典报
+  `--embed needs a dictionary`，有字典但没译文报 `--embed found no translated entries`，
+  两条都是 `E_NO_DICTIONARY` / 退出 2——`--embed` 在 `adapter.installRuntime` 之前
+  （`bin/yakusha.js:648-655`），RGSS 也躲不掉。
+- **为什么不是一句笼统的“未实现”**：RGSS 的交付层是**计划内**的，只是没拍板，所以
+  文案指向决策记录而不断言功能不存在——这与 `attach` 用的那句历史措辞是两种语气，
+  两种都有测试盯着（前者 `test/rgss-adapter.test.js:246` 与 `test/rgss-cli.test.js:103`，
+  后者 `test/engine-contract.test.js:410`）。
+
+两条路线都还没拍板，写在 `src/engines/rgss/adapter.js:240-250` 的注释里，
+待办清单见 [dev/DEVLOG.md](dev/DEVLOG.md) §8.1：
+
+1. **纯 JS 写回数据文档**：把译文塞回 Ruby Marshal 流，重写 `Data/*.rvdata2` 或整个
+   `Game.rgss3a` 归档。读写器都已经在 `src/engines/rgss/` 里了
+   （`marshal.js` 的 `marshal()`、`archive.js` 的 `writeArchive()`），这条路不需要任何
+   原生组件。
+2. **原生注入器 + hook DLL**：把译文在运行时塞给游戏进程。这条路需要编译器，而本机
+   没有 C/C++/Rust 工具链，也没有 ruby，编译不出来——这是 0.12 排期与验收的硬阻塞。
+
+选定哪条决定 `uninstall` 要还原什么：写回路线要备份被改的文档，注入路线不改盘、
+删掉注入器即还原。所以这件事不能靠猜。
+
+另一件**尚未验证**的事：官方 RGSS 读数据时是归档优先还是 `Data/` 目录优先，本版没有
+结论（mkxp 的行为是归档优先，但官方 RGSS 不是 mkxp）。本版的 `openDataSource()`
+（`src/engines/rgss/project.js:392-429`）在两者都在时选归档，这是**当前实现的选择**，
+不是对官方行为的断言。
+
+## 8. 启动契约（`launch`，0.10 已实现，0.11 与 0.12 不变）
 
 ### 8.1 命令
 
@@ -422,12 +561,13 @@ child.unref();
 ```
 
 - **无参数**：不传任何启动器参数，也不支持“启动器参数”。需要参数的玩家自己启动
-  游戏，工具只负责投递翻译。三引擎同一套规则。
+  游戏，工具只负责投递翻译。四个引擎同一套规则。
 - **`shell:false`**：exe 路径即使含空格也不经过 cmd.exe；避免命令注入。
 - **`detached:true` + `stdio:"ignore"` + `unref()`**：CLI 退出后游戏继续跑；
   不接管 stdout/stderr，不等待退出，不 kill。
 - **cwd = 项目根**：RPG Maker 游戏按相对路径找 `www/` / `data/`；Ren'Py 的启动器
-  也按自己所在目录找 `game/`，两者都以项目根为工作目录。
+  也按自己所在目录找 `game/`；RGSS 的 exe 与 `Data/`、归档都在根下，同样以项目根
+  为工作目录。四引擎一致。
 - **env**：复制 `process.env`，删除 `YAKUSHA_API_KEY` 与 `OPENAI_API_KEY`
   （以及大小写变体），防止把翻译密钥传给游戏进程。其余环境变量原样保留。
 - 失败（`error` 事件 / 立即非零退出）→ `E_IO`，消息含 exe 与错误码；
@@ -441,7 +581,7 @@ child.unref();
 - 不读 `package.json` 的 `main` 来决定启动什么；RPG Maker 的 exe 与网页入口是两回事。
 - 不实现“以管理员身份启动”“兼容模式”“Winlator/Proton 包装”。
 
-## 9. attach 契约（0.10 起是桩，0.11 不变）
+## 9. attach 契约（0.10 起是桩，0.11 与 0.12 不变）
 
 ```js
 attach(project, options) {
@@ -452,16 +592,17 @@ attach(project, options) {
 ```
 
 - **没有** `yakusha attach` 命令；GUI 也不会显示入口（`capabilities.attach:false`）。
-  三个引擎共用这一个桩：Ren'Py 也没有调试注入，`debuggable` 同样是 `false`。
+  四个引擎共用这一个桩：Ren'Py 也没有调试注入，`debuggable` 同样是 `false`；RGSS 的
+  `attach` 调的是同一个 `notImplemented("attach")`（`src/engines/rgss/adapter.js:268-270`）。
 - 未来实现时，返回值固定为 `{status, detach(), on("exit", cb)}`；
   失败必须能回退到“不带注入启动”，不能把游戏弄成打不开。
 - MZ 的 `debuggable:true` 是为未来留的证据，不是“现在能用”的承诺：
   实测要点是 `--remote-debugging-port` 能监听、`Runtime.evaluate` 能读写；
   `Page.captureScreenshot` 不稳定；窗口在后台时渲染循环会停，必须先前台化。
-  这些写进未来的 attach 设计，不写进 0.11 的用户文档。
+  这些写进未来的 attach 设计，不写进用户文档。
 - 那句 `"attach is not implemented in 0.10"` 是**历史措辞，不要改**：契约测试断言的就是
-  这一行字符串（`test/engine-contract.test.js` 与 `test/renpy-adapter.test.js` 各一条），
-  用户文档也不引用它。改文案要同时改两处测试。
+  这一行字符串（`test/engine-contract.test.js`、`test/renpy-adapter.test.js` 与
+  `test/rgss-adapter.test.js` 各一条），用户文档也不引用它。改文案要同时改这几处测试。
 
 ## 10. 公共门面与打包
 
@@ -474,6 +615,8 @@ export { extractProject } from "./core/extract.js";
 export { openRenpyProject, findRenpyRoot, findRenpyRoots } from "./engines/renpy/project.js";
 export { extractRenpyProject, collectRenpyUnits } from "./engines/renpy/extract.js";
 export { installTranslation, uninstallTranslation, translationStatus } from "./engines/renpy/runtime.js";
+export { openRgssProject, findRgssRoot, findRgssRoots } from "./engines/rgss/project.js";
+export { extractRgssProject } from "./engines/rgss/extract.js";
 export { loadDictionary, saveDictionary, dictionaryPath } from "./core/dict.js";
 export { translateDictionary } from "./pipeline/translate.js";
 export { verifyDictionary } from "./pipeline/verify.js";
@@ -505,12 +648,15 @@ export { VERSION } from "./version.js";
 - `bin` 仍是 `./bin/yakusha.js`；bin 只做解析/分派/输出，不塞业务逻辑——0.11 接
   Ren'Py 时 bin 只多了一个 `adapter.dataUnit === "scripts"` 的分支（`scan` 与 `doctor`
   的行标）和一个 `runtime === "translation"` 的分支（`install` 的三行文本），
-  没有出现 `if (engine === "renpy")`。
+  没有出现 `if (engine === "renpy")`。0.12 接 RGSS 时只多了 `doctor` 的一个分支：
+  把 `own.delivery || own.translation || null` 交给诊断器（`bin/yakusha.js:781`），
+  让 RGSS 的 `delivery.pending` 能走到 `src/core/doctor.js` 的 pending 分支；
+  同样没有出现 `if (engine === "rgss")`。
 
 ## 11. 版本单一真源
 
-现状有三处版本：`package.json`、插件里的 `VERSION`、测试断言。0.10 起如此，0.11
-不变：
+现状有三处版本：`package.json`、插件里的 `VERSION`、测试断言。0.10 起如此，0.11 与
+0.12 不变（RGSS 不写任何文件，所以不参与这条链）：
 
 - `package.json` 是唯一真源。
 - 插件的 `VERSION` 由 `installPlugin` 在渲染模板时替换成 `package.json` 的值；
@@ -518,8 +664,8 @@ export { VERSION } from "./version.js";
 - `--version` 输出 `yakusha <package.json version>`。
 - `test/version.test.js` 断言：门面 `VERSION`、`--version`、插件模板渲染结果三者一致。
 - Ren'Py 的翻译文件**不参与**这条链：`installTranslation` 支持一个可选的
-  `pluginVersion` 只用来装饰文件头（`# Generated by yakusha <version>.`），但 0.11 的
-  `install` 不传它，所以实际落盘的头部是第一行 `# Generated by yakusha. Do not edit by hand.`，
+  `pluginVersion` 只用来装饰文件头（`# Generated by yakusha <version>.`），但 CLI 的
+  `install` 从不传它，所以实际落盘的头部是第一行 `# Generated by yakusha. Do not edit by hand.`，
   不带版本号。文件内容与时间戳都不参与版本比对。
 - 发布时只改 `package.json` 一处。
 
@@ -527,14 +673,16 @@ export { VERSION } from "./version.js";
 
 ### 12.1 位置
 
-`test/engine-contract.test.js` 与 `test/renpy-adapter.test.js`，**都平铺在 `test/` 下**。
+`test/engine-contract.test.js`、`test/renpy-adapter.test.js` 与 `test/rgss-adapter.test.js`
+（外加 CLI 侧的 `test/rgss-cli.test.js`），**都平铺在 `test/` 下**。
 
 原因：`package.json` 的 `npm test` 是 `node --test "test/*.test.js"`，不收子目录；
 放 `test/contract/` 会静默不执行。不要为了一个测试去赌 Node 22 的 globstar。
 
-Ren'Py 的契约用例单独一个文件，原因写在 `engine-contract.test.js` 的文件头：Ren'Py
-共用 adapter 形状，但不共用 fixture 布局、插件注册表和安装语义，硬塞进同一个文件只会
-让每个用例都长出一堆 `if (engine === "renpy")`。
+Ren'Py 与 RGSS 的契约用例各占一个文件，原因写在 `engine-contract.test.js` 的文件头：
+它们共用 adapter 形状，但不共用 fixture 布局、插件注册表和安装语义，硬塞进同一个文件
+只会让每个用例都长出一堆 `if (engine === "renpy")`。`test/engine-contract.test.js:61-64`
+的注释就是这么写的（RGSS 也从这份文件里分出去）。
 
 ### 12.2 fixtures
 
@@ -552,22 +700,25 @@ Ren'Py 的契约用例单独一个文件，原因写在 `engine-contract.test.js
     Python 块、应当被跳过的构造。
   - `test/fixtures/renpy-extract/README.md` 与 `test/fixtures/renpy-rpyc/README.md`
     说明这两组夹具各覆盖什么；每个子目录不单独再来一份。
+- RGSS（0.12 新增）：**`test/fixtures/` 下没有 rgss 目录**，夹具由 `test/rgss-fixture.js`
+  在 `os.tmpdir()` 里现生成（`writeRgssProject` / `writePackedProject`，见 §12.3 末尾）。
 - 测试不得改 fixture 本体；每个用例复制到 `os.tmpdir()` 下的新目录
-  （`engine-contract.test.js` 的 `copyGame()`、`renpy-adapter.test.js` 的 `sandbox()`）。
+  （`engine-contract.test.js` 的 `copyGame()`、`renpy-adapter.test.js` 与
+  `rgss-adapter.test.js` 的 `sandbox()`）。
 
 ### 12.3 每个 adapter 必过的用例
 
-三引擎共用（`engine-contract.test.js` 的 `getAdapters()` 循环 + 各引擎自己的同名用例）：
+四引擎共用（`engine-contract.test.js` 的 `getAdapters()` 循环 + 各引擎自己的同名用例）：
 
 - capabilities：七个键齐全、类型正确；`rules` 恒为 `{controlCodes:true, maxColumns:0}`；
   方法都是函数；`getAdapter("nope") === null`；`getAdapters()` 返回副本。
 - detect：空目录 → 本引擎的 `E_NOT_PROJECT`；子目录/上级目录 → 找到同一个 root；
   幂等；不写盘。
-- scan：载荷字段与 [json-contract.md](json-contract.md) §7 一致（Ren'Py 是同一组
+- scan：载荷字段与 [json-contract.md](json-contract.md) §7 一致（Ren'Py 与 RGSS 是同一组
   11 个键）。
 - extract：生成字典；再跑一次 `added: 0`。
 - attach：抛 `E_NOT_IMPLEMENTED`，且 `capabilities.attach === false`。
-  `capabilities.runtime` 为 `plugin`（MZ / MV）或 `translation`（Ren'Py）。
+  `capabilities.runtime` 为 `plugin`（MZ / MV）、`translation`（Ren'Py）或 `null`（RGSS）。
 
 RPG Maker 专属（`engine-contract.test.js`，因为依赖 `data/` 与 `js/plugins.js`）：
 
@@ -582,8 +733,9 @@ RPG Maker 专属（`engine-contract.test.js`，因为依赖 `data/` 与 `js/plug
 
 Ren'Py 专属（`test/renpy-adapter.test.js`，14 条）：
 
-- 在 registry 里排最后、带自己的 profile、`runtime` 为 `translation`、
-  `dataUnit` 为 `scripts`、有 `diagnostics`。
+- 在 registry 里排第三、带自己的 profile、`runtime` 为 `translation`、
+  `dataUnit` 为 `scripts`、有 `diagnostics`（`test/renpy-adapter.test.js:81` 的
+  `the registry ships Ren'Py third, with its own profile and runtime tier`）。
 - 从 root、`game/`、以及上一级目录都能找到同一个项目；从 `game/` 找到时 `root`
   仍是项目根而不是 `game/`。
 - 错误目录报 Ren'Py 那句 `E_NOT_PROJECT`；两个同级项目报 `E_MULTI_ROOT` 且候选排序。
@@ -593,11 +745,49 @@ Ren'Py 专属（`test/renpy-adapter.test.js`，14 条）：
 - uninstall 只删那一个文件；install + uninstall 前后游戏脚本逐字节不变。
 - doctor 把交付的文件当成 install 与 runtime 两项来检查。
 
+RGSS 专属（`test/rgss-adapter.test.js` 17 条 + `test/rgss-cli.test.js` 13 条）：
+
+- registry 里排第四、带自己的 profile、`runtime` 为 `null`、`dataUnit` 为 `data files`、
+  有 `diagnostics`（`test/rgss-adapter.test.js:66` 的 `the registry ships RGSS fourth, with its
+  own profile and no runtime tier`）。同一断言在 `test/engine-contract.test.js:71-93` 与
+  `test/renpy-adapter.test.js:83-84` 各有一份：`getAdapters()` 的 id 序列是四元素
+  `["mz","mv","renpy","rgss"]`，`RUNTIME_TIERS` 里 `rgss: null`。
+- 从 root、`Data/`、以及上一级目录都能找到同一个项目；**打包版没有 `Data/` 也能识别**
+  （`detect: a packed game is found without a Data folder`）；空目录报 RGSS 那句
+  `E_NOT_PROJECT`，两个同级游戏报 `E_MULTI_ROOT` 且候选只列最浅一层。
+- scan 保留那 11 个键；打包版与磁盘版数字相同、只有 `encodings` 的键不同；
+  一个解不开的文档只记一行，其余文档照常扫描
+  （`scan: a document the reader rejects is one line, and the rest still scans`）。
+- extract：第一次建字典，第二次 `added: 0`；已翻译的条目不覆盖；字典损坏时重建而不中断。
+- install / uninstall：抛 `E_NOT_IMPLEMENTED`，消息是 §7.7 那两句；
+  `install` 前后目录快照逐项相同（**不写任何文件**）；无字典时也先报这一句。
+- attach：走共享的 `notImplemented()`，消息是 `attach is not implemented in 0.10`。
+- doctor：`delivery.pending` 分支让 install 记 warn、runtime 记 info，verdict 仍是
+  `usable`；`diagnostics.dataFiles` 必须等于 scan 数出来的文档数
+  （`doctor: diagnostics counts the documents the scan counts`）。
+- profile：`\C[n]` / `\N[n]` 这类转义码被 `grammar.controlCodes` 认出来，译文里的
+  同类码也要被保留（`profile: RGSS keeps the escape codes the generator renders`）。
+
+CLI 侧（`test/rgss-cli.test.js`，13 条）走真实的 `bin/yakusha.js`：scan 文本模式打
+`data files:`、`rgss 3`；extract 写出字典且 context 指回 `Map001.rvdata2:101`；
+install / uninstall 退出码 2 且不写盘；doctor 有字典 usable、无字典 broken 且退出码 1；
+verify / speaker / terms / export 在同一套 pipeline 上跑通；非游戏目录报
+RPG Maker 那句（registry 第一个 adapter 的文案）。
+
+夹具：RGSS 没有 `test/fixtures/` 下的目录，用的是 `test/rgss-fixture.js` 在 `os.tmpdir()`
+里现生成的合成游戏——`writeRgssProject(root, {version})` 造磁盘版（`Game.ini` + 7 个
+`Data/` 文档），`writePackedProject(root)` 造打包版（同一批文档塞进 `Game.rgss3a`）。
+三个版本共用一组文档，只换扩展名与 `Game.ini` 里的 `Library=`，所以 XP / VX / VX Ace
+走的是同一条抽取路径。**这份夹具是合成的，不含任何真实游戏内容**；真实样本的实测数字
+见 §13.3 末尾，两者不要混为一谈。
+
 ### 12.4 运行环境
 
 - 测试显式清空 `YAKUSHA_*` / `OPENAI_API_KEY`，避免开发机环境让断言飘。
 - 只用 `os.tmpdir()` 下的临时目录；测试结束清理，失败也清理（`after` 钩子）。
 - CI 在 `windows-latest` 上跑 Node 22 / 24；不写 POSIX-only 断言。
+- RGSS 的归档与 Marshal 测试都自己造字节（`test/rgss-archive.test.js` 里有一组按版本
+  循环的写回—读回用例），不依赖外部游戏，也不需要网络。
 
 ## 13. 文本抽取契约
 
@@ -668,6 +858,104 @@ Ren'Py 专属（`test/renpy-adapter.test.js`，14 条）：
 同一口径下 `.rpyc` 少 467 条——所以「同 stem 只读 `.rpy`」不会丢文本。两个官方
 示例游戏的扫描结果见 [games.md](games.md)，那里同时写明这不等于对商业 Ren'Py 游戏的验收。
 
+### 13.3 RGSS（XP / VX / VX Ace）
+
+与 13.1 共享的是**策略**（只增不删、context 指回原位置、`scan` 不需要字典、解码失败只
+记录不中断），数据来源与字段表完全不同：
+
+- 源是 Ruby Marshal 二进制。磁盘版读 `Data/*.rxdata` / `*.rvdata` / `*.rvdata2`；
+  打包版从 `Game.rgssad` / `.rgss2a` / `.rgss3a` 归档里读 `Data/` 前缀下的同一批文档
+  （`src/engines/rgss/project.js:392-429` 的 `openDataSource`）。
+- Marshal 读取是纯 JS（`src/engines/rgss/marshal.js:91` 的 `unmarshal`）：只接受主版本 4，
+  只记 class / module 的名字，`T_DATA` 只保留原始字节，**任何对象都不执行**。
+- 文档按名字排序后再抽（`src/engines/rgss/extract.js:372`），所以磁盘版与打包版抽出的
+  顺序、条数、context 逐条一致；归档目录与目录列表本来都是无序的，排序是唯一能让两边
+  对上的办法。
+
+**事件指令：只收五种码。** 表在 `src/engines/rgss/extract.js:79-85` 的 `COMMAND_TEXT`：
+
+| 码 | 指令 | 取哪个参数 |
+| --- | --- | --- |
+| 101 | Show Text 的头部 | `parameters[0]`，说话人名，空串不收 |
+| 102 | Show Choices | `parameters[0]` 数组的每个元素（选项标签） |
+| 320 | Change Actor Name | `parameters[1]` |
+| 401 | Show Text 的一行台词 | `parameters[0]` |
+| 405 | Scroll Text 的续行 | `parameters[0]` |
+
+刻意不进的码，理由分别是：
+
+- **402**（选项分支标记）：文本与配对的 102 同源，收了只会多一条 context，不会多一条
+  可翻译文本（`src/engines/rgss/extract.js:73-76` 的注释就是这么写的）。
+- **108 / 408**：编辑器注释，玩家看不到。
+- **355 / 655**：Ruby 脚本行，是代码不是台词。
+- **231 / 322**：图片文件名，改了游戏会找不到图。
+- **111 / 118 / 119 / 122 / 123 / 283 / 284**：脚本、资源与数值操作数，同上。
+
+**数据库文档的字段表**（`src/engines/rgss/extract.js:41-52` 的 `RGSS_DB_FIELDS`）。
+扩展名随版本变，所以按 **base name** 匹配：
+
+| 文档 | 收的字段 |
+| --- | --- |
+| `Actors` | `name`、`description`、`nickname` |
+| `Classes` | `name`、`description` |
+| `Skills` | `name`、`description`、`message1`、`message2` |
+| `Items` / `Weapons` / `Armors` / `Enemies` | `name`、`description` |
+| `States` | `name`、`message1`–`message4` |
+| `Tilesets` | `name` |
+| `CommonEvents` | `name`，加上它的事件指令 |
+
+**`System`** 只收两处纯文本与四张术语表（`src/engines/rgss/extract.js:58-61`、`:227-247`）：
+
+- `@game_title`（游戏标题）与 `@currency_unit`（货币单位），context 分别是
+  `System.rvdata2:game_title` / `System.rvdata2:currency_unit`。
+- `@terms` 下的 `@basic`、`@params`、`@etypes`、`@commands` 四张表，数组的每个元素都收，
+  context 形如 `System.rvdata2:terms.params`。菜单上印的“等级”“攻击”“新游戏”就是这四张表。
+- 其它 `@*_name` 字段（`@title1_name`、`@battleback_name` 之类）全是资源名，一个都不收。
+
+**`MapInfos`** 只收 `@name`（地图名），context 是 `MapInfos.rvdata2:name`。
+**`Troops` 与 `Map*`** 只收事件指令，没有字段表。其它文档（`Scripts`、`Animations`
+这类）根本不打开——不在 `RGSS_DB_FIELDS` 里、也不是刚才那几类的文档直接跳过。
+
+**`@note` 一律不收。** 它是 RPG Maker 的脚本元数据通道（自定义图标标签之类），玩家读
+不到，翻译它只会破坏插件的数据。这条与“资源名不收”一起写在
+`src/engines/rgss/extract.js:35-37` 的注释里。
+
+**context 格式**：`<文档名>:<401 这类指令码>` 或 `<文档名>:<字段名>`，指令码不带方括号，
+例如 `Map001.rvdata2:401`、`Actors.rvdata2:name`、`System.rvdata2:terms.params`、
+`MapInfos.rvdata2:name`。打包版与磁盘版用同一个文档名，所以 context 不随分发形式变。
+
+**失败不中断。** 一个解不开的文档进 `undecodable`（`<文档名>: <error>`，单行），遍历
+继续；`documents` 与 `encodings` 只在成功解码后加一（`src/engines/rgss/extract.js:385`），
+所以 `scan` 的 `data files` 与 `doctor` 首行括号里的数是同一个数。
+
+**`encodings` 的语义按来源变**：打包版一律记 `marshal`（所有文档都来自同一份 Marshal
+字节流），磁盘版记文件扩展名（`rvdata2` / `rvdata` / `rxdata`）——
+`src/engines/rgss/extract.js:386-387`。
+
+**`engineVersion`** 是字符串 `"1"` / `"2"` / `"3"`（对应 XP / VX / VX Ace），
+来路见 §6.2 的版本来源一行；一个都读不到就是 `null`，`scan` 的 `engine    : rgss`
+后面就不带版本号。
+
+**实测规模（外部样本，非仓库可复现）。** 一款 RGSS3（VX Ace）商业游戏，日文原版加中文
+补丁：`Game.rgss3a` 644,284,359 字节，归档里 5,138 个条目，其中 `Data/` 399 个
+（398 个 `.rvdata2` 加 1 个非数据的 zip 包）、`Graphics/` 4,739 个。381 张地图，364 张
+带事件，共 5,300 个事件。抽取结果：394 个文档、31,730 条唯一串 / 49,732 条出现次数、
+0 条 `undecodable`、282 个文件有文本，耗时约 380 ms。
+
+这套样本里含反斜杠转义码的条目 2,063 条，共 23 种码：`\i[n]` 2,252、`\c[n]` 557、
+`\v[n]` 517、`\!` 313、`\>` 272、`\A[n]` 204、`\W[n]` 179、`\n[n]` 89、`\V[n]` 76、
+`\T[n]` 73、`\t[n]` 72、`\C[n]` 51、`\a[n]` 46、`\N[n]` 43、`\s[n]` 33、`\w[n]` 30、
+`\S[n]` 10、`\{` 7、`\I[n]` 6、`\}` 5、`\.` 4、`\F[n]` 2、`\^` 1。它们全部落在
+`src/core/textkey.js` 的通用 tokenizer 覆盖范围内，所以 RGSS 不需要自己的一套控制码
+解析器，只在自己的 profile 里声明用的是这一套（`src/engines/rgss/profile.js:22`）。
+
+版本判定的旁证（离线核过，不是工具行为）：该游戏的 `Data/Scripts.rvdata2` 里有 234 个
+脚本条目，`codeobj` 是 deflate 压缩的 Ruby 源码（解压后是 `# ■ Main` 这类 RGSS 脚本）。
+本版**既不抽也不读** `Scripts`：它不在 `RGSS_DB_FIELDS` 里，也不是 `System` /
+`MapInfos` / `Map*` / `Troops`，所以 `src/engines/rgss/extract.js:377` 的 `continue`
+直接跳过，连 `readDocument` 都不会调。这份样本不是仓库里的夹具，也不构成对商业 RGSS
+游戏的验收。
+
 ## 14. 引擎覆盖与未来引擎
 
 已经接入的：
@@ -677,6 +965,14 @@ Ren'Py 专属（`test/renpy-adapter.test.js`，14 条）：
 | RPG Maker MZ | `data/*.json` | `plugin`（L4-plugin） | 0.10 已实现 |
 | RPG Maker MV | `data/*.json` | `plugin`（L4-plugin） | 0.10 已实现 |
 | Ren'Py | `.rpy` 明文 / `.rpyc` 编译 | `translation`（L4-resource） | 0.11 实现：L2–L4 |
+| RGSS (XP/VX/VX Ace) | Ruby Marshal：`Data/*.rxdata` / `.rvdata` / `.rvdata2`，或 `RGSSAD` 家族归档 | **无**（`runtime: null`） | 0.12 已接 L1–L3：detect / scan / extract，交付层未做 |
+
+RGSS 的 L1–L3 是这么算的：L1 是识别（`Game.ini` / 归档 / `Data/`，版本 `"1"`–`"3"` 判得出来），
+L2 是真实游戏提取（§13.3 末尾那款商业样本 394 个文档、31,730 条唯一串、0 条解码失败），
+L3 是翻译与校验（`translate` / `verify` / `speaker` / `terms` / `export` 都跑同一套
+pipeline，profile 里带反斜杠转义码的 grammar 与判据）。**L4 没有**：没有交付层，所以
+`install` / `uninstall` 抛 `E_NOT_IMPLEMENTED`（§7.7）。不要把它写成“RGSS 已支持运行时
+翻译”——本版明确没有。
 
 还没做的（只记边界，不排期）：
 
@@ -684,7 +980,10 @@ Ren'Py 专属（`test/renpy-adapter.test.js`，14 条）：
 | --- | --- | --- | --- |
 | Unity | 资源包 / Mono / IL2CPP | `inject` 或运行时补丁 | 不做 |
 | Wolf / Kirikiri | 自有归档 | `inject` | 不做 |
-| RGSS (XP/VX/VX Ace) | `.rxdata` 二进制 | `inject` | 不做 |
+
+RGSS 的运行时档**不是** `inject`，这里不再给它排一个猜测的档位：两条候选路线（纯 JS
+写回数据文档、原生注入器 + hook DLL）都还没拍板，见 §7.7。写“RGSS 将来做 inject”
+就是把没决定的事写成计划。
 
 L4-plugin / L4-resource 是 [dev/ENGINE-STRATEGY.md](dev/ENGINE-STRATEGY.md) §5.5
 的四档交付术语：plugin 是“加插件、删文件即还原”，resource 是“生成引擎自带的资源、
@@ -694,18 +993,24 @@ L4-plugin / L4-resource 是 [dev/ENGINE-STRATEGY.md](dev/ENGINE-STRATEGY.md) §5
 
 新引擎必须自带：adapter、capabilities、fixture、契约测试、启动规则（如果有 exe）、
 自己的 profile。不允许把引擎特判写进 `src/pipeline`；引擎专属校验规则挂在 adapter 上——
-0.10.x 起是一份 `profile` 数据（`src/engines/profile.js` 与
-`src/engines/renpy/profile.js`，含 prompt / grammar / validate / verify），
-`rules` 三键保持不变。
+0.10.x 起是一份 `profile` 数据（`src/engines/profile.js`、
+`src/engines/renpy/profile.js` 与 `src/engines/rgss/profile.js`，含
+prompt / grammar / validate / verify），`rules` 三键保持不变。
+
+RGSS 接入时这三样都按这个模式落：adapter（`src/engines/rgss/adapter.js`）、fixture
+（`test/rgss-fixture.js` 在 `os.tmpdir()` 里合成，不在 `test/fixtures/` 下）、契约测试
+（`test/rgss-adapter.test.js` + `test/rgss-cli.test.js`）；`src/pipeline` 一行没改。
 
 ## 15. 验收清单
 
 - [x] `detectProject` 对错误目录/多根返回判别式，不抛、不写盘。
-- [x] registry 按 `mz → mv → renpy` 顺序；同目录双 core 取 MZ。
+- [x] registry 按 `mz → mv → renpy → rgss` 顺序；同目录双 core 取 MZ。
 - [x] MZ / MV 两个 fixture 都过同一套契约测试；MV 的 CDP 能力为 false。
+- [x] 四个 adapter 的 capabilities 七键齐全，`runtime` 分档为 `plugin` / `plugin` /
+  `translation` / `null`，`rules` 三键不变（`test/engine-contract.test.js` 逐个断言）。
 - [x] 安装幂等、卸载逐字节还原、漂移时不还原；路径逃逸被拒。
 - [x] launch 发现规则全测；spawn 参数与 env 用假实现断言；非 Windows 报平台错误。
-- [x] `attach` 桩返回 `E_NOT_IMPLEMENTED`，能力为 false；三个引擎共用同一个桩。
+- [x] `attach` 桩返回 `E_NOT_IMPLEMENTED`，能力为 false；四个引擎共用同一个桩。
 - [x] `import "yakusha"` 自引用可用；旧深路径仍可用。
 - [x] 版本三处一致；`--version` 有测试。
 - [x] Ren'Py：`.rpy` 与 `.rpyc` 都能抽，同 stem 只读 `.rpy`，`tl/` 与自己生成的
@@ -713,4 +1018,11 @@ L4-plugin / L4-resource 是 [dev/ENGINE-STRATEGY.md](dev/ENGINE-STRATEGY.md) §5
 - [x] Ren'Py：`install` 只生成 `game/yakusha_translation.rpy`，`uninstall` 只删它；
   前后游戏脚本逐字节不变；零已译条目报 `E_NO_DICTIONARY` 而不是写空文件。
 - [x] Ren'Py：doctor 把翻译文件当 install 与 runtime 两项检查，首行按 `scripts` 计数。
+- [x] RGSS：`Game.ini` / 归档 / `Data/` 三种依据都能识别，版本 `"1"`–`"3"` 判得出来；
+  打包版没有 `Data/` 也认；空目录报 RGSS 那句，同级两款游戏报 `E_MULTI_ROOT`。
+- [x] RGSS：磁盘版与打包版抽出同一批串、同一批 context；`@note` 与资源名不收；
+  一个文档解不开只记一行，其余照常抽（`test/rgss-extract.test.js`）。
+- [x] RGSS：`install` / `uninstall` 抛 `E_NOT_IMPLEMENTED` 且不写任何文件（安装前后
+  目录快照逐项相同）；`doctor` 的 install 是 warn、runtime 是 info，verdict 仍 `usable`。
+- [x] RGSS：`runtime` 为 `null` 在契约测试里被断言——这一格不允许靠猜填一个档位。
 - [ ] `npm test` 在 `windows-latest` Node 22/24 全绿（推送后由 CI 验证）。

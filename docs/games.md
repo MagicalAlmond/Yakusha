@@ -2,8 +2,9 @@
 
 哪些游戏跑通过、文本量多大、游戏目录怎么找、官中游戏怎么处理。
 
-本页的实测游戏只记录匿名编号（MZ-A … MV-H）和汇总数字，**不记录游戏标题、截图或任何游戏
-文本**；唯一的例外是 Ren'Py 的两个官方示例游戏，它们是 SDK 自带的公开样例，直接写名字。
+本页的实测游戏只记录匿名编号（MZ-A … MV-H）、匿名描述（RGSS 那一款）和汇总数字，
+**不记录游戏标题、截图或任何游戏文本**；唯一的例外是 Ren'Py 的两个官方示例游戏，
+它们是 SDK 自带的公开样例，直接写名字。
 运行时确认都是本机临时注入、验完即删，仓库里不存游戏内容。
 
 ## 支持的游戏
@@ -104,6 +105,51 @@ node bin/yakusha.js status "/games/SomeGame"
 Ren'Py 的安装产物是一个文件：`install` 写 `game/yakusha_translation.rpy`，`uninstall`
 删掉它，原脚本一个字节都不动，删文件即恢复。
 
+## RGSS（XP / VX / VX Ace）
+
+本机实测的是一款 RGSS3 / VX Ace 商业游戏，只按「一款」计：它是日文原版，玩家侧流传的中文
+补丁来自第三方，所以那批中文既不是本项目的译文，也不能拿来当校对参考。仓库里不存它的任何
+文本，也不存归档副本——下面的数字全部来自本机临时解包。
+
+| 项目 | 数字 |
+| --- | --- |
+| `Game.rgss3a` | 644,284,359 字节 |
+| 归档条目 | 5,138 个（`Data/` 399 个：398 个 `.rvdata2` + 1 个非数据的 zip；`Graphics/` 4,739 个） |
+| 地图 | 381 张，其中 364 张有事件，共 5,300 个事件 |
+| 抽取 | 394 个文档、31,730 条唯一串 / 49,732 次出现、0 条 `undecodable`、282 个文件有文本、约 380 ms |
+| 含转义码 | 2,063 条，23 种 |
+
+这款游戏是打包发行（只有 `.rgss3a`，没有 `Data/` 目录），所以它验的是两条读取路径里的归档
+那条：`.rxdata` / `.rvdata` / `.rvdata2` 都在归档里，工具先按 `RGSSAD` 头解出目录，再逐个文档
+解 Ruby Marshal（`src/engines/rgss/archive.js:343`、`src/engines/rgss/marshal.js:91`）。抽取按
+文档名排序后再遍历，所以同一款游戏解包成 `Data/` 目录时给出的是同样的顺序与计数，磁盘版和
+打包版不会产生两份不同的字典。
+
+抽取只收玩家真正读得到的位置：事件指令 `401`（台词）、`405`（滚动文字续行）、`102`（选项
+标签）、`101`（说话人名）、`320`（改角色名），加上数据库文档的 name / description 一类字段，
+以及 `System` 里的游戏标题、货币单位与四张术语表（`src/engines/rgss/extract.js:339`）。为什么不收
+`402`、编辑器注释和 `@note`，见 [design.md](design.md) 的「文本面覆盖」。
+
+**本版没有运行时交付。** `capabilities.runtime` 是 `null`，`install` / `uninstall` 直接以
+`E_NOT_IMPLEMENTED` 退出（退出码 2），一个文件都不写；`doctor` 里 `install` 检查是 warning、
+`runtime` 检查是 info。所以上表证明的是"读得到、翻得了、校验得了"，**不是**"RGSS 游戏已经能在
+游戏里看到中文"。
+
+文本里的控制码仍是反斜杠一族（`\i[n]` 图标、`\c[n]` 换色、`\v[n]` 变量、`\!` 停顿……实测
+共 23 种），所以 tokenize、校验、运行时查表直接复用 MZ/MV 那套 `src/core/textkey.js`，没有为
+RGSS 另写一套（见 [design.md](design.md) 的「RGSS 控制码」）。这也让 `scan` 打印的是
+`data files:` 而不是 `scripts   :`——RGSS 数的是数据文档（`bin/yakusha.js:137`）。
+
+RGSS 的根目录形状是 `Game.ini` + `Data/`，或者启动器 `.exe` + 一个
+`.rgssad` / `.rgss2a` / `.rgss3a` 归档；`findRgssRoot` 往下最多 3 层找这个形状
+（`src/engines/rgss/project.js:282`），`detect` 还会先从你给的目录往上找最多 3 层，所以指到启动器
+目录、`Data/` 或游戏的子目录都能命中。引擎版本不是读版本号，而是按归档扩展名 → `Game.ini` 的
+`Library=` → `Scripts=` 的扩展名 → `Data/` 里的文件扩展名依次推断
+（`src/engines/rgss/project.js:309`）。
+
+**这不等于对 RGSS 游戏的运行时验收**：本机只有这一款，XP 与 VX 两款还没有实测数字，三个版本的
+验收基线也没定；而且这一版本来就没有交付层，游戏里的文字不会变。
+
 ## 不支持的引擎
 
-XP/VX/VX Ace（`.rxdata` 二进制）、Unity/Godot/Kirikiri 等其它引擎。
+Unity/Godot/Kirikiri 等其它引擎。

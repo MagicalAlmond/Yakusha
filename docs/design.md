@@ -48,6 +48,35 @@ Ren'Py 自己就有字符串翻译机制：`translate <language> strings:` 里�
 `_()` 标出的可翻译串（`translate ... strings` 的原文）、`screen` 里 `text` /
 `textbutton` / `label` / `tooltip` / `notify` 的文本。
 
+## RGSS 为什么没有交付层
+
+RGSS（XP / VX / VX Ace）是本项目接的第四种引擎，也是第一种**只做到 L1–L3 的引擎**：
+detect / scan / extract 三件都有，`capabilities.runtime` 却是 `null`
+（`src/engines/rgss/adapter.js:203-213`）。原因不是没排上，而是这一族没有可以挂的钩子：
+它没有插件目录、没有 `js/plugins.js`、也没有一个工具能改写而不碰游戏自身文件的数据目录——
+文本直接烧在 `Data/*.rxdata`、`*.rvdata`、`*.rvdata2` 这些 Ruby Marshal 文档里，打包发行时
+那些文档还整体藏在 `Game.rgssad` / `.rgss2a` / `.rgss3a` 归档里
+（`src/engines/rgss/adapter.js:1-16`）。换掉文字等于**把这些文档写回去**，那是另一档的量级。
+
+两条候选路线都记下来了，但一条都没拍板（`src/engines/rgss/adapter.js:240-250`）：
+
+1. **纯 JS 写回数据文档**：把译文塞回 Ruby Marshal 流，重写 `Data/*.rvdata2` 或整个归档。
+   需要的读写器已经在 `src/engines/rgss/` 里（`marshal.js` 的 `marshal()`、
+   `archive.js` 的 `writeArchive()`，`src/engines/rgss/archive.js:499`），这条路不需要任何
+   原生组件。
+2. **原生注入器 + hook DLL**：在运行时把译文喂给游戏进程。这条路要编译器，而本机没有
+   C/C++/Rust 工具链，也没有 ruby，编译不出来——这是 0.12 排期与验收的硬阻塞。
+
+选定哪条决定 `uninstall` 要还原什么：写回路线要备份被改的文档，注入路线不改盘、删掉注入器
+即还原。所以这件事记成**待拍板**，不靠猜（[dev/DEVLOG.md](dev/DEVLOG.md) §8.1）。
+
+因为缺的是交付层而不是提取层，`install` / `uninstall` 报的是**指向决策记录**的那句
+`E_NOT_IMPLEMENTED`（`install is not implemented for RGSS yet - see the pending decisions in
+docs/dev/DEVLOG.md`，`src/engines/rgss/adapter.js:192-197`），而不是“这个功能不存在”那句
+历史措辞；`doctor` 的 install 检查因此是 warning、runtime 检查是 info。同理 `src/index.js`
+只导出 `openRgssProject` / `extractRgssProject`（`src/index.js:17-18`），没有 `installRgss`
+之类的入口——库的公开面本身就不会许诺一个不存在的交付层。
+
 ## 文本面覆盖
 
 
@@ -63,6 +92,34 @@ Ren'Py 自己就有字符串翻译机制：`translate <language> strings:` 里�
 | 事件指令 | `101`(说话人)、`401`(对白)、`102`(选项数组)、`105`/`405`(滚动文本)、`320`/`324`/`325`(改名/称号) |
 
 不翻译：插件指令（`355`/`655`）、脚本（`355` 的 JS 体）、`note` 字段（插件数据）。
+
+RGSS 的数据面在 Ruby Marshal 文档里，字段名带 `@`（`@name` 而不是 `name`），所以按文档名
+（扩展名随版本变：XP 是 `.rxdata`、VX 是 `.rvdata`、VX Ace 是 `.rvdata2`）匹配，位置是：
+
+| 位置 | 内容 |
+| --- | --- |
+| `Actors` / `Classes` / `Skills` / `Items` / `Weapons` / `Armors` / `Enemies` | `@name`、`@description`（`Actors` 另有 `@nickname`，`Skills` 另有 `@message1`/`@message2`） |
+| `States` | `@name`、`@message1`..`@message4` |
+| `Tilesets` / `CommonEvents` | `@name` |
+| `System` | `@game_title`、`@currency_unit`，以及 `@terms` 的四张表（basic / params / etypes / commands） |
+| `MapInfos` | `@name`（地图名） |
+| `MapNNN` / `Troops` / `CommonEvents` | 全部事件指令 |
+| 事件指令 | `101`(说话人)、`401`(对白)、`405`(滚动文字续行)、`102`(选项标签)、`320`(改角色名) |
+
+字段清单在 `src/engines/rgss/extract.js:41-52`（`RGSS_DB_FIELDS`）与 `src/engines/rgss/extract.js:58-61`
+（`SYSTEM_TEXT_FIELDS`、`TERM_FIELDS`）；指令码在 `src/engines/rgss/extract.js:79-85`（`COMMAND_TEXT`）。
+
+**`402` 为什么不收**：它是选项分支的标记指令，文本和前一条 `102` 选项标签是同一个字符串。
+再收一次只会给同一条原文多一个 context，不会多一条译文，所以提取器直接跳过它
+（`src/engines/rgss/extract.js:73-75`）。MZ 的提取表里同样没有 `402`（`src/core/fields.js:63-72`），
+是同一个判断。
+
+**编辑器注释和 `@note` 为什么不收**：`108`/`408` 是事件编辑器里给人看的注释，运行时一个字都
+不显示；`@note` 是脚本用的元数据通道（自定义图标标记之类）。同在“不翻译”一类的还有脚本行
+（`355`/`655`）、文件名（`231`/`322`）和脚本参数（`111`/`118`/`119`/`122`/`123`/`283`/`284`）——
+翻它们要么什么都不会发生，要么直接把游戏弄坏（`src/engines/rgss/extract.js:1-23`、
+`src/engines/rgss/extract.js:29-39`）。数据库里所有 `@*_name` 字段也一样：它们存的是图片或
+音频文件名，不进字典。
 
 ## 转义码
 
@@ -97,6 +154,24 @@ Ren'Py 的码是完全另一套形态，**不是反斜杠**，而是两类零宽
 还有三个双写转义 `{{` `[[` `%%`：它们显示成一个普通的 `{` `[` `%`，是可见字符，
 所以按文字处理；落单的 `{` 或 `[`（没有配对）也当普通文字，因为玩家看到的就是它。
 
+### RGSS 控制码
+
+RGSS 的码又回到反斜杠一族，和 MZ/MV 是同一个语法家族：`\C[n]` 换色、`\V[n]` 变量、
+`\N[n]` 角色名、`\I[n]` 图标、`\G` 货币单位、`\{`/`\}` 放大缩小、`\>`/`\<` 瞬时显示、
+`\^` 跳过等待、`\!`/`\|`/`\.` 停顿（`src/engines/rgss/profile.js:41-55`）。所以
+**`src/core/textkey.js` 一个字都没改**：`tokenize()`、`controlCodes()`、`plainText()`、
+`visibleText()` 原样接过来（`src/engines/rgss/profile.js:82`），提取、校验、运行时查表三处
+仍用同一套切分。
+
+RGSS profile 与 MZ/MV profile 的差别只有措辞和语言判定：`prompt.task()` 说的是“把 RPG Maker
+XP / VX / VX Ace 的游戏文本从日文翻成 X”（`src/engines/rgss/profile.js:72-78`），
+`escapeExamples` 只列对白里真的会出现的 13 个码（`src/engines/rgss/profile.js:41`、
+`src/engines/rgss/profile.js:79`）。校验与复查用的 `%1` 一类槽位正则、假名/汉字/繁体判定
+也都和 MZ/MV 共用（`src/engines/rgss/profile.js:84-94`）。
+
+实测样本里 2,063 条文本带控制码、共 23 种，数量最多的是 `\i[n]`、`\c[n]`、`\v[n]`；
+这说明“共用一套 tokenizer”不是省事，而是这个家族的文本本来就长这样。
+
 ## data/ 的编码
 
 **加密的 `data/`**：有些 MZ 游戏把 JSON 单字节 XOR 掉了（每文件一个 key；有资料称键值由
@@ -123,6 +198,10 @@ Ren'Py 的码是完全另一套形态，**不是反斜杠**，而是两类零宽
 - **translation 档只写一个新文件**：Ren'Py 的交付是 `game/yakusha_translation.rpy` 一个文件，
   不碰 `game/` 里的任何原脚本，也不碰 `game/tl/`（社区翻译补丁的目录，扫描时整个跳过）。
   卸载删掉它即恢复；因为是引擎自带的翻译资源，这一档是 L4-resource，不是插件档。
+- **RGSS 本版只到 L1–L3**：`detect` / `scan` / `extract` 三件事做完，`capabilities.runtime` 是
+  `null`，`install` / `uninstall` 抛 `E_NOT_IMPLEMENTED`（退出码 2）。也就是说 0.12 **不往
+  游戏里写回任何一个字节**：提取出来的字典就是一份普通字典，交付路线定了才有下一步。
+  这条约束是刻意的——先有一个可靠的提取面，再谈改盘还是注入。
 - **字典 key = 原文**：不做语言检测、不改写原文，hash 之类的方案会让译文无法人工校对。
 - **校验在写之前**：宁可留原文，也不留一条会显示成乱码的译文。
 - **规则单一来源**：`src/core/fields.js` 是唯一真源，插件里的 `RULES` 由 `install` 生成，
@@ -165,4 +244,19 @@ const pairs = [["Original line", "译好的那一行"]];
 
 installTranslation(project, pairs, { language: "schinese" }); // 写 game/yakusha_translation.rpy
 uninstallTranslation(project);                                // 删掉它，游戏回到原样
+```
+
+RGSS 没有对应的安装/卸载函数——本版没有交付层，所以公开面上只有读取和提取。
+提取结果与 MZ/MV 同形（`entries` 是 `Map<原文, { text, contexts, count }>`），可以直接喂给
+同一条翻译、校验流水线：
+
+```js
+import { openRgssProject, extractRgssProject } from "./src/index.js";
+
+const project = openRgssProject("/games/SomeRgssGame"); // 目录或 exe 都行，向上找 3 层
+const extracted = extractRgssProject(project.root);
+// entries: Map<原文, { text, contexts, count }>
+// contexts 形如 "Map001.rvdata2:401"，commandCounts 统计每种指令码收了多少条
+console.log(extracted.entries.size + " strings in " + extracted.documents + " documents");
+// 没有 installRgss / uninstallRgss：交付路线定了才会有
 ```

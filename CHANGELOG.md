@@ -6,6 +6,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-10-27
+
+### Added
+
+- Added RGSS as a fourth engine, covering RPG Maker XP, VX and VX Ace: a project is found through `Game.ini`, an `.rgssad`, `.rgss2a` or `.rgss3a` archive, or a `Data/` directory holding `.rxdata`, `.rvdata` or `.rvdata2` documents, and the engine version is taken from the archive extension, the `Library=` entry, the `Scripts=` extension or the data documents, in that order.
+- Added a pure-JavaScript Ruby Marshal 4.8 reader and writer (`src/engines/rgss/marshal.js`): it accepts major version 4 only, never evaluates Ruby, keeps a class or module as its name and a `T_DATA` payload as raw bytes, and can write the same stream back.
+- Added decryption for the three RGSS archive generations (`src/engines/rgss/archive.js`): `.rgssad` and `.rgss2a` share one rolling key seeded with `0xDEADCAFE` that steps before every field, while `.rgss3a` derives one constant key from the header seed for the directory, carries a separate key per file and steps it once per four-byte block; names are normalised to forward slashes, and the directory is parsed from a bounded header window instead of reading the whole archive into memory.
+- Added multi-encoding decoding of `Game.ini`: valid UTF-8 first, then Shift_JIS when the decoding carries kana, then GBK, and Latin-1 as the last resort.
+- Added extraction of the text a player actually reads: the event commands `101` (speaker name), `102` (choice labels), `320` (actor rename), `401` (dialogue) and `405` (scrolling-text continuation), the field table for `Actors`, `Classes`, `Skills`, `Items`, `Weapons`, `Armors`, `Enemies`, `States`, `Tilesets` and `CommonEvents`, and the name fields of `MapInfos`; choice branch markers (`402`, whose text is the `102` labels again) and editor comments (`108`, `408`), Ruby script lines (`355`, `655`), resource file names and every `@note` are deliberately left out.
+- Added the `System` terms: `@game_title`, `@currency_unit` and the four tables under `@terms` (`@basic`, `@params`, `@etypes`, `@commands`).
+- Added RGSS to `getAdapters()` as the fourth adapter, so the detection order (MZ, MV, Ren'Py, RGSS) is part of the public contract and the "nothing here" message gained a third prefix.
+- Added the RGSS entry points to the library facade (`src/index.js`): `openRgssProject`, `findRgssRoot`, `findRgssRoots` and `extractRgssProject`.
+- Added a pending-delivery branch to `doctor`: an adapter can now mark its delivery descriptor as pending and hand over its own reason, and `doctor` answers that instead of running the plugin checks, which would have looked for a plugin directory and a `js/plugins.js` registry this engine does not have.
+- Added RGSS at the detect, scan and extract tiers, so `status`, `translate`, `verify`, `speaker`, `terms` and `export` all work on an RGSS game through the shared pipeline without a single engine special case, and `launch` reuses the existing Windows launcher.
+
+### Changed
+
+- `doctor` now tells the truth about an engine that has no delivery layer: the `install` check is a warning carrying the engine's own explanation, and the `runtime` check is an info line saying nothing is loaded at run time, so the game keeps showing the original text. It no longer reports such an engine as not installed, which would have pointed the user at a command that refuses to run.
+- `capabilities.runtime` may now be `null` for an engine that reads and translates text but cannot write it back, so the contract pins three states next to each other: a plugin, a translation file, and no delivery layer at all.
+- RGSS ships without runtime delivery in this release: `install` and `uninstall` fail with `E_NOT_IMPLEMENTED` and exit code `2` and write no file, so a translation run stops at the dictionary and the game keeps showing its original text. Rewriting the archive in pure JavaScript and injecting a native helper into the running game are both still open decisions, and this release deliberately ships neither.
+- No breaking changes: the JSON envelope, the exit codes, the command list and the 13 error codes stay as they were in 0.11.0.
+
 ## [0.11.0] - 2026-10-27
 
 ### Added
@@ -165,7 +187,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.8.0...v0.9.0

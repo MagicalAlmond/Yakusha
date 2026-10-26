@@ -1,8 +1,8 @@
 # JSON 输出契约
 
-> **状态：0.10 冻结并实现，0.11 原样沿用。** 信封、退出码、命令清单、错误码清单一个都没动；
-> 0.11 只新增按引擎（RPG Maker MZ/MV 与 Ren'Py）的语义澄清，见 §7.1，不新增保留键、不改字段类型。
-> 本文冻结的形状自 0.10 起不再变化，实际输出以 [commands.md](commands.md) 为准。
+> **状态：0.10 冻结并实现，0.11 与 0.12 原样沿用。** 信封、退出码、命令清单、错误码清单一个都没动；
+> 0.11 与 0.12 只新增按引擎（RPG Maker MZ/MV、Ren'Py、RGSS）的语义澄清，见 §7.1，
+> 不新增保留键、不改字段类型。本文冻结的形状自 0.10 起不再变化，实际输出以 [commands.md](commands.md) 为准。
 
 ## 1. 目标与适用范围
 
@@ -140,17 +140,17 @@
 | code | 何时 | 典型命令 |
 | --- | --- | --- |
 | `E_USAGE` | 未知命令 / 未知选项 / 缺参数 / 值非法 / 缺 `--out` / 拒绝 `config set apiKey` | 全部 |
-| `E_NOT_PROJECT` | 在给定目录及向下 3 层内找不到 MZ/MV 或 Ren'Py 项目；检测顺序是 MZ → MV → Ren'Py，空目录报的是 RPG Maker 措辞 | 除 `config` 外全部 |
-| `E_MULTI_ROOT` | 同层有多个项目，必须让用户指定其中一个；文案按引擎不同（`found 2 RPG Maker projects under…` / `found 2 Ren'Py projects under…`），候选路径只拼进 `message`，CLI 不输出 `details` | 除 `config` 外全部 |
-| `E_NO_DICTIONARY` | 命令需要字典，但 `yakusha/dictionary.json` 不存在（`doctor` 不报此码，它把缺字典记成 `dictionary: fail` / `verdict: broken` / 退出 1）；Ren'Py 的 `install` 另有「字典存在但一条都没译」的第二种情形 | status/translate/verify/speaker/terms/export；`install` 只在带 `--embed`（读译文编译进插件）或 Ren'Py（安装时就要写译文）时报，RPG Maker 的普通 `install` 不读字典、缺字典也能装成功 |
+| `E_NOT_PROJECT` | 在给定目录及其上下 3 层内找不到 MZ/MV、Ren'Py 或 RGSS 项目；检测顺序是 MZ → MV → Ren'Py → RGSS（`src/engines/registry.js:16`），空目录报的是 RPG Maker 措辞 | 除 `config` 外全部 |
+| `E_MULTI_ROOT` | 同层有多个项目，必须让用户指定其中一个；文案按引擎不同（`found 2 RPG Maker projects under…` / `found 2 Ren'Py projects under…` / `found 2 RGSS projects under…`），候选路径只拼进 `message`，CLI 不输出 `details` | 除 `config` 外全部 |
+| `E_NO_DICTIONARY` | 命令需要字典，但 `yakusha/dictionary.json` 不存在（`doctor` 不报此码，它把缺字典记成 `dictionary: fail` / `verdict: broken` / 退出 1）；Ren'Py 的 `install` 另有「字典存在但一条都没译」的第二种情形 | status/translate/verify/speaker/terms/export；`install` 只在带 `--embed`（读译文编译进插件）或 Ren'Py（安装时就要写译文）时报，RPG Maker 的普通 `install` 不读字典、缺字典也能装成功；RGSS 的 `install` / `uninstall` 与字典无关，缺不缺都报 `E_NOT_IMPLEMENTED` |
 | `E_DICTIONARY` | 字典存在但无法解析（`message` 就是解析器原文），或 `format` 不是 `yakusha/1` | status/translate/verify/speaker/terms/export。`extract` 遇到坏字典会重建、`doctor` 记成 `dictionary: fail` 并走 findings/1；RPG Maker 的 `install` 不读字典；Ren'Py 的 `install` 要读，坏字典时退出 2，但 `code` 是 `E_INTERNAL`（解析器原文直接冒到捕获不到该码的地方），脚本不要指望这时拿到 `E_DICTIONARY` |
 | `E_EXISTS` | `export` 目标已存在且没有 `--force`，或目标就是项目字典 | export |
 | `E_EXE` | `launch` 在项目根找不到唯一的 `.exe`，或 `--exe` 不合法 | launch |
 | `E_PROVIDER` | provider 名字不认识（`unknown provider: …`）。单条请求的失败（网络错误、非 2xx、响应无法解析）不进这个码：它们被 `translate` 记进载荷的 `rejected`，命令仍是 `ok` | translate |
 | `E_CONFIG` | 配置文件损坏、目录不可写、`APPDATA` 缺失 | config、translate（读配置时） |
 | `E_IO` | 读写文件失败、路径逃出项目根、权限不足 | 全部 |
-| `E_NOT_IMPLEMENTED` | 能力尚未实现（0.10 引入的桩，到 0.11 仍只有 `attach`） | 库调用；0.11 仍无 CLI 入口 |
-| `E_UNSUPPORTED_PLATFORM` | 该操作只支持 Windows，当前不是 Windows（0.11 只有 `launch`） | launch |
+| `E_NOT_IMPLEMENTED` | 能力已声明但没实现。0.10 引入时只有 `attach`（库调用，没有 CLI 入口）；0.12 起 RGSS 的 `install` / `uninstall` 会报此码，`message` 是 `install is not implemented for RGSS yet - see the pending decisions in docs/dev/DEVLOG.md`（`uninstall` 同形），退出 2 且不写任何文件 | RGSS 的 install / uninstall |
+| `E_UNSUPPORTED_PLATFORM` | 该操作只支持 Windows，当前不是 Windows（目前只有 `launch`） | launch |
 | `E_INTERNAL` | 未预期异常（bug） | 全部 |
 
 错误码不区分“用户输入错”与“环境错”的退出码：都属于 `error`，一律退出 2。
@@ -206,16 +206,16 @@
 
 | 命令 | 默认 outcome | 载荷（稳定字段） | 备注 |
 | --- | --- | --- | --- |
-| `scan` | ok | `root, engine, engineVersion, gameTitle, dataFiles, uniqueStrings, totalStrings, stringsWithControlCodes, encodings, undecodable, perFile` | 原 `version` 改名 `engineVersion`，避免与工具版本混淆；Ren'Py 下的取值差异见 §7.1 |
+| `scan` | ok | `root, engine, engineVersion, gameTitle, dataFiles, uniqueStrings, totalStrings, stringsWithControlCodes, encodings, undecodable, perFile` | 原 `version` 改名 `engineVersion`，避免与工具版本混淆；Ren'Py 与 RGSS 下的取值差异见 §7.1 |
 | `extract` | ok | `file, added, total, translated, pending` | 只增不删已有条目 |
 | `status` | ok | `file, total, translated, pending, withError` | `withError > 0` 仍是 ok |
 | `translate` | ok | `file, provider, elapsedMs, total, translated, overwritten, rejected, failedBatches, rewrapped, progress` | `rejected > 0` 仍是 ok；`--dry-run` 时载荷为 `dryRun, provider, total, translated, rejected`，不写文件 |
 | `verify` | ok / findings | `file, maxColumns, report, total, translated, pending, errors, warnings, counts, problems` | `errors > 0` → findings / 1；只有 warning → ok / 0；`report` 仅在 `--write-report` 时出现 |
 | `speaker` | ok | `file, includeDrift, dryRun, supplied, saved, entries, tags, names, namesFile, namesNeeded, errorsBefore, errorsAfter, warningsBefore, warningsAfter` | 修复类命令，残留 error 仍是 ok |
 | `terms` | ok | `file, names, nameEntries, skipped, holdersMin, supportMin, mined, listed, drift, missing, glossary, written, terms` | `--write` 只是建议 |
-| `install` | ok | `pluginPath, registered, backupPath, createdBackup, staleBackup, state` | 幂等；`--embed` 额外写插件内嵌字典；Ren'Py 下仍是这 6 键，含义见 §7.1 |
-| `uninstall` | ok | `removed, restored, backupPath, drifted, keptBackup` | 漂移时不还原；Ren'Py 下 `restored` 恒 `false`、`backupPath` 与 `keptBackup` 恒 `null` |
-| `doctor` | ok / findings | `verdict, checks, failure, game{title, engine, engineVersion, root, dataFiles}, dictionary, sync, install, runtime, verify` | `broken` → findings / 1；`game.version` 改名 `game.engineVersion`；Ren'Py 下 `checks` 少 `plugins.js` 与 `backup` 两项，`install` / `runtime` 子对象见 §7.1 |
+| `install` | ok | `pluginPath, registered, backupPath, createdBackup, staleBackup, state` | 幂等；`--embed` 额外写插件内嵌字典；Ren'Py 下仍是这 6 键，含义见 §7.1；RGSS 上命令直接失败（`E_NOT_IMPLEMENTED` / 2），没有任何载荷 |
+| `uninstall` | ok | `removed, restored, backupPath, drifted, keptBackup` | 漂移时不还原；Ren'Py 下 `restored` 恒 `false`、`backupPath` 与 `keptBackup` 恒 `null`；RGSS 上同样是 `E_NOT_IMPLEMENTED` / 2，没有载荷 |
+| `doctor` | ok / findings | `verdict, checks, failure, game{title, engine, engineVersion, root, dataFiles}, dictionary, sync, install, runtime, verify` | `broken` → findings / 1；`game.version` 改名 `game.engineVersion`；Ren'Py 与 RGSS 下 `checks` 少 `plugins.js` 与 `backup` 两项，`install` / `runtime` 子对象见 §7.1 |
 | `config` | ok | `action, ...` | 子命令字段见 [config.md](config.md) |
 | `export` | ok | `out, format, flat, entries, bytes` | 字段见 [export-format.md](export-format.md) |
 | `launch` | ok | `root, exe, pid` | 只 spawn，不接管 |
@@ -228,35 +228,51 @@
 - `verify` 的 `problems` 结构不变；`report` 只给路径，报告内容在文件里。
 - `install` / `uninstall` 的路径字段必须是命令自己解析出的绝对路径。
 
-### 7.1 按引擎的语义（0.11）
+### 7.1 按引擎的语义（0.11 / 0.12）
 
-0.11 支持 Ren'Py 之后，同一批键名在两个引擎上含义略有不同。**没有新增或改名任何键**，
-消费者按下面的表理解取值即可；需要区分引擎时读 `scan` 的 `engine`（`"mz"` / `"mv"` / `"renpy"`）
-或 `doctor` 的 `game.engine`。
+0.11 支持 Ren'Py、0.12 支持 RGSS 之后，同一批键名在三个引擎上含义略有不同。**没有新增或改名任何键**，
+消费者按下面的表理解取值即可；需要区分引擎时读 `scan` 的 `engine`（`"mz"` / `"mv"` / `"renpy"` / `"rgss"`）
+或 `doctor` 的 `game.engine`。RGSS 那一列只覆盖能跑通的命令——`install` / `uninstall`
+在 RGSS 上直接报 `E_NOT_IMPLEMENTED`、退出 2，没有载荷可读。
 
-| 字段 | RPG Maker（MZ/MV） | Ren'Py |
-| --- | --- | --- |
-| `scan.dataFiles` | `data/` 下的 `.json` 数据文件数 | `game/` 下的脚本数（`.rpy` 或 `.rpyc`；同 stem 的 `.rpy` 优先） |
-| `scan.engineVersion` | MZ/MV 的引擎版本 | `game/options.rpy` 里 `define config.version` 的值，没有就是 `null` |
-| `scan.encodings` | `{"json": N}` | `{"rpy": N, "rpyc": N}`，脚本格式计数 |
-| `scan.undecodable` | 字符串数组，元素是文件名 | 字符串数组，元素是 `"<相对路径>: <解码错误>"` |
-| `scan.perFile` / 字典 `contexts` | `Items.json:description` | `game/script.rpy:12`（`.rpyc` 无行号时只有路径） |
-| `install.pluginPath` | `js/plugins/YAKUSHA_Translator.js` 绝对路径 | `game/yakusha_translation.rpy` 绝对路径 |
-| `install.registered` | 插件是否已写进 `js/plugins.js` | 恒 `true`（文件写成就等于注册） |
-| `install.backupPath` / `createdBackup` / `staleBackup` | 备份 `js/plugins.js`，可能为 `null` | 恒 `null` / `false` / `false`（没有要备份的原文件） |
-| `install.state` | `added` / `enabled` / `unchanged` | `added` / `unchanged` |
-| `uninstall.restored` / `backupPath` / `keptBackup` | 真值视备份情况而定 | 恒 `false` / `null` / `null` |
-| `doctor.game.dataFiles` | 数据文件数 | 脚本数 |
-| `doctor.install.pluginFile` | 插件绝对路径 | 翻译脚本绝对路径 |
-| `doctor.install.pluginFilePresent` | 插件文件是否存在 | 翻译脚本是否存在 |
-| `doctor.install.entryPresent` | `js/plugins.js` 里是否有自己的条目 | 与 `pluginFilePresent` 同值 |
-| `doctor.install.entryParameters` | `{dictionaryPath, strictCodes, debug}` | `{"language": "<lang>"}`，语言从生成的翻译脚本里读回 |
-| `doctor.install.backup` | `{path, stale}` 或 `null` | 恒 `null` |
-| `doctor.runtime` | `{embedded, entries, path, found}`，`path` 是 `yakusha/dictionary.json` | 同四键，`path` 是 `game/yakusha_translation.rpy`，`found` 是它的绝对路径 |
+| 字段 | RPG Maker（MZ/MV） | Ren'Py | RGSS（XP/VX/VX Ace） |
+| --- | --- | --- | --- |
+| `scan.dataFiles` | `data/` 下的 `.json` 数据文件数 | `game/` 下的脚本数（`.rpy` 或 `.rpyc`；同 stem 的 `.rpy` 优先） | 读过的 Marshal 文档数（`result.documents`）；打包版一块 `.rgss3a` 里读出多个文档，所以不等于磁盘文件数 |
+| `scan.engineVersion` | MZ/MV 的引擎版本 | `game/options.rpy` 里 `define config.version` 的值，没有就是 `null` | 字符串 `"1"` / `"2"` / `"3"` 或 `null`，判定顺序见 [commands.md](commands.md) 的 scan 一节（`src/engines/rgss/project.js:309` 的 `detectVersion`） |
+| `scan.encodings` | `{"json": N}` | `{"rpy": N, "rpyc": N}`，脚本格式计数 | 磁盘版按扩展名 `{"rvdata2": N}`（`.rxdata` / `.rvdata` 各自计数）；打包版 `{"marshal": N}` |
+| `scan.undecodable` | 字符串数组，元素是文件名 | 字符串数组，元素是 `"<相对路径>: <解码错误>"` | 字符串数组，元素是 `"<文件名>: <解码错误>"`（`src/engines/rgss/adapter.js:118`） |
+| `scan.perFile` / 字典 `contexts` | `Items.json:description` | `game/script.rpy:12`（`.rpyc` 无行号时只有路径） | `Map001.rvdata2:401`（事件指令号）、`Actors.rvdata2:name`、`System.rvdata2:terms.params` |
+| `install.pluginPath` | `js/plugins/YAKUSHA_Translator.js` 绝对路径 | `game/yakusha_translation.rpy` 绝对路径 | 无载荷：命令失败 `E_NOT_IMPLEMENTED` / 2 |
+| `install.registered` | 插件是否已写进 `js/plugins.js` | 恒 `true`（文件写成就等于注册） | 同上，无载荷 |
+| `install.backupPath` / `createdBackup` / `staleBackup` | 备份 `js/plugins.js`，可能为 `null` | 恒 `null` / `false` / `false`（没有要备份的原文件） | 同上，无载荷 |
+| `install.state` | `added` / `enabled` / `unchanged` | `added` / `unchanged` | 同上，无载荷 |
+| `uninstall.restored` / `backupPath` / `keptBackup` | 真值视备份情况而定 | 恒 `false` / `null` / `null` | 无载荷：命令失败 `E_NOT_IMPLEMENTED` / 2 |
+| `doctor.game.dataFiles` | 数据文件数 | 脚本数 | Marshal 文档数 |
+| `doctor.install.pluginFile` | 插件绝对路径 | 翻译脚本绝对路径 | 恒 `null`（没有交付层） |
+| `doctor.install.pluginFilePresent` | 插件文件是否存在 | 翻译脚本是否存在 | 恒 `false` |
+| `doctor.install.entryPresent` | `js/plugins.js` 里是否有自己的条目 | 与 `pluginFilePresent` 同值 | 恒 `false` |
+| `doctor.install.entryParameters` | `{dictionaryPath, strictCodes, debug}` | `{"language": "<lang>"}`，语言从生成的翻译脚本里读回 | 恒 `null` |
+| `doctor.install.backup` | `{path, stale}` 或 `null` | 恒 `null` | 恒 `null` |
+| `doctor.runtime` | `{embedded, entries, path, found}`，`path` 是 `yakusha/dictionary.json` | 同四键，`path` 是 `game/yakusha_translation.rpy`，`found` 是它的绝对路径 | 同四键但恒 `{embedded:false, entries:0, path:null, found:null}` |
+
+RGSS 的 `doctor` 走的是 `src/core/doctor.js:183` 的 `delivery.pending` 分支（`capabilities.runtime` 是 `null`）：
+`install` 检查固定是 `warn`、`runtime` 检查固定是 `info`，所以它的 `verdict` 只可能是 `usable`
+或 `broken`，不会是 `not-installed`，也不会是 `ready`。
 
 **Ren'Py 的 `install` 不多带任何键。** 文本模式会打印 `strings    : 7 (schinese)`，那两段信息
 来自 adapter 的返回值，CLI 只把上表那 6 个键放进信封——`--json` 实测没有 `entries`，
 也没有 `language`。要拿语言名读 `doctor.install.entryParameters.language`。
+
+**RGSS 的 `install` 连信封都只有错误。** 它没有交付层，命令在写任何文件之前就抛错，所以
+`--json` 输出的是只有五个信封键加 `error` 的对象：
+
+```json
+{"schema":1,"command":"install","ok":false,"outcome":"error","error":{"code":"E_NOT_IMPLEMENTED","message":"install is not implemented for RGSS yet - see the pending decisions in docs/dev/DEVLOG.md"}}
+```
+
+没有 `pluginPath` 之类的载荷键可读；`uninstall` 同形（`message` 里 `install` 换成 `uninstall`）。
+实测跑完这两个命令后项目目录里一个新增文件都没有。要看 RGSS 目前能做到哪一步，看 `doctor` 的
+`install` 与 `runtime` 两行（固定 `warn` / `info`），或 [commands.md](commands.md) 的 install 一节。
 
 ## 8. 兼容性与 0.10 的破坏变更
 
@@ -281,6 +297,12 @@
 **0.11 没有破坏性变更。** `schema` 仍是 `1`；信封、退出码、13 个命令、13 个错误码都没有增删改；
 §7 的载荷键名一个没动，Ren'Py 只补语义（§7.1），没有新增保留键。
 
+**0.12 同样没有破坏性变更。** `schema` 仍是 `1`；13 个命令、13 个错误码一个没增没删；
+§7 的载荷键名一个没动，RGSS 只是往 §7.1 的表里加一列。既有 MZ/MV 与 Ren'Py 项目的输出形状
+没有变化。真正新增的只有两件事：`engine` 多了第四个取值 `"rgss"`，以及 RGSS 项目上
+`install` / `uninstall` 会返回 `E_NOT_IMPLEMENTED` / 2——那是新引擎的能力边界，
+不是既有引擎的行为变化。
+
 MZ/MV 侧唯一可见的变化在文本模式：重复执行 `install`（备份已存在、这次没有新建备份）时，
 第三行从打印旧的备份路径改成输出 `backup    : (none)`，与 JSON 里一直以来的
 `backupPath: null` 对齐。JSON 输出不变，解析 JSON 的脚本不受影响。
@@ -288,6 +310,9 @@ MZ/MV 侧唯一可见的变化在文本模式：重复执行 `install`（备份�
 Ren'Py 是新增的引擎支持，不属于 MZ/MV 的兼容性变更；它产生的新文案（例如
 `found 2 Ren'Py projects under…`、`translation removed`）都在 `message` 与文本输出层面，
 脚本不应依赖 `message` 原文。
+
+RGSS 同理：`found 2 RGSS projects under…`、`install is not implemented for RGSS yet - see the
+pending decisions in docs/dev/DEVLOG.md` 都是新引擎带来的新文案，不影响既有引擎的输出。
 
 ## 9. 实现落点
 
@@ -312,7 +337,7 @@ Ren'Py 是新增的引擎支持，不属于 MZ/MV 的兼容性变更；它产生
 
 ## 10. 验收清单
 
-0.10.0 交付时逐条核过，全部有测试兜底（落点见表后的括注）：
+0.10.0 交付时逐条核过，全部有测试兜底（落点见表后的括注）；0.11 与 0.12 只追加了引擎语义，清单本身没有增删：
 
 - [x] 13 个命令都在 JSON 模式下有测试；没有任何命令往 stdout 写第二个对象（`test/json-contract.test.js` 的 `envelope()` 断言 stdout 恰好一行并以换行结尾；`config` 在 `test/config.test.js`，`launch` 在 `test/launch.test.js`）。
 - [x] `ok === (outcome === "ok")` 与 `error` 的非空条件在测试里逐条断言（`assertShape()`，每个用例都过一遍）。
@@ -321,3 +346,4 @@ Ren'Py 是新增的引擎支持，不属于 MZ/MV 的兼容性变更；它产生
 - [x] `--help` 与 `--version` 的行为与本文一致，且有测试（`test/json-contract.test.js` 的 help 用例 + `test/version.test.js` 的 5 条）。
 - [x] `scan.version` / `doctor.game.version` 不再出现；`engineVersion` 有测试（三条断言分别覆盖 `scan`、`doctor` 和 `scan` 的 `version` 缺席）。
 - [x] 0.9.0 的既有断言按 §7 的改名表迁移，`npm test` 全绿（346 个用例）。
+- [x] 0.12 的 RGSS 走同一套信封，没有另开一套：`test/rgss-*.test.js` 六个文件共 89 个用例（marshal 19、archive 13、project 16、extract 11、adapter 17、cli 13）。其中 `test/rgss-cli.test.js` 直接对 `--json` 输出断言 `scan` 的 `ok/outcome/command/engine/engineVersion`、`install` 与 `uninstall` 的 `ok:false` / `outcome:"error"` / `E_NOT_IMPLEMENTED` / 退出 2、`doctor` 有字典时 `verdict:"usable"` 与无字典时 `outcome:"findings"` / 退出 1。

@@ -58,17 +58,20 @@ function snapshot(dir) {
   return out;
 }
 
-// The RPG Maker engines. Ren'Py shares the adapter shape but not the fixture
-// layout, the plugin registry or the install semantics, so the cases that are
-// about RPG Maker stay written against these two and the Ren'Py contract lives
-// in test/renpy-adapter.test.js.
+// The RPG Maker engines. Ren'Py and RGSS share the adapter shape but not the
+// fixture layout, the plugin registry or the install semantics, so the cases
+// that are about RPG Maker stay written against these two and the other engines
+// have their own contract files (test/renpy-adapter.test.js, test/rgss-adapter.test.js).
 const ENGINES = [
   { id: "mz", version: "1.7.0" },
   { id: "mv", version: "1.6.2" },
 ];
 
 /** Every adapter the registry ships, ids only. */
-const ALL_ENGINES = ["mz", "mv", "renpy"];
+const ALL_ENGINES = ["mz", "mv", "renpy", "rgss"];
+
+/** The delivery tier each engine ships, keyed by id: null means "not yet". */
+const RUNTIME_TIERS = { mz: "plugin", mv: "plugin", renpy: "translation", rgss: null };
 
 after(() => {
   for (const dir of tempDirs) fs.rmSync(dir, { recursive: true, force: true });
@@ -85,12 +88,9 @@ test("registry: adapters are ordered and capabilities are complete", () => {
     assert.equal(adapter.capabilities.extract, true);
     assert.equal(adapter.capabilities.export, true);
     // Delivery differs per engine: RPG Maker ships a plugin plus a dictionary
-    // file, Ren'Py a generated translation script. Both are implemented.
-    assert.equal(
-      adapter.capabilities.runtime,
-      adapter.id === "renpy" ? "translation" : "plugin",
-      adapter.id + " runtime tier"
-    );
+    // file, Ren'Py a generated translation script, and RGSS has no delivery
+    // layer yet, which it says by reporting null instead of a guessed tier.
+    assert.equal(adapter.capabilities.runtime, RUNTIME_TIERS[adapter.id], adapter.id + " runtime tier");
     assert.equal(adapter.capabilities.launch, true);
     assert.equal(adapter.capabilities.attach, false);
     assert.equal(adapter.capabilities.liveReload, false);
@@ -113,6 +113,7 @@ test("detect: an empty directory is E_NOT_PROJECT for every engine", () => {
     mz: /not an RPG Maker project/,
     mv: /not an RPG Maker project/,
     renpy: /not a Ren'Py project/,
+    rgss: /not an RGSS project/,
   };
   for (const adapter of getAdapters()) {
     const result = adapter.detect(empty);

@@ -78,10 +78,10 @@ after(() => {
   for (const dir of created) fs.rmSync(dir, { recursive: true, force: true });
 });
 
-test("the registry ships Ren'Py last, with its own profile and runtime tier", () => {
+test("the registry ships Ren'Py third, with its own profile and runtime tier", () => {
   assert.deepEqual(
     getAdapters().map((adapter) => adapter.id),
-    ["mz", "mv", "renpy"]
+    ["mz", "mv", "renpy", "rgss"]
   );
   const adapter = getAdapter("renpy");
   assert.equal(adapter.name, "Ren'Py");

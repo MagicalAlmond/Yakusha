@@ -774,7 +774,11 @@ async function cmdDoctor(dir) {
     extract: own.extract,
     dataFiles: own.dataFiles,
     sourceLabel: own.sourceLabel,
-    delivery: own.translation || null,
+    // `translation` is the Ren'Py file state; `delivery` is the generic slot an
+    // adapter uses when it wants to describe delivery itself (including "there
+    // is no delivery layer yet"). Adapters that only set `translation` keep
+    // working unchanged.
+    delivery: own.delivery || own.translation || null,
   });
   const payload = {
     verdict: result.verdict,

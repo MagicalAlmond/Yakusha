@@ -1,7 +1,7 @@
 # 开发交接文档（DEVLOG）
 
 > 这份文档记录**阶段目标、已完成项、决策理由和下一步**，随开发进程更新。
-> 最后更新：2026-10-27（0.11.0 Ren'Py 接入完成于 `feat/0.11-renpy`，未合入 `main`、未打 tag）。
+> 最后更新：2026-10-27（0.12.0 RGSS 接入完成于 `feat/0.12-rgss`，未合入 `main`、未打 tag）。
 > 0.9.0 项目改名 **Yakusha**，字典目录、插件文件、环境变量与备份后缀全部随之改名；
 > 仓库已发布到 https://github.com/MagicalAlmond/Yakusha（`main` 分支）。
 > 0.8.0 的 `doctor`、0.7.1 的 `uninstall` 漂移保护、0.7.0 的报告/模板见下）。
@@ -36,14 +36,14 @@
 
 | 项 | 状态 |
 | --- | --- |
-| 版本 | **0.11.0**（`package.json` 单一真源，`src/version.js` 读取它；插件模板的 `VERSION` 由安装器替换） |
-| 契约 | 0.10 的五篇设计稿（json-contract / config / engines / export-format / platforms）已冻结并全部实现；0.11 只有 `engines.md` 真正扩了内容（三个引擎、新增 §13.2 Ren'Py），`json-contract.md` 与 `platforms.md` 补了「0.11 复查后不变」的复核标注（形状一个字段都没动），`config.md` / `export-format.md` 未动 |
-| 测试 | **459 个，全绿**（`npm test`，约 9–10s） |
+| 版本 | **0.12.0**（`package.json` 单一真源，`src/version.js` 读取它；插件模板的 `VERSION` 由安装器替换） |
+| 契约 | 0.10 的五篇设计稿（json-contract / config / engines / export-format / platforms）已冻结并全部实现；0.11 只有 `engines.md` 真正扩了内容（三个引擎、新增 §13.2 Ren'Py），`json-contract.md` 与 `platforms.md` 补了「0.11 复查后不变」的复核标注。0.12 继续扩 `engines.md`（四个引擎、新增 §13.3 RGSS 与 §7.7 的 pending 交付），`json-contract.md` 补 RGSS 的语义澄清（`E_NOT_IMPLEMENTED` 有了 CLI 入口、`install`/`uninstall`/`doctor` 的按引擎差异）；信封与字段类型仍未动，`platforms.md` / `config.md` / `export-format.md` 未动 |
+| 测试 | **548 个，全绿**（`npm test`，约 11s） |
 | 持续集成 | GitHub Actions：`npm test` 在 Node 22 / 24（**windows-latest**，WP1 已从 ubuntu 切换） |
 | 平台 | Windows 10/11 x64 为唯一支持与验收环境（0.10 明确，见 [platforms.md](../platforms.md)） |
-| 支持引擎 | RPG Maker **MZ 1.3.2–1.9.0**、**MV 1.6.1–1.6.2**；**Ren'Py 8.x 脚本**（`.rpy` 明文 + `.rpyc` 编译） |
-| 实测游戏 | 15 款可识别（本机全量普查），其中 **4 款**全量翻译 + 运行时验收；Ren'Py 侧用一套 8.5.3 SDK 的两个示例游戏做抽文本与覆盖率验收（§6） |
-| 磁盘改动 | MZ/MV 走插件档：只加 1 个插件文件 + `plugins.js` 里 1 条注册，卸载还原到安装前；Ren'Py 走 translation 档：只在 `game/` 下新建 1 个 `yakusha_translation.rpy`，卸载删它（四档交付见 [ENGINE-STRATEGY.md](ENGINE-STRATEGY.md) §5.5） |
+| 支持引擎 | RPG Maker **MZ 1.3.2–1.9.0**、**MV 1.6.1–1.6.2**；**Ren'Py 8.x 脚本**（`.rpy` 明文 + `.rpyc` 编译）；**RGSS（XP / VX / VX Ace）**——只到 L1–L3（识别 / 盘点 / 抽取 / 翻译 / 校验 / 导出），**没有交付层**（§6） |
+| 实测游戏 | 15 款可识别（本机全量普查），其中 **4 款**全量翻译 + 运行时验收；Ren'Py 侧用一套 8.5.3 SDK 的两个示例游戏做抽文本与覆盖率验收（§6）；RGSS 侧用一款 RGSS3 / VX Ace 商业游戏做全量抽取实测（§6，外部样本，不是仓库夹具） |
+| 磁盘改动 | MZ/MV 走插件档：只加 1 个插件文件 + `plugins.js` 里 1 条注册，卸载还原到安装前；Ren'Py 走 translation 档：只在 `game/` 下新建 1 个 `yakusha_translation.rpy`，卸载删它；**RGSS 不动任何文件**——没有交付层，`install` / `uninstall` 报 `E_NOT_IMPLEMENTED` 且一个字节都不写（四档交付见 [ENGINE-STRATEGY.md](ENGINE-STRATEGY.md) §5.5） |
 | 运行时依赖 | 无第三方依赖（Node >= 22） |
 | 产品形态 | CLI 为内核；Electron GUI 按战略稿排到 **0.14**（见 [ENGINE-STRATEGY.md](ENGINE-STRATEGY.md) §6.3） |
 | 许可 | GPL-3.0-or-later |
@@ -178,6 +178,32 @@
 - [x] 测试：新增 `test/renpy-{adapter,extract,rpyc,rpyscript,runtime}.test.js` 共 104 条，
       `engine-contract` 与 `profile-seams` 改成按引擎断言，合计 **459 个，全绿**。
 
+### E 阶段（0.12.0，已完成）
+
+- [x] RGSS 接入：新增 `src/engines/rgss/` 6 个模块——`marshal.js`（Ruby Marshal 4.8
+      读写，纯 JS、不 eval、不执行反序列化出的对象）、`archive.js`（`.rgssad` /
+      `.rgss2a` / `.rgss3a` 三种归档的读与写）、`project.js`（`Game.ini` 与
+      `Data/` 定位、版本判定、`Game.ini` 的多编码兜底）、`extract.js`（事件指令 +
+      数据库字段 + System / MapInfos 的抽取）、`profile.js`（RGSS 的 tokenize /
+      validate / verify，grammar 复用 `core/textkey.js`）、`adapter.js`（能力位、scan、
+      diagnostics 与两条 pending 入口）。`src/pipeline/` 与 `src/core/` 的主循环同样
+      一行未动，为 RGSS 新增的特判只有两处：`src/core/doctor.js` 的 pending-delivery
+      分支与 `bin/yakusha.js` 的 `delivery` 取值。
+- [x] 注册表：`ADAPTERS` 从三个变四个，`NOT_PROJECT_PREFIXES` 加第三条
+      `"not an RGSS project"`；探测顺序 **MZ → MV → Ren'Py → RGSS** 写进
+      `src/engines/registry.js` 的模块注释，作为公开契约（`test/engine-contract.test.js`
+      对顺序与四个能力位逐个断言）。
+- [x] 能力位与 doctor：RGSS 的 `capabilities.runtime` 是 `null`——XP / VX / VX Ace
+      没有插件系统，文本烤在数据文档里，交付层（写回数据文档 vs 原生注入器）两条路线
+      都还没拍板（§8.1）。`doctor` 因此新增 `delivery.pending` 分支：`install` 检查
+      报 warn 并原样打印引擎给的解释，`runtime` 检查报 info，不报「未安装」也不判
+      `broken`。
+- [x] 测试：新增 `test/rgss-{marshal,archive,project,extract,adapter,cli}.test.js` 与
+      `test/rgss-fixture.js`（夹具全部由 `marshal.js` 的 writer + `archive.js` 的 writer
+      现场生成，仓库里没有一个二进制夹具），合计 **548 个，全绿**。
+- [x] 明确不做：本版**没有交付层**。`install` / `uninstall` 抛 `E_NOT_IMPLEMENTED`
+      （退出码 2）且一个字节都不写，留给 §8.1 的两条路线决定（§6）。
+
 ## 4. 文件地图
 
 ```
@@ -188,7 +214,7 @@ src/cli/config.js          用户级配置读写（provider / model / baseUrl，
 src/cli/export.js          字典 → JSON 快照（UTF-16 键序、原子写、覆盖保护）
 src/version.js             版本单一真源（读 package.json）
 src/engines/adapter.js     MZ/MV 共享适配器逻辑（detect / scan / extract / 安装）
-src/engines/registry.js    MZ→MV→Ren'Py 注册表与 detectProject（判别式，不抛）
+src/engines/registry.js    MZ→MV→Ren'Py→RGSS 注册表与 detectProject（判别式，不抛）
 src/engines/mz/adapter.js  MZ 能力位与薄包装
 src/engines/mv/adapter.js  MV 能力位与薄包装
 src/engines/renpy/adapter.js Ren'Py 能力位、scan/install 入口与 diagnostics
@@ -199,6 +225,12 @@ src/engines/renpy/project.js game/ 定位、脚本遍历（跳过 tl/）与身�
 src/engines/renpy/extract.js 两种源合成单元表，逐条标不可解码
 src/engines/renpy/profile.js Ren'Py 的 prompt / grammar / validate / verify
 src/engines/renpy/runtime.js translation 档投递（生成 / 删除 yakusha_translation.rpy）
+src/engines/rgss/adapter.js RGSS 能力位、scan/detect 入口、diagnostics 与两条 pending 入口
+src/engines/rgss/project.js Game.ini 多编码解码、Data/ 与归档定位、XP/VX/VX Ace 版本判定
+src/engines/rgss/archive.js .rgssad / .rgss2a / .rgss3a 三种归档的读与写（目录只读头部窗口）
+src/engines/rgss/marshal.js Ruby Marshal 4.8 读与写（纯 JS，不 eval，class/module 只记名字）
+src/engines/rgss/extract.js 事件指令 + 数据库字段 + System/MapInfos 的文本抽取
+src/engines/rgss/profile.js RGSS 的 prompt / grammar / validate / verify（复用 textkey 分词）
 src/engines/launch.js      Windows exe 发现、子进程环境清理与 spawn
 src/index.js               库门面（openProject / detectProject / … / VERSION）
 src/core/fields.js        字段表与指令表（纯数据，会嵌进插件）
@@ -219,8 +251,9 @@ src/pipeline/terms.js     名字/术语的主流译法挖掘与漂移检测
 src/pipeline/speaker.js   说话人标记的识别、房规统计与按房规修复
 src/pipeline/report.js    verify 结果的 markdown 报告（只格式化，不重算）
 src/plugin/YAKUSHA_Translator.js  运行时插件模板（install 时注入规则表）
-test/                     459 个测试（含 CLI 端到端、0.10 信封契约、配置/前置、引擎/启动契约、
-                          三个引擎的适配器契约与 Ren'Py 的 .rpy/.rpyc 抽取）
+test/                     548 个测试（含 CLI 端到端、0.10 信封契约、配置/前置、引擎/启动契约、
+                          四个引擎的适配器契约、Ren'Py 的 .rpy/.rpyc 抽取与 RGSS 的
+                          Marshal / 归档 / 数据文档抽取）
 docs/design.md            为什么走运行时钩子、文本面覆盖、转义码、设计约束、作为库用
 docs/commands.md          所有命令的完整选项与 verify / terms / speaker 判据
 docs/games.md             15 款实测游戏、全量翻译记录、官中游戏的处理
@@ -228,8 +261,8 @@ docs/limitations.md       已知限制全表
 docs/architecture.md      分层、引擎适配器契约、plugin/translation/debug/inject 四种运行时模式、
                           GUI 与 core 边界
 docs/json-contract.md     0.10 契约（已实现）：--json 信封、错误码、退出码、严格参数解析
-docs/engines.md           引擎契约（0.11）：adapter、能力矩阵、安装/卸载、launch、attach 桩，
-                          §13.2 是 Ren'Py 的抽取契约
+docs/engines.md           引擎契约（0.12）：adapter、能力矩阵、安装/卸载、launch、attach 桩，
+                          §13.2 是 Ren'Py、§13.3 是 RGSS 的抽取契约，§7.7 记 pending 交付
 docs/config.md            0.10 实现：用户级配置、密钥优先级、威胁模型（密钥不落盘）
 docs/export-format.md     0.10 实现：JSON 导出格式、排序、原子写与覆盖规则
 docs/platforms.md         平台支持矩阵与决策记录（Windows-only 的原因与重评条件）
@@ -286,6 +319,10 @@ docs/platforms.md         平台支持矩阵与决策记录（Windows-only 的�
 | **`.rpyc` 尾部的 MD5 不校验** | 那 16 字节是编译期一致性戳，只有 Ren'Py 自己读它。校验它不会让任何一句译文变好，却会让「玩家本来能跑、只是 md5 对不上」的游戏被工具拒收——工具的价值在游戏能跑时的文本，不在替引擎做完整性检查。 |
 | **Ren'Py 走 translation 档，只新增一个文件** | 有 `translate <lang> strings:` 这条官方扩展点，就没有理由去改别人的 `.rpy` 或 `options.rpy`：多改一个文件就多一份「游戏更新后对不上」的风险，卸载也不再是一句话（删一个文件即可）。代价是只能投 `schinese` 一种语言，且依赖游戏自身的翻译机制（§7）。 |
 | **py2 的 `.rpyc` 明确报 undecodable，不做兼容猜测** | Ren'Py 7.x 的游戏用 Python 2.7 编译，pickle 里的构造与 8.x 不同。猜着解会得到「看起来成功、字段却是错的」的树，而这种错会一路静默流进译文；宁可让这个文件计进 `undecodable` 并在 `scan` 里显示出来，也不要给出一个不可信的文本表。 |
+| **Ruby Marshal 只解码，不执行，也不构造真对象** | `.rvdata2` / `.rxdata` 是游戏分发的二进制，Marshal 流里能出现任意类名。实现成「类名 + 实例变量」的纯数据记录（`{ __type: "object", className, ivars }`），`T_DATA` 只留原始字节，字符串留字节不解码，整数超 `Number.MAX_SAFE_INTEGER` 转 `BigInt`——`marshal.js` 里没有 `eval`，也没有 Ruby 解释器。读得回来、写得回去，就够了。 |
+| **归档目录只读头部窗口，上限 64 MiB，不把整包读进内存** | 实测那份 `.rgss3a` 是 644,284,359 字节，而目录（全部条目名 + 偏移 + 长度）在文件最前面，几 KB 就够。`archive.js` 用一个可增长的头部窗口按需重读（`MAX_DIRECTORY = 64 << 20`，超了明确报错），单个文件的数据按需读、不缓存整包。理由：玩家机器上内存是稀缺资源，而工具只需要目录 + 当前要读的那一个文件。 |
+| **抽取只收 101 / 102 / 320 / 401 / 405，402 故意跳过** | 这五个码是玩家真的会读到的文本（说话人名、选项、改角色名、台词、滚动续行）。`402`（每个选项分支的标记）里的文本与配对的 `102` 是同一串，收它只会多一个 context、不多一条可译文本；`108`/`408` 是注释、`355`/`655` 是 Ruby 脚本行、`231`/`322` 是图片文件名，都不是文本面。判据写在 `src/engines/rgss/extract.js` 文件头。 |
+| **`@note` 与所有 `@*_name` 资源名一律不抽** | `@note` 是作者写给脚本的元数据通道（插件配置常塞在里），翻它等于改配置；`@*_name`（`@face_name`、`@battleback_name`、`@tileset_name` 等）是资源文件名，翻了游戏就找不到素材。只收玩家读得到的字段——这条与 Ren'Py 跳过 `tl/` 是同一个原则：**能翻不等于该翻**。 |
 
 ## 6. 实测数据（可复现的基准）
 
@@ -681,6 +718,39 @@ plugin 档是"删文件即还原"，inject 档是"文件不改、退出即恢复
 - **通用内容导入 v1 顺延**：战略稿 §6.3 把它排在 0.11 的"附带"列，这一版没有交付——源码里没有导入入口，命令表也没变。0.11 只做了 Ren'Py 本身。
 - **`attach` 仍是桩**，而且 `notImplemented()` 里那句 `"is not implemented in 0.10"` **故意没改**：字符串写在 `src/engines/adapter.js:157`，被 `test/engine-contract.test.js:409` 与 `test/renpy-adapter.test.js:326` 各断言一次，`docs/engines.md` §9 还专门写了一段"这是历史措辞，不要改"。三个引擎共用同一个桩，所以要改就三处一起改，留到真正实现 attach 的那次，不单独为改一句文案开一次 PR。
 
+### 0.12 RGSS（feat/0.12-rgss）
+
+0.11 验证了「非 RPG Maker 的第二家族」能不能塞进同一套 seam，0.12 换了个更难的问题：**非 JSON、二进制、还带归档的第三家族**。RGSS（XP / VX / VX Ace）的文本不在任何 JSON 里，而在 Ruby Marshal 流中；正式发行的游戏还把这些流打进一个 `.rgss3a` 归档。所以这一版要证明的是：adapter / profile 这两个缝在「数据格式完全陌生 + 数据源有两种形态」时依然够用，而不是要看它能不能再包一个引擎。
+
+- 新增 `src/engines/rgss/marshal.js`（709 行）：Ruby Marshal 4.8 的**读写器**，纯 JS、同步、无 `eval`。值模型是一套平铺的纯数据记录（见文件头注释），类只记名字、`T_DATA` 只留字节、字符串留原始字节不解码（`Scripts.rvdata2` 里的脚本正文是 deflate 流，必须逐字节回写）、超大整数用 `BigInt`。写回能力是**为了将来的交付层准备**，本版没有用它投递任何译文（§6 末尾）。
+- 新增 `src/engines/rgss/archive.js`（565 行）：`.rgssad` / `.rgss2a` / `.rgss3a` 三种格式共用一个 `openArchive()`。v1/v2 用固定种子 `0xDEADCAFE`、每读一个字段前 `key = key * 7 + 3`；v3 的种子在文件头第 8 字节，目录键只算一次、每个文件有独立 `fileKey`、每 4 字节滚动。名字里的 `\\` 统一成 `/`。目录只读头部窗口（上限 64 MiB，见 §5），单个文件按需解，不整包读入。
+- 新增 `src/engines/rgss/project.js`（429 行）：项目判定看三件事——根有 `Game.ini`（大小写不敏感）、或有三种归档之一、或 `Data/` 下有三种数据后缀之一；向上 3 层、向下 3 层 BFS，多根取最浅那层、多个报 `E_MULTI_ROOT`。版本判定有确定的优先级（归档扩展名 → `Game.ini` 的 `Library=` → `Scripts=` 扩展名 → `Data/` 文件扩展名 → `null`）。`Game.ini` 按 UTF-8（fatal）→ Shift_JIS（含假名才采信）→ GBK → Latin-1 的顺序试解码。
+- 新增 `src/engines/rgss/extract.js`（421 行）：事件指令按码表取槽位（`COMMAND_TEXT`，见 §5），数据库文档按 base name 匹配字段表（`RGSS_DB_FIELDS`：Actors 的 name/description/nickname、Skills 的 message1/message2 等），`System.rvdata2` 只取 `@game_title` / `@currency_unit` 与 `@terms` 四张表，`MapInfos` 只取 `@name`，`Troops` 与 `Map*` 只走指令。文档按名字排序后再抽，所以磁盘版与打包版逐条一致。返回形状与 MZ/MV 的 `extractProject` 相同，另多一个 `documents`（真正读过的数据文档数，给 `scan` / `doctor` 的 `dataFiles` 用）。
+- 新增 `src/engines/rgss/profile.js`（97 行）：RGSS 的 prompt / grammar / validate / verify。grammar 直接复用 `src/core/textkey.js` 的通用分词器（RGSS 的转义码是 `\i[n]` 这种反斜杠写法，与 MZ/MV 的 `\\` 家族同构，见下），`validate` / `verify` 复用 `rmProfile` 的 `isUntranslated` / `VERIFY_KANA` / `TRADITIONAL`——这三样在 0.12 只是从 `src/engines/profile.js` 改成具名导出，行为一个字节没动。
+- 新增 `src/engines/rgss/adapter.js`（321 行）：能力位 `{extract:true, export:true, runtime:null, launch:true, debuggable:false, attach:false, liveReload:false}`、11 键的 `scanRgss`、`diagnostics()`，以及两条 pending 入口 `install` / `uninstall`。`rules: {controlCodes:true, maxColumns:0}`——RGSS 的窗口会自己折行，不需要 MZ/MV 那套按宽度插图。
+- `src/engines/registry.js`：`ADAPTERS` 变四个，`NOT_PROJECT_PREFIXES` 加 `"not an RGSS project"`。三条前缀都算「继续试下一个引擎」，诊断型失败仍立即返回。
+- `src/core/doctor.js`：新增 `delivery.pending` 分支。为什么必须有这一支——RGSS 的 `pluginsFile` 是 `null`，走原来的 RM 分支会 `TypeError`；而报「未安装」又是在说谎，会让用户去跑一个注定拒绝执行的命令。所以 `install` 检查报 **warn** 并原样打印引擎给的解释，`runtime` 检查报 **info**，`install` 载荷五个子键全部 `false` / `null`，`verdict` 仍是 `usable`。
+- `bin/yakusha.js`：`cmdDoctor` 的 `delivery` 改成 `own.delivery || own.translation || null`——RGSS 走的是 `delivery`，Ren'Py 走 `translation`，MZ/MV 两个都是 `undefined` 落回 `null`。
+- 新增 7 个测试文件：`test/rgss-marshal.test.js`（19）、`rgss-archive`（13）、`rgss-project`（16）、`rgss-extract`（11）、`rgss-adapter`（17）、`rgss-cli`（13），外加 `test/rgss-fixture.js`（269 行夹具工厂）。夹具里的每一个字节都是 `marshal.js` 的 writer + `archive.js` 的 writer 现场生成的，仓库里**没有一个二进制夹具**，也没有任何一行来自发行游戏。`engine-contract` 的 `ALL_ENGINES` 变四个元素并加 `RUNTIME_TIERS` 表，`renpy-adapter` 的顺序断言从三元素改四元素。
+
+**四项「为什么只能这么写」的取舍**（实现时都先在真实样本上复现过错的那一版）：
+
+1. **必须读整份数据文档才能取全文本，不能只扫指令**：数据库里真有人读的文本（角色名、道具说明、技能描述）与事件指令里的台词在同一个 Marshal 流里，只扫 `COMMAND_TEXT` 会漏掉整个数据库面；只扫数据库字段又会漏掉 98% 的对话。所以 `extract.js` 两条路都走，且都由同一份 `RGSS_DB_FIELDS` / `COMMAND_TEXT` 表驱动，加字段不用改代码。
+2. **文档按名字排序后再抽**：归档里的条目顺序是打包时的顺序，磁盘版的 `readdir` 顺序取决于文件系统。不排序的话「同一款游戏，打包版和拆包版」的 `perFile` 行顺序与 `undecodable` 行顺序会不一致，doctor 的输出就没法在两次运行之间比较。排序后实测两种形态逐条一致。
+3. **失败不中断**：单个文档解不出来（版本不对、流被截断、字段结构意外）时记一条 `undecodable` 继续下一个，而不是整包失败。理由与 MZ/MV 一致：玩家装的是游戏，不是一份完全干净的输入。`undecodable` 在 `scan` 里是字符串数组（`"<file>: <error>"`），因为要进表格列，所以 `errorLine()` 只留错误信息的第一行。
+4. **`Game.ini` 的编码要试四种**：XP 时代的日文游戏几乎都是 Shift_JIS，中文民间汉化常改存成 GBK，而新版工具会写 UTF-8。只认 UTF-8 会让一票老游戏的 `gameTitle` 变成乱码。顺序是 UTF-8（fatal）→ Shift_JIS（解出的串里含假名才采信，否则多半是误解）→ GBK → Latin-1 兜底。
+
+**真实样本实测**（一款 RGSS3 / VX Ace 商业游戏的正式发行版，外部样本，不是仓库夹具）：归档 `Game.rgss3a` **644,284,359 字节**，5,138 个条目（`Data/` 399 条 = 398 个 `.rvdata2` + 1 个非数据 zip；`Graphics/` 4,739 条）。398 个 `.rvdata2` **全部解析成功、`consumed === total`**，且 398/398 个文档 `unmarshal` → `marshal` → `unmarshal` 值深相等。抽取结果：**394 个文档、31,730 条唯一串、49,732 次出现、0 undecodable、282 个文件有文本、约 380 ms**。地图侧 381 张、其中 364 张有事件、共 5,300 个事件。转义码共 **2,063 条、23 种**（`\i[n]` 2,252、`\c[n]` 557、`\v[n]` 517、`\!` 313、`\>` 272、`\A[n]` 204、`\W[n]` 179、`\n[n]` 89、`\V[n]` 76、`\T[n]` 73、`\t[n]` 72、`\C[n]` 51、`\a[n]` 46、`\N[n]` 43、`\s[n]` 33、`\w[n]` 30、`\S[n]` 10、`\{` 7、`\I[n]` 6、`\}` 5、`\.` 4、`\F[n]` 2、`\^` 1），**全部 23 种都被 `src/core/textkey.js` 的通用分词器覆盖**，`profile.js` 没有为 RGSS 新写一套 tokenizer。
+
+结果：**548 pass / 0 fail**（原 459 + 新 89：六个 rgss 测试文件 19+13+16+11+17+13 = 89；`engine-contract` 与 `renpy-adapter` 是原地改写、条数不变），`node bin/yakusha.js --version` 为 `yakusha 0.12.0`，`npm test` 约 11s，禁用词 0 命中。一句话总结：0.12 是**把一个非 JSON、二进制、还带归档的引擎接进同一套抽象**的一版。判断：**0.11 拆出的 adapter / profile 缝在第三家族上依然够用**——`src/pipeline/` 与 `src/core/` 的主循环没为 RGSS 加过一行特判，全部必要改动是：`doctor` 的 pending-delivery 分支（`runtime: null` 是第一次出现）、`src/engines/profile.js` 的三处具名导出（`TRADITIONAL` / `VERIFY_KANA` / `isUntranslated`，行为不变）、`bin` 的 `delivery` 取值；真正花时间的还是数据格式（Marshal 读写 + 三种归档），和 0.11 的 pickle 是同一类活。
+
+**0.12 明确没做的事**（都是有意的取舍）：
+
+- **没有交付层，一个字都不写回游戏**：`capabilities.runtime` 是 `null`，`install` / `uninstall` 抛 `E_NOT_IMPLEMENTED`（退出码 2），测试用目录快照对比证明「前后一个字节都没变」。`marshal.js` 与 `archive.js` 的 writer 是给将来那两条路线用的（§8.1），本版只读不写。所以**不要把这个版本说成「RGSS 已支持运行时翻译」——它只到 L1–L3**（detect / scan / extract + 既有 pipeline 的 translate / verify / export）。
+- **没有原生 helper，本机也没有能编它的工具链**：两条候选路线里，原生注入器需要 C/C++/Rust 编译器与 `ruby`，这台机器上都没有（实测 `cl` / `gcc` / `rustc` / `ruby` 一个都不在 `PATH` 里）。这不是排期问题，是 0.12 的交付层验收在当前机器上**没法做**，已记进 §8.1。
+- **官方 RGSS 的归档优先顺序未验证**：同一款游戏同时有 `.rgss3a` 和 `Data/` 时，官方引擎先读哪一个没有实测过。`openDataSource()`（`src/engines/rgss/project.js:392-429`）当前的选择是**归档优先**，这是实现的选择、不是对官方行为的断言。mkxp 这类兼容层是归档优先，但 mkxp 不是官方 RGSS。
+- **没有真机验证「写回后游戏能跑」**：writer 只做了 round-trip 相等（398/398），从没把改过的数据文档塞回游戏启动过。这条与「没有交付层」是同一件事的两面，等 §8.1 定下路线才能验。
+
 ## 7. 已知限制
 
 1. 只处理 `data/` 里的文本；插件 `js/plugins/*.js` 里硬编码的 UI 文案不动。
@@ -690,7 +760,10 @@ plugin 档是"删文件即还原"，inject 档是"文件不改、退出即恢复
    超宽即裁，只有纵向 `needsNewPage` 分页。默认靠 prompt 约束，硬保证加 `--max-length`。
 5. 老 MV（2019/2020 的 nw.js）不吃 `--remote-debugging-port`，MV 的运行时取证不能靠 CDP。
 6. 有些 MV 游戏把说话人写成 `\N<名字>`（插件自定义标记，非 RPG Maker 转义码），译文必须原样保留。
-7. 不支持 XP/VX/VX Ace（`.rxdata` 二进制）、Unity / Godot / Kirikiri 等其它引擎。
+7. 不支持 Unity / Godot / Kirikiri 等其它引擎。**XP / VX / VX Ace（RGSS）从 0.12 起支持，
+   但只到 L1–L3**（识别 / 盘点 / 提取 / 翻译 / 校验 / 导出）：`capabilities.runtime` 是
+   `null`，`install` / `uninstall` 报 `E_NOT_IMPLEMENTED`（退出码 2）且一个字节都不写，
+   装完游戏仍然显示原文——这一版**没有交付层**（§6 末尾、§8.1）。
    Ren'Py 从 0.11 起支持，但只到 `game/` 里的脚本文本（`.rpy` / `.rpyc`）：屏幕语言的
    UI 文案、`example:` 演示块里的台词，以及只有编译文件时屏幕语言那一部分取不到（§6），
    `.rpyc` 里结构上不可达的字符串不计入。
@@ -757,7 +830,9 @@ plugin 档是"删文件即还原"，inject 档是"文件不改、退出即恢复
    `rmFilePlan`；translate / verify / wrap / doctor 全部改为从 `options.profile` 读引擎判据，
    缺省回退与原实现逐字节一致；mz/mv adapter 挂 `profile` 字段，`rules` 三键契约未动。
    实测见 §6；这是 0.11 Ren'Py 的前置——接新引擎只需新 profile + plan，不再动 pipeline 主循环。
-   0.11 的实践印证了这一条：`src/pipeline/` 与 `src/core/` 的主循环一行未改。
+   0.11 的实践印证了这一条：`src/pipeline/` 与 `src/core/` 的主循环一行未改。0.12 在第三个
+   家族（二进制 + 归档）上再次印证：主循环仍一行未改，唯一新长出来的是 `doctor` 的
+   pending-delivery 分支（因为 `runtime: null` 是第一次出现）。
 6. ~~**0.11.0 Ren'Py 前**：`docs/gui.md` 用户指南、`CHANGELOG.md`~~ —— **已完成**：0.11.0
    交付 Ren'Py（translation 档），`CHANGELOG.md` 与 `docs/gui.md` 已补，`docs/limitations.md`
    补了 `.rpyc` 反编译边界与 translation-file 投递的卸载语义，`docs/engines.md` 扩成三引擎
@@ -775,6 +850,11 @@ plugin 档是"删文件即还原"，inject 档是"文件不改、退出即恢复
 11. 可选：MV 老 nw 的运行时取证目前靠临时注入脚本，如果能找到不注入的办法（例如日志钩子）更好。
 12. 可选：`terms` 目前只认数据库 name 字段；若以后要挖地名/技能术语，需要另找锚点
     （例如 `System.json` 的 `terms` 分组），且必须先解决「没有正确答案」的判定问题。
+13. **RGSS 交付层**（0.12 的欠账，0.13 之前必须先定）：两条路线都还没拍板——纯 JS 把译文
+    写回 `.rvdata2` / `.rgss3a`（`marshal.js` 的 `marshal()` 与 `archive.js` 的
+    `writeArchive()` 已经能用，不需要任何原生组件），或原生注入器 + hook DLL（本机没有
+    C/C++/Rust 工具链也没有 `ruby`，编不出来）。代价与「卸载要还原什么」见 §8.1 与
+    [engines.md](../engines.md) §7.7；选定之前 RGSS 停在 L1–L3。
 
 ### 8.1 待用户拍板清单（先记下，不阻塞开发）
 
@@ -782,15 +862,21 @@ plugin 档是"删文件即还原"，inject 档是"文件不改、退出即恢复
 
 | # | 事项 | 现在的默认做法（未拍板就一直这样） |
 | --- | --- | --- |
-| 1 | Windows 代码签名 | **0.10/0.11 不做**（纯 JS，用户跑自己签名的 `node.exe`）。0.12 起有原生组件，届时必须重新评估；不签名的四道拦截见 [ENGINE-STRATEGY.md](ENGINE-STRATEGY.md) §9.4。 |
-| 2 | 原生组件托管渠道 | 暂按 GitHub Release + 仓库内 manifest（二进制不进仓库）。CDN 方案未定。 |
-| 3 | 原生组件安装命令名 | 暂记 `yakusha native install <engine>`，**属于新命令、要过契约评审**，不是既定事实。 |
-| 4 | RGSS 三版本验收基线 | 需要几款真实游戏才能算 L4 通过，未定。 |
+| 1 | Windows 代码签名 | **0.10/0.11/0.12 都不做**（纯 JS，用户跑自己签名的 `node.exe`）。0.12 实际**也没有**交付原生组件（RGSS 交付层没做，§6 末尾），所以仍然不需要；一旦交付层选「原生注入器」，这条必须先解决，不签名的四道拦截见 [ENGINE-STRATEGY.md](ENGINE-STRATEGY.md) §9.4。 |
+| 2 | 原生组件托管渠道 | 暂按 GitHub Release + 仓库内 manifest（二进制不进仓库）。CDN 方案未定。**0.12 没有原生组件，这个渠道还不需要，仍未定。** |
+| 3 | 原生组件安装命令名 | 暂记 `yakusha native install <engine>`，**属于新命令、要过契约评审**，不是既定事实。**0.12 没有原生组件，命令名仍未定。** |
+| 4 | RGSS 三版本验收基线 | 需要几款真实游戏才能算 L4 通过，未定。**而且 0.12 连交付层都还没有（`runtime: null`），L4 要等第 10 行定下路线才谈得上验收。** |
 | 5 | 0.13 字典 v2 字段 | 是否加 `engine` / `locator` 字段未定；0.13 之前不加。 |
 | 6 | 非 ja→zh 语言 | en→zh 何时进未定；en→ja 用户已明确"先不考虑"。 |
 | 7 | 目标用户与商业目标 | 未定。影响 GUI 功能取舍与文档语气。 |
 | 8 | README / architecture 旧卖点措辞 | 已在 WP6 按"四档交付说明实际影响"改掉；若用户希望保留更强的表述，回退点是本包 commit。 |
 | 9 | `CHANGELOG.md` | **已补**（0.11.0 起有面向使用者的变更记录）。 |
+| 10 | RGSS 交付层：纯 JS 写回 vs 原生注入器 | **未定**。两条路线的代价见下；在此之前 RGSS 停在 L1–L3，`install` / `uninstall` 报 `E_NOT_IMPLEMENTED`。 |
+
+**第 10 行的两条路线**（只列代价，不替用户拍板；实现侧的注释在 `src/engines/rgss/adapter.js:240-250`）：
+
+- **纯 JS 写回数据文档**：把译文塞回 Ruby Marshal 流，重写 `Data/*.rvdata2` 或整个 `.rgss3a`。读写器已经在仓库里（`marshal.js` 的 `marshal()`、`archive.js` 的 `writeArchive()`），**不需要任何原生组件**，也就绕开了代码签名、托管渠道、安装命令名这三条待定项。代价是**改盘**：安装要先备份被改的文档、卸载要逐字节还原（与 MZ/MV 的插件档同一类风险，但文件大得多，一份归档 644 MB）；而且改过的归档与「游戏未来更新」必然冲突。
+- **原生注入器 + hook DLL**：运行时把译文喂给游戏进程，不改盘、卸载只需删注入器。代价是这条路线同时踩上 §8.1 的第 1/2/3 行（签名、托管、命令名），还要做崩溃隔离与版本矩阵；**而本机现在没有 C/C++/Rust 工具链，也没有 `ruby`**（`cl` / `gcc` / `clang` / `rustc` / `cargo` / `ruby` 实测全部不在 `PATH`），所以这条路在当前机器上连编译都做不了。
 
 ## 9. 继续工作的方法
 
@@ -870,6 +956,28 @@ git push origin v0.10.0
 仓库侧的手动设置（GitHub，不在代码里）：Settings → Branches → 保护 `main`，
 勾选 *Require status checks to pass before merging*；不勾 *Require approvals*（单人）；
 *Require linear history* 可选（squash 合并已经保证线性）。
+
+0.12 的验证方式（RGSS 没有交付层，验收都是只读的）：
+
+```bash
+# 引擎识别与盘点（打包版走归档，磁盘版走 Data/；两者都用同一套代码）
+node bin/yakusha.js scan "<game>" --json
+node bin/yakusha.js scan "<game>"            # 文本输出：engine rgss 3、data files、strings
+
+# 全量抽取 + 离线管道（extract / status / translate / verify / terms / speaker / export）
+node bin/yakusha.js extract "<game>"
+
+# 交付层未做，这两条必须失败且不写文件（E_NOT_IMPLEMENTED，退出码 2）
+node bin/yakusha.js install "<game>"
+node bin/yakusha.js uninstall "<game>"
+
+# doctor 要说真话：install 检查是 warn（RGSS has no delivery layer yet…），verdict 仍是 usable
+node bin/yakusha.js doctor "<game>"
+```
+
+所有命令照常接受 `--json`；`scan` 的载荷仍是 0.10 的 11 键契约，RGSS 只是让
+`engine` 多了一个取值、`encodings` 按 `{"marshal":N}`（打包版）或 `{"rvdata2":N}`（磁盘版）
+计数。
 
 ## 10. 工程教训（踩过的坑，别再踩）
 
@@ -979,3 +1087,20 @@ git push origin v0.10.0
   `.rpyc` 都读，出现次数虚增 32% 而唯一串不变——这种错不会被唯一串的断言抓到。
   规则必须是显式的一条（有 `.rpy` 就跳过同名 `.rpyc`），并且要有测试直接钉住
   `scripts` 的计数，否则下次谁加一个循环就会把它破坏掉。
+- **「只解码」要连对象构造一起拒绝，不只是不 eval**：Marshal 流里能出现任意类名，
+  如果按类名去构造"真对象"，一个恶意类名就能砸进原型链。所以 `marshal.js` 的对象是
+  `{ __type: "object", className, ivars }` 这样的纯数据记录，`T_DATA` 只留字节，
+  字符串留原始字节不解码——`Scripts.rvdata2` 里的 deflate 脚本正文必须逐字节回写，
+  这条约束反过来帮了 round-trip（398/398 深相等）。
+- **大文件只读需要的部分，架构先行**：644 MB 的 `.rgss3a` 从来没有被整包读进内存过——
+  目录是一个可增长的头部窗口（上限 `MAX_DIRECTORY = 64 << 20`，超限明确报错而不是
+  OOM），单个文件按需解。这个决定要做成结构（`HeadWindow` 类），不能靠调用方自觉。
+- **同源的文本不要抽两遍**：`402`（选项分支标记）里的字符串与配对的 `102` 是同一串，
+  收它只会多一个 context、不多一条译文——引入它的冲动来自「多收总比漏收好」，但
+  重复条目会进字典、进导出、进 verify 的计数。类似地，`@note` 与 `@*_name` 是配置
+  和资源名，翻了就破坏游戏。**能翻不等于该翻**，判据要写成表（`COMMAND_TEXT` /
+  `SYSTEM_TEXT_FIELDS`）并让「为什么排除」留在注释里。
+- **writer 有了不等于交付了**：`marshal()` 与 `writeArchive()` 在 0.12 就能写回三格式，
+  但「能写」与「敢写进玩家的游戏」之间隔着备份策略、更新冲突与真机验证。把 writer
+  合入只读版本没有坏处（round-trip 测试反而更硬），但交付层必须单独立项，
+  不能因为"写回能力已经有了"就顺手打开 `install`。
