@@ -45,16 +45,17 @@
 - 编码按 BOM 识别 UTF-16LE/BE，再按 UTF-8 严格解码、Shift_JIS 兜底；解不出的行记进 `undecodable` 继续，不中断。
 - 游戏标题与引擎版本藏在加密或可选配置里，0.13 不解析；`scan` / `doctor`
   显示 `(untitled)`。
-- XP3 / KS 的覆盖以合成夹具级测试为主（条目解包、adler-32 校验、行分类、标签剥离），
-  没有真实游戏全量实测。
+- 读取器覆盖是合成夹具级测试（条目解包、adler-32 校验、行分类、标签剥离）加上
+  0.16 的真实归档复核（两款商业归档全条目 adler-32 与长度校验通过、六款游戏 scan
+  实测；改版索引与变换头归档只验证到干净报错），没有运行时全量翻译实测。
 
 ## 通用边界
 
 - 模型译文是机器产出，发布前必须人工校对；`verify` 十条判据只能拦截常见模式
   （回声译、转义码、占位符、槽位、行宽、假名残留、繁简混排、说话人、被拒条目），
   不能替代校对。
-- config / export / launch 已实现，attach（接管运行中的进程）到 0.13 仍是桩，
-  能力表里 `attach: false`，没有 CLI 入口。
+- config / export / launch 已实现，attach（接管运行中的进程）仍是桩，
+  能力表里 `attach: false`，没有 CLI 入口（GUI 也没有）。
 - 发布渠道只有 `--json` 与文本两种输出：`--json` 是扁平单行 JSON，退出码 0 / 1 / 2，
   错误码 13 个，冻结于 0.10（详见 `docs/json-contract.md`）；其余 14 条命令
   走同一信封，没有第二种机器可读出口。
@@ -62,6 +63,7 @@
   （表头 `source` / `target` / `contexts`，UTF-8 BOM + CRLF，round-trip 字节相同）。
   仍然没有的：字典 v2 的 engine / locator 字段（多引擎共存与精确定位），
   待拍板事项见 `docs/dev/DEVLOG.md`。
-- 暂无 GUI：Electron 外壳与 safeStorage / DPAPI 存 key 排在 0.14。
+- GUI 最小外壳 0.14 已交付（Electron，safeStorage 存 key，能力位驱动按钮灰显）；
+  完整字典编辑界面等仍未做，见 `docs/gui.md`。
 - 只在 Windows 10/11 x64 上支持与验收；Linux、macOS、WSL、Wine、Proton 不作为
   受支持环境。
