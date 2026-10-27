@@ -174,6 +174,8 @@ Kirikiri 则要重写 XP3 归档（krkr2 / krkrz 的加密变体刻意不碰）�
   需要强隔离时再挪到 `worker_threads`，接口不变。
 - 拖拽取真实路径用 Electron 的 `webUtils.getPathForFile`（浏览器拿不到绝对路径，
   这也是选 Electron 而不是本地网页版的根本原因）。
+- 字典编辑器走两条专用通道 `gui:dict-load` / `gui:dict-save`（不是 CLI 命令，不在命令白名单）：
+  `gui/dictionary.js` 复用 `src/core/dict.js` 的加载/校验/保存，每次只写一条。
 - `launch` 也在白名单里（14 个命令全量开放）：主进程不做自己的进程管理，
   spawn 的环境清洗与 `--exe` 契约都留在 `src/engines/launch.js`，GUI 与 CLI 同一条路。
 - 不加载任何远程内容；游戏目录一律当不可信输入校验。
@@ -196,6 +198,7 @@ src/pipeline/            provider、translate、verify、wrap、terms、speaker�
 gui/
   handlers.js            主进程命令层：runCommand 包装 + CLI 一致信封 + IPC 白名单
   credentials.js         safeStorage 凭据信封（读/存/清，config.md §8 契约）
+dictionary.js          字典编辑器数据层：core/dict 的读/写一条，CLI 同一套校验
   main.js preload.js renderer/
 native/                  未来：injector 与 hook，打包时进 extraResources
 test/engine-contract.test.js  适配器契约测试（平铺，npm test 只收 test/*.test.js）

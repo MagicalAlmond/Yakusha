@@ -15,7 +15,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Added opt-in credential memory to the shell: the API key is encrypted with Electron `safeStorage` (DPAPI on Windows) into a `credentials` envelope next to the config file, injected as `--api-key` only when "use stored key" is checked, never written as plaintext, and never read by the CLI.
 - Added cooperative cancellation for long translates: `translate` accepts an `AbortSignal`, stops claiming new batches once aborted, keeps whatever was already translated, and reports `cancelled: true` in the payload. The CLI never cancels on its own, so the new payload key is always `false` on the command line; the GUI's cancel button drives the same signal.
 - Added real progress for the GUI: the runner's `onProgress` hook (one callback per finished batch with `done`, `total`, `translated`, `rejected`) is forwarded over IPC, so the window draws only genuinely reported progress — no interpolation, no fake percent bars.
-- Added `test/runner.test.js` (15 cases), `test/cancel.test.js` (5 cases) and `test/gui-handlers.test.js` (8 cases); the GUI tests compare `runGuiCommand` envelopes against the child-process CLI on identical state.
+- Added a minimal dictionary editor to the shell: `gui/dictionary.js` reuses the core dictionary reader and writer, the shell lists pending entries and writes one entry per save, and the two IPC channels stay outside the command allowlist because they are not CLI commands.
+- Added `test/runner.test.js` (15 cases), `test/cancel.test.js` (5 cases), `test/gui-handlers.test.js` (11 cases) and `test/gui-dictionary.test.js` (6 cases); the GUI tests compare every envelope key-for-key against the CLI run on the same state. `runGuiCommand` envelopes against the child-process CLI on identical state.
 
 ### Changed
 

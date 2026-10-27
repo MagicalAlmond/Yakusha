@@ -277,8 +277,8 @@ npx electron gui/main.js
 真实进度与取消）→ verify → install/uninstall → doctor，外加 export（JSON）、
 speaker、terms 与 `config list`。API key 可以显式勾选"记住"（Windows DPAPI 加密
 存盘，CLI 不读它），也可以照旧用环境变量或 `--api-key`；`launch` 也在外壳里（与 CLI 同一条
-启动路径，`--exe` 歧义时展示候选）；字典编辑界面还没进外壳。
-设计与验收清单见 [docs/gui.md](docs/gui.md)。
+启动路径，`--exe` 歧义时展示候选）；最小字典编辑器也在外壳里（逐条改 pending
+译文，批量仍走 export/import）。设计与验收清单见 [docs/gui.md](docs/gui.md)。
 
 ## 命令一览
 

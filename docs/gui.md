@@ -1,6 +1,6 @@
 # GUI 设计与用户流程（Electron 外壳，0.14）
 
-> 状态：0.14 已交付最小外壳（`gui/main.js` + `preload.js` + `renderer/`，含原生目录选择、export/import/speaker/terms/config/launch 按钮、「记住密钥」（safeStorage，见 §5）），长任务接口（进度事件 + 取消）随 0.14 的 runner seam 落地；本文其余部分仍是演进的设计稿（字典编辑界面未交付）。
+> 状态：0.14 已交付最小外壳（`gui/main.js` + `preload.js` + `renderer/`，含原生目录选择、export/import/speaker/terms/config/launch 按钮、「记住密钥」（safeStorage，见 §5）、最小字典编辑器（见 §3 字典编辑分区）），长任务接口（进度事件 + 取消）随 0.14 的 runner seam 落地；本文其余部分仍是演进的设计稿（字典编辑界面未交付）。
 
 ## 1. 定位与边界
 
@@ -54,6 +54,14 @@ GUI 版本只做壳与它需要的接口（能力矩阵、原生组件向导、�
 
 术语/说话人整理（`terms`、`speaker`）挂在字典编辑与校验之间，作为可选步骤展示：
 两者都只动字典、不调模型，`--dry-run` 结果先展示再应用。
+
+**0.14 已交付最小编辑器**：`Edit dictionary…` 按钮经 `gui:dict-load` 读字典
+（`gui/dictionary.js` 复用 `src/core/dict.js` 的加载与校验，坏文件报与 CLI 相同的
+`E_DICTIONARY` 文案），显示 translated/pending 计数，并列出前 200 条 pending 供
+逐条编辑；保存经 `gui:dict-save` 每次写一条（`writeEntry` 校验 key 与文本类型，
+未知 key 报 `E_USAGE`，写盘失败报 `E_IO`）。这两个通道不是 CLI 命令，不在
+`GUI_COMMANDS` 里，与 run/cancel 一样是显式白名单。大批量编辑仍推荐
+export/import（§3 字典编辑分区的驱动命令不变）。
 
 ## 4. 长任务与进度
 

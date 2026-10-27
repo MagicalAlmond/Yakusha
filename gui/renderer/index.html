@@ -39,6 +39,14 @@
       <span id="progress-text"></span>
     </section>
 
+    <section id="dictionary" aria-label="Dictionary">
+      <button id="dict-load" type="button">Edit dictionary…</button>
+      <span id="dict-summary" class="hint"></span>
+      <select id="dict-key" aria-label="Pending entry" hidden></select>
+      <textarea id="dict-text" rows="3" aria-label="Translation" hidden></textarea>
+      <button id="dict-save" type="button" hidden>Save entry</button>
+    </section>
+
     <section id="import" aria-label="Import">
       <button id="import-run" type="button">Import table…</button>
       <span class="hint">TSV / CSV / JSON export file; only-empty by default</span>

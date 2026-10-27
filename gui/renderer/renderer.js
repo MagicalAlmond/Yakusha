@@ -112,6 +112,55 @@ $("launch-run").addEventListener("click", async () => {
   }
 });
 
+// Dictionary editor: one pending entry at a time. The list is capped so a
+// 30k-entry dictionary cannot freeze the renderer; the dropdown only holds
+// pending keys and the text box edits exactly the selected key.
+let dictState = null;
+$("dict-load").addEventListener("click", async () => {
+  if (!currentDir) { setProjectLine("pick a project first"); return; }
+  const result = await window.yakusha.loadDictionary(currentDir);
+  if (!result || result.ok === false) {
+    $("dict-summary").textContent = (result && result.error ? result.error.code + ": " : "") +
+      (result && result.error ? result.error.message : "cannot read the dictionary");
+    return;
+  }
+  dictState = result;
+  $("dict-summary").textContent =
+    result.translated + " translated, " + result.pendingCount + " pending (" + result.entries.length + " keys)";
+  const pending = result.entries.filter((entry) => entry.pending).slice(0, 200);
+  const select = $("dict-key");
+  select.innerHTML = "";
+  for (const entry of pending) {
+    const option = document.createElement("option");
+    option.value = entry.key;
+    option.textContent = entry.key.length > 80 ? entry.key.slice(0, 77) + "…" : entry.key;
+    select.appendChild(option);
+  }
+  select.hidden = pending.length === 0;
+  $("dict-text").hidden = pending.length === 0;
+  $("dict-save").hidden = pending.length === 0;
+  if (pending.length > 0) {
+    $("dict-text").value = "";
+    $("dict-summary").textContent += " — showing the first " + pending.length + " pending";
+  } else if (result.pendingCount === 0) {
+    $("dict-summary").textContent += " — nothing pending";
+  }
+});
+$("dict-save").addEventListener("click", async () => {
+  if (!dictState) return;
+  const key = $("dict-key").value;
+  const result = await window.yakusha.saveEntry(currentDir, key, $("dict-text").value);
+  if (!result || result.ok === false) {
+    $("dict-summary").textContent = (result && result.error ? result.error.code + ": " : "") +
+      (result && result.error ? result.error.message : "cannot save the entry");
+    return;
+  }
+  $("dict-summary").textContent = result.translated + " translated, " + result.pendingCount + " pending";
+  // Reload: the dropdown rebuilds without the saved key, so the editor simply
+  // advances to the next pending entry.
+  $("dict-load").click();
+});
+
 $("pick").addEventListener("click", async () => {
   const picked = await window.yakusha.pickDirectory();
   if (picked) { currentDir = picked; setProjectLine(currentDir); run("scan"); }

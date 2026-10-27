@@ -39,6 +39,11 @@ contextBridge.exposeInMainWorld(WORLD, {
   hasApiKey: () => ipcRenderer.invoke("gui:has-key"),
   clearApiKey: () => ipcRenderer.invoke("gui:clear-key"),
 
+  /** Dictionary editor: read the dictionary, write one entry at a time.
+   *  Not CLI commands — separate channels, same core validation. */
+  loadDictionary: (root) => ipcRenderer.invoke("gui:dict-load", root),
+  saveEntry: (root, key, text) => ipcRenderer.invoke("gui:dict-save", root, key, text),
+
   /** @param {(e: {runId: number, command: string, progress: object}) => void} cb */
   onProgress: (cb) => {
     const listener = (_event, body) => cb(body);
@@ -71,6 +76,6 @@ contextBridge.exposeInMainWorld(WORLD, {
   /** The commands this shell may drive; the UI greys out what it does not map to. */
   commands: [
     "scan", "extract", "status", "verify", "speaker", "terms", "translate",
-    "install", "uninstall", "export", "import", "doctor", "config",
+    "install", "uninstall", "launch", "export", "import", "doctor", "config",
   ],
 });

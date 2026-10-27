@@ -33,6 +33,7 @@ import {
   readApiKey,
   saveApiKey,
 } from "./credentials.js";
+import { readDictionary, writeEntry } from "./dictionary.js";
 import { configFilePath } from "../src/cli/config.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -174,6 +175,29 @@ function registerIpc() {
   ipcMain.handle("gui:clear-key", () => {
     const file = credentialsPath();
     return file ? clearApiKey(file) : { cleared: false };
+  });
+  // Dictionary editor: read for the list, write one entry at a time. These are
+  // not CLI commands, so they stay out of GUI_COMMANDS; the format and the
+  // validation live in src/core/dict.js exactly as for the CLI.
+  ipcMain.handle("gui:dict-load", (_event, root) => {
+    try {
+      return readDictionary(String(root));
+    } catch (error) {
+      return {
+        ok: false,
+        error: { code: error && error.code ? error.code : "E_INTERNAL", message: String(error && error.message ? error.message : error) },
+      };
+    }
+  });
+  ipcMain.handle("gui:dict-save", (_event, root, key, text) => {
+    try {
+      return writeEntry(String(root), String(key), String(text));
+    } catch (error) {
+      return {
+        ok: false,
+        error: { code: error && error.code ? error.code : "E_INTERNAL", message: String(error && error.message ? error.message : error) },
+      };
+    }
   });
   ipcMain.handle("gui:pick-directory", async () => {
     const win = mainWindow && !mainWindow.isDestroyed() ? mainWindow : null;
