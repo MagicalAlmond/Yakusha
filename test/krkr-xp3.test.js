@@ -150,6 +150,40 @@ test("an unsupported index format is E_UNSUPPORTED and names the format", () => 
   );
 });
 
+test("a transformed header is E_UNSUPPORTED, not a crash", () => {
+  // Some protection schemes rewrite the header: the fixed version mark and
+  // the index offset turn into garbage. The reader must reject the archive
+  // cleanly instead of failing on an out-of-range file position.
+  const file = path.join(tempDir(), "marked.xp3");
+  const buffer = Buffer.from(buildXp3([{ name: "a.ks", data: KS }]));
+  buffer.writeBigUInt64LE(0x0d89162301678bn, 8);
+  buffer.writeBigUInt64LE(0x274471a7b0f16ffcn, 32);
+  fs.writeFileSync(file, buffer);
+  assert.throws(
+    () => openXp3(file),
+    (error) => {
+      assert.equal(error.code, "E_UNSUPPORTED");
+      assert.match(error.message, /index offset points outside the archive/);
+      return true;
+    }
+  );
+});
+
+test("an index offset outside the file is E_UNSUPPORTED, not a crash", () => {
+  const file = path.join(tempDir(), "offset.xp3");
+  const buffer = Buffer.from(buildXp3([{ name: "a.ks", data: KS }]));
+  buffer.writeBigUInt64LE(0x7fn * (1n << 24n), 32);
+  fs.writeFileSync(file, buffer);
+  assert.throws(
+    () => openXp3(file),
+    (error) => {
+      assert.equal(error.code, "E_UNSUPPORTED");
+      assert.match(error.message, /index offset points outside the archive/);
+      return true;
+    }
+  );
+});
+
 test("adler32 matches the reference values", () => {
   assert.equal(adler32(Buffer.from("Wikipedia"), "latin1" === "never" ? 0 : undefined), 0x11e60398);
   assert.equal(adler32(Buffer.alloc(0)), 1);

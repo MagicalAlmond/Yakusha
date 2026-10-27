@@ -1086,7 +1086,7 @@ RPG Maker 那句（registry 第一个 adapter 的文案）。
 
 - 头部 40 字节，magic 是 8 字节 `XP3\r\n \n\x1a`（`src/engines/krkr/xp3.js:29`）；
   头里还带一个版本标记与索引区的 64 位偏移，读取器只校验 magic，其余按偏移走。
-- 索引容器前 9 字节是 `{u8 模式, u64 压缩长度}`，模式 0 原样、1 zlib；解开后前 4 字节
+- 索引容器头是 `{u8 模式, u64 压缩长度}`，模式 0 原样、1 zlib；真实归档在压缩长度后面还有一个 8 字节未压缩长度字段（头共 17 字节），合成夹具则没有——读取器按 zlib 头特征自动判位。解开后前 4 字节
   必须是 `File`（标准索引）。改过的索引（`Hxv4`，部分汉化发行版在用）**报
   `E_UNSUPPORTED`，绝不猜**：
   `<archive>: the XP3 index uses an unsupported format ("Hxv4") - yakusha only reads standard XP3 indexes`
@@ -1098,7 +1098,7 @@ RPG Maker 那句（registry 第一个 adapter 的文案）。
 
 **KS 脚本。** 归档里扩展名为 `.ks` 的条目按行处理（`src/engines/krkr/ks.js`）：
 
-- 编码先按 UTF-8 严格解码，失败退回 Shift_JIS；Shift_JIS 下出现替换字符就把整份脚本
+- 编码先按 BOM 识别 UTF-16LE / UTF-16BE（本地化组常见），否则先按 UTF-8 严格解码、失败退回 Shift_JIS；Shift_JIS 下出现替换字符就把整份脚本
   记一行 `undecodable`（`N undecodable byte(s) under Shift_JIS`），**已解出的行仍然收**。
 - 行分五类：空行、注释（`;` 开头）、标签（`*` 开头）、纯标签行、文本行；只有文本行进字典。
 - 行内标签（`[r]`、`[er]`、`[emb exp=...]`……）从存下的字符串里剥掉；`[[` 转义出

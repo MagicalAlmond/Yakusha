@@ -42,7 +42,7 @@
   `E_UNSUPPORTED`，不猜测、不重建索引。
 - 加密变体（krkr2 per-file keys、krkrz cxdec）不解析，条目直接进 `undecodable`。
 - `.tjs` 脚本只计数不读内容，可翻译文本只收 `.ks`。
-- Shift_JIS 解不出的行记进 `undecodable` 继续，不中断。
+- 编码按 BOM 识别 UTF-16LE/BE，再按 UTF-8 严格解码、Shift_JIS 兜底；解不出的行记进 `undecodable` 继续，不中断。
 - 游戏标题与引擎版本藏在加密或可选配置里，0.13 不解析；`scan` / `doctor`
   显示 `(untitled)`。
 - XP3 / KS 的覆盖以合成夹具级测试为主（条目解包、adler-32 校验、行分类、标签剥离），

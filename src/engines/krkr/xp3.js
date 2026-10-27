@@ -82,7 +82,14 @@ function parseIndex(body, archiveName) {
       " - yakusha only reads standard XP3 indexes"
     );
   }
-  let offset = 4;
+  // Two index shapes exist. Real archives start the entry list at the
+  // magic itself: the first entry's "File" tag doubles as the index magic,
+  // so its u64 size sits at offset 4 and sub-blocks at 12. Synthetic
+  // writers (and some tools) emit a separate index magic followed by
+  // per-entry tags, putting the first tag at offset 4. Distinguish the two
+  // by what follows the magic: an entry tag is the ASCII "File", a size
+  // field is a small little-endian integer.
+  let offset = body.toString("latin1", 4, 8) === "File" ? 4 : 0;
   const entries = [];
   while (offset + 12 <= body.length && entries.length < MAX_ENTRIES) {
     const tag = body.toString("latin1", offset, offset + 4);
@@ -136,27 +143,55 @@ function parseHeader(handle, archiveName) {
   if (bytesRead < 40 || !header.subarray(0, 8).equals(MAGIC)) {
     throw ioError(archiveName + ": not an XP3 archive (bad magic)");
   }
-  return readU64(header, 32);
+  const indexOffset = readU64(header, 32);
+  const size = fsSync.fstatSync(handle).size;
+  if (indexOffset <= 0 || indexOffset >= size) {
+    throw unsupportedError(
+      archiveName + ": the XP3 index offset points outside the archive - " +
+      "the container header is transformed or corrupt"
+    );
+  }
+  return indexOffset;
 }
 
+/**
+ * Detect a valid zlib stream header (CMF/FLG pair whose checksum passes).
+ * @param {number} cmf first header byte
+ * @param {number} flg second header byte
+ * @returns {boolean}
+ */
+function looksLikeZlib(cmf, flg) {
+  return (cmf & 0x0f) === 8 && ((cmf << 8) | flg) % 31 === 0;
+}
 function readIndexContainer(handle, indexOffset, archiveName) {
-  const head = Buffer.alloc(9);
-  const bytesRead = fsSync.readSync(handle, head, 0, 9, indexOffset);
+  // The index container carries a 1-byte compression mode and an 8-byte
+  // compressed size. Published layouts disagree on what follows: some
+  // writers put the zlib stream right after the size (9-byte head), while
+  // the archives observed in real games insert an 8-byte uncompressed-size
+  // field first (17-byte head). Detect the stream position instead of
+  // trusting either layout.
+  const head = Buffer.alloc(19);
+  const bytesRead = fsSync.readSync(handle, head, 0, 19, indexOffset);
   if (bytesRead < 9) throw ioError(archiveName + ": truncated XP3 index container");
   const mode = head.readUInt8(0);
   const compSize = readU64(head, 1);
+  if (mode !== 0 && mode !== 1) {
+    throw unsupportedError(archiveName + ": unsupported XP3 index mode " + mode);
+  }
+  let streamAt = 9;
+  if (mode === 1 && bytesRead >= 19 && !looksLikeZlib(head[9], head[10])
+      && looksLikeZlib(head[17], head[18])) {
+    streamAt = 17;
+  }
   const compressed = Buffer.alloc(Number(compSize));
-  const read = fsSync.readSync(handle, compressed, 0, compressed.length, indexOffset + 9);
+  const read = fsSync.readSync(handle, compressed, 0, compressed.length, indexOffset + streamAt);
   if (read < compSize) throw ioError(archiveName + ": truncated XP3 index stream");
   if (mode === 0) return compressed;
-  if (mode === 1) {
-    try {
-      return inflateSync(compressed);
-    } catch (error) {
-      throw ioError(archiveName + ": the XP3 index stream does not decompress (" + error.message + ")");
-    }
+  try {
+    return inflateSync(compressed);
+  } catch (error) {
+    throw ioError(archiveName + ": the XP3 index stream does not decompress (" + error.message + ")");
   }
-  throw unsupportedError(archiveName + ": unsupported XP3 index mode " + mode);
 }
 function readFileAt(handle, entry, archiveName) {
   const chunks = [];

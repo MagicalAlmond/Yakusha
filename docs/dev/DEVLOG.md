@@ -42,7 +42,7 @@
 | 持续集成 | GitHub Actions：`npm test` 在 Node 22 / 24（**windows-latest**，WP1 已从 ubuntu 切换） |
 | 平台 | Windows 10/11 x64 为唯一支持与验收环境（0.10 明确，见 [platforms.md](../platforms.md)） |
 | 支持引擎 | RPG Maker **MZ 1.3.2–1.9.0**、**MV 1.6.1–1.6.2**；**Ren'Py 8.x 脚本**（`.rpy` 明文 + `.rpyc` 编译）；**RGSS（XP / VX / VX Ace）**与 **Kirikiri（KAG / XP3）**——只到 L1–L3（识别 / 盘点 / 抽取 / 翻译 / 校验 / 导出），**没有交付层**（§6） |
-| 实测游戏 | 15 款可识别（本机全量普查），其中 **4 款**全量翻译 + 运行时验收；Ren'Py 侧用一套 8.5.3 SDK 的两个示例游戏做抽文本与覆盖率验收（§6）；RGSS 侧用一款 RGSS3 / VX Ace 商业游戏、Kirikiri 侧用两款 XP3 商业归档（含一款语音归档）做抽取实测（§6，外部样本，不是仓库夹具） |
+| 实测游戏 | 22 款可识别（0.16 全量普查：mz 7 / mv 8 / rgss 1 / krkr 6），其中 **4 款**全量翻译 + 运行时验收；Ren'Py 侧用一套 8.5.3 SDK 的两个示例游戏做抽文本与覆盖率验收（§6）；RGSS 侧用一款 RGSS3 / VX Ace 商业游戏、Kirikiri 侧用两款 XP3 商业归档（含一款语音归档）做抽取实测（§6，外部样本，不是仓库夹具） |
 | 磁盘改动 | MZ/MV 走插件档：只加 1 个插件文件 + `plugins.js` 里 1 条注册，卸载还原到安装前；Ren'Py 走 translation 档：只在 `game/` 下新建 1 个 `yakusha_translation.rpy`，卸载删它；**RGSS 与 Kirikiri 不动任何文件**——没有交付层，`install` / `uninstall` 报 `E_NOT_IMPLEMENTED` 且一个字节都不写（四档交付见 [ENGINE-STRATEGY.md](ENGINE-STRATEGY.md) §5.5） |
 | 运行时依赖 | 无第三方依赖（Node >= 22） |
 | 产品形态 | CLI 为内核；Electron 最小外壳已随 **0.14** 交付（`gui/`，同一 runner 缝；`launch`、目录选择、记住密钥、最小字典编辑器已进外壳） |
@@ -870,7 +870,7 @@ plugin 档是"删文件即还原"，inject 档是"文件不改、退出即恢复
 
 0.13 做两件事：**把 Kirikiri（KAG / XP3）接成第五个引擎**，以及**给字典加表格载体**（TSV / CSV 导出 + `import` 命令）。动机与 0.12 相同——验证 0.10.x 拆出的缝能不能容纳第四个运行时家族；这次连 `src/pipeline/` 与 `src/core/` 都没加一行特判，新代码全部在 `src/engines/krkr/`（6 个模块，共 1,128 行：`xp3` 236 / `ks` 139 / `project` 145 / `extract` 126 / `profile` 155 / `adapter` 307）与 `src/cli/table.js`（277 行）里。
 
-**Kirikiri 数据格式**：XP3 归档头 40 字节（magic `XP3\r\n \n\x1a`、版本标记 `0x0117678b`、两个标志位、索引容器偏移），索引容器自带 9 字节头（1 字节压缩模式 + 8 字节压缩后大小）+ zlib 流；解压后索引以 4 字节 magic 开头——`File` 是标准索引，`Hxv4` 是某些本地化发行版用的改版索引，**明确报 `E_UNSUPPORTED` 不猜**。条目是 `File` 块套 `info`（文件名 UTF-16LE、原始/压缩大小、protect 位）、`segm`（无前导计数的 N 段描述，`mode` 0=raw 1=zlib，start 是绝对偏移）、`adlr`（adler-32，重组时校验）三类子块的列表。adler-32 是手写的（Node 只在 zlib 流内部暴露它）；开发期用两款真实商业归档（含一款语音归档，数百个条目）把**每个条目的 adler-32 与大小全部验证通过**，但仓库与文档不引游戏名、不放数字。
+**Kirikiri 数据格式**：XP3 归档头 40 字节（magic `XP3\r\n \n\x1a`、版本标记 `0x0117678b`、两个标志位、索引容器偏移），索引容器头有两种布局：合成夹具写 9 字节（1 字节压缩模式 + 8 字节压缩后大小），真实商业归档实测是 17 字节（中间多一个 8 字节未压缩大小字段），读取器按 zlib 头特征自动判位（0.16 修正，见 §6 的 0.16 段）；解压后索引以 4 字节 magic 开头——`File` 是标准索引，`Hxv4` 是某些本地化发行版用的改版索引，**明确报 `E_UNSUPPORTED` 不猜**。条目是 `File` 块套 `info`（文件名 UTF-16LE、原始/压缩大小、protect 位）、`segm`（无前导计数的 N 段描述，`mode` 0=raw 1=zlib，start 是绝对偏移）、`adlr`（adler-32，重组时校验）三类子块的列表。adler-32 是手写的（Node 只在 zlib 流内部暴露它）；开发期用两款真实商业归档（含一款语音归档，数百个条目）把**每个条目的 adler-32 与大小全部验证通过**，但仓库与文档不引游戏名、不放数字。
 
 **KAG 脚本层**：文本行 = 非注释（`;` / `/*`）非标签行；`[r]` 是行内换行标签、从存储串剥离；`[name_set name='...']` 跟踪当前说话人，成为该行单元的 speaker；行尾 `[p2]` 标记消息结束。编码 UTF-8 strict 先行、失败落 Shift_JIS 兜底，兜底还解不了的计 `undecodable`；同一文件里解不开的字节不吞掉已解码的行——**undecodable 是按文件记的补充信息，不是丢弃整个文件**。补丁目录的同名 `.xp3` 不遮蔽基础归档：两个都读（`openKrkrProject` 列出全部归档，`extract` 逐个都抽），与 Ren'Py 跳过 `tl/` 相反——那边的优先级是「原文优先」，这边的现实是「补丁条目与基础条目并存、都要看」。
 
@@ -886,6 +886,37 @@ plugin 档是"删文件即还原"，inject 档是"文件不改、退出即恢复
 - **Hxv4 只报错不解析**：改版索引明确 `E_UNSUPPORTED`（"the XP3 index uses an unsupported format - yakusha only reads standard XP3 indexes"）；等遇到真需求再决定是加解析还是提示转换。
 - **字典 v2 字段没加**：`engine` / `locator` 两个待定字段留在 §8.1 #5；0.13 的表格载体不改字典结构，export / import 的键与 0.10 JSON 完全同构。
 - **没有 en→zh，也没有捆绑词典**：§8.1 #6 的决策不变。
+
+### 0.16 Kirikiri 真机修正（feat/0.16-gui-capabilities 分支内）
+
+0.16 做能力灰显时顺手复核了 Kirikiri 的真机行为，发现 0.13 交付的 XP3 读取器
+**读不了任何真实商业归档**——本机 30 个 XP3 全部报 "the XP3 index stream does not
+decompress (incorrect header check)"，只有合成夹具能过。两个根因：
+
+- **索引容器头**：0.13 的笔记把索引容器头定成 9 字节（模式 + 压缩大小），代码照写；
+  真实归档实测是 17 字节——压缩大小后面还有一个 8 字节未压缩大小字段，zlib 流从
+  偏移 17 开始。9 字节读法把流头 2 字节吃掉，inflate 必然失败。
+- **索引条目起点**：解析器在 4 字节 "File" 索引 magic 之后从偏移 4 找条目，而真实
+  归档的第一个条目的 "File" 标签就落在 magic 的位置上（magic 与首条目标签共用 4
+  字节），条目大小在偏移 4；合成夹具则真的写了两个连续 magic。读取器现在按
+  偏移 4 处是不是 "File" 自动判别两种形状。
+
+修正后的真机矩阵（scan --json，全部本机游戏）：
+
+- Summer Days（data + patch 两档案）：**352 + 3803 个条目 adler-32 全过**，提取
+  5,686 unique / 6,409 total，0 undecodable。
+- 和芽衣（data + voice）：**1033 + 1345 个条目 adler-32 全过**，提取 19,913 /
+  42,284，0 undecodable。
+- 0.13 曾记录这两个游戏 adler 100% 通过——当时的验证脚本用的是 17 字节头，与
+  交付的读取器不一致。教训：**验证脚本和交付代码必须共用同一条解析路径**。
+- 其余四款（Sickly Days、无法忍耐、痴情哥哥、妖夢員）的归档是改版索引或改写过
+  的容器头（Hxv4 / 版本标记与索引偏移被整体变换），维持既定行为：逐档案报干净的
+  `E_UNSUPPORTED` 语义错误，不硬啃。
+
+顺手修的第三件事：本地化组的 `.ks` 场景文件有相当一部分带 UTF-16LE BOM，
+`decodeKs` 原来只认 UTF-8 / Shift_JIS，把这些文件全记成 undecodable；现在按 BOM
+识别 utf-16le / utf-16be。新增 2 个负面测试（变换头 → `E_UNSUPPORTED` 而不是裸
+RangeError），全量 657 绿。
 
 ## 7. 已知限制
 

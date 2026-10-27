@@ -10,12 +10,18 @@
  */
 
 /**
- * Decode .ks bytes: try UTF-8 strict first, fall back to Shift_JIS. Encoding
- * sniffing stays here so callers share one rule.
+ * Decode .ks bytes: honor a UTF-16 BOM, then try UTF-8 strict, then fall
+ * back to Shift_JIS. Encoding sniffing stays here so callers share one rule.
  * @param {Buffer} buffer raw file bytes
- * @returns {{ text: string, encoding: "utf-8" | "shift_jis", undecodable: boolean, error?: string }}
+ * @returns {{ text: string, encoding: "utf-8" | "utf-16le" | "utf-16be" | "shift_jis", undecodable: boolean, error?: string }}
  */
 export function decodeKs(buffer) {
+  if (buffer.length >= 2 && buffer[0] === 0xff && buffer[1] === 0xfe) {
+    return { text: new TextDecoder("utf-16le").decode(buffer.subarray(2)), encoding: "utf-16le", undecodable: false };
+  }
+  if (buffer.length >= 2 && buffer[0] === 0xfe && buffer[1] === 0xff) {
+    return { text: new TextDecoder("utf-16be").decode(buffer.subarray(2)), encoding: "utf-16be", undecodable: false };
+  }
   try {
     return { text: new TextDecoder("utf-8", { fatal: true }).decode(buffer), encoding: "utf-8", undecodable: false };
   } catch {
