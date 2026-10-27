@@ -273,10 +273,10 @@ pnpm install          # 开发依赖含 electron；运行时仍是零依赖
 npx electron gui/main.js
 ```
 
-0.14 的外壳只覆盖主链路：拖入游戏目录 → scan → extract → translate（带真实进度
-与取消）→ verify → install/uninstall → doctor。凭据仍只在环境变量或 `--api-key`，
-窗口不碰密钥；`launch` 与字典编辑界面还没进外壳。设计与验收清单见
-[docs/gui.md](docs/gui.md)。
+0.14 的外壳覆盖主链路：目录选择器或拖入游戏目录 → scan → extract → translate（带
+真实进度与取消）→ verify → install/uninstall → doctor，外加 export（JSON）、
+speaker、terms 与 `config list`。凭据仍只在环境变量或 `--api-key`，窗口不碰密钥；
+`launch` 与字典编辑界面还没进外壳。设计与验收清单见 [docs/gui.md](docs/gui.md)。
 
 ## 命令一览
 

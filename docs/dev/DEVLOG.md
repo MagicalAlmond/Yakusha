@@ -242,8 +242,9 @@
       in-flight 请求自然结束），payload 新增 `cancelled` 键（CLI 恒 false）。
 - [x] **GUI 最小外壳**：`gui/handlers.js`（runCommand 包装 + CLI 一致信封 + 命令白名单）、
       `gui/main.js`（窗口、IPC 白名单、长任务在主进程、`webContents.send` 推进度、
-      AbortController 归主进程所有）、`gui/preload.js`（contextBridge 白名单 + 
-      `webUtils.getPathForFile`）、`gui/renderer/`（按钮 1:1 映射命令、真实进度条）。
+      AbortController 归主进程所有、原生目录选择 `gui:pick-directory`）、`gui/preload.js`
+      （contextBridge 白名单 + `webUtils.getPathForFile` + `pickDirectory`）、
+      `gui/renderer/`（按钮 1:1 映射命令、真实进度条、export/speaker/terms/config list）。
       不加载远程内容、渲染进程无 Node、CSP `default-src 'none'`。
 - [x] **electron devDependency**（37.2.3，npmmirror 镜像安装；`pnpm-lock.yaml` +
       `pnpm-workspace.yaml` 入库），运行时依赖仍为零。

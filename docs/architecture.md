@@ -168,7 +168,7 @@ Kirikiri 则要重写 XP3 归档（krkr2 / krkrz 的加密变体刻意不碰）�
   并把每个结果归一成与 `--json` 逐键一致的信封；`gui/main.js` 只做窗口与 IPC。
   这满足"CLI 为主、GUI 隐藏控制台"。
 - 渲染进程不开 `nodeIntegration`；`contextIsolation: true`，preload 只暴露白名单方法
-  （`run`/`cancel`/`onProgress`/`onWarning`/`onResult`/`pathForFile` + 命令清单）。
+  （`run`/`cancel`/`pickDirectory`/`onProgress`/`onWarning`/`onResult`/`pathForFile` + 命令清单）。
 - 长任务（翻译）在主进程跑，进度通过 `webContents.send` 推给渲染进程；
   需要强隔离时再挪到 `worker_threads`，接口不变。
 - 拖拽取真实路径用 Electron 的 `webUtils.getPathForFile`（浏览器拿不到绝对路径，

@@ -23,7 +23,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, dialog, ipcMain } from "electron";
 
 import { GUI_COMMANDS, runGuiCommand } from "./handlers.js";
 
@@ -31,6 +31,8 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 
 /** Long translate runs: one at a time, cancelled through this controller. */
 let activeRun = null;
+/** Remembered directory so the dialog reopens where the user last was. */
+let currentDir = null;
 
 /**
  * @param {Electron.BrowserWindow} win
@@ -108,6 +110,20 @@ function registerIpc() {
   ipcMain.handle("gui:cancel", () => {
     if (activeRun && activeRun.controller) activeRun.controller.abort();
     return true;
+  });
+  // The one file-system affordance the renderer gets: a native open dialog.
+  // It returns a path string; every other check stays in the runner (the path
+  // is untrusted input like any other).
+  ipcMain.handle("gui:pick-directory", async () => {
+    const win = mainWindow && !mainWindow.isDestroyed() ? mainWindow : null;
+    const result = await dialog.showOpenDialog(win, {
+      properties: ["openDirectory"],
+      title: "Open a game folder",
+      defaultPath: currentDir || undefined,
+    });
+    const picked = result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
+    if (picked) currentDir = picked;
+    return picked;
   });
 }
 

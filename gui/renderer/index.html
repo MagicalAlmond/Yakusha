@@ -26,6 +26,9 @@
       <button data-cmd="verify" type="button">Verify</button>
       <button data-cmd="install" type="button">Install</button>
       <button data-cmd="uninstall" type="button">Uninstall</button>
+      <button data-cmd="export" type="button">Export JSON</button>
+      <button data-cmd="speaker" type="button">Speaker fix</button>
+      <button data-cmd="terms" type="button">Mine terms</button>
       <button data-cmd="doctor" type="button">Doctor</button>
       <button id="cancel" type="button" disabled>Cancel run</button>
     </section>
@@ -33,6 +36,16 @@
     <section id="progress" aria-label="Progress" hidden>
       <div class="bar"><div id="bar-fill"></div></div>
       <span id="progress-text"></span>
+    </section>
+
+    <section id="import" aria-label="Import">
+      <button id="import-run" type="button">Import table…</button>
+      <span class="hint">TSV / CSV / JSON export file; only-empty by default</span>
+    </section>
+
+    <section id="settings" aria-label="Settings">
+      <button data-cmd="config" type="button" data-config-args="list">Show config</button>
+      <span id="config-summary" class="hint"></span>
     </section>
 
     <section id="output" aria-label="Result" aria-live="polite">

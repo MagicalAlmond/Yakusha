@@ -29,6 +29,9 @@ contextBridge.exposeInMainWorld(WORLD, {
    *  requests finish, already-translated entries are kept. */
   cancel: () => ipcRenderer.invoke("gui:cancel"),
 
+  /** Open the native directory picker; resolves to a path or null. */
+  pickDirectory: () => ipcRenderer.invoke("gui:pick-directory"),
+
   /** @param {(e: {runId: number, command: string, progress: object}) => void} cb */
   onProgress: (cb) => {
     const listener = (_event, body) => cb(body);

@@ -1,6 +1,6 @@
 # GUI 设计与用户流程（Electron 外壳，0.14）
 
-> 状态：0.14 已交付最小外壳（`gui/main.js` + `preload.js` + `renderer/`），长任务接口（进度事件 + 取消）随 0.14 的 runner seam 落地；本文其余部分仍是 0.14 演进的设计稿。
+> 状态：0.14 已交付最小外壳（`gui/main.js` + `preload.js` + `renderer/`，含原生目录选择、export/import/speaker/terms/config 按钮），长任务接口（进度事件 + 取消）随 0.14 的 runner seam 落地；本文其余部分仍是演进的设计稿（字典编辑界面、safeStorage、launch 未交付）。
 
 ## 1. 定位与边界
 
