@@ -301,6 +301,7 @@
 - [x] 文档：`docs/json-contract.md` §7 scan 行、`docs/commands.md` scan 节、
       `docs/gui.md` 状态行与 §3 注记、`CHANGELOG.md` 0.16.0 段（含上述修正的 Fixed 两条），
       以及 0.16 复核后的全仓一致性巡检（games/limitations/README/commands/engines/
+- [x] 0.16 文档巡检补一篇 file:line 全扫与 CI 事实核对：docs/ 全部 `path.js:N` 引用逐条核对（修复 export-format.md 的 import --from 锚点 810→853，0.14 runner 拆分遗留）；`.github/workflows/test.yml` 没有 install 步骤是有意为之——零运行时依赖、测试不 import electron 包，`npm test` 直接可跑；devDependencies 的 electron 只服务本地 GUI 开发。
       json-contract/platforms/architecture/ENGINE-STRATEGY 的陈旧声明逐一改真）。
 - [x] 明确不做：能力位矩阵不新增字段（`attach` / `liveReload` 仍是两处 `false`），
       GUI 不因能力位新增任何私有 API。
