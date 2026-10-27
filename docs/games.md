@@ -156,11 +156,11 @@ RGSS 的根目录形状是 `Game.ini` + `Data/`，或者启动器 `.exe` + 一�
 文本，也不存归档副本——下面的结论来自本机临时解包，游戏名一律不记录。仓库内的
 Kirikiri 测试夹具全部是手写的合成数据（见 `test/krkr-fixture.js`），真实归档只在仓库外完成验证。
 
-抽取面（`src/engines/krkr/extract.js:57`）：每个 `.xp3` 归档都读（`src/engines/krkr/xp3.js:214`），
+抽取面（`src/engines/krkr/extract.js:57`）：每个 `.xp3` 归档都读（`src/engines/krkr/xp3.js:248`），
 归档里的 `.ks` 脚本按行抽文本，`.tjs` 脚本只计数不读内容——TJS 是编程语言，不理解代码就
-翻译其中的字符串不安全（`src/engines/krkr/extract.js:1-19`）。`.ks` 的编码先按 UTF-8 严格
-解码，失败再按 Shift_JIS 兜底，仍解不开的字节记 `undecodable`，损坏的脚本不影响其余文件
-（`src/engines/krkr/ks.js:13-36`）。
+翻译其中的字符串不安全（`src/engines/krkr/extract.js:1-19`）。`.ks` 的编码先按 BOM 识别 UTF-16LE / UTF-16BE（本地化组的场景文件常见），否则先按
+UTF-8 严格解码、失败再按 Shift_JIS 兜底，仍解不开的字节记 `undecodable`，损坏的脚本
+不影响其余文件（`src/engines/krkr/ks.js:13-44`）。
 
 XP3 索引只读标准格式：索引体以 `File` 开头的是标准索引；本地化发行版里见到的修改版
 索引（`Hxv4`）明确不支持，报 `E_UNSUPPORTED` 而不是猜（`src/engines/krkr/xp3.js:76-84`）。
