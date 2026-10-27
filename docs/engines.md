@@ -561,7 +561,7 @@ $ yakusha install <game-dir> --json
   pending layer`）。反过来，**带 `--embed` 时先撞的是 CLI 那层通用校验**：没有字典报
   `--embed needs a dictionary`，有字典但没译文报 `--embed found no translated entries`，
   两条都是 `E_NO_DICTIONARY` / 退出 2——`--embed` 在 `adapter.installRuntime` 之前
-  （`bin/yakusha.js:657-660`），RGSS 也躲不掉。
+  （`src/cli/runner.js:730-736`），RGSS 也躲不掉。
 - **为什么不是一句笼统的“未实现”**：RGSS 的交付层是**计划内**的，只是没拍板，所以
   文案指向决策记录而不断言功能不存在——这与 `attach` 用的那句历史措辞是两种语气，
   两种都有测试盯着（前者 `test/rgss-adapter.test.js:246` 与 `test/rgss-cli.test.js:103`，
@@ -597,7 +597,7 @@ $ yakusha install <game-dir> --json
   两个待拍板项（`src/engines/krkr/adapter.js:200-203` 的注释）。
 - **带 `--embed` 时先撞的是 CLI 那层通用校验**：没有字典报 `--embed needs a dictionary`，
   有字典但没译文报 `--embed found no translated entries`，都是 `E_NO_DICTIONARY` /
-  退出 2（`bin/yakusha.js:657-660`）；不带 `--embed` 时没有字典也先报 pending 那句。
+  退出 2（`src/cli/runner.js:730-736`）；不带 `--embed` 时没有字典也先报 pending 那句。
 - 测试钉住：`test/krkr-adapter.test.js:150`（install/uninstall 指向待拍板清单）、
   `test/krkr-cli.test.js:101` / :116 / :124（CLI 侧 install 与 uninstall 不写盘）、
   `test/engine-contract.test.js:412`（attach 共享历史措辞）。待拍板清单见
@@ -734,7 +734,7 @@ export { VERSION } from "./version.js";
   Ren'Py 时 bin 只多了一个 `adapter.dataUnit === "scripts"` 的分支（`scan` 与 `doctor`
   的行标）和一个 `runtime === "translation"` 的分支（`install` 的三行文本），
   没有出现 `if (engine === "renpy")`。0.12 接 RGSS 时只多了 `doctor` 的一个分支：
-  把 `own.delivery || own.translation || null` 交给诊断器（`bin/yakusha.js:876-880`），
+  把 `own.delivery || own.translation || null` 交给诊断器（`src/cli/runner.js:988`），
   让 RGSS 的 `delivery.pending` 能走到 `src/core/doctor.js` 的 pending 分支；
   同样没有出现 `if (engine === "rgss")`。0.13 接 Kirikiri 时 bin **什么都没加**：
   `dataUnit` 是 `data files`、`diagnostics.delivery` 走同一个分支，全库搜不到

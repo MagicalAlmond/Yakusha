@@ -618,7 +618,7 @@ error: install is not implemented for RGSS yet - see the pending decisions in do
 
 - 错误码 `E_NOT_IMPLEMENTED`、退出 2、stdout 为空；`--json` 的信封是 `{"schema":1,"command":"install","ok":false,"outcome":"error","error":{"code":"E_NOT_IMPLEMENTED","message":"install is not implemented for RGSS yet - see the pending decisions in docs/dev/DEVLOG.md"}}`。`uninstall` 同形，只是消息里 `install` 换成 `uninstall`。
 - **一条文件都不写。** 实测跑完 `install` / `uninstall` 后项目目录里仍然只有原来的 `Game.ini` / `Game.rgss3a` 和 `yakusha/dictionary.json`，新增文件为零。
-- 报错与有没有字典无关：普通 `install` 在无字典时也报 `E_NOT_IMPLEMENTED`。但 `--embed` 的两道前置检查排在引擎检查**之前**（`bin/yakusha.js:651`、`:654`），所以 `install --embed` 在缺字典时报 `E_NO_DICTIONARY`（`--embed needs a dictionary, run: yakusha extract "<root>"`）、有字典但一条都没译时报 `--embed found no translated entries`，只有真的有已译条目时才落到 `E_NOT_IMPLEMENTED`。
+- 报错与有没有字典无关：普通 `install` 在无字典时也报 `E_NOT_IMPLEMENTED`。但 `--embed` 的两道前置检查排在引擎检查**之前**（`src/cli/runner.js:731-736`），所以 `install --embed` 在缺字典时报 `E_NO_DICTIONARY`（`--embed needs a dictionary, run: yakusha extract "<root>"`）、有字典但一条都没译时报 `--embed found no translated entries`，只有真的有已译条目时才落到 `E_NOT_IMPLEMENTED`。
 - 两条候选路线都没拍板，因此写成待定而不是猜：纯 JS 把译文写回 `.rvdata2` / `.rgss3a`（读写器已在 `src/engines/rgss/` 里），或原生注入器加 hook DLL（本机没有 C/C++/Rust 工具链，也编译不了）。选哪条会改变 `uninstall` 要还原什么，已记入 `docs/dev/DEVLOG.md` §8.1。
 - `doctor` 的对应文案是 `install warn RGSS has no delivery layer yet, so nothing is written back into the game` 与 `runtime info nothing is loaded at run time, so the game keeps showing the original text`（见下一节）。
 

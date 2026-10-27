@@ -20,11 +20,11 @@ yakusha export <game-dir> --out <file> [--format json|tsv|csv] [--flat] [--force
 - `--out` **必填**。没有默认文件名，也不写 stdout；`--out -` 被拒绝（`E_USAGE`）。
   导出是“落一份可交付的文件”，不是管道过滤器。
 - `--format`：`json`（默认）、`tsv`、`csv`。其它值返回 `E_USAGE`
-  （`export supports --format json, tsv or csv, not <name>`，`bin/yakusha.js:724-727`）。
+  （`export supports --format json, tsv or csv, not <name>`，`src/cli/runner.js:813`）。
   `tsv` / `csv` 的形状与读写规则在 §8。
 - `--flat`：条目值从对象 `{text, contexts}` 改成字符串 `text`。只对 JSON 生效：
   `--format tsv|csv` 加它报 `E_USAGE`（`--flat applies to --format json only`，
-  `bin/yakusha.js:728-730`），表格本身已经是两列的“扁平”形状。
+  `src/cli/runner.js:816`），表格本身已经是两列的“扁平”形状。
 - `--force`：允许覆盖已存在的目标文件。没有它时目标存在 → `E_EXISTS`。
 - 命令不修改游戏、字典或插件；只写 `--out` 指向的那一个文件。
 
@@ -160,7 +160,7 @@ yakusha export <game-dir> --out <file> [--format json|tsv|csv] [--flat] [--force
 
 0.13 把表格从“给人看的投影”升级为可往返的契约格式：`yakusha export --format tsv|csv`
 写出表格，`yakusha import --from <file>` 把它读回字典。实现见 `src/cli/table.js`（解析、
-转义、序列化）与 `bin/yakusha.js:720-840`（两条命令），测试在 `test/export.test.js` 与
+转义、序列化）与 `src/cli/runner.js` 的 `commandExport` / `commandImport`（两条命令），测试在 `test/export.test.js` 与
 `test/krkr-cli.test.js`。
 
 ### 8.1 命令
@@ -170,12 +170,12 @@ yakusha import <game-dir> --from <file> [--format tsv|csv|json] [--strategy only
 ```
 
 - `--from` 必填，且必须是文件路径：传 `-` 报 `E_USAGE`
-  （`import --from must be a file path, not -`，`bin/yakusha.js:763`）。不提供 stdin 入口。
+  （`import --from must be a file path, not -`，`src/cli/runner.js:810`）。不提供 stdin 入口。
 - `--format` 省略时按扩展名推断（`.tsv` / `.csv` / `.json`），推断不出报 `E_USAGE`
-  （`import --format must be tsv, csv or json (or a .tsv/.csv/.json file), not <name>`，
-  `bin/yakusha.js:773-781`）。
+  （0.13 定的这句在 0.15 扩成 `import --format must be tsv, csv, json or jsonl (or a .tsv/.csv/.json/.jsonl file), not <name>`，
+  `src/cli/runner.js:870`）。
 - `--strategy` 只有 `only-empty`（默认）与 `overwrite` 两档；其它值报 `E_USAGE`
-  （`--strategy must be only-empty or overwrite, not <name>`，`bin/yakusha.js:766-771`）。
+  （`--strategy must be only-empty or overwrite, not <name>`，`src/cli/runner.js:860`）。
 - `--dry-run`：走完全流程但不写字典。
 
 ### 8.2 表格形状
@@ -204,11 +204,11 @@ yakusha import <game-dir> --from <file> [--format tsv|csv|json] [--strategy only
 - 某行不是 3 个单元格：`E_DICTIONARY`，`table row N has K cells, expected 3`（N 从 1
   数起，表头是第 0 行）。
 
-文件不存在报 `E_IO`：`cannot read <abs>: the file does not exist`（`bin/yakusha.js:788`）。
+文件不存在报 `E_IO`：`cannot read <abs>: the file does not exist`（`src/cli/runner.js:878`）。
 
 ### 8.4 导入语义
 
-导入只改字典，不碰游戏（`bin/yakusha.js:797-820`）：
+导入只改字典，不碰游戏（`src/cli/runner.js:895-935`）：
 
 - `target` 为空的行跳过——表格允许“只导出原文留空译文”的校对流程；
 - 字典里已有非空译文且 `--strategy only-empty`（默认）：跳过，**永不覆盖**；
@@ -220,7 +220,7 @@ yakusha import <game-dir> --from <file> [--format tsv|csv|json] [--strategy only
 
 ### 8.5 信封载荷
 
-`--json` 时 `import` 返回 8 个键（`bin/yakusha.js:829`）：
+`--json` 时 `import` 返回 8 个键（`src/cli/runner.js:935`）：
 
 ```json
 {
