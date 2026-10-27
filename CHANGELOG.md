@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-10-27
+
+### Added
+
+- Added Kirikiri (KAG scenario scripts) as a fifth engine: the adapter opens the `.xp3` archives found in the game root or its `data/` directory, reads the standard index format, and pulls the text lines out of `.ks` scenario scripts, with UTF-8 tried first and Shift_JIS as the fallback encoding.
+- Added a pure-JavaScript XP3 reader (`src/engines/krkr/xp3.js`): the 40-byte header, the zlib-compressed index, the `info`, `segm` and `adlr` sub-blocks, multi-segment files, and an adler-32 check of every reassembled file. Modified index variants are reported as unsupported instead of guessed at, and nothing is written back.
+- Added KS line extraction (`src/engines/krkr/ks.js`): comment (`; `), label (`*`) and tag lines are skipped, `[r]` is treated as an inline tag, `[name_set name='...']` tracks the current speaker, and a trailing `[p2]` closes a message; inline tags are stripped from the stored text. `.tjs` files are counted but not read, because translating program strings without understanding the code is unsafe.
+- Added the `import` command: it fills a dictionary from a previously exported file with `--from <file>`, takes the format from `--format` or the file extension (`.tsv`, `.csv`, `.json`), and offers the `only-empty` (default) and `overwrite` strategies. Empty targets are skipped, identical values are not counted as applied, and the dictionary's own contexts win over row contexts for entries that already have them; `--dry-run` computes the result and writes nothing. The payload reports `file`, `format`, `strategy`, `dryRun`, `read`, `applied`, `skipped` and `entries`.
+- Added table export: `export --format` now accepts `json` (default), `tsv` and `csv`. The table formats write a `source`, `target`, `contexts` header row, a UTF-8 BOM and CRLF line endings, quote a cell that contains the separator, a quote, a line break or leading or trailing spaces, double quotes inside quoted cells, and join multiple contexts into one cell. A failing table write still never leaves a partial file behind, and the existing refusals around `--out`, `--force` and targets inside the game carry over.
+- Added Kirikiri to `getAdapters()` as the fifth adapter, so the detection order (MZ, MV, Ren'Py, RGSS, Kirikiri) is part of the public contract and the "nothing here" message gained a fourth prefix.
+- Added the Kirikiri entry points to the library facade (`src/index.js`): `openKrkrProject`, `findKrkrRoot`, `findKrkrRoots` and `extractKrkrProject`.
+- Added Kirikiri at the detect, scan and extract tiers, so `status`, `translate`, `verify`, `speaker`, `terms` and `export` all work on a Kirikiri game through the shared pipeline without a single engine special case, and `launch` reuses the existing Windows launcher.
+
+### Changed
+
+- The `export` command accepts more than JSON: `--format json` keeps the snapshot format, while `tsv` and `csv` write the new table formats. Asking for another format now answers `E_USAGE` with the accepted list, and `--flat` still applies to `--format json` only.
+- Kirikiri ships without runtime delivery in this release: `install` and `uninstall` fail with `E_NOT_IMPLEMENTED` and exit code `2` and write no file, because the engine has no directory it reads translations from on its own - delivery would mean rewriting the game's `.xp3` archives, which is recorded as a pending decision. `doctor` therefore reports the `install` check as a warning that says there is no delivery layer yet and the `runtime` check as info, with the verdict `usable` once a dictionary exists and `broken` (exit code `1`) when none does.
+- No breaking changes: the JSON envelope, the exit codes and the 13 error codes stay as they were in 0.12.0, and `import` only extends the command list.
+
 ## [0.12.0] - 2026-10-27
 
 ### Added
@@ -187,7 +206,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.9.0...v0.10.0

@@ -16,6 +16,8 @@ export { extractRenpyProject, collectRenpyUnits } from "./engines/renpy/extract.
 export { installTranslation, uninstallTranslation, translationStatus } from "./engines/renpy/runtime.js";
 export { openRgssProject, findRgssRoot, findRgssRoots } from "./engines/rgss/project.js";
 export { extractRgssProject } from "./engines/rgss/extract.js";
+export { openKrkrProject, findKrkrRoot, findKrkrRoots } from "./engines/krkr/project.js";
+export { extractKrkrProject } from "./engines/krkr/extract.js";
 export { loadDictionary, saveDictionary, dictionaryPath } from "./core/dict.js";
 export { translateDictionary } from "./pipeline/translate.js";
 export { verifyDictionary } from "./pipeline/verify.js";

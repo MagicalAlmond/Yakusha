@@ -224,3 +224,42 @@ function ioError(message, error) {
   const code = error && error.code ? error.code : "unknown error";
   return new CliError("E_IO", message + " (" + code + ")");
 }
+
+/**
+ * Read an export document back into rows for import. Accepts both the rich
+ * shape ({text, contexts}) and the flat one (a bare string per key), which is
+ * what buildExport writes depending on --flat.
+ *
+ * @param {string} text
+ * @returns {{source: string, target: string, contexts: string[]}[]}
+ */
+export function parseExportEntries(text) {
+  let document;
+  try {
+    document = JSON.parse(text);
+  } catch {
+    throw new CliError("E_DICTIONARY", "the export file is not valid JSON");
+  }
+  const entries = document && typeof document === "object"
+    && document.entries && typeof document.entries === "object"
+    ? document.entries
+    : null;
+  if (!entries) throw new CliError("E_DICTIONARY", "the export file has no entries object");
+  const rows = [];
+  for (const [source, value] of Object.entries(entries)) {
+    if (typeof value === "string") {
+      rows.push({ source, target: value, contexts: [] });
+      continue;
+    }
+    if (value && typeof value === "object" && typeof value.text === "string") {
+      const contexts = Array.isArray(value.contexts)
+        ? value.contexts.filter((context) => typeof context === "string")
+        : [];
+      rows.push({ source, target: value.text, contexts });
+      continue;
+    }
+    const label = JSON.stringify(source.length > 80 ? source.slice(0, 80) : source);
+    throw new CliError("E_DICTIONARY", "the export file entry " + label + " is neither a string nor an object with a text field");
+  }
+  return rows;
+}

@@ -71,6 +71,8 @@ const VALUE = [
   "write",
   "out",
   "format",
+  "from",
+  "strategy",
   "exe",
 ];
 
@@ -81,6 +83,7 @@ const COMMAND_OPTIONS = {
   extract: [],
   status: [],
   export: ["out", "format", "flat", "force"],
+  import: ["from", "format", "strategy", "dry-run"],
   launch: ["exe"],
   uninstall: [],
   install: ["embed"],

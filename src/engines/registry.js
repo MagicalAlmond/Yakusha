@@ -2,7 +2,8 @@
  * Engine registry.
  *
  * Detection order is part of the public contract: MZ first, MV second, Ren'Py
- * third, RGSS fourth, and a multi-root directory stops the search immediately.
+ * third, RGSS fourth, Kirikiri fifth, and a multi-root directory stops the
+ * search immediately.
  * Adding an engine means adding one adapter here, not teaching the CLI about it.
  *
  * @module engines/registry
@@ -12,8 +13,9 @@ import { adapter as mzAdapter } from "./mz/adapter.js";
 import { adapter as mvAdapter } from "./mv/adapter.js";
 import { adapter as renpyAdapter } from "./renpy/adapter.js";
 import { adapter as rgssAdapter } from "./rgss/adapter.js";
+import { adapter as krkrAdapter } from "./krkr/adapter.js";
 
-const ADAPTERS = [mzAdapter, mvAdapter, renpyAdapter, rgssAdapter];
+const ADAPTERS = [mzAdapter, mvAdapter, renpyAdapter, rgssAdapter, krkrAdapter];
 
 /**
  * Prefixes of the "nothing here" message every adapter writes.
@@ -25,6 +27,7 @@ const NOT_PROJECT_PREFIXES = [
   "not an RPG Maker project",
   "not a Ren'Py project",
   "not an RGSS project",
+  "not a Kirikiri project",
 ];
 
 /** True for the generic "nothing here" failure, false for a diagnosed root. */

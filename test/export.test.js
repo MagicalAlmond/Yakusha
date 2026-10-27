@@ -250,8 +250,9 @@ test("export: bad arguments are E_USAGE", () => {
   const cases = [
     ["export", game, "--json"],
     ["export", game, "--out", "-", "--json"],
-    ["export", game, "--out", out, "--format", "tsv", "--json"],
-    ["export", game, "--out", out, "--format", "csv", "--json"],
+    ["export", game, "--out", out, "--format", "tsv", "--flat", "--json"],
+    ["export", game, "--out", out, "--format", "csv", "--flat", "--json"],
+    ["export", game, "--out", out, "--format", "xml", "--json"],
     ["export", game, "--out", out, "extra", "--json"],
     ["export", game, "--out", out, "--bogus", "--json"],
     ["export", game, "--out", out, "--provider", "mock", "--json"],
@@ -325,4 +326,230 @@ test("export: a dictionary without a game title exports an empty game", () => {
   const result = run(["export", game, "--out", out, "--json"]);
   assert.equal(result.code, 0, result.stderr);
   assert.equal(JSON.parse(fs.readFileSync(out, "utf8")).game, "");
+});
+
+// ---------------------------------------------------------------------------
+// TSV / CSV table formats (0.13)
+//
+// The table file is the exchange format a human can open in a spreadsheet:
+// a BOM, a three column header, CRLF rows and RFC 4180 quoting. export and
+// import must round-trip the dictionary byte for byte.
+// ---------------------------------------------------------------------------
+
+test("export: tsv and csv write a BOM, a header and quoted cells", () => {
+  const game = tempGame();
+  writeDictionary(game, {
+    "He said \"hi\"": { text: "他说\"你好\"", contexts: ["Map001.json:3", "Map001.json:4"] },
+    "plain": { text: "普通", contexts: [] },
+    "comma,key": { text: "含逗号", contexts: ["Map001.json:9"] },
+    "empty": { text: "", contexts: ["Map001.json:8"] },
+  });
+  const tsvOut = path.join(game, "yakusha", "table.tsv");
+  const resultTsv = run(["export", game, "--out", tsvOut, "--format", "tsv", "--json"]);
+  assert.equal(resultTsv.code, 0, resultTsv.stderr);
+  const tsv = fs.readFileSync(tsvOut, "utf8");
+  assert.equal(tsv.charCodeAt(0), 0xfeff, "the table must start with a BOM");
+  assert.ok(tsv.includes("\r\n"), "rows end with CRLF");
+  assert.ok(tsv.startsWith("\ufeffsource\ttarget\tcontexts\r\n"), "the header row is source/target/contexts");
+  const body = envelope(resultTsv);
+  assert.equal(body.format, "tsv");
+  assert.equal(body.flat, false);
+  assert.equal(body.entries, 3);
+  assert.equal(body.bytes, Buffer.byteLength(tsv, "utf8"));
+
+  const csvOut = path.join(game, "yakusha", "table.csv");
+  const resultCsv = run(["export", game, "--out", csvOut, "--format", "csv", "--json"]);
+  assert.equal(resultCsv.code, 0, resultCsv.stderr);
+  const csv = fs.readFileSync(csvOut, "utf8");
+  assert.ok(csv.startsWith("\ufeffsource,target,contexts\r\n"), "the csv header row is source/target/contexts");
+  assert.ok(csv.includes("\"\""), "a quote inside a cell is doubled");
+
+  // empty translations are not exported, in either format
+  assert.ok(!tsv.split("\r\n").some((line) => line.endsWith("\t\t") || line.includes(",,,")), "no empty rows");
+});
+
+test("export: tsv cells with tabs, quotes and newlines survive round-trip", () => {
+  const game = tempGame();
+  writeDictionary(game, {
+    "Tab\tkey": { text: "带\t制表", contexts: [] },
+    "New\nline": { text: "换\n行", contexts: ["Map001.json:2"] },
+    "He said \"hi\"": { text: "说\"你好\"", contexts: [] },
+    "spaced ": { text: " 尾随空格 ", contexts: [] },
+  });
+  const out = path.join(game, "yakusha", "tricky.tsv");
+  const result = run(["export", game, "--out", out, "--format", "tsv", "--json"]);
+  assert.equal(result.code, 0, result.stderr);
+  const dictFile = path.join(game, "yakusha", "dictionary.json");
+  const before = JSON.parse(fs.readFileSync(dictFile, "utf8")).entries;
+
+  const importResult = run(["import", game, "--from", out, "--strategy", "overwrite", "--json"]);
+  assert.equal(importResult.code, 0, importResult.stderr);
+  const importBody = envelope(importResult);
+  assert.equal(importBody.read, 4);
+  assert.equal(importBody.applied, 0, "same values are skipped");
+  assert.equal(importBody.skipped, 4);
+  assert.equal(importBody.format, "tsv");
+  assert.equal(importBody.strategy, "overwrite");
+
+  const after = JSON.parse(fs.readFileSync(dictFile, "utf8")).entries;
+  assert.deepEqual(after, before, "import must restore the dictionary exactly");
+});
+
+test("import: only-empty never touches an existing translation", () => {
+  const game = tempGame();
+  writeDictionary(game, {
+    "アリア": { text: "旧译文", contexts: ["Map001.json:1"] },
+    "empty": { text: "", contexts: ["Map001.json:2"] },
+  });
+  const source = path.join(game, "yakusha", "in.tsv");
+  fs.writeFileSync(source, "source\ttarget\tcontexts\r\nアリア\t新译文\tMap001.json:1\r\nempty\t填空\tMap001.json:2\r\n", "utf8");
+  const dry = run(["import", game, "--from", source, "--dry-run", "--json"]);
+  assert.equal(dry.code, 0, dry.stderr);
+  const dryBody = envelope(dry);
+  assert.equal(dryBody.dryRun, true);
+  assert.equal(dryBody.applied, 1);
+  const dictFile = path.join(game, "yakusha", "dictionary.json");
+  assert.equal(JSON.parse(fs.readFileSync(dictFile, "utf8")).entries["アリア"].text, "旧译文", "dry run must not write");
+
+  const result = run(["import", game, "--from", source, "--json"]);
+  assert.equal(result.code, 0, result.stderr);
+  const body = envelope(result);
+  assert.equal(body.applied, 1);
+  assert.equal(body.skipped, 1);
+  const entries = JSON.parse(fs.readFileSync(dictFile, "utf8")).entries;
+  assert.equal(entries["アリア"].text, "旧译文", "only-empty must keep the old translation");
+  assert.equal(entries["empty"].text, "填空");
+  assert.deepEqual(entries["empty"].contexts, ["Map001.json:2"]);
+});
+
+test("import: overwrite replaces and keeps row contexts when the dictionary has none", () => {
+  const game = tempGame();
+  writeDictionary(game, {
+    "アリア": { text: "旧译文", contexts: ["Map001.json:1"] },
+    "empty": { text: "", contexts: [] },
+  });
+  const source = path.join(game, "yakusha", "in.csv");
+  fs.writeFileSync(source, "source,target,contexts\r\nアリア,新译文,Map001.json:7\r\nempty,填空,Map001.json:8\r\n", "utf8");
+  const result = run(["import", game, "--from", source, "--strategy", "overwrite", "--json"]);
+  assert.equal(result.code, 0, result.stderr);
+  const body = envelope(result);
+  assert.equal(body.applied, 2);
+  const entries = JSON.parse(fs.readFileSync(path.join(game, "yakusha", "dictionary.json"), "utf8")).entries;
+  assert.equal(entries["アリア"].text, "新译文");
+  // dictionary contexts win when present; the row context only fills a gap
+  assert.deepEqual(entries["アリア"].contexts, ["Map001.json:1"]);
+  assert.deepEqual(entries["empty"].contexts, ["Map001.json:8"]);
+});
+
+test("import: json accepts rich and flat shapes", () => {
+  const game = tempGame();
+  writeDictionary(game, { "アリア": { text: "", contexts: [] }, "ボタン": { text: "", contexts: [] } });
+  const source = path.join(game, "yakusha", "in.json");
+  fs.writeFileSync(source, JSON.stringify({
+    format: "yakusha/1",
+    game: "Test Game",
+    updatedAt: "2024-01-02T03:04:05.000Z",
+    entries: {
+      "アリア": { text: "阿丽亚", contexts: ["Map001.json:1"] },
+      "ボタン": "按钮",
+    },
+  }), "utf8");
+  const result = run(["import", game, "--from", source, "--json"]);
+  assert.equal(result.code, 0, result.stderr);
+  const body = envelope(result);
+  assert.equal(body.format, "json");
+  assert.equal(body.applied, 2);
+  const entries = JSON.parse(fs.readFileSync(path.join(game, "yakusha", "dictionary.json"), "utf8")).entries;
+  assert.equal(entries["アリア"].text, "阿丽亚");
+  assert.deepEqual(entries["アリア"].contexts, ["Map001.json:1"]);
+  assert.equal(entries["ボタン"].text, "按钮");
+});
+
+test("import: the format is guessed from the file extension", () => {
+  const game = tempGame();
+  writeDictionary(game, { "アリア": { text: "", contexts: [] } });
+  const tsvSource = path.join(game, "yakusha", "in.tsv");
+  fs.writeFileSync(tsvSource, "source\ttarget\tcontexts\r\nアリア\t阿丽亚\t\r\n", "utf8");
+  const result = run(["import", game, "--from", tsvSource, "--json"]);
+  assert.equal(result.code, 0, result.stderr);
+  assert.equal(envelope(result).format, "tsv");
+  const csvSource = path.join(game, "yakusha", "in.csv");
+  fs.writeFileSync(csvSource, "source,target,contexts\r\nアリア,阿丽亚,\r\n", "utf8");
+  assert.equal(envelope(run(["import", game, "--from", csvSource, "--json"])).format, "csv");
+});
+
+test("import: bad arguments and files are E_USAGE or E_DICTIONARY", () => {
+  const game = tempGame();
+  writeDictionary(game, { "アリア": { text: "", contexts: [] } });
+  const cases = [
+    ["import", game, "--json"],
+    ["import", game, "--from", "-", "--json"],
+    ["import", game, "--from", path.join(game, "yakusha", "x.txt"), "--json"],
+    ["import", game, "--from", path.join(game, "yakusha", "in.tsv"), "--format", "xml", "--json"],
+    ["import", game, "--from", path.join(game, "yakusha", "in.tsv"), "--strategy", "merge", "--json"],
+    ["import", game, "--from", path.join(game, "yakusha", "in.tsv"), "extra", "--json"],
+    ["import", game, "--from", path.join(game, "yakusha", "in.tsv"), "--bogus", "--json"],
+  ];
+  fs.writeFileSync(path.join(game, "yakusha", "in.tsv"), "source\ttarget\tcontexts\r\n", "utf8");
+  for (const args of cases) {
+    const result = run(args);
+    assert.equal(result.code, 2, args.join(" "));
+    const body = envelope(result);
+    assert.equal(body.outcome, "error", args.join(" "));
+    assert.ok(["E_USAGE", "E_DICTIONARY"].includes(body.error.code), args.join(" ") + ": " + JSON.stringify(body.error));
+  }
+});
+
+test("import: a corrupt table is E_DICTIONARY, not a crash", () => {
+  const game = tempGame();
+  writeDictionary(game, { "アリア": { text: "", contexts: [] } });
+  const bad = path.join(game, "yakusha", "bad.tsv");
+  fs.writeFileSync(bad, "a\tb\r\n1\t2\r\n", "utf8");
+  const header = run(["import", game, "--from", bad, "--json"]);
+  assert.equal(header.code, 2);
+  assert.equal(envelope(header).error.code, "E_DICTIONARY");
+
+  const bad2 = path.join(game, "yakusha", "bad2.tsv");
+  fs.writeFileSync(bad2, "source\ttarget\tcontexts\r\nonly\ttwo\r\n", "utf8");
+  const row = run(["import", game, "--from", bad2, "--json"]);
+  assert.equal(row.code, 2);
+  assert.equal(envelope(row).error.code, "E_DICTIONARY");
+
+  // a file that cannot be read at all is E_IO, matching export's write rules
+  const missing = run(["import", game, "--from", path.join(game, "yakusha", "nope.tsv"), "--json"]);
+  assert.equal(missing.code, 2);
+  assert.equal(envelope(missing).error.code, "E_IO");
+  // a directory without an extension has no guessable format, which is E_USAGE
+  const directory = run(["import", game, "--from", game, "--json"]);
+  assert.equal(directory.code, 2);
+  assert.equal(envelope(directory).error.code, "E_USAGE");
+});
+
+test("round-trip: export tsv, clear translations, import back byte-identical", () => {
+  const game = tempGame();
+  writeDictionary(game, {
+    "アリア": { text: "阿丽亚", contexts: ["Map001.json:1"] },
+    "Tab\tkey": { text: "带\t制表", contexts: [] },
+    "He said \"hi\"": { text: "说\"你好\"", contexts: ["Map001.json:3"] },
+    "comma,key": { text: "含逗号", contexts: [] },
+    "New\nline": { text: "换\n行", contexts: [] },
+  });
+  const dictFile = path.join(game, "yakusha", "dictionary.json");
+  const original = JSON.parse(fs.readFileSync(dictFile, "utf8"));
+  const out = path.join(game, "yakusha", "rt.tsv");
+  assert.equal(run(["export", game, "--out", out, "--format", "tsv", "--json"]).code, 0);
+
+  // clear every translation, then import the file back
+  writeDictionary(game, {
+    "アリア": { text: "", contexts: ["Map001.json:1"] },
+    "Tab\tkey": { text: "", contexts: [] },
+    "He said \"hi\"": { text: "", contexts: ["Map001.json:3"] },
+    "comma,key": { text: "", contexts: [] },
+    "New\nline": { text: "", contexts: [] },
+  });
+  const result = run(["import", game, "--from", out, "--json"]);
+  assert.equal(result.code, 0, result.stderr);
+  assert.equal(envelope(result).applied, 5);
+  const restored = JSON.parse(fs.readFileSync(dictFile, "utf8"));
+  assert.deepEqual(restored.entries, original.entries);
 });

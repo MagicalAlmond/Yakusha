@@ -1,7 +1,7 @@
 # 开发交接文档（DEVLOG）
 
 > 这份文档记录**阶段目标、已完成项、决策理由和下一步**，随开发进程更新。
-> 最后更新：2026-10-27（0.12.0 RGSS 接入完成于 `feat/0.12-rgss`，未合入 `main`、未打 tag）。
+> 最后更新：2026-10-27（0.13.0 Kirikiri 接入 + 表格导出/导入完成于 `feat/0.13-table-export`，未合入 `main`、未打 tag）。
 > 0.9.0 项目改名 **Yakusha**，字典目录、插件文件、环境变量与备份后缀全部随之改名；
 > 仓库已发布到 https://github.com/MagicalAlmond/Yakusha（`main` 分支）。
 > 0.8.0 的 `doctor`、0.7.1 的 `uninstall` 漂移保护、0.7.0 的报告/模板见下）。
@@ -36,14 +36,14 @@
 
 | 项 | 状态 |
 | --- | --- |
-| 版本 | **0.12.0**（`package.json` 单一真源，`src/version.js` 读取它；插件模板的 `VERSION` 由安装器替换） |
-| 契约 | 0.10 的五篇设计稿（json-contract / config / engines / export-format / platforms）已冻结并全部实现；0.11 只有 `engines.md` 真正扩了内容（三个引擎、新增 §13.2 Ren'Py），`json-contract.md` 与 `platforms.md` 补了「0.11 复查后不变」的复核标注。0.12 继续扩 `engines.md`（四个引擎、新增 §13.3 RGSS 与 §7.7 的 pending 交付），`json-contract.md` 补 RGSS 的语义澄清（`E_NOT_IMPLEMENTED` 有了 CLI 入口、`install`/`uninstall`/`doctor` 的按引擎差异）；信封与字段类型仍未动，`platforms.md` / `config.md` / `export-format.md` 未动 |
-| 测试 | **548 个，全绿**（`npm test`，约 11s） |
+| 版本 | **0.13.0**（`package.json` 单一真源，`src/version.js` 读取它；插件模板的 `VERSION` 由安装器替换） |
+| 契约 | 0.10 的五篇设计稿（json-contract / config / engines / export-format / platforms）已冻结并全部实现；0.11 只有 `engines.md` 真正扩了内容（三个引擎、新增 §13.2 Ren'Py），`json-contract.md` 与 `platforms.md` 补了「0.11 复查后不变」的复核标注。0.12 继续扩 `engines.md`（四个引擎、新增 §13.3 RGSS 与 §7.7 的 pending 交付），`json-contract.md` 补 RGSS 的语义澄清（`E_NOT_IMPLEMENTED` 有了 CLI 入口、`install`/`uninstall`/`doctor` 的按引擎差异）；信封与字段类型仍未动，`platforms.md` / `config.md` / `export-format.md` 未动。0.13 扩 `engines.md`（五个引擎、新增 §13.4 Kirikiri），`export-format.md` 补 TSV/CSV 表格与 `import` 命令；JSON 信封（flat one-line object、退出码 0/1/2、13 个错误码）未动 |
+| 测试 | **603 个，全绿**（`npm test`，约 10–12s） |
 | 持续集成 | GitHub Actions：`npm test` 在 Node 22 / 24（**windows-latest**，WP1 已从 ubuntu 切换） |
 | 平台 | Windows 10/11 x64 为唯一支持与验收环境（0.10 明确，见 [platforms.md](../platforms.md)） |
-| 支持引擎 | RPG Maker **MZ 1.3.2–1.9.0**、**MV 1.6.1–1.6.2**；**Ren'Py 8.x 脚本**（`.rpy` 明文 + `.rpyc` 编译）；**RGSS（XP / VX / VX Ace）**——只到 L1–L3（识别 / 盘点 / 抽取 / 翻译 / 校验 / 导出），**没有交付层**（§6） |
-| 实测游戏 | 15 款可识别（本机全量普查），其中 **4 款**全量翻译 + 运行时验收；Ren'Py 侧用一套 8.5.3 SDK 的两个示例游戏做抽文本与覆盖率验收（§6）；RGSS 侧用一款 RGSS3 / VX Ace 商业游戏做全量抽取实测（§6，外部样本，不是仓库夹具） |
-| 磁盘改动 | MZ/MV 走插件档：只加 1 个插件文件 + `plugins.js` 里 1 条注册，卸载还原到安装前；Ren'Py 走 translation 档：只在 `game/` 下新建 1 个 `yakusha_translation.rpy`，卸载删它；**RGSS 不动任何文件**——没有交付层，`install` / `uninstall` 报 `E_NOT_IMPLEMENTED` 且一个字节都不写（四档交付见 [ENGINE-STRATEGY.md](ENGINE-STRATEGY.md) §5.5） |
+| 支持引擎 | RPG Maker **MZ 1.3.2–1.9.0**、**MV 1.6.1–1.6.2**；**Ren'Py 8.x 脚本**（`.rpy` 明文 + `.rpyc` 编译）；**RGSS（XP / VX / VX Ace）**与 **Kirikiri（KAG / XP3）**——只到 L1–L3（识别 / 盘点 / 抽取 / 翻译 / 校验 / 导出），**没有交付层**（§6） |
+| 实测游戏 | 15 款可识别（本机全量普查），其中 **4 款**全量翻译 + 运行时验收；Ren'Py 侧用一套 8.5.3 SDK 的两个示例游戏做抽文本与覆盖率验收（§6）；RGSS 侧用一款 RGSS3 / VX Ace 商业游戏、Kirikiri 侧用两款 XP3 商业归档（含一款语音归档）做抽取实测（§6，外部样本，不是仓库夹具） |
+| 磁盘改动 | MZ/MV 走插件档：只加 1 个插件文件 + `plugins.js` 里 1 条注册，卸载还原到安装前；Ren'Py 走 translation 档：只在 `game/` 下新建 1 个 `yakusha_translation.rpy`，卸载删它；**RGSS 与 Kirikiri 不动任何文件**——没有交付层，`install` / `uninstall` 报 `E_NOT_IMPLEMENTED` 且一个字节都不写（四档交付见 [ENGINE-STRATEGY.md](ENGINE-STRATEGY.md) §5.5） |
 | 运行时依赖 | 无第三方依赖（Node >= 22） |
 | 产品形态 | CLI 为内核；Electron GUI 按战略稿排到 **0.14**（见 [ENGINE-STRATEGY.md](ENGINE-STRATEGY.md) §6.3） |
 | 许可 | GPL-3.0-or-later |
@@ -204,6 +204,35 @@
 - [x] 明确不做：本版**没有交付层**。`install` / `uninstall` 抛 `E_NOT_IMPLEMENTED`
       （退出码 2）且一个字节都不写，留给 §8.1 的两条路线决定（§6）。
 
+### F 阶段（0.13.0，已完成）
+
+- [x] Kirikiri 接入：新增 `src/engines/krkr/` 6 个模块——`xp3.js`（XP3 归档只读解析，
+      索引 zlib 解压、`info` / `segm` / `adlr` 子块、adler-32 手写实现）、`ks.js`
+      （KAG 脚本解码与字符串收集，UTF-8 strict 先、Shift_JIS 兜底）、`project.js`
+      （根或 `data/` 有 `.xp3` 即项目，向下 BFS 3 层，多根 `E_MULTI_ROOT`）、
+      `extract.js`（读每个归档收 KS 字符串，`.tjs` 只计数不读）、`profile.js`
+      （KAG 的 prompt / grammar / validate / verify，`[r]` 等行内标签按零宽码处理）、
+      `adapter.js`（能力位、scan、diagnostics 与两条 pending 入口）。`src/pipeline/`
+      与 `src/core/` 的主循环仍然一行未动。
+- [x] 表格导出/导入：`export` 新增 `--format tsv` / `csv`（RFC4180 风格 quoting、
+      UTF-8 BOM、CRLF，见 `src/cli/table.js`），新增 `import` 命令（`--from` /
+      `--format` / `--strategy only-empty|overwrite` / `--dry-run`，载荷仍是 flat
+      信封）。`src/cli/args.js` 加 `from` / `strategy` 两个取值选项与 `import` 命令行。
+- [x] 注册表：`ADAPTERS` 从四个变五个，`NOT_PROJECT_PREFIXES` 加第四条
+      `not a Kirikiri project`；探测顺序 **MZ → MV → Ren'Py → RGSS → Kirikiri**
+      写进 `src/engines/registry.js` 的模块注释（`test/engine-contract.test.js` 对
+      顺序与能力位逐个断言，`RUNTIME_TIERS` 表加 `krkr: null`）。
+- [x] doctor：Kirikiri 走 0.12 引入的 `delivery.pending` 分支——`install` 检查报
+      warn（`no delivery layer yet`），`runtime` 检查报 info，有字典 `verdict`
+      仍是 `usable`、无字典 `broken`。`bin/yakusha.js` 的 `delivery` 取值不用再改
+      （0.12 已写成 `own.delivery || own.translation || null`）。
+- [x] 测试：新增 `test/krkr-{xp3,ks,project,extract,adapter,cli}.test.js` 与
+      `test/krkr-fixture.js`（合成 XP3 writer + 合成 KS，仓库里没有真实归档），
+      `export.test.js` 的 TSV/CSV 用例重写（14 → 23 条），合计 **603 个，全绿**。
+- [x] 明确不做：与 RGSS 一样**没有交付层**，`install` / `uninstall` 抛
+      `E_NOT_IMPLEMENTED`（退出码 2）且不写文件；Hxv4 改版索引明确报
+      `E_UNSUPPORTED` 不解析；字典 v2 字段（`engine` / `locator`）仍留在 §8.1 #5。
+
 ## 4. 文件地图
 
 ```
@@ -212,9 +241,10 @@ src/cli/envelope.js        0.10 信封、错误对象、sanitizeMessage、EXIT �
 src/cli/args.js            0.10 严格参数解析（未知选项 / 缺值 / 多余参数即 E_USAGE）
 src/cli/config.js          用户级配置读写（provider / model / baseUrl，密钥不落盘）
 src/cli/export.js          字典 → JSON 快照（UTF-16 键序、原子写、覆盖保护）
+src/cli/table.js           TSV / CSV 表格序列化与解析（RFC4180 quoting、BOM、CRLF）
 src/version.js             版本单一真源（读 package.json）
 src/engines/adapter.js     MZ/MV 共享适配器逻辑（detect / scan / extract / 安装）
-src/engines/registry.js    MZ→MV→Ren'Py→RGSS 注册表与 detectProject（判别式，不抛）
+src/engines/registry.js    MZ→MV→Ren'Py→RGSS→Kirikiri 注册表与 detectProject（判别式，不抛）
 src/engines/mz/adapter.js  MZ 能力位与薄包装
 src/engines/mv/adapter.js  MV 能力位与薄包装
 src/engines/renpy/adapter.js Ren'Py 能力位、scan/install 入口与 diagnostics
@@ -231,6 +261,12 @@ src/engines/rgss/archive.js .rgssad / .rgss2a / .rgss3a 三种归档的读与写
 src/engines/rgss/marshal.js Ruby Marshal 4.8 读与写（纯 JS，不 eval，class/module 只记名字）
 src/engines/rgss/extract.js 事件指令 + 数据库字段 + System/MapInfos 的文本抽取
 src/engines/rgss/profile.js RGSS 的 prompt / grammar / validate / verify（复用 textkey 分词）
+src/engines/krkr/adapter.js Kirikiri 能力位、scan/detect 入口、diagnostics 与两条 pending 入口
+src/engines/krkr/xp3.js    XP3 归档只读解析（索引 zlib、info/segm/adlr、手写 adler-32）
+src/engines/krkr/ks.js     KAG 脚本解码与字符串收集（UTF-8 strict 先、Shift_JIS 兜底）
+src/engines/krkr/project.js 根或 data/ 有 .xp3 即项目（向下 3 层）、归档列表
+src/engines/krkr/extract.js 逐归档收 KS 字符串（.tjs 只计数），标不可解码
+src/engines/krkr/profile.js Kirikiri 的 prompt / grammar / validate / verify
 src/engines/launch.js      Windows exe 发现、子进程环境清理与 spawn
 src/index.js               库门面（openProject / detectProject / … / VERSION）
 src/core/fields.js        字段表与指令表（纯数据，会嵌进插件）
@@ -251,9 +287,9 @@ src/pipeline/terms.js     名字/术语的主流译法挖掘与漂移检测
 src/pipeline/speaker.js   说话人标记的识别、房规统计与按房规修复
 src/pipeline/report.js    verify 结果的 markdown 报告（只格式化，不重算）
 src/plugin/YAKUSHA_Translator.js  运行时插件模板（install 时注入规则表）
-test/                     548 个测试（含 CLI 端到端、0.10 信封契约、配置/前置、引擎/启动契约、
-                          四个引擎的适配器契约、Ren'Py 的 .rpy/.rpyc 抽取与 RGSS 的
-                          Marshal / 归档 / 数据文档抽取）
+test/                     603 个测试（含 CLI 端到端、0.10 信封契约、配置/前置、引擎/启动契约、
+                          五个引擎的适配器契约、Ren'Py 的 .rpy/.rpyc 抽取、RGSS 的
+                          Marshal / 归档 / 数据文档抽取与 Kirikiri 的 XP3 / KS 抽取）
 docs/design.md            为什么走运行时钩子、文本面覆盖、转义码、设计约束、作为库用
 docs/commands.md          所有命令的完整选项与 verify / terms / speaker 判据
 docs/games.md             15 款实测游戏、全量翻译记录、官中游戏的处理
@@ -261,10 +297,11 @@ docs/limitations.md       已知限制全表
 docs/architecture.md      分层、引擎适配器契约、plugin/translation/debug/inject 四种运行时模式、
                           GUI 与 core 边界
 docs/json-contract.md     0.10 契约（已实现）：--json 信封、错误码、退出码、严格参数解析
-docs/engines.md           引擎契约（0.12）：adapter、能力矩阵、安装/卸载、launch、attach 桩，
-                          §13.2 是 Ren'Py、§13.3 是 RGSS 的抽取契约，§7.7 记 pending 交付
+docs/engines.md           引擎契约（0.12，0.13 扩五个引擎 + §13.4 Kirikiri）：adapter、能力矩阵、
+                          安装/卸载、launch、attach 桩，§13.2 是 Ren'Py、§13.3 是 RGSS、
+                          §13.4 是 Kirikiri 的抽取契约，§7.7 记 pending 交付
 docs/config.md            0.10 实现：用户级配置、密钥优先级、威胁模型（密钥不落盘）
-docs/export-format.md     0.10 实现：JSON 导出格式、排序、原子写与覆盖规则
+docs/export-format.md     0.10 实现：JSON 导出格式、排序、原子写与覆盖规则；0.13 扩 §8 TSV/CSV 表格与 import
 docs/platforms.md         平台支持矩阵与决策记录（Windows-only 的原因与重评条件）
 ```
 
@@ -323,6 +360,10 @@ docs/platforms.md         平台支持矩阵与决策记录（Windows-only 的�
 | **归档目录只读头部窗口，上限 64 MiB，不把整包读进内存** | 实测那份 `.rgss3a` 是 644,284,359 字节，而目录（全部条目名 + 偏移 + 长度）在文件最前面，几 KB 就够。`archive.js` 用一个可增长的头部窗口按需重读（`MAX_DIRECTORY = 64 << 20`，超了明确报错），单个文件的数据按需读、不缓存整包。理由：玩家机器上内存是稀缺资源，而工具只需要目录 + 当前要读的那一个文件。 |
 | **抽取只收 101 / 102 / 320 / 401 / 405，402 故意跳过** | 这五个码是玩家真的会读到的文本（说话人名、选项、改角色名、台词、滚动续行）。`402`（每个选项分支的标记）里的文本与配对的 `102` 是同一串，收它只会多一个 context、不多一条可译文本；`108`/`408` 是注释、`355`/`655` 是 Ruby 脚本行、`231`/`322` 是图片文件名，都不是文本面。判据写在 `src/engines/rgss/extract.js` 文件头。 |
 | **`@note` 与所有 `@*_name` 资源名一律不抽** | `@note` 是作者写给脚本的元数据通道（插件配置常塞在里），翻它等于改配置；`@*_name`（`@face_name`、`@battleback_name`、`@tileset_name` 等）是资源文件名，翻了游戏就找不到素材。只收玩家读得到的字段——这条与 Ren'Py 跳过 `tl/` 是同一个原则：**能翻不等于该翻**。 |
+| **仓库夹具只用合成 XP3 / KS，不放真实归档** | 真实 `.xp3` 带着游戏版权与玩家数据；合成 writer（`test/krkr-fixture.js`）能构造出与真实格式逐字节同构的索引，足以覆盖全部代码路径，还让测试不依赖任何外部文件。RGSS / Ren'Py 的夹具同此规矩。 |
+| **Hxv4 改版索引报 `E_UNSUPPORTED`，绝不猜** | 某些本地化发行版的 XP3 用 `Hxv4` 索引替代标准索引；猜解析等于对未定义格式下赌注，错了会把玩家文件读坏。明确报「只读标准 XP3 索引」让上游工具先转换。 |
+| **TSV / CSV 走 RFC4180 风格 quoting** | 分隔符 / 引号 / CR / LF / 首尾空格五类字符一律加引号、引号翻倍，是表格往返（export → import 字节相同）的唯一可靠判据；「看起来不含分隔符就不用引号」会在某一天遇到带制表符的台词时静默坏表。 |
+| **import 的 contexts：字典自身优先于行** | 同一 textkey 的行 contexts 只是导出时刻的快照，而字典 contexts 是后续人工维护的最新意图；合并时字典赢、行只补空，避免旧快照覆盖人工修正。 |
 
 ## 6. 实测数据（可复现的基准）
 
@@ -751,6 +792,27 @@ plugin 档是"删文件即还原"，inject 档是"文件不改、退出即恢复
 - **官方 RGSS 的归档优先顺序未验证**：同一款游戏同时有 `.rgss3a` 和 `Data/` 时，官方引擎先读哪一个没有实测过。`openDataSource()`（`src/engines/rgss/project.js:392-429`）当前的选择是**归档优先**，这是实现的选择、不是对官方行为的断言。mkxp 这类兼容层是归档优先，但 mkxp 不是官方 RGSS。
 - **没有真机验证「写回后游戏能跑」**：writer 只做了 round-trip 相等（398/398），从没把改过的数据文档塞回游戏启动过。这条与「没有交付层」是同一件事的两面，等 §8.1 定下路线才能验。
 
+### 0.13 Kirikiri + 表格导出/导入（feat/0.13-table-export）
+
+0.13 做两件事：**把 Kirikiri（KAG / XP3）接成第五个引擎**，以及**给字典加表格载体**（TSV / CSV 导出 + `import` 命令）。动机与 0.12 相同——验证 0.10.x 拆出的缝能不能容纳第四个运行时家族；这次连 `src/pipeline/` 与 `src/core/` 都没加一行特判，新代码全部在 `src/engines/krkr/`（6 个模块，共 1,128 行：`xp3` 236 / `ks` 139 / `project` 145 / `extract` 126 / `profile` 155 / `adapter` 307）与 `src/cli/table.js`（277 行）里。
+
+**Kirikiri 数据格式**：XP3 归档头 40 字节（magic `XP3\r\n \n\x1a`、版本标记 `0x0117678b`、两个标志位、索引容器偏移），索引容器自带 9 字节头（1 字节压缩模式 + 8 字节压缩后大小）+ zlib 流；解压后索引以 4 字节 magic 开头——`File` 是标准索引，`Hxv4` 是某些本地化发行版用的改版索引，**明确报 `E_UNSUPPORTED` 不猜**。条目是 `File` 块套 `info`（文件名 UTF-16LE、原始/压缩大小、protect 位）、`segm`（无前导计数的 N 段描述，`mode` 0=raw 1=zlib，start 是绝对偏移）、`adlr`（adler-32，重组时校验）三类子块的列表。adler-32 是手写的（Node 只在 zlib 流内部暴露它）；开发期用两款真实商业归档（含一款语音归档，数百个条目）把**每个条目的 adler-32 与大小全部验证通过**，但仓库与文档不引游戏名、不放数字。
+
+**KAG 脚本层**：文本行 = 非注释（`;` / `/*`）非标签行；`[r]` 是行内换行标签、从存储串剥离；`[name_set name='...']` 跟踪当前说话人，成为该行单元的 speaker；行尾 `[p2]` 标记消息结束。编码 UTF-8 strict 先行、失败落 Shift_JIS 兜底，兜底还解不了的计 `undecodable`；同一文件里解不开的字节不吞掉已解码的行——**undecodable 是按文件记的补充信息，不是丢弃整个文件**。补丁目录的同名 `.xp3` 不遮蔽基础归档：两个都读（`openKrkrProject` 列出全部归档，`extract` 逐个都抽），与 Ren'Py 跳过 `tl/` 相反——那边的优先级是「原文优先」，这边的现实是「补丁条目与基础条目并存、都要看」。
+
+**表格导出/导入**：`export --format tsv|csv` 与 `export --format json` 走同一条 `--out` 文件通道（不写 stdout）；TSV / CSV 以 UTF-8 BOM 开头、CRLF 行尾、表头 `source` / `target` / `contexts`，quoting 判据见 §5。`import --from <file>` 读回：`--strategy only-empty`（默认，只填空译文）或 `overwrite`；空 target 行跳过、同值跳过不算 applied、字典自身 contexts 赢于行 contexts、`--dry-run` 全算不写；载荷是 8 键的 flat 信封（`file` / `format` / `strategy` / `dryRun` / `read` / `applied` / `skipped` / `entries`）。**export → import → 再 export 字节相同**有测试钉住（含含制表符、引号、换行的单元格）。
+
+**探测与接线**：`registry.js` 的 `ADAPTERS` 变五元素，`NOT_PROJECT_PREFIXES` 加第四条；判据是根目录或 `data/` 下有 `.xp3`（向下 BFS 3 层，多根 `E_MULTI_ROOT` 列出候选）。doctor 走 0.12 引入的 `delivery.pending` 分支：`install` 检查 warn（"no delivery layer yet"）、`runtime` 检查 info、有字典 `usable` / 无字典 `broken`。scan 载荷仍是 11 键契约，`dataFiles` 计打开的归档数、`encodings` 只有一个 `xp3` 键。
+
+测试：新增 `krkr-{xp3,ks,project,extract,adapter,cli}` 5+6+6+5+11+13 = 46 条，`export.test.js` 的 TSV/CSV 用例重写（14 → 23 条，旧 E_USAGE 断言替换为新的表格断言），全套 **603 pass / 0 fail**（对账：548 − 14 + 23 + 46 = 603）。结果行：`node bin/yakusha.js --version` 为 `yakusha 0.13.0`，`npm test` 约 10–12s，禁用词 0 命中。一句话总结：**0.10.x 的缝在第四个家族上第三次得到验证**——这次连 pipeline 都没碰，真正花时间的仍是数据格式（XP3 索引 + KAG 行语义），外加一个与引擎无关的通用能力（表格载体）。
+
+**0.13 明确没做的事**（都是有意的取舍）：
+
+- **Kirikiri 没有交付层**：与 RGSS 同一条欠账（§8.1 #10），`install` / `uninstall` 抛 `E_NOT_IMPLEMENTED`（退出码 2）且不写文件；`capabilities.runtime` 为 `null`，doctor 如实报 warn。**不要把这个版本说成「Kirikiri 已支持运行时翻译」——它只到 L1–L3**。
+- **Hxv4 只报错不解析**：改版索引明确 `E_UNSUPPORTED`（"the XP3 index uses an unsupported format - yakusha only reads standard XP3 indexes"）；等遇到真需求再决定是加解析还是提示转换。
+- **字典 v2 字段没加**：`engine` / `locator` 两个待定字段留在 §8.1 #5；0.13 的表格载体不改字典结构，export / import 的键与 0.10 JSON 完全同构。
+- **没有 en→zh，也没有捆绑词典**：§8.1 #6 的决策不变。
+
 ## 7. 已知限制
 
 1. 只处理 `data/` 里的文本；插件 `js/plugins/*.js` 里硬编码的 UI 文案不动。
@@ -760,10 +822,11 @@ plugin 档是"删文件即还原"，inject 档是"文件不改、退出即恢复
    超宽即裁，只有纵向 `needsNewPage` 分页。默认靠 prompt 约束，硬保证加 `--max-length`。
 5. 老 MV（2019/2020 的 nw.js）不吃 `--remote-debugging-port`，MV 的运行时取证不能靠 CDP。
 6. 有些 MV 游戏把说话人写成 `\N<名字>`（插件自定义标记，非 RPG Maker 转义码），译文必须原样保留。
-7. 不支持 Unity / Godot / Kirikiri 等其它引擎。**XP / VX / VX Ace（RGSS）从 0.12 起支持，
-   但只到 L1–L3**（识别 / 盘点 / 提取 / 翻译 / 校验 / 导出）：`capabilities.runtime` 是
+7. 不支持 Unity / Godot 等其它引擎。**XP / VX / VX Ace（RGSS）从 0.12 起支持，
+   Kirikiri（KAG / XP3）从 0.13 起支持，但都只到 L1–L3**（识别 / 盘点 / 提取 / 翻译 /
+   校验 / 导出）：两者的 `capabilities.runtime` 都是
    `null`，`install` / `uninstall` 报 `E_NOT_IMPLEMENTED`（退出码 2）且一个字节都不写，
-   装完游戏仍然显示原文——这一版**没有交付层**（§6 末尾、§8.1）。
+   装完游戏仍然显示原文——这两版**都没有交付层**（§6 末尾、§8.1）。
    Ren'Py 从 0.11 起支持，但只到 `game/` 里的脚本文本（`.rpy` / `.rpyc`）：屏幕语言的
    UI 文案、`example:` 演示块里的台词，以及只有编译文件时屏幕语言那一部分取不到（§6），
    `.rpyc` 里结构上不可达的字符串不计入。
@@ -850,11 +913,12 @@ plugin 档是"删文件即还原"，inject 档是"文件不改、退出即恢复
 11. 可选：MV 老 nw 的运行时取证目前靠临时注入脚本，如果能找到不注入的办法（例如日志钩子）更好。
 12. 可选：`terms` 目前只认数据库 name 字段；若以后要挖地名/技能术语，需要另找锚点
     （例如 `System.json` 的 `terms` 分组），且必须先解决「没有正确答案」的判定问题。
-13. **RGSS 交付层**（0.12 的欠账，0.13 之前必须先定）：两条路线都还没拍板——纯 JS 把译文
-    写回 `.rvdata2` / `.rgss3a`（`marshal.js` 的 `marshal()` 与 `archive.js` 的
-    `writeArchive()` 已经能用，不需要任何原生组件），或原生注入器 + hook DLL（本机没有
-    C/C++/Rust 工具链也没有 `ruby`，编不出来）。代价与「卸载要还原什么」见 §8.1 与
-    [engines.md](../engines.md) §7.7；选定之前 RGSS 停在 L1–L3。
+13. **RGSS / Kirikiri 交付层**（0.12 的欠账，0.13 把 Kirikiri 并了进来）：两条路线都还没拍
+    板——纯 JS 把译文写回 `.rvdata2` / `.rgss3a`（`marshal.js` 的 `marshal()` 与
+    `archive.js` 的 `writeArchive()` 已经能用，不需要任何原生组件），或原生注入器 + hook
+    DLL（本机没有 C/C++/Rust 工具链也没有 `ruby`，编不出来）。Kirikiri 侧的 XP3 写回
+    等路线定了再排：XP3 索引可重建但条目重组要重算 adler-32。代价与「卸载要还原什么」见
+    §8.1 与 [engines.md](../engines.md) §7.7；选定之前 RGSS 与 Kirikiri 都停在 L1–L3。
 
 ### 8.1 待用户拍板清单（先记下，不阻塞开发）
 
@@ -866,17 +930,19 @@ plugin 档是"删文件即还原"，inject 档是"文件不改、退出即恢复
 | 2 | 原生组件托管渠道 | 暂按 GitHub Release + 仓库内 manifest（二进制不进仓库）。CDN 方案未定。**0.12 没有原生组件，这个渠道还不需要，仍未定。** |
 | 3 | 原生组件安装命令名 | 暂记 `yakusha native install <engine>`，**属于新命令、要过契约评审**，不是既定事实。**0.12 没有原生组件，命令名仍未定。** |
 | 4 | RGSS 三版本验收基线 | 需要几款真实游戏才能算 L4 通过，未定。**而且 0.12 连交付层都还没有（`runtime: null`），L4 要等第 10 行定下路线才谈得上验收。** |
-| 5 | 0.13 字典 v2 字段 | 是否加 `engine` / `locator` 字段未定；0.13 之前不加。 |
+| 5 | 字典 v2 字段（`engine` / `locator`） | 是否加 `engine` / `locator` 字段未定；0.13 交付了表格载体（TSV / CSV + `import`）但**仍没有加这两个字段**——表格与 JSON 的键完全同构，字典结构未动。 |
 | 6 | 非 ja→zh 语言 | en→zh 何时进未定；en→ja 用户已明确"先不考虑"。 |
 | 7 | 目标用户与商业目标 | 未定。影响 GUI 功能取舍与文档语气。 |
 | 8 | README / architecture 旧卖点措辞 | 已在 WP6 按"四档交付说明实际影响"改掉；若用户希望保留更强的表述，回退点是本包 commit。 |
 | 9 | `CHANGELOG.md` | **已补**（0.11.0 起有面向使用者的变更记录）。 |
-| 10 | RGSS 交付层：纯 JS 写回 vs 原生注入器 | **未定**。两条路线的代价见下；在此之前 RGSS 停在 L1–L3，`install` / `uninstall` 报 `E_NOT_IMPLEMENTED`。 |
+| 10 | RGSS / Kirikiri 交付层：纯 JS 写回 vs 原生注入器 | **未定**。两条路线的代价见下；在此之前 RGSS（0.12 起）与 Kirikiri（0.13 起）都停在 L1–L3，`install` / `uninstall` 报 `E_NOT_IMPLEMENTED`。 |
 
 **第 10 行的两条路线**（只列代价，不替用户拍板；实现侧的注释在 `src/engines/rgss/adapter.js:240-250`）：
 
 - **纯 JS 写回数据文档**：把译文塞回 Ruby Marshal 流，重写 `Data/*.rvdata2` 或整个 `.rgss3a`。读写器已经在仓库里（`marshal.js` 的 `marshal()`、`archive.js` 的 `writeArchive()`），**不需要任何原生组件**，也就绕开了代码签名、托管渠道、安装命令名这三条待定项。代价是**改盘**：安装要先备份被改的文档、卸载要逐字节还原（与 MZ/MV 的插件档同一类风险，但文件大得多，一份归档 644 MB）；而且改过的归档与「游戏未来更新」必然冲突。
 - **原生注入器 + hook DLL**：运行时把译文喂给游戏进程，不改盘、卸载只需删注入器。代价是这条路线同时踩上 §8.1 的第 1/2/3 行（签名、托管、命令名），还要做崩溃隔离与版本矩阵；**而本机现在没有 C/C++/Rust 工具链，也没有 `ruby`**（`cl` / `gcc` / `clang` / `rustc` / `cargo` / `ruby` 实测全部不在 `PATH`），所以这条路在当前机器上连编译都做不了。
+
+Kirikiri 的 XP3 写回两条路线都适用（改盘：重建索引重算 adler-32；注入：KAG 变量层），但读写器只有读的一半（`xp3.js` 是只读的），等路线定了再排。0.13 没有为写回做任何铺垫。
 
 ## 9. 继续工作的方法
 
@@ -978,6 +1044,32 @@ node bin/yakusha.js doctor "<game>"
 所有命令照常接受 `--json`；`scan` 的载荷仍是 0.10 的 11 键契约，RGSS 只是让
 `engine` 多了一个取值、`encodings` 按 `{"marshal":N}`（打包版）或 `{"rvdata2":N}`（磁盘版）
 计数。
+
+0.13 的验证方式（Kirikiri 没有交付层，验收都是只读的；表格走 export / import 往返）：
+
+```bash
+# 引擎识别与盘点（.xp3 都从根或 data/ 找，补丁归档与基础归档都读）
+node bin/yakusha.js scan "<game>" --json
+
+# 全量抽取（KS 字符串逐条带 context，.tjs 只计数）+ 既有离线管道
+node bin/yakusha.js extract "<game>"
+
+# 交付层未做，这两条必须失败且不写文件（E_NOT_IMPLEMENTED，退出码 2）
+node bin/yakusha.js install "<game>"
+node bin/yakusha.js uninstall "<game>"
+
+# doctor：install 检查是 warn（Kirikiri has no delivery layer yet…），verdict 仍是 usable
+node bin/yakusha.js doctor "<game>"
+
+# 表格往返：导出 → 清空字典 → 导回 → 再导出，字节必须相同
+node bin/yakusha.js export "<game>" --format tsv --out dict.tsv --json
+node bin/yakusha.js import "<game>" --from dict.tsv --json
+```
+
+所有命令照常接受 `--json`；`scan` 的载荷仍是 0.10 的 11 键契约，Kirikiri 只是让
+`engine` 多了一个取值、`encodings` 按 `{"xp3":N}` 计数；`import` 的载荷是
+8 键 flat 信封（`file` / `format` / `strategy` / `dryRun` / `read` / `applied` / `skipped` /
+`entries`），坏表（表头不匹配、列数不是 3）报 `E_DICTIONARY`，缺文件报 `E_IO`。
 
 ## 10. 工程教训（踩过的坑，别再踩）
 
@@ -1104,3 +1196,16 @@ node bin/yakusha.js doctor "<game>"
   但「能写」与「敢写进玩家的游戏」之间隔着备份策略、更新冲突与真机验证。把 writer
   合入只读版本没有坏处（round-trip 测试反而更硬），但交付层必须单独立项，
   不能因为"写回能力已经有了"就顺手打开 `install`。
+- **格式魔数不一致就报 unsupported，不要猜**：XP3 的索引有标准（`File`）与改版
+  （`Hxv4`）两种 magic，后者是某些本地化发行版私改的。对私改格式的每一个字节
+  下假设，错了就是读坏玩家的文件；明确报 `E_UNSUPPORTED` 把决定权交回上游
+  （先转换或换工具），是唯一站得住的选择。判据要写在错误信息里——「只读标准 XP3 索引」。
+- **表格 quoting 的判据是「能不能无损往返」，不是「看起来需不需要」**：TSV / CSV 单元格
+  只要含分隔符 / 引号 / CR / LF / 首尾空格之一就必须加引号——台词里出现制表符或换行的
+  概率不为零，而静默坏表要到 import 那一步才炸。写完判据就配一个「含全部危险字符的
+  单元格往返」测试（`export.test.js` 有）。
+- **同一引擎的多归档目录，补丁与基础都要读**：Kirikiri 的补丁目录与基础目录是两个
+  `.xp3` 并存，同名条目在两边都有——按「后读的遮蔽先读的」处理会丢一边的文本。
+  与 Ren'Py 跳过 `tl/` 相反（那边是「原文优先」，译文目录整个排除），这边的正确做法
+  是**两个都读、逐条都收**。「数据源并存的优先级」没有普适答案，每个引擎要单独想清楚
+  并写进代码。

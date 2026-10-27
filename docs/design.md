@@ -77,6 +77,24 @@ docs/dev/DEVLOG.md`，`src/engines/rgss/adapter.js:192-197`），而不是“这
 只导出 `openRgssProject` / `extractRgssProject`（`src/index.js:17-18`），没有 `installRgss`
 之类的入口——库的公开面本身就不会许诺一个不存在的交付层。
 
+## Kirikiri 为什么没有交付层
+
+Kirikiri（KAG）是第五种引擎，第二个只做到 L1–L3 的：`capabilities.runtime` 同样是 `null`
+（`src/engines/krkr/adapter.js:193-213`），而且比 RGSS 更“没有可挂的钩子”——它没有插件
+目录、没有 `js/plugins.js`，也不像 Ren'Py 那样自带一个可以放翻译资源的目录
+（`src/engines/krkr/adapter.js:1-15`）。文本烧在 `.xp3` 归档里的 `.ks` / `.tjs` 脚本中，
+换掉文字等于**把归档写回去**。
+
+把归档写回去这条路本身还有一道墙：发行版常用加密变体。krkr2 引入逐文件密钥，krkrz
+引入 cxdec 解密，两者都需要游戏自己的密钥数据；本项目**刻意不碰**这些加密变体，写回
+路线在支持它们之前不成立（`src/engines/krkr/adapter.js:234-248`）。另一条路线是原生注入器
++ hook DLL，和 RGSS 一样要编译器，本机没有 C/C++/Rust 工具链，编译不出来。两条路线
+都没有拍板，所以交付层记成**待拍板**（[dev/DEVLOG.md](dev/DEVLOG.md) 的待拍板清单），
+`install` / `uninstall` 报指向决策记录的 `E_NOT_IMPLEMENTED`（`install is not implemented for
+Kirikiri yet - see the pending decisions in docs/dev/DEVLOG.md`，`src/engines/krkr/adapter.js:186-191`），
+`doctor` 的 install 检查是 warning、runtime 检查是 info。`src/index.js` 只导出
+`openKrkrProject` / `extractKrkrProject`（`src/index.js:19-20`），同样没有 install 入口。
+
 ## 文本面覆盖
 
 
@@ -120,6 +138,21 @@ RGSS 的数据面在 Ruby Marshal 文档里，字段名带 `@`（`@name` 而不�
 翻它们要么什么都不会发生，要么直接把游戏弄坏（`src/engines/rgss/extract.js:1-23`、
 `src/engines/rgss/extract.js:29-39`）。数据库里所有 `@*_name` 字段也一样：它们存的是图片或
 音频文件名，不进字典。
+
+Kirikiri 的文本面在 `.xp3` 归档内的 `.ks` 脚本里，按行抽取（`src/engines/krkr/extract.js:118-119`）：
+
+| 行类型 | 处理 |
+| --- | --- |
+| 文本行 | 收进字典；行内 KAG 标签剥离后存纯文本，context 是 `<归档内文件名>:<行号>` |
+| 注释行（行首 `;`） | 跳过 |
+| 标签行（行首 `[`） | 不收文本，但其中的 `[name_set name=...]` 会记成后续文本行的说话人 |
+| 标签行（行首 `*`） | 跳过（标签/跳转点） |
+| `.tjs` 脚本 | 只计数不读内容：TJS 是编程语言，不理解代码就翻译其中的字符串不安全 |
+
+行分类与说话人跟踪在 `src/engines/krkr/ks.js:48-56`（`classifyLine`）与 `:94-100`
+（`nameSetValue`）；行内标签剥离在 `:65-88`（`stripInlineTags`），未闭合的 `[` 按普通文字
+处理。编码先按 UTF-8 严格解码、失败再按 Shift_JIS 兜底，仍解不开的字节记 `undecodable`，
+一条损坏的脚本不影响其余文件（`src/engines/krkr/ks.js:13-36`）。
 
 ## 转义码
 
@@ -172,6 +205,21 @@ XP / VX / VX Ace 的游戏文本从日文翻成 X”（`src/engines/rgss/profile
 实测样本里 2,063 条文本带控制码、共 23 种，数量最多的是 `\i[n]`、`\c[n]`、`\v[n]`；
 这说明“共用一套 tokenizer”不是省事，而是这个家族的文本本来就长这样。
 
+### Kirikiri 控制码
+
+Kirikiri 又换了一族：KAG 的控制码是**方括号标签**，不是反斜杠——`[r]` 换行、`[er]` 清屏、
+`[emb exp=...]` 嵌值，转义是 `[[`（显示成一个 `[`）（`src/engines/krkr/profile.js:130-153`）。
+所以 `src/core/textkey.js` 这次**没有复用**：Kirikiri 带了自己的 tokenizer
+（`src/engines/krkr/profile.js:41-74`），按方括号切分——`[[` 出现时是字面 `[`，`[...]` 在
+换行前闭合的是 code token，落单未闭合的 `[` 按普通文字处理。`plainText()` / `visibleText()`
+的语义与 MZ 一致（剥标签后的可读文本），`isUntranslated` 的假名判定也作用在剥标签后的
+文本上，所以标签里的假名不会把回显误判成未翻（`src/engines/krkr/profile.js:111-113`）。
+
+槽位同样是 `%1` 一族的 `/ %[0-9]+/`：KAG 用 `[emb]` 标签嵌值而不是内联占位符，实际文本里
+能见到的只有 `%` 形式，校验只报它（`src/engines/krkr/profile.js:115-123`）。`prompt.task()`
+说的是“把 Kirikiri KAG 的游戏文本从日文翻成 X”，`escapeExamples` 列 `[r]`、`[er]`、
+`[emb exp=...]`、`[[` 四个（`src/engines/krkr/profile.js:130-153`）。
+
 ## data/ 的编码
 
 **加密的 `data/`**：有些 MZ 游戏把 JSON 单字节 XOR 掉了（每文件一个 key；有资料称键值由
@@ -202,6 +250,10 @@ XP / VX / VX Ace 的游戏文本从日文翻成 X”（`src/engines/rgss/profile
   `null`，`install` / `uninstall` 抛 `E_NOT_IMPLEMENTED`（退出码 2）。也就是说 0.12 **不往
   游戏里写回任何一个字节**：提取出来的字典就是一份普通字典，交付路线定了才有下一步。
   这条约束是刻意的——先有一个可靠的提取面，再谈改盘还是注入。
+- **Kirikiri 本版也只到 L1–L3**：同 RGSS，`capabilities.runtime` 是 `null`，`install` /
+  `uninstall` 抛指向决策记录的 `E_NOT_IMPLEMENTED`。写回 `.xp3` 还多一道墙——发行版常用的
+  krkr2 / krkrz 加密变体刻意不碰（`src/engines/krkr/adapter.js:234-248`），所以 0.13 同样
+  **不往游戏里写回任何一个字节**，交付路线定了才有下一步。
 - **字典 key = 原文**：不做语言检测、不改写原文，hash 之类的方案会让译文无法人工校对。
 - **校验在写之前**：宁可留原文，也不留一条会显示成乱码的译文。
 - **规则单一来源**：`src/core/fields.js` 是唯一真源，插件里的 `RULES` 由 `install` 生成，
@@ -259,4 +311,17 @@ const extracted = extractRgssProject(project.root);
 // contexts 形如 "Map001.rvdata2:401"，commandCounts 统计每种指令码收了多少条
 console.log(extracted.entries.size + " strings in " + extracted.documents + " documents");
 // 没有 installRgss / uninstallRgss：交付路线定了才会有
+```
+
+Kirikiri 同 RGSS：公开面上只有读取和提取，没有安装/卸载函数：
+
+```js
+import { openKrkrProject, extractKrkrProject } from "./src/index.js";
+
+const project = openKrkrProject("/games/SomeKrkrGame"); // 目录或其 data/ 里放 .xp3
+const extracted = extractKrkrProject(project.root);
+// entries: Map<原文, { text, contexts, count }>
+// contexts 形如 "script.ks:12"；scripts 统计 ks / tjs 文件数，tjs 只计数不读
+console.log(extracted.entries.size + " strings in " + extracted.documents + " archives");
+// 没有 installKrkr / uninstallKrkr：交付路线定了才会有
 ```

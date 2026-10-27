@@ -2,9 +2,9 @@
 
 哪些游戏跑通过、文本量多大、游戏目录怎么找、官中游戏怎么处理。
 
-本页的实测游戏只记录匿名编号（MZ-A … MV-H）、匿名描述（RGSS 那一款）和汇总数字，
-**不记录游戏标题、截图或任何游戏文本**；唯一的例外是 Ren'Py 的两个官方示例游戏，
-它们是 SDK 自带的公开样例，直接写名字。
+本页的实测游戏只记录匿名编号（MZ-A … MV-H）、匿名描述（RGSS 那一款、Kirikiri 那一批）
+和汇总数字，**不记录游戏标题、截图或任何游戏文本**；唯一的例外是 Ren'Py 的两个官方
+示例游戏，它们是 SDK 自带的公开样例，直接写名字。
 运行时确认都是本机临时注入、验完即删，仓库里不存游戏内容。
 
 ## 支持的游戏
@@ -150,6 +150,39 @@ RGSS 的根目录形状是 `Game.ini` + `Data/`，或者启动器 `.exe` + 一�
 **这不等于对 RGSS 游戏的运行时验收**：本机只有这一款，XP 与 VX 两款还没有实测数字，三个版本的
 验收基线也没定；而且这一版本来就没有交付层，游戏里的文字不会变。
 
+## Kirikiri（KAG）
+
+本机实测的是若干款 Kirikiri / KAG 游戏的 `.xp3` 归档，只按「一批」计：仓库里不存它们的
+文本，也不存归档副本——下面的结论来自本机临时解包，游戏名一律不记录。仓库内的
+Kirikiri 测试夹具全部是手写的合成数据（见 `test/krkr-fixture.js`），真实归档只在仓库外完成验证。
+
+抽取面（`src/engines/krkr/extract.js:57`）：每个 `.xp3` 归档都读（`src/engines/krkr/xp3.js:214`），
+归档里的 `.ks` 脚本按行抽文本，`.tjs` 脚本只计数不读内容——TJS 是编程语言，不理解代码就
+翻译其中的字符串不安全（`src/engines/krkr/extract.js:1-19`）。`.ks` 的编码先按 UTF-8 严格
+解码，失败再按 Shift_JIS 兜底，仍解不开的字节记 `undecodable`，损坏的脚本不影响其余文件
+（`src/engines/krkr/ks.js:13-36`）。
+
+XP3 索引只读标准格式：索引体以 `File` 开头的是标准索引；本地化发行版里见到的修改版
+索引（`Hxv4`）明确不支持，报 `E_UNSUPPORTED` 而不是猜（`src/engines/krkr/xp3.js:76-84`）。
+加密变体（krkr2 的逐文件密钥、krkrz 的 cxdec）同样不碰，见 [design.md](design.md) 的
+「Kirikiri 为什么没有交付层」。
+
+`.ks` 的文本面规则见 [design.md](design.md) 的「文本面覆盖」；行内控制码是方括号 KAG
+标签（`[r]`、`[er]`、`[emb exp=...]`），转义是 `[[`，与 MZ/MV 的反斜杠一族完全不同，
+所以 Kirikiri 带了自己的 tokenizer（见 [design.md](design.md) 的「Kirikiri 控制码」）。
+
+**本版没有运行时交付。** `capabilities.runtime` 是 `null`，`install` / `uninstall` 直接以
+`E_NOT_IMPLEMENTED` 退出（退出码 2），一个文件都不写；`doctor` 里 `install` 检查是 warning、
+`runtime` 检查是 info。Kirikiri 这一版和 RGSS 一样，只到“读得到、翻得了、校验得了”。
+
+根目录形状是目录里（或其 `data/` 子目录里）放着 `.xp3` 归档；`findKrkrRoot` 往下最多 3 层
+找这个形状，同层出现多个项目报 `E_MULTI_ROOT` 并列出候选（`src/engines/krkr/project.js:99-114`），
+`detect` 同样先往上找最多 3 层。游戏标题与引擎版本 0.13 都不解析——它们在被加密或可选的
+配置文件里（`src/engines/krkr/project.js:116-145`），`scan` 的表头里只有条目数。
+
+**这不等于对 Kirikiri 游戏的运行时验收**：抽取用的是真实归档，但交付层不存在，游戏里的
+文字不会变。
+
 ## 不支持的引擎
 
-Unity/Godot/Kirikiri 等其它引擎。
+Unity/Godot 等其它引擎。

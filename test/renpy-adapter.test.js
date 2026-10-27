@@ -81,7 +81,7 @@ after(() => {
 test("the registry ships Ren'Py third, with its own profile and runtime tier", () => {
   assert.deepEqual(
     getAdapters().map((adapter) => adapter.id),
-    ["mz", "mv", "renpy", "rgss"]
+    ["mz", "mv", "renpy", "rgss", "krkr"]
   );
   const adapter = getAdapter("renpy");
   assert.equal(adapter.name, "Ren'Py");

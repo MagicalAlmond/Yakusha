@@ -53,9 +53,15 @@ import {
   assertNotDictionaryTarget,
   buildExport,
   exportLocationWarning,
+  parseExportEntries,
   serialiseExport,
   writeExportFile,
 } from "../src/cli/export.js";
+import {
+  parseTable,
+  serialiseTable,
+  buildTableRows,
+} from "../src/cli/table.js";
 import { VERSION } from "../src/version.js";
 
 /** Parsed global state, filled in by {@link main}. */
@@ -716,21 +722,32 @@ async function cmdExport(dir) {
   if (!rawOut) throw new CliError("E_USAGE", "export needs --out <file>");
   if (rawOut === "-") throw new CliError("E_USAGE", "export --out must be a file path, not -");
   const formatName = typeof flags.format === "string" ? flags.format.toLowerCase() : "json";
-  if (formatName !== "json") {
-    throw new CliError("E_USAGE", "export supports --format json only (tsv/csv are not available yet)");
+  if (formatName !== "json" && formatName !== "tsv" && formatName !== "csv") {
+    throw new CliError("E_USAGE", "export supports --format json, tsv or csv, not " + formatName);
+  }
+  if (formatName !== "json" && flags.flat === true) {
+    throw new CliError("E_USAGE", "--flat applies to --format json only");
   }
   const out = path.resolve(rawOut);
   const { project } = requireProject(dir);
   const { file, data } = requireDictionary(project);
   assertNotDictionaryTarget(out, file);
   const flat = flags.flat === true;
-  const document = buildExport(data, { flat });
-  const text = serialiseExport(document);
-  const entries = Object.keys(document.entries).length;
+  let text;
+  let entries;
+  if (formatName === "json") {
+    const document = buildExport(data, { flat });
+    text = serialiseExport(document);
+    entries = Object.keys(document.entries).length;
+  } else {
+    const rows = buildTableRows(data);
+    text = serialiseTable(rows, formatName);
+    entries = rows.length;
+  }
   const { bytes } = writeExportFile(out, text, { force: flags.force === true });
   const warning = exportLocationWarning(project.root, out);
   if (warning) process.stderr.write("warning: " + sanitizeMessage(warning) + "\n");
-  const payload = { out, format: "json", flat, entries, bytes };
+  const payload = { out, format: formatName, flat, entries, bytes };
   const done = { payload };
   if (json) return done;
   console.log(
@@ -739,6 +756,88 @@ async function cmdExport(dir) {
   return done;
 }
 
+
+async function cmdImport(dir) {
+  const rawFrom = typeof flags.from === "string" ? flags.from : null;
+  if (!rawFrom) throw new CliError("E_USAGE", "import needs --from <file>");
+  if (rawFrom === "-") throw new CliError("E_USAGE", "import --from must be a file path, not -");
+  const from = path.resolve(rawFrom);
+  let formatName = typeof flags.format === "string" ? flags.format.toLowerCase() : null;
+  const strategy = typeof flags.strategy === "string"
+    ? flags.strategy.toLowerCase()
+    : "only-empty";
+  if (strategy !== "only-empty" && strategy !== "overwrite") {
+    throw new CliError("E_USAGE", "--strategy must be only-empty or overwrite, not " + strategy);
+  }
+  const dryRun = flags["dry-run"] === true;
+  if (!formatName) {
+    const ext = path.extname(from).toLowerCase();
+    if (ext === ".tsv" || ext === ".csv" || ext === ".json") {
+      formatName = ext.slice(1);
+    }
+  }
+  if (formatName !== "tsv" && formatName !== "csv" && formatName !== "json") {
+    throw new CliError("E_USAGE", "import --format must be tsv, csv or json (or a .tsv/.csv/.json file), not " + (formatName === null ? "(missing)" : formatName));
+  }
+  const { project } = requireProject(dir);
+  const { file } = requireDictionary(project);
+  let text;
+  try {
+    text = fs.readFileSync(from, "utf8");
+  } catch (error) {
+    throw new CliError("E_IO", "cannot read " + from + ": " + (error && error.code === "ENOENT" ? "the file does not exist" : String(error && error.code ? error.code : error)));
+  }
+  let rows;
+  if (formatName === "json") rows = parseExportEntries(text);
+  else rows = parseTable(text, formatName);
+  const dictionary = dict.loadDictionary(file);
+  let applied = 0;
+  let skipped = 0;
+  const entries = {};
+  for (const row of rows) {
+    if (typeof row.target !== "string" || row.target.length === 0) {
+      skipped += 1;
+      continue;
+    }
+    const existing = dictionary.entries[row.source];
+    const current = existing && typeof existing.text === "string" ? existing.text : "";
+    if (current.length > 0 && strategy === "only-empty") {
+      skipped += 1;
+      continue;
+    }
+    if (current === row.target) {
+      skipped += 1;
+      continue;
+    }
+    const base = existing && typeof existing === "object" ? existing : { contexts: [] };
+    const contexts = Array.isArray(base.contexts) && base.contexts.length > 0
+      ? base.contexts
+      : Array.isArray(row.contexts) && row.contexts.length > 0
+        ? row.contexts
+        : [];
+    entries[row.source] = { text: row.target, contexts };
+    applied += 1;
+  }
+  if (!dryRun && applied > 0) {
+    for (const [source, entry] of Object.entries(entries)) {
+      dictionary.entries[source] = entry;
+    }
+    // reload through loadDictionary's shape so the write keeps every field
+    // the loader would produce, then let saveDictionary stamp updatedAt.
+    dict.saveDictionary(file, dictionary);
+  }
+  const payload = { file: from, format: formatName, strategy, dryRun, read: rows.length, applied, skipped, entries };
+  const done = { payload };
+  if (json) return done;
+  console.log("from      : " + from);
+  console.log("format    : " + formatName + " (strategy " + strategy + (dryRun ? ", dry run" : "") + ")");
+  console.log("read      : " + rows.length + (rows.length === 1 ? " row" : " rows"));
+  console.log("applied   : " + applied);
+  console.log("skipped   : " + skipped);
+  if (!dryRun && applied > 0) console.log("dictionary: " + file);
+  if (dryRun) console.log("dry run: nothing written");
+  return done;
+}
 async function cmdLaunch(dir) {
   const { project, adapter } = requireProject(dir);
   const result = await adapter.launch(project, { exe: flags.exe });
@@ -961,6 +1060,7 @@ const commands = {
   uninstall: cmdUninstall,
   doctor: cmdDoctor,
   export: cmdExport,
+  import: cmdImport,
   launch: cmdLaunch,
 };
 
@@ -985,7 +1085,8 @@ const USAGE = [
   "  install    install the runtime plugin into the game",
   "  uninstall  remove the runtime plugin",
   "  doctor     check the install, the backup and the dictionary against this build",
-  "  export     write a JSON snapshot of the translated entries",
+  "  export     write the translated entries as JSON, TSV or CSV",
+  "  import     fill the dictionary from a previously exported file",
   "  launch     start the game executable (Windows only)",
   "  config     read or write the user level config (takes no game directory)",
   "",
@@ -1036,9 +1137,15 @@ const USAGE = [
   "",
   "export options:",
   "  --out <file>        target file (required; never stdout)",
-  "  --format <name>     json (default; tsv/csv are not available yet)",
-  "  --flat              write source -> text instead of {text, contexts}",
+  "  --format <name>     json (default), tsv or csv",
+  "  --flat              write source -> text instead of {text, contexts} (json only)",
   "  --force             overwrite an existing target",
+  "",
+  "import options:",
+  "  --from <file>       source file (required; never stdin)",
+  "  --format <name>     tsv, csv or json; guessed from the extension by default",
+  "  --strategy <name>   only-empty (default; never overwrites) or overwrite",
+  "  --dry-run           report what would change without writing",
   "",
   "launch options:",
   "  --exe <name>        pick one executable when the project root has several",
