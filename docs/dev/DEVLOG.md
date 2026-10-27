@@ -304,6 +304,12 @@
       json-contract/platforms/architecture/ENGINE-STRATEGY 的陈旧声明逐一改真）。
 - [x] 明确不做：能力位矩阵不新增字段（`attach` / `liveReload` 仍是两处 `false`），
       GUI 不因能力位新增任何私有 API。
+- [x] 窗口走查边界实测（0.16 复查）：在自动化会话里把 Electron 37.2.3 真跑——
+      `gui/main.js` 可加载、隐藏 `BrowserWindow` 冒烟 exit 0；但 Chromium 单实例锁
+      在本会话派生的进程令牌下创建失败（`process_singleton_win.cc:454` error 5，
+      换 user-data-dir 无效），应用按「锁失败即退出」的设计退出。结论：剩余三条
+      验收要走查，需要在正常桌面会话双击启动，不是代码缺口；`docs/gui.md` §9
+      第 3 条已按实测改写。
 
 ## 4. 文件地图
 

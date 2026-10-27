@@ -153,7 +153,7 @@ GUI 永远不做以下事情（与 [limitations.md](limitations.md) 的工具边
 - [ ] 在四档测试矩阵上，从 GUI 卸载后游戏回到可运行状态（plugin 档逐字节还原）。（CLI 路径在 0.10/0.11 真机验过；GUI 按同一路径调同一 runner，但「从 GUI 点出来」的走查未做）
 - [x] 密钥只存在于系统凭据存储或内存；`config` 文件、游戏目录、日志与导出文件里都没有。（test/gui-credentials.test.js：文件里只有密文信封）
 - [x] 拖入非项目目录、多项目目录、损坏字典时，错误提示与 CLI 的错误码一一对应。（gui-handlers 对拍）
-- [ ] MZ/MV + Ren'Py + RGSS 三条链路都能从 GUI 一键跑通（ENGINE-STRATEGY §6.3 的 0.14 验收）。（`test/gui-e2e.test.js` 已按 GUI 的调用缝 `runGuiCommand` 把三条链路的完整命令序列各走通一遍；剩下的未验部分只有 Electron 窗口本身的点击与渲染——那需要真机窗口会话，headless 做不了）
+- [ ] MZ/MV + Ren'Py + RGSS 三条链路都能从 GUI 一键跑通（ENGINE-STRATEGY §6.3 的 0.14 验收）。（`test/gui-e2e.test.js` 已按 GUI 的调用缝 `runGuiCommand` 把三条链路的完整命令序列各走通一遍；剩下的未验部分只有 Electron 窗口本身的点击与渲染。0.16 复查：在本机自动化会话里实测，`gui/main.js` 能被 Electron 37.2.3 加载、`BrowserWindow` 能创建（隐藏窗口冒烟 exit 0），但 Chromium 的单实例锁在自动化会话派生的进程令牌下无法创建（`process_singleton_win.cc:454 Lock file can not be created! Error code: 5`，与 user-data-dir 无关），应用按设计退出——窗口交互走查需要在正常桌面会话里双击启动，不是 headless 限制，是本会话进程令牌的限制）
 
 ## 相关文档
 
