@@ -1057,7 +1057,8 @@ Kirikiri 的 XP3 写回两条路线都适用（改盘：重建索引重算 adler
 但读写器只有读的一半（`xp3.js` 是只读的），等路线定了再排。0.13 没有为写回做任何铺垫。
 
 **Unity 勘察补记（2026-10-27，只记事实，不开工）**：本机 61 款游戏里
-27 款是 Unity（18 Mono / 9 IL2CPP），0 款 NScripter。Mono ADV 普遍把整张对话表以
+27 款是 Unity（18 Mono / 9 IL2CPP；另有 1 款嵌套在子目录下，含嵌套口径 28），
+0 款 NScripter。Mono ADV 普遍把整张对话表以
 TextAsset 形式嵌在 `resources.assets` / `sharedassetsN.assets` 里，UTF-8 明文，但**每款
 游戏的 schema 都不同**（说话人列的 CSV、`key=value` 的 UI 表、命令行混合表）；部分游戏
 （`data.unity3d`）还要先过 UnityFS 包（LZ4/LZMA 解压）才能到 serialized-file 层。提取
@@ -1065,6 +1066,18 @@ TextAsset 形式嵌在 `resources.assets` / `sharedassetsN.assets` 里，UTF-8 �
 本表第 10 行是同一个未拍板问题**，且 Unity 的每游戏 schema 差异远大于前四个引擎。
 在路线拍板前不开 Unity 引擎工作包；字形表（font glyph atlas）在逐字节扫描时是高频误报，
 真做时必须按对象表定位 TextAsset，不能裸扫字节。
+
+**剩余 34 目录的引擎普查（同日补记，只记事实）**：除 RGSS 1、Kirikiri 6 外，其余
+27 个目录没有已支持引擎的形状——nw.js 系 16（根级 `Game.exe`+`nw.dll` 6、项目体在
+`www/` 下 9、整体嵌在 `data/` 子目录 1），RPG Developer Bakin 2（`GamePackages`+
+`GameConfig.sbcf` / `data.rbpack`+`bakinengine.dll`），Tyrano 1（`*_tyrano_*.sav`），
+自研封包 2（`.vfs`、`.fpk`），Unity 嵌套 1（`Game/` 子目录里 `HolyKnightRicca_Data`，
+IL2CPP——顶层 `_Data` 扫描漏掉的一档，故 Unity 总数按含嵌套口径是 28），无引擎形状
+的杂项 6（一个移植工作区、一个 Steam 壳、一个 `.pac` 封包根目录、其余 3 个无法从根
+目录判型）。nw.js 系游戏里多款带 `ManualTransFile.json` / `Dictionaries` 等机翻残留，
+说明「文本在根目录一个 JSON」的形状在本机相当常见；但它们内核是 nw.js（Chromium）
+而非 RPG Maker，能否走 MZ/MV 的 `data/` 通道要真开工作包再验证。这只是普查记录，
+不构成任何新引擎的开工承诺。
 
 ## 9. 继续工作的方法
 
