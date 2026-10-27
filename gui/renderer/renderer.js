@@ -97,6 +97,21 @@ $("import-run").addEventListener("click", async () => {
   await run("import", [currentDir], { from: from.trim(), strategy: strategy.trim() });
 });
 
+// Launch goes through the same runner seam (runner spawns detached with the
+// secret-free environment). --exe is optional; the CLI's E_EXE error lists
+// candidates when the choice is ambiguous.
+$("launch-run").addEventListener("click", async () => {
+  if (!currentDir) { setProjectLine("pick a project first"); return; }
+  const exe = window.prompt("Executable file name (empty = let yakusha pick)", "");
+  if (exe === null) return;
+  const flags = exe.trim() ? { exe: exe.trim() } : {};
+  const envelope = await run("launch", [currentDir], flags);
+  if (!envelope.ok && envelope.error && envelope.error.code === "E_EXE" &&
+      envelope.error.details && Array.isArray(envelope.error.details.candidates)) {
+    setProjectLine("pick one: " + envelope.error.details.candidates.join(", "));
+  }
+});
+
 $("pick").addEventListener("click", async () => {
   const picked = await window.yakusha.pickDirectory();
   if (picked) { currentDir = picked; setProjectLine(currentDir); run("scan"); }

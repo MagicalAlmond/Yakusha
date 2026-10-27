@@ -31,6 +31,7 @@ export const GUI_COMMANDS = [
   "uninstall",
   "export",
   "import",
+  "launch",
   "doctor",
   "config",
 ];
@@ -80,8 +81,11 @@ export async function runGuiCommand(command, args, opts = {}) {
 }
 
 /**
- * Launch reads argv-shaped words (the --exe flag and the directory), so the
- * GUI assembles them the way the CLI would. Exposed for tests.
+ * Launch stays in the allowlist: the runner spawns the game detached with the
+ * secret-free environment (src/engines/launch.js), so the GUI takes the same
+ * path as the CLI — no process handling of its own. launchInvocation assembles
+ * the argv-shaped words (the --exe flag and the directory) the way the CLI
+ * would. Exposed for tests.
  *
  * @param {string} game game root directory
  * @param {string} [exe] optional executable override

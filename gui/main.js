@@ -26,6 +26,14 @@ import { fileURLToPath } from "node:url";
 import { app, BrowserWindow, dialog, ipcMain, safeStorage } from "electron";
 
 import { GUI_COMMANDS, runGuiCommand } from "./handlers.js";
+import {
+  clearApiKey,
+  credentialsFile,
+  hasApiKey,
+  readApiKey,
+  saveApiKey,
+} from "./credentials.js";
+import { configFilePath } from "../src/cli/config.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 

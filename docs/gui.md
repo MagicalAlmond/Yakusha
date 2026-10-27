@@ -1,6 +1,6 @@
 # GUI 设计与用户流程（Electron 外壳，0.14）
 
-> 状态：0.14 已交付最小外壳（`gui/main.js` + `preload.js` + `renderer/`，含原生目录选择、export/import/speaker/terms/config 按钮、「记住密钥」（safeStorage，见 §5）），长任务接口（进度事件 + 取消）随 0.14 的 runner seam 落地；本文其余部分仍是演进的设计稿（字典编辑界面、launch 未交付）。
+> 状态：0.14 已交付最小外壳（`gui/main.js` + `preload.js` + `renderer/`，含原生目录选择、export/import/speaker/terms/config/launch 按钮、「记住密钥」（safeStorage，见 §5）），长任务接口（进度事件 + 取消）随 0.14 的 runner seam 落地；本文其余部分仍是演进的设计稿（字典编辑界面未交付）。
 
 ## 1. 定位与边界
 
@@ -90,6 +90,9 @@ GUI 版本只做壳与它需要的接口（能力矩阵、原生组件向导、�
 - `YAKUSHA_DEBUG=1` 是排查开关，堆栈只进 stderr；GUI 不新增"详细日志"开关，
   诊断信息走 doctor / verify 的载荷，不引入第二套日志体系。
 - `launch` 启动游戏前删掉子进程环境里的 `YAKUSHA_API_KEY` / `OPENAI_API_KEY`；GUI 启动游戏必须走同一条路，不得旁路。
+  **0.14 已交付**：外壳的 launch 按钮经 `runGuiCommand("launch", …)` 走与 CLI 相同的
+  `runCommand` → `launchProject`（同一处环境清洗、同一个 `--exe` 契约），
+  主进程不做任何自己的进程管理。
 
 ## 6. 失败与回滚
 

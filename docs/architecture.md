@@ -174,6 +174,8 @@ Kirikiri 则要重写 XP3 归档（krkr2 / krkrz 的加密变体刻意不碰）�
   需要强隔离时再挪到 `worker_threads`，接口不变。
 - 拖拽取真实路径用 Electron 的 `webUtils.getPathForFile`（浏览器拿不到绝对路径，
   这也是选 Electron 而不是本地网页版的根本原因）。
+- `launch` 也在白名单里（14 个命令全量开放）：主进程不做自己的进程管理，
+  spawn 的环境清洗与 `--exe` 契约都留在 `src/engines/launch.js`，GUI 与 CLI 同一条路。
 - 不加载任何远程内容；游戏目录一律当不可信输入校验。
 
 ## 7. 目标目录结构

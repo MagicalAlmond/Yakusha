@@ -97,10 +97,10 @@ function assertMatchesCli(gui, cli, label) {
   }
 }
 
-test("gui handlers: the allowlist is exactly the non-launch CLI commands", () => {
+test("gui handlers: the allowlist is exactly the 14 CLI commands", () => {
   assert.deepEqual([...GUI_COMMANDS].sort(), [
-    "config", "doctor", "export", "extract", "import", "install", "scan",
-    "speaker", "status", "terms", "translate", "uninstall", "verify",
+    "config", "doctor", "export", "extract", "import", "install", "launch",
+    "scan", "speaker", "status", "terms", "translate", "uninstall", "verify",
   ]);
 });
 
@@ -164,4 +164,33 @@ test("gui handlers: progress and warning callbacks fire", async () => {
 test("gui handlers: launchInvocation mirrors the CLI argv shape", () => {
   assert.deepEqual(launchInvocation("D:/games/x"), { args: ["D:/games/x"], flags: {} });
   assert.deepEqual(launchInvocation("D:/games/x", "D:/games/x/game.exe"), { args: ["D:/games/x"], flags: { exe: "D:/games/x/game.exe" } });
+});
+
+test("gui handlers: launch without an .exe resolves to the CLI E_EXE envelope", async () => {
+  const game = tempGame();
+  const gui = await runGuiCommand("launch", [game]);
+  assert.equal(gui.ok, false);
+  assert.equal(gui.error.code, "E_EXE");
+  const cli = cliJson(["launch", game]);
+  assert.equal(cli.code, 2);
+  assert.deepEqual(gui.error, cli.summary.error);
+  assert.deepEqual(gui.error.details.candidates, []);
+});
+
+test("gui handlers: launch refuses non-projects exactly like the CLI", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "yakusha-gui-empty-"));
+  const gui = await runGuiCommand("launch", [dir]);
+  assert.equal(gui.ok, false);
+  assert.equal(gui.error.code, "E_NOT_PROJECT");
+  assert.deepEqual(gui.error, cliJson(["launch", dir]).summary.error);
+});
+
+test("gui handlers: --exe that does not exist resolves to the CLI E_EXE envelope", async () => {
+  const game = tempGame();
+  const gui = await runGuiCommand("launch", [game], { flags: { exe: "nope.exe" } });
+  assert.equal(gui.ok, false);
+  assert.equal(gui.error.code, "E_EXE");
+  const cli = cliJson(["launch", game, "--exe", "nope.exe"]);
+  assert.deepEqual(gui.error, cli.summary.error);
+  assert.match(gui.error.message, /no nope\.exe in /);
 });
