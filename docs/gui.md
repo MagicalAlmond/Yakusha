@@ -153,7 +153,7 @@ GUI 永远不做以下事情（与 [limitations.md](limitations.md) 的工具边
 - [ ] 在四档测试矩阵上，从 GUI 卸载后游戏回到可运行状态（plugin 档逐字节还原）。（CLI 路径在 0.10/0.11 真机验过；GUI 按同一路径调同一 runner，但「从 GUI 点出来」的走查未做）
 - [x] 密钥只存在于系统凭据存储或内存；`config` 文件、游戏目录、日志与导出文件里都没有。（test/gui-credentials.test.js：文件里只有密文信封）
 - [x] 拖入非项目目录、多项目目录、损坏字典时，错误提示与 CLI 的错误码一一对应。（gui-handlers 对拍）
-- [ ] MZ/MV + Ren'Py + RGSS 三条链路都能从 GUI 一键跑通（ENGINE-STRATEGY §6.3 的 0.14 验收）。（每条链路的 CLI 段都真机验过；GUI 端到端走查需要真机窗口会话，headless 环境做不了）
+- [ ] MZ/MV + Ren'Py + RGSS 三条链路都能从 GUI 一键跑通（ENGINE-STRATEGY §6.3 的 0.14 验收）。（`test/gui-e2e.test.js` 已按 GUI 的调用缝 `runGuiCommand` 把三条链路的完整命令序列各走通一遍；剩下的未验部分只有 Electron 窗口本身的点击与渲染——那需要真机窗口会话，headless 做不了）
 
 ## 相关文档
 
