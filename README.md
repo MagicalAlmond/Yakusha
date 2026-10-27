@@ -167,7 +167,8 @@ error: install is not implemented for Kirikiri yet - see the pending decisions i
 这些 Ruby Marshal 文档里（打包版藏在归档内），要让游戏显示中文就得把这些文档写回去；
 Kirikiri 同样没有可填的翻译资源目录，文本在 XP3 归档内的 KAG 脚本里，"写回"意味着重写归档。
 两条候选路线——纯 JS 把译文写回数据文档或归档，或做一个需要编译器的原生注入器——
-到 0.13 都还没拍板，所以这一版停在字典：`translate` 之后游戏仍然显示原文，
+至今仍未拍板（待定清单见 `docs/dev/DEVLOG.md`），所以 RGSS 与 Kirikiri 停在字典：
+`translate` 之后游戏仍然显示原文，
 `doctor` 会把 `install` 报成 warning、`runtime` 报成 info。
 `export` 仍然是拿到译文的出口。
 
@@ -269,7 +270,7 @@ node bin/yakusha.js launch "/games/MyGame"
 仅 Windows，五个引擎共用同一套规则：项目根恰好一个 `.exe` 时直接启动；多个时用
 `--exe <name>` 指定（只收裸文件名）。启动后工具立即退出，游戏继续运行；子进程环境会删掉
 `YAKUSHA_API_KEY` / `OPENAI_API_KEY`。RGSS 的启动器就是项目根那个 `.exe`，
-规则与 RPG Maker 完全一样。`attach` 调试注入到 0.13 仍是桩，
+规则与 RPG Maker 完全一样。`attach` 调试注入仍是桩，
 能力表里 `attach: false`，没有 CLI 入口。
 
 ## 图形界面（0.14 起步）
