@@ -497,7 +497,7 @@ async function runBatch(batch, options) {
  *
  * @param {import("../core/dict.js").Dictionary} dict
  * @param {TranslateOptions} options
- * @returns {Promise<{ total: number, translated: number, rejected: Rejection[], failed: number, rewrapped: number }>}
+ * @returns {Promise<{ total: number, translated: number, rejected: Rejection[], failed: number, rewrapped: number, cancelled: boolean }>}
  */
 export async function translateDictionary(dict, options) {
   const provider = options.provider;
@@ -560,6 +560,7 @@ export async function translateDictionary(dict, options) {
       rejected: missed,
       failed: 0,
       rewrapped,
+      cancelled: false,
     };
   }
 
@@ -593,7 +594,7 @@ export async function translateDictionary(dict, options) {
   report();
 
   const worker = async () => {
-    while (cursor < batches.length) {
+    while (cursor < batches.length && !options.signal?.aborted) {
       const index = cursor;
       cursor += 1;
       const batch = batches[index];
@@ -624,5 +625,15 @@ export async function translateDictionary(dict, options) {
   };
 
   await Promise.all(Array.from({ length: concurrency }, () => worker()));
-  return { total: items.length, translated, rejected, failed, rewrapped };
+  // Cancellation is cooperative: in-flight provider requests finish or fail on
+  // their own (the openai provider aborts its fetch through the same signal),
+  // no new batch is started, and the caller keeps whatever was translated.
+  return {
+    total: items.length,
+    translated,
+    rejected,
+    failed,
+    rewrapped,
+    cancelled: options.signal?.aborted === true,
+  };
 }

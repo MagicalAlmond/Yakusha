@@ -437,7 +437,7 @@ progress  : 32/32 translated, 0 pending
 elapsed   : 0.0s
 ```
 
-进度条走 stderr。载荷：`file` / `provider` / `elapsedMs` / `total` / `translated` / `overwritten` / `rejected` / `failedBatches` / `rewrapped` / `progress{total,translated,pending}`。
+进度条走 stderr。载荷：`file` / `provider` / `elapsedMs` / `total` / `translated` / `overwritten` / `rejected` / `failedBatches` / `rewrapped` / `cancelled` / `progress{total,translated,pending}`。`cancelled` 是协作式取消标记：CLI 恒 `false`（0.14 引入，GUI 的取消按钮走同一接口），取消后翻译中的请求自然结束、已翻条目保留。
 
 - `--dry-run` 只算不写：`dry run   : 32 of 32 would be translated (not saved)`，载荷换成 `{dryRun, provider, total, translated, rejected}`；同时给了 `--provider` 会警告 `warning: --dry-run always uses the mock provider; --provider openai ignored`。
 - `--glossary <file>` 收两种形状：`{"entries": {...}}` 或裸映射 `{"アリア": "艾莉亚"}`。文件不存在报 `E_IO`：`glossary file not found: <path>`。

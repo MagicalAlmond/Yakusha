@@ -263,6 +263,21 @@ node bin/yakusha.js launch "/games/MyGame"
 规则与 RPG Maker 完全一样。`attach` 调试注入到 0.13 仍是桩，
 能力表里 `attach: false`，没有 CLI 入口。
 
+## 图形界面（0.14 起步）
+
+仓库自带一个最小的 Electron 外壳，代码在 `gui/`。它与 CLI 调用同一份命令实现
+（`src/cli/runner.js`），每个按钮对应一条文档化的命令，`--json` 载荷逐键一致：
+
+```bash
+pnpm install          # 开发依赖含 electron；运行时仍是零依赖
+npx electron gui/main.js
+```
+
+0.14 的外壳只覆盖主链路：拖入游戏目录 → scan → extract → translate（带真实进度
+与取消）→ verify → install/uninstall → doctor。凭据仍只在环境变量或 `--api-key`，
+窗口不碰密钥；`launch` 与字典编辑界面还没进外壳。设计与验收清单见
+[docs/gui.md](docs/gui.md)。
+
 ## 命令一览
 
 | 命令 | 作用 |

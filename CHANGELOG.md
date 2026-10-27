@@ -6,6 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-10-27
+
+### Added
+
+- Added a shared command runner (`src/cli/runner.js`): every command implementation moved out of `bin/yakusha.js` into one seam that builds the payload and the human summary separately. The CLI is now a thin shell over it, and the GUI's main process calls the same `runCommand` in-process, so the two front ends cannot drift. The `--json` envelope, exit codes and every text output are unchanged (byte-for-byte compared against the old CLI on 48 cases).
+- Added the first Electron shell (`gui/`): `main.js` owns the window and the IPC allowlist, `handlers.js` wraps `runCommand` and resolves every call to the exact `--json` envelope the CLI prints, `preload.js` exposes only an allowlisted bridge (`run`/`cancel`/`onProgress`/`onWarning`/`onResult`/`pathForFile`), and a minimal renderer maps buttons 1:1 to documented commands. No remote content is loaded and the renderer has no Node access.
+- Added cooperative cancellation for long translates: `translate` accepts an `AbortSignal`, stops claiming new batches once aborted, keeps whatever was already translated, and reports `cancelled: true` in the payload. The CLI never cancels on its own, so the new payload key is always `false` on the command line; the GUI's cancel button drives the same signal.
+- Added real progress for the GUI: the runner's `onProgress` hook (one callback per finished batch with `done`, `total`, `translated`, `rejected`) is forwarded over IPC, so the window draws only genuinely reported progress — no interpolation, no fake percent bars.
+- Added `test/runner.test.js` (15 cases), `test/cancel.test.js` (5 cases) and `test/gui-handlers.test.js` (8 cases); the GUI tests compare `runGuiCommand` envelopes against the child-process CLI on identical state.
+
+### Changed
+
+- `bin/yakusha.js` shrank from ~1,245 to ~310 lines: it now parses argv, prints the envelope and maps exit codes, nothing more. Command behaviour is unchanged.
+- `electron` (37.2.3) entered `devDependencies` with a committed `pnpm-lock.yaml` and `pnpm-workspace.yaml`; runtime dependencies remain zero and the CLI still runs on a bare Node 22+.
+- The GUI design draft (`docs/gui.md`) moved from "unimplemented" to "minimal shell delivered": the long-task interface the draft required before any GUI work (progress events + cancellation) shipped in this release, and the draft's black-box progress rules were replaced by the real event contract.
+
+### Unchanged
+
+- No breaking changes: the envelope, exit codes, command table and all 13 error codes are the same as 0.13.0. The only payload addition is `cancelled` on `translate` (always `false` in CLI output). `launch` remains CLI-only in this release: the window does not yet drive it.
+
 ## [0.13.0] - 2026-10-27
 
 ### Added

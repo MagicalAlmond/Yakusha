@@ -1,7 +1,7 @@
 {
   "name": "yakusha",
-  "version": "0.13.0",
-  "description": "Non-invasive runtime translation toolkit for RPG Maker MZ, RPG Maker MV, RPG Maker XP/VX/VX Ace (RGSS) and Ren'Py games",
+  "version": "0.14.0",
+  "description": "Non-invasive runtime translation toolkit for RPG Maker MZ, RPG Maker MV, Ren'Py, RPG Maker XP/VX/VX Ace and Kirikiri games",
   "type": "module",
   "main": "./src/index.js",
   "exports": {
@@ -47,5 +47,8 @@
     "src",
     "README.md",
     "LICENSE"
-  ]
+  ],
+  "devDependencies": {
+    "electron": "37.2.3"
+  }
 }

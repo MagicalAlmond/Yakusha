@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; script-src 'self'" />
+  <title>yakusha</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>yakusha</h1>
+    <p id="project-line">drop a game folder here, or pick one</p>
+  </header>
+
+  <main>
+    <section id="project" aria-label="Project">
+      <button id="pick" type="button">Open project…</button>
+      <span id="engine-badge" class="badge" hidden></span>
+    </section>
+
+    <section id="actions" aria-label="Commands">
+      <button data-cmd="scan" type="button">Scan</button>
+      <button data-cmd="extract" type="button">Extract</button>
+      <button data-cmd="status" type="button">Status</button>
+      <button data-cmd="translate" type="button">Translate</button>
+      <button data-cmd="verify" type="button">Verify</button>
+      <button data-cmd="install" type="button">Install</button>
+      <button data-cmd="uninstall" type="button">Uninstall</button>
+      <button data-cmd="doctor" type="button">Doctor</button>
+      <button id="cancel" type="button" disabled>Cancel run</button>
+    </section>
+
+    <section id="progress" aria-label="Progress" hidden>
+      <div class="bar"><div id="bar-fill"></div></div>
+      <span id="progress-text"></span>
+    </section>
+
+    <section id="output" aria-label="Result" aria-live="polite">
+      <pre id="payload"></pre>
+    </section>
+  </main>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

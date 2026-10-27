@@ -1,7 +1,7 @@
 # 开发交接文档（DEVLOG）
 
 > 这份文档记录**阶段目标、已完成项、决策理由和下一步**，随开发进程更新。
-> 最后更新：2026-10-27（0.13.0 Kirikiri 接入 + 表格导出/导入完成于 `feat/0.13-table-export`，未合入 `main`、未打 tag）。
+> 最后更新：2026-10-27（0.14.0 runner 抽缝 + Electron 最小外壳 + translate 取消完成于 `feat/0.14-gui`，未合入 `main`、未打 tag）。
 > 0.9.0 项目改名 **Yakusha**，字典目录、插件文件、环境变量与备份后缀全部随之改名；
 > 仓库已发布到 https://github.com/MagicalAlmond/Yakusha（`main` 分支）。
 > 0.8.0 的 `doctor`、0.7.1 的 `uninstall` 漂移保护、0.7.0 的报告/模板见下）。
@@ -36,16 +36,16 @@
 
 | 项 | 状态 |
 | --- | --- |
-| 版本 | **0.13.0**（`package.json` 单一真源，`src/version.js` 读取它；插件模板的 `VERSION` 由安装器替换） |
+| 版本 | **0.14.0**（`package.json` 单一真源，`src/version.js` 读取它；插件模板的 `VERSION` 由安装器替换） |
 | 契约 | 0.10 的五篇设计稿（json-contract / config / engines / export-format / platforms）已冻结并全部实现；0.11 只有 `engines.md` 真正扩了内容（三个引擎、新增 §13.2 Ren'Py），`json-contract.md` 与 `platforms.md` 补了「0.11 复查后不变」的复核标注。0.12 继续扩 `engines.md`（四个引擎、新增 §13.3 RGSS 与 §7.7 的 pending 交付），`json-contract.md` 补 RGSS 的语义澄清（`E_NOT_IMPLEMENTED` 有了 CLI 入口、`install`/`uninstall`/`doctor` 的按引擎差异）；信封与字段类型仍未动，`platforms.md` / `config.md` / `export-format.md` 未动。0.13 扩 `engines.md`（五个引擎、新增 §13.4 Kirikiri），`export-format.md` 补 TSV/CSV 表格与 `import` 命令；JSON 信封（flat one-line object、退出码 0/1/2、13 个错误码）未动 |
-| 测试 | **603 个，全绿**（`npm test`，约 10–12s） |
+| 测试 | **631 个，全绿**（`npm test`，约 11–12s；0.14 新增 runner 15 + 取消 5 + GUI handlers 8） |
 | 持续集成 | GitHub Actions：`npm test` 在 Node 22 / 24（**windows-latest**，WP1 已从 ubuntu 切换） |
 | 平台 | Windows 10/11 x64 为唯一支持与验收环境（0.10 明确，见 [platforms.md](../platforms.md)） |
 | 支持引擎 | RPG Maker **MZ 1.3.2–1.9.0**、**MV 1.6.1–1.6.2**；**Ren'Py 8.x 脚本**（`.rpy` 明文 + `.rpyc` 编译）；**RGSS（XP / VX / VX Ace）**与 **Kirikiri（KAG / XP3）**——只到 L1–L3（识别 / 盘点 / 抽取 / 翻译 / 校验 / 导出），**没有交付层**（§6） |
 | 实测游戏 | 15 款可识别（本机全量普查），其中 **4 款**全量翻译 + 运行时验收；Ren'Py 侧用一套 8.5.3 SDK 的两个示例游戏做抽文本与覆盖率验收（§6）；RGSS 侧用一款 RGSS3 / VX Ace 商业游戏、Kirikiri 侧用两款 XP3 商业归档（含一款语音归档）做抽取实测（§6，外部样本，不是仓库夹具） |
 | 磁盘改动 | MZ/MV 走插件档：只加 1 个插件文件 + `plugins.js` 里 1 条注册，卸载还原到安装前；Ren'Py 走 translation 档：只在 `game/` 下新建 1 个 `yakusha_translation.rpy`，卸载删它；**RGSS 与 Kirikiri 不动任何文件**——没有交付层，`install` / `uninstall` 报 `E_NOT_IMPLEMENTED` 且一个字节都不写（四档交付见 [ENGINE-STRATEGY.md](ENGINE-STRATEGY.md) §5.5） |
 | 运行时依赖 | 无第三方依赖（Node >= 22） |
-| 产品形态 | CLI 为内核；Electron GUI 按战略稿排到 **0.14**（见 [ENGINE-STRATEGY.md](ENGINE-STRATEGY.md) §6.3） |
+| 产品形态 | CLI 为内核；Electron 最小外壳已随 **0.14** 交付（`gui/`，同一 runner 缝；`launch` 与字典编辑未进外壳） |
 | 许可 | GPL-3.0-or-later |
 | 仓库 | https://github.com/MagicalAlmond/Yakusha（`main`） |
 
@@ -233,16 +233,41 @@
       `E_NOT_IMPLEMENTED`（退出码 2）且不写文件；Hxv4 改版索引明确报
       `E_UNSUPPORTED` 不解析；字典 v2 字段（`engine` / `locator`）仍留在 §8.1 #5。
 
+### G 阶段（0.14.0，已完成）
+
+- [x] **runner 抽缝**：`bin/yakusha.js` 的 14 个命令实现整体搬到 `src/cli/runner.js`
+      （payload 构建与人类打印分离，sink 注入；CLI 在 `--json` 下用 nullSink，
+      文本模式下字节级对拍 48 例确认输出不变）。`bin/yakusha.js` 从 ~1,245 行瘦到 ~310 行。
+- [x] **translate 取消**：`AbortSignal` 全链（runner → pipeline；worker 循环每批检查，
+      in-flight 请求自然结束），payload 新增 `cancelled` 键（CLI 恒 false）。
+- [x] **GUI 最小外壳**：`gui/handlers.js`（runCommand 包装 + CLI 一致信封 + 命令白名单）、
+      `gui/main.js`（窗口、IPC 白名单、长任务在主进程、`webContents.send` 推进度、
+      AbortController 归主进程所有）、`gui/preload.js`（contextBridge 白名单 + 
+      `webUtils.getPathForFile`）、`gui/renderer/`（按钮 1:1 映射命令、真实进度条）。
+      不加载远程内容、渲染进程无 Node、CSP `default-src 'none'`。
+- [x] **electron devDependency**（37.2.3，npmmirror 镜像安装；`pnpm-lock.yaml` +
+      `pnpm-workspace.yaml` 入库），运行时依赖仍为零。
+- [x] **测试**：runner 15 例（双前端信封逐键对拍）、cancel 5 例（pipeline 中止 + runner 透传）、
+      GUI handlers 8 例（`runGuiCommand` 对拍子进程 CLI）；全量 **631 pass**。
+- [ ] 暂缓：`launch` 进外壳、字典编辑界面、safeStorage 凭据记忆（gui.md §5 的完整范围）——
+      0.14 只交最小壳，gui.md 仍是演进稿。
+
 ## 4. 文件地图
 
 ```
-bin/yakusha.js             CLI 薄壳（解析参数 → 分派命令 → emit；不再直接拼 JSON）
+bin/yakusha.js             CLI 薄壳（解析参数 → runCommand → emit；0.14 起不再实现命令）
+src/cli/runner.js          0.14 共享命令缝：14 个命令实现，payload 构建与人类打印分离，
+                           sink / onProgress / signal 注入（CLI 与 GUI 的共同调用点）
 src/cli/envelope.js        0.10 信封、错误对象、sanitizeMessage、EXIT 码
 src/cli/args.js            0.10 严格参数解析（未知选项 / 缺值 / 多余参数即 E_USAGE）
 src/cli/config.js          用户级配置读写（provider / model / baseUrl，密钥不落盘）
 src/cli/export.js          字典 → JSON 快照（UTF-16 键序、原子写、覆盖保护）
 src/cli/table.js           TSV / CSV 表格序列化与解析（RFC4180 quoting、BOM、CRLF）
 src/version.js             版本单一真源（读 package.json）
+gui/handlers.js            0.14 主进程命令层：runCommand 包装、CLI 一致信封、命令白名单
+gui/main.js                0.14 Electron 主进程：窗口、IPC 白名单、长任务与 AbortController
+gui/preload.js             0.14 contextBridge 白名单（run/cancel/事件/pathForFile）
+gui/renderer/              0.14 渲染层（index.html + style.css + renderer.js，无 Node）
 src/engines/adapter.js     MZ/MV 共享适配器逻辑（detect / scan / extract / 安装）
 src/engines/registry.js    MZ→MV→Ren'Py→RGSS→Kirikiri 注册表与 detectProject（判别式，不抛）
 src/engines/mz/adapter.js  MZ 能力位与薄包装
