@@ -190,7 +190,8 @@ yakusha config unset <key>
 本节冻结的是**边界与禁止项**；版本排期以 [dev/ENGINE-STRATEGY.md](dev/ENGINE-STRATEGY.md) §6.3 为准。
 
 - **GUI（现排期 0.14）**：主进程用 Electron `safeStorage.encryptString()` 存 key（Windows 走 DPAPI），
-  存在 `%APPDATA%\yakusha\credentials`，只有用户勾选“记住密钥”才写；读不出来时提示重输，
+  存在 `%APPDATA%\yakusha\credentials`（`YAKUSHA_CONFIG_DIR` 覆盖时随配置目录走，0.14 已交付：
+  信封 `{schema:1, cipher:"safeStorage", data:<base64>}`，见 `gui/credentials.js`），只有用户勾选“记住密钥”才写；读不出来时提示重输，
   不回退到明文。CLI 仍不读这个文件，避免两套密钥来源打架。
 - **项目级配置（未排期）**：只在有明确需求时做，且必须是字段白名单（例如 `maxLength`、
   术语表路径），**永远不允许** `apiKey` / `baseUrl` / `provider`。
