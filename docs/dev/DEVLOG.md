@@ -1053,6 +1053,7 @@ RangeError），全量 657 绿。
 | 8 | README / architecture 旧卖点措辞 | 已在 WP6 按"四档交付说明实际影响"改掉；若用户希望保留更强的表述，回退点是本包 commit。 |
 | 9 | `CHANGELOG.md` | **已补**（0.11.0 起有面向使用者的变更记录）。 |
 | 10 | RGSS / Kirikiri 交付层：纯 JS 写回 vs 原生注入器 | **未定**。两条路线的代价见下；在此之前 RGSS（0.12 起）与 Kirikiri（0.13 起）都停在 L1–L3，`install` / `uninstall` 报 `E_NOT_IMPLEMENTED`。 |
+| 11 | npm 打包范围（`package.json` 的 `files` 字段） | `files` 只列 `bin`/`src`/`README`/`LICENSE`——0.14 起仓库里有了 `gui/`，npm pack 口径是否带上它（以及 `docs/`）未定；本机从未 `npm publish`，纯本地使用不受影响，先维持现状。 |
 
 **第 10 行的两条路线**（只列代价，不替用户拍板；实现侧的注释在 `src/engines/rgss/adapter.js:240-250`）：
 
