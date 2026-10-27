@@ -305,6 +305,9 @@
       json-contract/platforms/architecture/ENGINE-STRATEGY 的陈旧声明逐一改真）。
 - [x] 明确不做：能力位矩阵不新增字段（`attach` / `liveReload` 仍是两处 `false`），
       GUI 不因能力位新增任何私有 API。
+- [x] 2026-10-27 用户拍板三项（0.17 前置）：①授权安装 C/C++/Rust 工具链以评估原生注入器路线（§8.1 #10 路线选择仍待评估后拍板）；
+  ②字典 v2 `engine`/`locator` 两字段用途已答复（溯源元数据，可选、不破坏现有读写），是否加仍待拍板；
+  ③npm 打包范围定为**包含 GUI**——`package.json` 的 `files` 加 `gui`，`pnpm pack` 实测见 §6 0.17 段。
 - [x] 窗口走查边界实测（0.16 复查）：在自动化会话里把 Electron 37.2.3 真跑——
       `gui/main.js` 可加载、隐藏 `BrowserWindow` 冒烟 exit 0；但 Chromium 单实例锁
       在本会话派生的进程令牌下创建失败（`process_singleton_win.cc:454` error 5，
@@ -1048,13 +1051,13 @@ RangeError），全量 657 绿。
 | 2 | 原生组件托管渠道 | 暂按 GitHub Release + 仓库内 manifest（二进制不进仓库）。CDN 方案未定。**0.12 没有原生组件，这个渠道还不需要，仍未定。** |
 | 3 | 原生组件安装命令名 | 暂记 `yakusha native install <engine>`，**属于新命令、要过契约评审**，不是既定事实。**0.12 没有原生组件，命令名仍未定。** |
 | 4 | RGSS 三版本验收基线 | 需要几款真实游戏才能算 L4 通过，未定。**而且 0.12 连交付层都还没有（`runtime: null`），L4 要等第 10 行定下路线才谈得上验收。** |
-| 5 | 字典 v2 字段（`engine` / `locator`） | 是否加 `engine` / `locator` 字段未定；0.13 交付了表格载体（TSV / CSV + `import`）但**仍没有加这两个字段**——表格与 JSON 的键完全同构，字典结构未动。 |
+| 5 | 字典 v2 字段（`engine` / `locator`） | 是否加 `engine` / `locator` 字段未定；0.13 交付了表格载体（TSV / CSV + `import`）但**仍没有加这两个字段**——表格与 JSON 的键完全同构，字典结构未动。2026-10-27 用户询问两字段用途，已答复：`engine` 记条目来自哪个引擎（多游戏共用一份字典/导出后溯源时用），`locator` 记条目在游戏数据里的精确位置（事件 ID / 脚本行 / 归档条目，写回交付层按它定位）；两字段都是**可选的溯源元数据，不影响现有键值读写**。用户尚未拍板是否加。 |
 | 6 | 非 ja→zh 语言 | en→zh 何时进未定；en→ja 用户已明确"先不考虑"。 |
 | 7 | 目标用户与商业目标 | 未定。影响 GUI 功能取舍与文档语气。 |
 | 8 | README / architecture 旧卖点措辞 | 已在 WP6 按"四档交付说明实际影响"改掉；若用户希望保留更强的表述，回退点是本包 commit。 |
 | 9 | `CHANGELOG.md` | **已补**（0.11.0 起有面向使用者的变更记录）。 |
-| 10 | RGSS / Kirikiri 交付层：纯 JS 写回 vs 原生注入器 | **未定**。两条路线的代价见下；在此之前 RGSS（0.12 起）与 Kirikiri（0.13 起）都停在 L1–L3，`install` / `uninstall` 报 `E_NOT_IMPLEMENTED`。 |
-| 11 | npm 打包范围（`package.json` 的 `files` 字段） | `files` 只列 `bin`/`src`/`README`/`LICENSE`——0.14 起仓库里有了 `gui/`，npm pack 口径是否带上它（以及 `docs/`）未定；本机从未 `npm publish`，纯本地使用不受影响，先维持现状。0.16 实测（`pnpm pack --dry-run`）：tarball 52 个文件、全部在 `bin/`+`src/`+根三件（package.json/README.md/LICENSE），**不含 `gui/` 也不含 `docs/`**；装出来的包能跑 CLI，但 `npx electron gui/main.js`（README:283）在 tarball 内容里不存在——维持现状则 npm 包是纯 CLI 包，带 GUI 需把 `gui/` 加进 `files`（决策仍归用户）。 |
+| 10 | RGSS / Kirikiri 交付层：纯 JS 写回 vs 原生注入器 | **2026-10-27 用户授权安装 C/C++/Rust 工具链以解锁原生注入器路线的可行性评估**（此前 `cl`/`gcc`/`clang`/`rustc`/`cargo`/`ruby` 实测全不在 PATH，该路线连编译都做不了）。路线最终选择仍待评估后拍板；在此之前 RGSS（0.12 起）与 Kirikiri（0.13 起）都停在 L1–L3，`install` / `uninstall` 报 `E_NOT_IMPLEMENTED`。 |
+| 11 | npm 打包范围（`package.json` 的 `files` 字段） | **2026-10-27 拍板：打包要包含 GUI**。`files` 已加 `gui`（README/LICENSE/package.json 本来就在）；`docs/` 用户未提及，按惯例不进 tarball（README 已把文档仓库链接作为入口）。变更见下一条目。原 0.16 实测：tarball 52 个文件、全部在 `bin/`+`src/`+根三件（package.json/README.md/LICENSE），**不含 `gui/` 也不含 `docs/`**；装出来的包能跑 CLI，但 `npx electron gui/main.js`（README:283）在 tarball 内容里不存在——维持现状则 npm 包是纯 CLI 包，带 GUI 需把 `gui/` 加进 `files`（决策仍归用户）。 |
 
 **第 10 行的两条路线**（只列代价，不替用户拍板；实现侧的注释在 `src/engines/rgss/adapter.js:240-250`）：
 

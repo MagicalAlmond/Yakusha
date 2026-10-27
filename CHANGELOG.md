@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- The npm package now ships the GUI: `gui/` was added to the `files` allowlist in `package.json`
+  (README and LICENSE were already included). `docs/` stays out of the tarball.
+
 ## [0.16.0] - 2026-10-27
 
 ### Added
