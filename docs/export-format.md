@@ -170,7 +170,7 @@ yakusha import <game-dir> --from <file> [--format tsv|csv|json] [--strategy only
 ```
 
 - `--from` 必填，且必须是文件路径：传 `-` 报 `E_USAGE`
-  （`import --from must be a file path, not -`，`src/cli/runner.js:810`）。不提供 stdin 入口。
+  （`import --from must be a file path, not -`，`src/cli/runner.js:853`）。不提供 stdin 入口。
 - `--format` 省略时按扩展名推断（`.tsv` / `.csv` / `.json`），推断不出报 `E_USAGE`
   （0.13 定的这句在 0.15 扩成 `import --format must be tsv, csv, json or jsonl (or a .tsv/.csv/.json/.jsonl file), not <name>`，
   `src/cli/runner.js:870`）。
