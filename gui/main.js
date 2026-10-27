@@ -23,7 +23,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { app, BrowserWindow, dialog, ipcMain } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, safeStorage } from "electron";
 
 import { GUI_COMMANDS, runGuiCommand } from "./handlers.js";
 
@@ -33,6 +33,17 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 let activeRun = null;
 /** Remembered directory so the dialog reopens where the user last was. */
 let currentDir = null;
+
+/** The credentials file lives next to the config file (docs/config.md §8). */
+function credentialsPath() {
+  try {
+    return credentialsFile(path.dirname(configFilePath(process.env)));
+  } catch {
+    // No APPDATA and no YAKUSHA_CONFIG_DIR: nowhere to store; the save/read
+    // handlers report this instead of writing somewhere random.
+    return null;
+  }
+}
 
 /**
  * @param {Electron.BrowserWindow} win
@@ -99,6 +110,31 @@ function registerIpc() {
       });
     }
     if (command === "translate") {
+      // Opt-in secret reuse: the renderer asks for the stored key with a
+      // checkbox; the key itself crosses IPC once (input) and never returns.
+      if (request.useStoredKey === true && flags["api-key"] === undefined) {
+        const file = credentialsPath();
+        if (!file) {
+          return Promise.resolve({
+            schema: 1,
+            command,
+            ok: false,
+            outcome: "error",
+            error: { code: "E_CONFIG", message: "no configuration directory is available; cannot read the stored key" },
+          });
+        }
+        const stored = readApiKey(file, safeStorage);
+        if (stored.error) {
+          return Promise.resolve({
+            schema: 1,
+            command,
+            ok: false,
+            outcome: "error",
+            error: { code: "E_CONFIG", message: stored.error },
+          });
+        }
+        flags = { ...flags, "api-key": stored.key };
+      }
       const controller = new AbortController();
       activeRun = { command, controller };
       return runInWindow(winOf(), command, args, flags, runId).finally(() => {
@@ -114,6 +150,23 @@ function registerIpc() {
   // The one file-system affordance the renderer gets: a native open dialog.
   // It returns a path string; every other check stays in the runner (the path
   // is untrusted input like any other).
+  // Credentials (docs/config.md §8): DPAPI-encrypted envelope next to the
+  // config file, opt-in only, never plaintext, the CLI never reads it.
+  ipcMain.handle("gui:save-key", (_event, key) => {
+    const file = credentialsPath();
+    if (typeof key !== "string" || key.length === 0 || !file) {
+      return { saved: false, reason: "no key or no configuration directory" };
+    }
+    return saveApiKey(file, key, safeStorage);
+  });
+  ipcMain.handle("gui:has-key", () => {
+    const file = credentialsPath();
+    return file ? hasApiKey(file) : false;
+  });
+  ipcMain.handle("gui:clear-key", () => {
+    const file = credentialsPath();
+    return file ? clearApiKey(file) : { cleared: false };
+  });
   ipcMain.handle("gui:pick-directory", async () => {
     const win = mainWindow && !mainWindow.isDestroyed() ? mainWindow : null;
     const result = await dialog.showOpenDialog(win, {

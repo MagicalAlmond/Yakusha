@@ -244,8 +244,8 @@
       `gui/main.js`（窗口、IPC 白名单、长任务在主进程、`webContents.send` 推进度、
       AbortController 归主进程所有、原生目录选择 `gui:pick-directory`）、`gui/preload.js`
       （contextBridge 白名单 + `webUtils.getPathForFile` + `pickDirectory`）、
-      `gui/renderer/`（按钮 1:1 映射命令、真实进度条、export/speaker/terms/config list）。
-      不加载远程内容、渲染进程无 Node、CSP `default-src 'none'`。
+      `gui/renderer/`（按钮 1:1 映射命令、真实进度条、export/speaker/terms/config list、
+      「记住密钥」勾选）。不加载远程内容、渲染进程无 Node、CSP `default-src 'none'`。
 - [x] **electron devDependency**（37.2.3，npmmirror 镜像安装；`pnpm-lock.yaml` +
       `pnpm-workspace.yaml` 入库），运行时依赖仍为零。
 - [x] **测试**：runner 15 例（双前端信封逐键对拍）、cancel 5 例（pipeline 中止 + runner 透传）、

@@ -46,6 +46,12 @@
     <section id="settings" aria-label="Settings">
       <button data-cmd="config" type="button" data-config-args="list">Show config</button>
       <span id="config-summary" class="hint"></span>
+      <span class="hint">API key:</span>
+      <input id="key-input" type="password" autocomplete="off" placeholder="sk-…" aria-label="API key" />
+      <button id="key-save" type="button">Remember</button>
+      <button id="key-clear" type="button">Forget</button>
+      <label><input id="key-use" type="checkbox" /> use stored key when translating</label>
+      <span id="key-state" class="hint"></span>
     </section>
 
     <section id="output" aria-label="Result" aria-live="polite">

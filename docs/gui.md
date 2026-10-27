@@ -1,6 +1,6 @@
 # GUI 设计与用户流程（Electron 外壳，0.14）
 
-> 状态：0.14 已交付最小外壳（`gui/main.js` + `preload.js` + `renderer/`，含原生目录选择、export/import/speaker/terms/config 按钮），长任务接口（进度事件 + 取消）随 0.14 的 runner seam 落地；本文其余部分仍是演进的设计稿（字典编辑界面、safeStorage、launch 未交付）。
+> 状态：0.14 已交付最小外壳（`gui/main.js` + `preload.js` + `renderer/`，含原生目录选择、export/import/speaker/terms/config 按钮、「记住密钥」（safeStorage，见 §5）），长任务接口（进度事件 + 取消）随 0.14 的 runner seam 落地；本文其余部分仍是演进的设计稿（字典编辑界面、launch 未交付）。
 
 ## 1. 定位与边界
 
@@ -81,7 +81,10 @@ GUI 版本只做壳与它需要的接口（能力矩阵、原生组件向导、�
   （[config.md](config.md) §1/§4）。GUI 不改变这条规则。
 - GUI 的"记住密钥"用系统凭据存储：Electron `safeStorage`（Windows 上是 DPAPI），
   只在用户显式勾选时写入；读不出来时提示重输，不回退明文（[config.md](config.md) §8）。
-  CLI 永远不读 GUI 存的凭据，两套来源不打架。
+  CLI 永远不读 GUI 存的凭据，两套来源不打架。**0.14 已交付**：
+  `gui/credentials.js`（信封 `{schema:1, cipher:"safeStorage", data:<base64>}`，
+  写在配置文件同目录的 `credentials`），勾选"use stored key"时主进程把密钥
+  作为 `--api-key` 注入 translate，渲染进程不落盘、不回显。
 - 日志与展示沿用现有脱敏（[json-contract.md](json-contract.md) §4.2）：`sk-***`、`Bearer ***`、
   userinfo 打码、home 目录折叠成 `~`、provider 响应体不进日志。
 - `YAKUSHA_DEBUG=1` 是排查开关，堆栈只进 stderr；GUI 不新增"详细日志"开关，

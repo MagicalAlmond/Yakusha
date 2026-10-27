@@ -18,7 +18,8 @@ function setProjectLine(text) {
 async function run(command, args, flags) {
   const runId = ++runSeq;
   if (command === "translate") $("cancel").disabled = false;
-  const envelope = await window.yakusha.run(command, args || (currentDir ? [currentDir] : []), flags, runId);
+  const useStoredKey = command === "translate" && $("key-use").checked;
+  const envelope = await window.yakusha.run(command, args || (currentDir ? [currentDir] : []), flags, runId, useStoredKey);
   $("cancel").disabled = true;
   $("progress").hidden = true;
   showEnvelope(envelope);
@@ -49,6 +50,32 @@ for (const button of document.querySelectorAll("button[data-cmd]")) {
     button.addEventListener("click", () => run(button.dataset.cmd));
   }
 }
+
+// Credentials: the key is typed once, sent to the main process for DPAPI
+// storage (or clearing), and the input is emptied immediately — the renderer
+// never keeps a copy.
+$("key-save").addEventListener("click", async () => {
+  const key = $("key-input").value;
+  if (!key) return;
+  const result = await window.yakusha.saveApiKey(key);
+  $("key-input").value = "";
+  $("key-state").textContent = result.saved ? "key stored (encrypted)" : "not stored: " + (result.reason || "?");
+});
+$("key-clear").addEventListener("click", async () => {
+  await window.yakusha.clearApiKey();
+  $("key-state").textContent = "stored key removed";
+  $("key-use").checked = false;
+});
+window.yakusha.hasApiKey().then((has) => {
+  if (!has) $("key-use").disabled = true;
+  $("key-state").textContent = has ? "a stored key is available" : "no stored key";
+});
+$("key-use").addEventListener("change", () => {
+  if (!$("key-use").checked) return;
+  window.yakusha.hasApiKey().then((has) => {
+    if (!has) { $("key-use").checked = false; $("key-state").textContent = "no stored key — enter and remember one first"; }
+  });
+});
 
 // Export asks for a destination file (default: next to the dictionary, out of
 // the game tree is the user's call — the CLI's overwrite protection stays on).

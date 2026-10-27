@@ -23,7 +23,8 @@ contextBridge.exposeInMainWorld(WORLD, {
    * @param {number} [runId] caller-chosen id used to match progress events
    * @returns {Promise<object>} envelope (schema/command/ok/outcome/error + payload)
    */
-  run: (command, args, flags, runId) => ipcRenderer.invoke("gui:run", { command, args, flags: flags || {}, runId: runId || 0 }),
+  run: (command, args, flags, runId, useStoredKey) =>
+    ipcRenderer.invoke("gui:run", { command, args, flags: flags || {}, runId: runId || 0, useStoredKey: useStoredKey === true }),
 
   /** Request cancellation of the running translate; cooperative, in-flight
    *  requests finish, already-translated entries are kept. */
@@ -31,6 +32,12 @@ contextBridge.exposeInMainWorld(WORLD, {
 
   /** Open the native directory picker; resolves to a path or null. */
   pickDirectory: () => ipcRenderer.invoke("gui:pick-directory"),
+
+  /** Credentials (docs/config.md §8): the key crosses IPC once on save and
+   *  is only read back inside the main process; the renderer never stores it. */
+  saveApiKey: (key) => ipcRenderer.invoke("gui:save-key", key),
+  hasApiKey: () => ipcRenderer.invoke("gui:has-key"),
+  clearApiKey: () => ipcRenderer.invoke("gui:clear-key"),
 
   /** @param {(e: {runId: number, command: string, progress: object}) => void} cb */
   onProgress: (cb) => {
