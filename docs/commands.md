@@ -1,6 +1,6 @@
 # 命令参考
 
-本文是 yakusha 0.13.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG）：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出。
+本文是 yakusha 0.16.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG）：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出。
 
 **RGSS 在 0.12 只做到「盘点、建库、翻译、审校」，没有交付层。** `scan` / `extract` / `status` / `translate` / `verify` / `speaker` / `terms` / `export` 都能用，但 `install` / `uninstall` 在 RGSS 项目上直接报 `E_NOT_IMPLEMENTED`、退出 2、不写任何文件——游戏里不会出现译文。原因与两条未拍板的路线见下文 [install 与 uninstall](#install-与-uninstall)。
 
