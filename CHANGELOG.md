@@ -13,6 +13,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - The `scan` payload carries the engine's capability flags (`capabilities`: `extract` / `export` / `runtime` / `launch` / `debuggable` / `attach` / `liveReload`). The GUI uses them to disable buttons for operations the engine cannot perform (no delivery layer → install/uninstall disabled with the reason shown). Additive: scripts that ignore unknown keys keep working.
 - GUI buttons now follow the capability rules from docs/gui.md §3: unsupported capabilities are grayed out with the reason, instead of failing after a click.
 
+### Fixed
+
+- The Kirikiri XP3 reader now reads real commercial archives: the index container header has two layouts (a 9-byte fixture form and a 17-byte real-world form with an extra uncompressed-size field), and the reader auto-detects them by the zlib header signature; the index entry origin handles both the shared-magic and duplicated-magic shapes. A transformed container header now reports `E_UNSUPPORTED` instead of crashing with a raw `RangeError`.
+- `.ks` scenario files with a UTF-16 BOM (common in localized releases) decode via UTF-16LE/BE instead of being reported as `undecodable`.
+
 ### Unchanged
 
 - No breaking changes: the envelope, exit codes, command set, and error codes are untouched; adapter-level scan payloads keep their eleven documented keys (the capability object is added by the shared runner).
