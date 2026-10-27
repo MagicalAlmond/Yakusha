@@ -1,6 +1,6 @@
 # GUI 设计与用户流程（Electron 外壳，0.14）
 
-> 状态：0.14 已交付最小外壳（`gui/main.js` + `preload.js` + `renderer/`，含原生目录选择、export/import/speaker/terms/config/launch 按钮、「记住密钥」（safeStorage，见 §5）、最小字典编辑器（见 §3 字典编辑分区）），长任务接口（进度事件 + 取消）随 0.14 的 runner seam 落地；0.16 起按钮可用性按 §3 的规则由 `capabilities` 驱动（`scan` 载荷新增 `capabilities`，不支持交付层的引擎灰掉 install/uninstall 并写明原因）；本文其余部分仍是演进的设计稿（字典编辑界面未交付）。
+> 状态：0.14 已交付最小外壳（`gui/main.js` + `preload.js` + `renderer/`，含原生目录选择、export/import/speaker/terms/config/launch 按钮、「记住密钥」（safeStorage，见 §5）、最小字典编辑器（见 §3 字典编辑分区）），长任务接口（进度事件 + 取消）随 0.14 的 runner seam 落地；0.16 起按钮可用性按 §3 的规则由 `capabilities` 驱动（`scan` 载荷新增 `capabilities`，不支持交付层的引擎灰掉 install/uninstall 并写明原因）；本文其余部分仍是演进的设计稿（完整字典编辑界面未做——已交付的是 §3 描述的最小逐条编辑器）。
 
 ## 1. 定位与边界
 
@@ -45,7 +45,7 @@ GUI 版本只做壳与它需要的接口（能力矩阵、原生组件向导、�
 | --- | --- | --- | --- |
 | 项目选择 | `detect`（库）/ `scan --json` | `root, engine, engineVersion, gameTitle, dataFiles, uniqueStrings, totalStrings, undecodable` | `E_NOT_PROJECT` / `E_MULTI_ROOT`（退出 2）：列出候选与证据，不猜测 |
 | 扫描与统计 | `scan` / `status` | scan 载荷 + `file, translated, pending, withError` | `E_NOT_PROJECT`（退出 2）；`undecodable` 非空时展示文件清单 |
-| 字典编辑 | `extract` / `export --json --out <f>` | `file, added, total, translated, pending`；export 的 `out, entries, bytes` | `E_NO_DICTIONARY`（退出 2，提示先提取）；`E_EXISTS` / `E_IO` |
+| 字典编辑 | `extract` / `export --json --out <f>`（原设计；0.14 另有下面的最小逐条编辑器） | `file, added, total, translated, pending`；export 的 `out, entries, bytes` | `E_NO_DICTIONARY`（退出 2，提示先提取）；`E_EXISTS` / `E_IO` |
 | 翻译执行 | `translate`（`--limit`/`--context`/`--glossary`/`--save-every`） | `provider, translated, rejected, failedBatches, progress{total,translated,pending}` | `E_CONFIG`（缺 provider/model/key，退出 2）；`E_PROVIDER`；`rejected > 0` 仍是 `ok`，按 pending 数字提示跑 verify |
 | 校验 | `verify`（`--kind`/`--limit`/`--write-report`） | `errors, warnings, counts, problems[{kind,severity,key,target,detail}]` | findings（退出 1）不是命令失败：按 kind 分组展示，error 拦安装按钮 |
 | 安装与卸载 | `install` / `uninstall` / `launch` | `pluginPath, state, backupPath`；`removed, restored, drifted, keptBackup`；`root, exe, pid` | `E_EXE`（launch 多/无 .exe，列 details.candidates）；`E_UNSUPPORTED_PLATFORM`；`drifted: true` 时明确"只摘了自己那条，备份保留" |
@@ -144,16 +144,16 @@ GUI 永远不做以下事情（与 [limitations.md](limitations.md) 的工具边
 
 0.14 的 GUI 算做完，当且仅当以下全部成立：
 
-- [ ] 每个界面分区都对应本文第 3 节的表格：有命名的库调用或 CLI 命令，没有私有 API。
-- [ ] 每个按钮点击产生的行为都能在 CLI 里找到等价命令，输出一致（同一 core）。
-- [ ] 按钮可用性由 `capabilities` 驱动：不支持的能力显示灰色 + 原因，点击后报错视为设计缺陷。
-- [ ] 长任务有真实的进度事件与取消，结束后载荷与 CLI 的 `--json` 一致；没有假进度条。
-- [ ] 翻译中断后能从落盘的字典继续（`--save-every` 语义或其后续接口），不需要用户重头跑。
-- [ ] 安装/卸载界面对四档交付的描述与 ENGINE-STRATEGY §5.5 逐字对齐，无"完全可逆"承诺。
-- [ ] 在四档测试矩阵上，从 GUI 卸载后游戏回到可运行状态（plugin 档逐字节还原）。
-- [ ] 密钥只存在于系统凭据存储或内存；`config` 文件、游戏目录、日志与导出文件里都没有。
-- [ ] 拖入非项目目录、多项目目录、损坏字典时，错误提示与 CLI 的错误码一一对应。
-- [ ] MZ/MV + Ren'Py + RGSS 三条链路都能从 GUI 一键跑通（ENGINE-STRATEGY §6.3 的 0.14 验收）。
+- [x] 每个界面分区都对应本文第 3 节的表格：有命名的库调用或 CLI 命令，没有私有 API。（0.14–0.16：14 命令白名单 + 两条字典专用通道，test/gui-handlers.test.js 盯着）
+- [x] 每个按钮点击产生的行为都能在 CLI 里找到等价命令，输出一致（同一 core）。（信封逐键对拍）
+- [x] 按钮可用性由 `capabilities` 驱动：不支持的能力显示灰色 + 原因，点击后报错视为设计缺陷。（0.16 交付）
+- [x] 长任务有真实的进度事件与取消，结束后载荷与 CLI 的 `--json` 一致；没有假进度条。（0.14 runner seam + AbortSignal）
+- [x] 翻译中断后能从落盘的字典继续（`--save-every` 语义或其后续接口），不需要用户重头跑。（已翻译条目不重翻，取消后已翻的保留）
+- [ ] 安装/卸载界面对四档交付的描述与 ENGINE-STRATEGY §5.5 逐字对齐，无"完全可逆"承诺。（文档层已对齐；等真机 GUI 走查确认）
+- [ ] 在四档测试矩阵上，从 GUI 卸载后游戏回到可运行状态（plugin 档逐字节还原）。（CLI 路径在 0.10/0.11 真机验过；GUI 按同一路径调同一 runner，但「从 GUI 点出来」的走查未做）
+- [x] 密钥只存在于系统凭据存储或内存；`config` 文件、游戏目录、日志与导出文件里都没有。（test/gui-credentials.test.js：文件里只有密文信封）
+- [x] 拖入非项目目录、多项目目录、损坏字典时，错误提示与 CLI 的错误码一一对应。（gui-handlers 对拍）
+- [ ] MZ/MV + Ren'Py + RGSS 三条链路都能从 GUI 一键跑通（ENGINE-STRATEGY §6.3 的 0.14 验收）。（每条链路的 CLI 段都真机验过；GUI 端到端走查需要真机窗口会话，headless 环境做不了）
 
 ## 相关文档
 
