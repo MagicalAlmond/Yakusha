@@ -528,6 +528,7 @@ TextGrammar = {
 | 0.13 | 表格导出 TSV/CSV + `import`（**已交付**，`feat/0.13-table-export`）；KRKR 提取（L1–L3，**已交付**）；字典 v2 字段**未做**（§8.1 #5 未拍板，键不变） | — | round-trip（已达成）；v2 顺延 |
 | 0.14 | GUI 最小外壳（runner 抽缝 + Electron、14 命令、进度/取消、记住密钥、字典编辑器；**已交付**，`feat/0.14-gui`） | NScripter 提取/补丁（**未做**，顺延） | GUI 外壳可用（已达成）；「按能力矩阵加载译文」的完整验收顺延 |
 | 0.15 | 通用内容导入 v1（JSONL 输入 + `import --create`，**已交付**，`feat/0.15-generic-import`，即 0.11 顺延项）；原计划「KRKR inject + Wolf/SRPG spike」**未做**（等 §8.1 #10 路线拍板） | 能力矩阵/兼容性数据 | 原生组件复用同一套分发与签名流程（顺延） |
+| 0.16 | GUI 能力灰显：`scan` 载荷新增 `capabilities`，GUI 按能力位禁用按钮并写明原因（**已交付**，`feat/0.16-gui-capabilities`）；`test/gui-e2e.test.js` 按调用缝走通三条交付档，gui.md 验收未验范围收窄到 Electron 窗口交互 | — | 无窗口环境下的全部可验项已验（信封逐键对拍 + handler 缝 E2E）；真机窗口走查顺延 |
 | 1.0 | 10 个引擎目标 + 能力矩阵 + 便携 exe | — | 每个引擎有 L4 证据；不达标的明确标 experimental |
 
 说明：
