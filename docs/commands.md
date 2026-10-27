@@ -318,7 +318,7 @@ w/ codes  : 2
   ...
 ```
 
-末段按条数降序列出每个数据文件的字符串数。载荷键：`root` / `engine` / `engineVersion` / `gameTitle` / `dataFiles` / `uniqueStrings` / `totalStrings` / `stringsWithControlCodes` / `encodings` / `undecodable` / `perFile`。MV 项目实测 `engine: "mv"`、`engineVersion: "1.6.2"`（mini-mv 夹具：2 个数据文件、3 条串、0 条带控制码）。
+末段按条数降序列出每个数据文件的字符串数。载荷键：`root` / `engine` / `engineVersion` / `gameTitle` / `dataFiles` / `uniqueStrings` / `totalStrings` / `stringsWithControlCodes` / `encodings` / `undecodable` / `perFile` / `capabilities`（0.16 起随每个引擎返回能力位对象，GUI 用它禁用该引擎不支持的操作；字段含义见 docs/json-contract.md §7）。MV 项目实测 `engine: "mv"`、`engineVersion: "1.6.2"`（mini-mv 夹具：2 个数据文件、3 条串、0 条带控制码）。
 
 **Ren'Py 的差异**（夹具 `test/fixtures/renpy-extract/rpy`）：
 

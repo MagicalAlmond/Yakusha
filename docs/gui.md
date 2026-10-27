@@ -1,6 +1,6 @@
 # GUI 设计与用户流程（Electron 外壳，0.14）
 
-> 状态：0.14 已交付最小外壳（`gui/main.js` + `preload.js` + `renderer/`，含原生目录选择、export/import/speaker/terms/config/launch 按钮、「记住密钥」（safeStorage，见 §5）、最小字典编辑器（见 §3 字典编辑分区）），长任务接口（进度事件 + 取消）随 0.14 的 runner seam 落地；本文其余部分仍是演进的设计稿（字典编辑界面未交付）。
+> 状态：0.14 已交付最小外壳（`gui/main.js` + `preload.js` + `renderer/`，含原生目录选择、export/import/speaker/terms/config/launch 按钮、「记住密钥」（safeStorage，见 §5）、最小字典编辑器（见 §3 字典编辑分区）），长任务接口（进度事件 + 取消）随 0.14 的 runner seam 落地；0.16 起按钮可用性按 §3 的规则由 `capabilities` 驱动（`scan` 载荷新增 `capabilities`，不支持交付层的引擎灰掉 install/uninstall 并写明原因）；本文其余部分仍是演进的设计稿（字典编辑界面未交付）。
 
 ## 1. 定位与边界
 
@@ -39,7 +39,7 @@ GUI 版本只做壳与它需要的接口（能力矩阵、原生组件向导、�
 
 八个分区。每区列出驱动的 CLI 命令、消费的 JSON 载荷、失败时用户看到什么
 （退出码与错误码遵循 [json-contract.md](json-contract.md)，GUI 按 `outcome` + `error.code` 分支，
-不解析 `message` 文案）。按钮可不可点由 adapter 的 `capabilities` 决定，未实现能力灰掉并写明原因。
+不解析 `message` 文案）。按钮可不可点由 adapter 的 `capabilities` 决定，未实现能力灰掉并写明原因（0.16 已交付：能力位随 `scan` 载荷下发，`runtime: null` 的引擎灰掉 install/uninstall、`launch: false` 灰掉启动）。
 
 | 分区 | 驱动的命令 / 库调用 | 消费的载荷 | 失败时用户看到 |
 | --- | --- | --- | --- |

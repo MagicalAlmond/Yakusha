@@ -176,6 +176,7 @@ function warnNonDefaultBaseUrl(baseUrl, sink) {
 async function commandScan(dir, sink) {
   const { project, adapter } = requireProject(dir);
   const payload = await adapter.scan(project);
+  payload.capabilities = adapter.capabilities;
   sink.out("game      : " + (project.gameTitle || "(untitled)"));
   sink.out("root      : " + project.root);
   sink.out("engine    : " + project.engine + (project.version ? " " + project.version : ""));

@@ -110,6 +110,20 @@ test("gui handlers: scan resolves to the CLI --json envelope", async () => {
   assertMatchesCli(gui, cliJson(["scan", game]), "scan");
 });
 
+test("gui handlers: the scan envelope carries the engine capabilities", async () => {
+  const game = tempGame();
+  const gui = await runGuiCommand("scan", [game]);
+  assert.deepEqual(gui.capabilities, {
+    extract: true,
+    export: true,
+    runtime: "plugin",
+    launch: true,
+    debuggable: true,
+    attach: false,
+    liveReload: false,
+  });
+});
+
 test("gui handlers: E_NOT_PROJECT comes back as the documented error envelope", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "yakusha-gui-empty-"));
   const gui = await runGuiCommand("scan", [dir]);

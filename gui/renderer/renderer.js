@@ -35,6 +35,32 @@ async function run(command, args, flags) {
     badge.textContent = (e.engine || "?") + (e.engineVersion ? " " + e.engineVersion : "");
     setProjectLine(e.root + " — " + (e.gameTitle || "(untitled)"));
   }
+    // Buttons follow the engine's capabilities (docs/gui.md acceptance: a button
+    // for an unsupported capability is disabled with the reason shown). The
+    // capability facts come from the scan payload — the same object the CLI
+    // prints in --json.
+    const caps = e.capabilities || null;
+    const noDelivery = !caps || caps.runtime === null || caps.runtime === undefined;
+    const installBtn = document.querySelector('button[data-cmd="install"]');
+    const uninstallBtn = document.querySelector('button[data-cmd="uninstall"]');
+    const launchBtn = $("launch-run");
+    if (installBtn) {
+      installBtn.disabled = noDelivery;
+      installBtn.title = noDelivery
+        ? "this engine has no delivery layer yet — install reports E_NOT_IMPLEMENTED"
+        : "";
+    }
+    if (uninstallBtn) {
+      uninstallBtn.disabled = noDelivery;
+      uninstallBtn.title = noDelivery
+        ? "this engine has no delivery layer yet — uninstall reports E_NOT_IMPLEMENTED"
+        : "";
+    }
+    if (launchBtn) {
+      const launchable = caps ? caps.launch === true : true;
+      launchBtn.disabled = !launchable;
+      launchBtn.title = launchable ? "" : "this engine cannot be launched from yakusha";
+    }
   if (command === "scan" && !envelope.ok && envelope.error && envelope.error.code === "E_MULTI_ROOT") {
     setProjectLine("multiple projects found — see details.candidates in the output");
   }

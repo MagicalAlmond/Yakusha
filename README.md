@@ -287,7 +287,7 @@ npx electron gui/main.js
 speaker、terms 与 `config list`。API key 可以显式勾选"记住"（Windows DPAPI 加密
 存盘，CLI 不读它），也可以照旧用环境变量或 `--api-key`；`launch` 也在外壳里（与 CLI 同一条
 启动路径，`--exe` 歧义时展示候选）；最小字典编辑器也在外壳里（逐条改 pending
-译文，批量仍走 export/import）。设计与验收清单见 [docs/gui.md](docs/gui.md)。
+译文，批量仍走 export/import）。0.16 起按钮可用性由引擎能力位驱动：没有交付层的引擎（RGSS、Kirikiri）把 install/uninstall 置灰并写明原因，不再让用户点了才知道报错。设计与验收清单见 [docs/gui.md](docs/gui.md)。
 
 ## 命令一览
 

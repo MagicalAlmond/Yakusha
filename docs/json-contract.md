@@ -207,7 +207,7 @@
 
 | 命令 | 默认 outcome | 载荷（稳定字段） | 备注 |
 | --- | --- | --- | --- |
-| `scan` | ok | `root, engine, engineVersion, gameTitle, dataFiles, uniqueStrings, totalStrings, stringsWithControlCodes, encodings, undecodable, perFile` | 原 `version` 改名 `engineVersion`，避免与工具版本混淆；Ren'Py 与 RGSS 下的取值差异见 §7.1 |
+| `scan` | ok | `root, engine, engineVersion, gameTitle, dataFiles, uniqueStrings, totalStrings, stringsWithControlCodes, encodings, undecodable, perFile, capabilities` | 原 `version` 改名 `engineVersion`，避免与工具版本混淆；Ren'Py 与 RGSS 下的取值差异见 §7.1。0.16 新增 `capabilities`（该引擎的能力位对象：`extract` / `export` / `runtime`（`"plugin"` / `"translation"` / `null`）/ `launch` / `debuggable` / `attach` / `liveReload`），GUI 据此禁用不支持的操作，脚本按 §7 开头的约定可忽略 |
 | `extract` | ok | `file, added, total, translated, pending` | 只增不删已有条目 |
 | `status` | ok | `file, total, translated, pending, withError` | `withError > 0` 仍是 ok |
 | `translate` | ok | `file, provider, elapsedMs, total, translated, overwritten, rejected, failedBatches, rewrapped, cancelled, progress` | `rejected > 0` 仍是 ok；`cancelled` 是协作式取消标记（CLI 恒 `false`，GUI 的取消按钮走同一接口，翻译中的请求自然结束、已翻条目保留）；`--dry-run` 时载荷为 `dryRun, provider, total, translated, rejected`，不写文件 |

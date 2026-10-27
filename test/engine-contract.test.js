@@ -254,6 +254,19 @@ test("scan: payload matches the CLI contract for both engines", () => {
   }
 });
 
+test("capabilities: every adapter declares the frozen capability set", () => {
+  const expected = {
+    mz: { extract: true, export: true, runtime: "plugin", launch: true, debuggable: true, attach: false, liveReload: false },
+    mv: { extract: true, export: true, runtime: "plugin", launch: true, debuggable: false, attach: false, liveReload: false },
+    renpy: { extract: true, export: true, runtime: "translation", launch: true, debuggable: false, attach: false, liveReload: false },
+    rgss: { extract: true, export: true, runtime: null, launch: true, debuggable: false, attach: false, liveReload: false },
+    krkr: { extract: true, export: true, runtime: null, launch: true, debuggable: false, attach: false, liveReload: false },
+  };
+  for (const id of ALL_ENGINES) {
+    assert.deepEqual(getAdapter(id).capabilities, expected[id], id + " capabilities");
+  }
+});
+
 test("extract: creates the dictionary and only adds on a rerun", () => {
   for (const engine of ENGINES) {
     const game = gameFor(engine.id);

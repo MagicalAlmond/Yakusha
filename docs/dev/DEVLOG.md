@@ -273,12 +273,32 @@
 - **测试**：`test/export.test.js` 23→28（JSONL 别名、坏行行号、--create、
   无 --create 保持 E_NO_DICTIONARY、坏表不留字典）；全量 **650 pass / 0 fail**。
 
+### I 阶段（0.16.0，已完成）
+
+- [x] GUI 能力灰显：`scan` 载荷新增 `capabilities`（shared runner 在 `src/cli/runner.js` 的
+      `commandScan` 里并入 `adapter.capabilities`，adapter 层的 11 键载荷不变——
+      `test/renpy-adapter.test.js` / `rgss` / `krkr` 的 eleven-key 断言原样通过）。
+      合成信号：RGSS / Kirikiri 的 `runtime` 是 `null`，GUI 据此把 install/uninstall
+      置灰并写明「this engine has no delivery layer yet」（点击报 `E_NOT_IMPLEMENTED`
+      属设计缺陷，见 `docs/gui.md` §3 与验收第 3 条）。
+- [x] 渲染层：`gui/renderer/renderer.js` 在 scan 成功后按能力位禁用
+      install / uninstall（`runtime: null`）与 launch（`launch: false`），原因写在
+      `title` 上；能力事实与 CLI `--json` 完全同源。
+- [x] 测试：`test/engine-contract.test.js` 加五引擎能力位冻结断言（MZ 是唯一
+      `debuggable: true`）；`test/gui-handlers.test.js` 加 scan 信封携带能力位用例。
+      合计 **652 个，全绿**。
+- [x] 文档：`docs/json-contract.md` §7 scan 行、`docs/commands.md` scan 节、
+      `docs/gui.md` 状态行与 §3 注记、`CHANGELOG.md` 0.16.0 段。
+- [x] 明确不做：能力位矩阵不新增字段（`attach` / `liveReload` 仍是两处 `false`），
+      GUI 不因能力位新增任何私有 API。
+
 ## 4. 文件地图
 
 ```
 bin/yakusha.js             CLI 薄壳（解析参数 → runCommand → emit；0.14 起不再实现命令）
 src/cli/runner.js          0.14 共享命令缝：14 个命令实现，payload 构建与人类打印分离，
-                           sink / onProgress / signal 注入（CLI 与 GUI 的共同调用点）
+                           sink / onProgress / signal 注入（CLI 与 GUI 的共同调用点）；
+                           0.16 起 scan 载荷并入 adapter.capabilities
 src/cli/envelope.js        0.10 信封、错误对象、sanitizeMessage、EXIT 码
 src/cli/args.js            0.10 严格参数解析（未知选项 / 缺值 / 多余参数即 E_USAGE）
 src/cli/config.js          用户级配置读写（provider / model / baseUrl，密钥不落盘）

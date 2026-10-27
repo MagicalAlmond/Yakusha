@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-10-27
+
+### Added
+
+- The `scan` payload carries the engine's capability flags (`capabilities`: `extract` / `export` / `runtime` / `launch` / `debuggable` / `attach` / `liveReload`). The GUI uses them to disable buttons for operations the engine cannot perform (no delivery layer → install/uninstall disabled with the reason shown). Additive: scripts that ignore unknown keys keep working.
+- GUI buttons now follow the capability rules from docs/gui.md §3: unsupported capabilities are grayed out with the reason, instead of failing after a click.
+
+### Unchanged
+
+- No breaking changes: the envelope, exit codes, command set, and error codes are untouched; adapter-level scan payloads keep their eleven documented keys (the capability object is added by the shared runner).
+
 ## [0.15.0] - 2026-10-27
 
 ### Added
@@ -242,7 +253,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.15.0...HEAD
+[0.16.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.15.0...v0.16.0
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.16.0...HEAD
 [0.15.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.12.0...v0.13.0
