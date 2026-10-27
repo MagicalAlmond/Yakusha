@@ -294,8 +294,14 @@
       Ren'Py 的 install 只装已翻条目，所以该走查用真跑的 mock translate，不是
       --dry-run。全量 **655 个，全绿**；`docs/gui.md` §9 第 3 条的未验范围
       随之收窄到 Electron 窗口交互本身。
+- [x] 版内修正：Kirikiri XP3 读取器适配真机归档（索引容器头 9/17 字节双布局自动判位、
+      条目起点两种形状、变换头报 `E_UNSUPPORTED` 而非裸 RangeError）、`decodeKs` 补
+      UTF-16 BOM——两款真实商业归档全条目 adler-32 校验通过、六款游戏 scan 实测，
+      全量 657 绿（详见 §6 的 0.16 段）。
 - [x] 文档：`docs/json-contract.md` §7 scan 行、`docs/commands.md` scan 节、
-      `docs/gui.md` 状态行与 §3 注记、`CHANGELOG.md` 0.16.0 段。
+      `docs/gui.md` 状态行与 §3 注记、`CHANGELOG.md` 0.16.0 段（含上述修正的 Fixed 两条），
+      以及 0.16 复核后的全仓一致性巡检（games/limitations/README/commands/engines/
+      json-contract/platforms/architecture/ENGINE-STRATEGY 的陈旧声明逐一改真）。
 - [x] 明确不做：能力位矩阵不新增字段（`attach` / `liveReload` 仍是两处 `false`），
       GUI 不因能力位新增任何私有 API。
 
