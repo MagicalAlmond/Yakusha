@@ -1071,6 +1071,13 @@ RangeError），全量 657 绿。
   「Rust 产出可被宿主进程加载的 hook DLL」与「外部注入器进程」两半的编译前提都已实测成立；
   剩下的是工程量（windows-rs 的 OpenProcess/WriteProcessMemory/CreateRemoteThread、
   崩溃隔离、签名分发，见第 1/2/3 行）而不是能力缺口。
+  **注入器半边探针（同日，仓库外完成）**：零依赖 Rust 注入器（裸 `extern "system"` 声明
+  kernel32，不用任何 crates.io 依赖）对本会话自建的测试进程完整走通
+  OpenProcess → VirtualAllocEx → WriteProcessMemory（DLL 路径）→ CreateRemoteThread(LoadLibraryW)
+  → 远端线程返回模块句柄（DLL 确已加载）。至此原生注入器路线的**两半编译与运行前提都实测成立**：
+  Rust 产 hook DLL（上一条）+ Rust 产注入器（本条）。该探针只针对自建测试进程与自家 DLL，
+  产物不进仓库；真实游戏注入要处理的注入时机/反作弊/多版本矩阵属工程量，且第 1/2/3 行
+  （签名、托管、命令名）在路线拍板前保持未定。
 
 Kirikiri 的 XP3 写回两条路线都适用（改盘：重建索引重算 adler-32；注入：KAG 变量层），
 但读写器只有读的一半（`xp3.js` 是只读的），等路线定了再排。0.13 没有为写回做任何铺垫。
