@@ -236,9 +236,10 @@ test/fixtures/           各引擎最小夹具（mini-mz、mini-mv、renpy-*、r
 | 0.10.x | ~~引擎拆缝 refactor~~（**已完成**，`refactor/engine-seams`）：引擎事实集中到 `src/engines/profile.js` 与 `rmFilePlan`，pipeline 从 `options.profile` 读、缺省回退原实现 | 354 pass（346 原有断言未改 + 8 条 profile 等价性新测试） |
 | 0.11.0 | **已交付**：Ren'Py 接入——`.rpy` 解析器 + `.rpyc`（RENPY RPC2 头）解码、`game/` 项目发现（最多 3 层）、`translate <lang> strings:` 投递、Ren'Py 专属 profile 与 doctor 检查。战略稿 §6.3 排在 0.11 的"通用内容导入 v1"没有随这一版交付：源码里没有导入入口，命令仍是 13 个 | 459 pass / 0 fail；Ren'Py 8.5.3 SDK 自带的两个示例游戏走通 scan → extract → translate → install → uninstall，见 [games.md](games.md) |
 | 0.12.0 | **已交付**：RGSS（XP / VX / VX Ace）接入，纯 JS——Ruby Marshal 4.8 读写、三种 RGSSAD 归档解密、`Game.ini` 与 `Data/` 项目发现、按事件指令与数据库字段抽取。**没有交付层**：`runtime` 是 `null`，`install` / `uninstall` 报 `E_NOT_IMPLEMENTED`；战略稿 §6.3 原本排在这一版的"inject + 原生 helper"没有做，因为它需要本机目前没有的 C/C++ 工具链，两条路线也都没拍板 | 548 pass / 0 fail（新增 89 条）；一款 RGSS3 商业游戏走通 scan → extract，31,730 条唯一串、0 条 `undecodable`，见 [games.md](games.md) |
-| 0.13.0 | **已交付**：表格导出 v1——`export` 支持 `--format json / tsv / csv`，新增 `import` 命令回灌（round-trip 字节相同）；Kirikiri 接入，纯 JS（XP3 解包 + KAG 脚本解析），**没有交付层**：`runtime` 是 `null`，`install` / `uninstall` 报 `E_NOT_IMPLEMENTED` | 603 pass / 0 fail；export → import → export 的 round-trip 有测试钉死字节相同；Kirikiri 覆盖为合成夹具级（无真实游戏全量实测） |
-| 0.14.0 | GUI（Electron）：拖 exe → 识别 → 启动 → 按能力矩阵加载译文；附 NScripter | 真机拖入多款游戏跑通 |
-| 0.15.0 | KRKR 注入 + Wolf / SRPG Studio spike | 各一款真实游戏验收 |
+| 0.13.0 | **已交付**：表格导出 v1——`export` 支持 `--format json / tsv / csv`，新增 `import` 命令回灌（round-trip 字节相同）；Kirikiri 接入，纯 JS（XP3 解包 + KAG 脚本解析），**没有交付层**：`runtime` 是 `null`，`install` / `uninstall` 报 `E_NOT_IMPLEMENTED` | 603 pass / 0 fail；export → import → export 的 round-trip 有测试钉死字节相同；Kirikiri 覆盖为合成夹具级（0.16 补做了真实归档复核，见 0.16 行） |
+| 0.14.0 | **已交付**：GUI 最小外壳（Electron）——runner 抽缝（`src/cli/runner.js`，CLI 输出逐字节不变）、同进程调 core、进度事件 + 协作式取消、safeStorage 记住密钥、launch 接入外壳、最小字典编辑器；原计划随版的 NScripter 没有做（本机无验收样本） | 645 pass / 0 fail；`gui/handlers.js` 信封与 CLI 逐键对拍；真机窗口走查顺延（headless 环境无法开窗） |
+| 0.15.0 | **已交付**：通用内容导入——`import` 加 `jsonl` 输入与 `--create`（无字典时直接建库），覆盖外部表格/JSONL 内容；原计划的 KRKR 注入没有做（交付层路线未拍板，见 DEVLOG §8.1 第 10 行） | 650 pass / 0 fail；JSONL 与 --create 有独立测试 |
+| 0.16.0 | **已交付**：GUI 按引擎能力位灰显按钮——`scan` 载荷带 `capabilities`（只增不改），没有交付层的引擎（RGSS、Kirikiri）install/uninstall 置灰并写明原因；GUI handler 缝的 E2E 测试把三条交付档链路各走通 | 652 → 655 pass / 0 fail（0.16 内的 Kirikiri 真机修正后全量 657）；无窗口环境可验项全验，真机窗口走查顺延 |
 | 1.0.0 | 10 个引擎 + 能力矩阵 + 便携 exe（图标、无控制台、最近游戏） | 双击 exe 可用 |
 
 ## 10. 风险
