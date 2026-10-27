@@ -287,6 +287,13 @@
 - [x] 测试：`test/engine-contract.test.js` 加五引擎能力位冻结断言（MZ 是唯一
       `debuggable: true`）；`test/gui-handlers.test.js` 加 scan 信封携带能力位用例。
       合计 **652 个，全绿**。
+- [x] 0.16 补记：`test/gui-e2e.test.js`（3 用例）按 GUI 的调用缝 `runGuiCommand`
+      把三条交付档的完整命令序列各走一遍——MZ plugin 档 install/uninstall 往返、
+      Ren'Py translation 档真译后 install 落盘 `game/yakusha_translation.rpy`、
+      RGSS runtime null 的 install 报 `E_NOT_IMPLEMENTED`（与灰显规则互证）。
+      Ren'Py 的 install 只装已翻条目，所以该走查用真跑的 mock translate，不是
+      --dry-run。全量 **655 个，全绿**；`docs/gui.md` §9 第 3 条的未验范围
+      随之收窄到 Electron 窗口交互本身。
 - [x] 文档：`docs/json-contract.md` §7 scan 行、`docs/commands.md` scan 节、
       `docs/gui.md` 状态行与 §3 注记、`CHANGELOG.md` 0.16.0 段。
 - [x] 明确不做：能力位矩阵不新增字段（`attach` / `liveReload` 仍是两处 `false`），
