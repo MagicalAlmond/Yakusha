@@ -1056,13 +1056,13 @@ RangeError），全量 657 绿。
 | 7 | 目标用户与商业目标 | 未定。影响 GUI 功能取舍与文档语气。 |
 | 8 | README / architecture 旧卖点措辞 | 已在 WP6 按"四档交付说明实际影响"改掉；若用户希望保留更强的表述，回退点是本包 commit。 |
 | 9 | `CHANGELOG.md` | **已补**（0.11.0 起有面向使用者的变更记录）。 |
-| 10 | RGSS / Kirikiri 交付层：纯 JS 写回 vs 原生注入器 | **2026-10-27 用户授权安装 C/C++/Rust 工具链以解锁原生注入器路线的可行性评估**（此前 `cl`/`gcc`/`clang`/`rustc`/`cargo`/`ruby` 实测全不在 PATH，该路线连编译都做不了）。**2026-10-27 工具链已装**：Rust 1.99.1 stable-gnu 全局安装（`%USERPROFILE%\.cargo\bin`，已入用户 PATH；cargo build --release 实跑通过；GNU 自含 MinGW 只服务 Rust 自举，不能编任意 C，编 C/C++ 需另装 LLVM 或 MSVC）。路线最终选择仍待评估后拍板；在此之前 RGSS（0.12 起）与 Kirikiri（0.13 起）都停在 L1–L3，`install` / `uninstall` 报 `E_NOT_IMPLEMENTED`。 |
+| 10 | RGSS / Kirikiri 交付层：纯 JS 写回 vs 原生注入器 | **2026-10-27 用户授权安装 C/C++/Rust 工具链以解锁原生注入器路线的可行性评估**（此前 `cl`/`gcc`/`clang`/`rustc`/`cargo`/`ruby` 实测全不在 PATH，该路线连编译都做不了）。**2026-10-27 工具链已装**：Rust 1.99.1 stable-gnu 全局安装（`%USERPROFILE%\.cargo\bin`，已入用户 PATH；cargo build --release 实跑通过；GNU 自含 MinGW 只服务 Rust 自举，不能编任意 C；C/C++ 已由 llvm-mingw（msvcrt 变体 20261020，clang 23.1.4，便携 zip 免管理员，装在仓库外工具目录并已注册用户 PATH）补齐。**64 位与 32 位（RGSS 硬前提）的编译/注入探针均已实证，见下方探针段**）。路线最终选择仍待评估后拍板；在此之前 RGSS（0.12 起）与 Kirikiri（0.13 起）都停在 L1–L3，`install` / `uninstall` 报 `E_NOT_IMPLEMENTED`。 |
 | 11 | npm 打包范围（`package.json` 的 `files` 字段） | **2026-10-27 拍板：打包要包含 GUI**。`files` 已加 `gui`（README/LICENSE/package.json 本来就在）；`docs/` 用户未提及，按惯例不进 tarball（README 已把文档仓库链接作为入口）。变更见下一条目。原 0.16 实测：tarball 52 个文件、全部在 `bin/`+`src/`+根三件（package.json/README.md/LICENSE），**不含 `gui/` 也不含 `docs/`**；装出来的包能跑 CLI，但 `npx electron gui/main.js`（README:283）在 tarball 内容里不存在——维持现状则 npm 包是纯 CLI 包，带 GUI 需把 `gui/` 加进 `files`（决策仍归用户）。 |
 
 **第 10 行的两条路线**（只列代价，不替用户拍板；实现侧的注释在 `src/engines/rgss/adapter.js:240-250`）：
 
 - **纯 JS 写回数据文档**：把译文塞回 Ruby Marshal 流，重写 `Data/*.rvdata2` 或整个 `.rgss3a`。读写器已经在仓库里（`marshal.js` 的 `marshal()`、`archive.js` 的 `writeArchive()`），**不需要任何原生组件**，也就绕开了代码签名、托管渠道、安装命令名这三条待定项。代价是**改盘**：安装要先备份被改的文档、卸载要逐字节还原（与 MZ/MV 的插件档同一类风险，但文件大得多，一份归档 644 MB）；而且改过的归档与「游戏未来更新」必然冲突。
-- **原生注入器 + hook DLL**：运行时把译文喂给游戏进程，不改盘、卸载只需删注入器。代价是这条路线同时踩上 §8.1 的第 1/2/3 行（签名、托管、命令名），还要做崩溃隔离与版本矩阵；**Rust 工具链已于 2026-10-27 全局安装（1.99.1 stable-gnu，`%USERPROFILE%\.cargo\bin`，cargo build 实跑通过）**，这条路在当前机器上已具备编译条件；`cl` / `gcc` / `clang` / `ruby` 仍不在 `PATH`——用 Rust（windows-rs）写注入器可行，写 C/C++ 的 hook DLL 还需另装 LLVM 或 MSVC。
+- **原生注入器 + hook DLL**：运行时把译文喂给游戏进程，不改盘、卸载只需删注入器。代价是这条路线同时踩上 §8.1 的第 1/2/3 行（签名、托管、命令名），还要做崩溃隔离与版本矩阵；**Rust 工具链已于 2026-10-27 全局安装（1.99.1 stable-gnu，`%USERPROFILE%\.cargo\bin`，cargo build 实跑通过）**，这条路在当前机器上已具备编译条件；`cl` / `gcc` / `ruby` 仍不在 `PATH`；C/C++ 已由 llvm-mingw（clang 23.1.4）补齐，且探针证明注入器连第三方 crate 都不需要（裸 `extern "system"` FFI 即可）——Rust 与 C/C++ 写 hook DLL/注入器两条子路都可用。
 
   **注入器路线可行性探针（2026-10-27，仓库外完成，产物不进仓库）**：Rust `cdylib`
   （`crate-type = ["cdylib"]`、`#[no_mangle] pub extern "system"` 导出函数）
@@ -1078,6 +1078,17 @@ RangeError），全量 657 绿。
   Rust 产 hook DLL（上一条）+ Rust 产注入器（本条）。该探针只针对自建测试进程与自家 DLL，
   产物不进仓库；真实游戏注入要处理的注入时机/反作弊/多版本矩阵属工程量，且第 1/2/3 行
   （签名、托管、命令名）在路线拍板前保持未定。
+  **32 位半边探针（同日，仓库外完成）**：RGSS 游戏是 32 位进程，注入器路线必须能产出 32 位
+  DLL 与 32 位注入器。`rustup target add i686-pc-windows-gnullvm` + llvm-mingw（msvcrt 变体
+  20261020，clang 23.1.4，便携 zip 解压即用、免管理员，装在仓库外工具目录并已注册用户 PATH）
+  一次链接通过；普通 `i686-pc-windows-gnu` 目标不可用——rustup 自带 self-contained 只有
+  crt2.o/dllcrt2.o，缺整套 MinGW 导入库，`i686-w64-mingw32-gcc` 找不到。32 位三件套
+  （cdylib DLL + sleeper + 注入器）全部 PE32（machine=0x14c），注入全链
+  CreateRemoteThread(LoadLibraryW) 返回模块句柄 → **32 位半边实证成立**。打包注意：gnullvm
+  产物动态依赖 `libunwind.dll`（llvm-mingw 自带，需随工具分发）；`-C link-arg=-static` 实测
+  去不掉该依赖（Rust 自身 `-lunwind` 的解析顺序），彻底静态要换 GCC 系 i686 工具链，留待真开工再调。
+  C/C++ 半边：clang 对 hello.c 的 32/64 位编译运行都通过（第 1 项授权的 C/C++ 工具链落地；
+  cl/gcc/ruby 仍缺，不影响本路线）。
 
 Kirikiri 的 XP3 写回两条路线都适用（改盘：重建索引重算 adler-32；注入：KAG 变量层），
 但读写器只有读的一半（`xp3.js` 是只读的），等路线定了再排。0.13 没有为写回做任何铺垫。
