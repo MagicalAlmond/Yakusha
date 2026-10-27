@@ -275,3 +275,58 @@ function splitContexts(cell) {
   return cell.split(", ");
 }
 
+
+/**
+ * Parse a JSON Lines file into table rows for `import` (generic content
+ * import v1). One JSON object per line; blank lines are skipped.
+ *
+ * Accepted per line (the first present wins for each field):
+ *   source | key   — the dictionary key (required, non-empty string)
+ *   target | text  — the translation (required, non-empty string)
+ *   contexts | locator — where the string came from: an array of strings,
+ *     or one string (a single context). A missing locator means no context.
+ *
+ * This is the file shape external tools write (ENGINE-STRATEGY.md §6.2:
+ * JSON/JSONL with key, text, locator). The rows then go through the same
+ * merge rules as any other `import` — the dictionary format does not grow
+ * new fields.
+ *
+ * @param {string} text file contents
+ * @returns {TableRow[]}
+ * @throws {CliError} E_DICTIONARY with the 1-based line number on bad JSON
+ *   or a row missing source/target
+ */
+export function parseJsonl(text) {
+  const rows = [];
+  const lines = text.split(/\r?\n/);
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index].trim();
+    if (line === "") continue;
+    let object;
+    try {
+      object = JSON.parse(line);
+    } catch {
+      throw new CliError("E_DICTIONARY", "table line " + (index + 1) + " is not valid JSON");
+    }
+    if (!object || typeof object !== "object" || Array.isArray(object)) {
+      throw new CliError("E_DICTIONARY", "table line " + (index + 1) + " must be a JSON object");
+    }
+    const source = typeof object.source === "string" && object.source.length > 0 ? object.source
+      : typeof object.key === "string" && object.key.length > 0 ? object.key : null;
+    const target = typeof object.target === "string" && object.target.length > 0 ? object.target
+      : typeof object.text === "string" && object.text.length > 0 ? object.text : null;
+    if (source === null || target === null) {
+      throw new CliError("E_DICTIONARY", "table line " + (index + 1) + " needs a non-empty source/key and target/text");
+    }
+    let contexts = [];
+    if (Array.isArray(object.contexts)) {
+      contexts = object.contexts.filter((context) => typeof context === "string" && context.length > 0);
+    } else if (typeof object.locator === "string" && object.locator.length > 0) {
+      contexts = [object.locator];
+    } else if (typeof object.contexts === "string" && object.contexts.length > 0) {
+      contexts = [object.contexts];
+    }
+    rows.push({ source, target, contexts });
+  }
+  return rows;
+}

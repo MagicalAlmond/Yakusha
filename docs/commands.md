@@ -768,14 +768,15 @@ exported 32 entries to <abs> (4159 B)
 
 ## import：从导出文件回填字典
 
-`import` 是 `export` 的逆操作的一半：读一个此前导出的 TSV / CSV / JSON 文件，把 `target` 写回字典。0.13 新增。逐行规则：
+`import` 是 `export` 的逆操作的一半：读一个此前导出的 TSV / CSV / JSON 文件，把 `target` 写回字典。0.13 新增；0.15 增加了 JSONL 输入与 `--create`（通用内容导入 v1）。逐行规则：
 
 - `--from` 必填，缺了报 `E_USAGE`：`import needs --from <file>`；`-` 被拒：`import --from must be a file path, not -`（与 `export --out` 一样，永远不走 stdin/stdout 管道）。
-- `--format` 缺省按 `--from` 的扩展名猜（`.tsv` / `.csv` / `.json`，大小写不敏感）；猜不出报 `E_USAGE`：`import --format must be tsv, csv or json (or a .tsv/.csv/.json file), not xyz`（没有扩展名时显示 `(missing)`）。
+- `--format` 缺省按 `--from` 的扩展名猜（`.tsv` / `.csv` / `.json` / `.jsonl`，大小写不敏感）；猜不出报 `E_USAGE`：`import --format must be tsv, csv, json or jsonl (or a .tsv/.csv/.json/.jsonl file), not xyz`（没有扩展名时显示 `(missing)`）。
 - `--strategy` 只有两种：`only-empty`（默认，绝不覆盖已有非空译文）与 `overwrite`；给了别的值报 `E_USAGE`：`--strategy must be only-empty or overwrite, not nope`。注意两种策略下**同值都会跳过**（`current === target` 的行不计入 `applied`），`overwrite` 只是不管已有译文是否非空都写入。
 - 文件不存在报 `E_IO`：`cannot read <abs>: the file does not exist`（home 缩写成 `~`）。
 - 表格文件必须有表头行 `source<分隔符>target<分隔符>contexts`，不符报 `E_DICTIONARY`：`table file must start with the header row source target contexts`（消息里显示实际的分隔符：TSV 用 tab、CSV 用逗号）；某行格数不是 3 报 `E_DICTIONARY`：`table row 1 has 2 cells, expected 3`（行号含表头、从 1 起）。JSON 文件则要求有 `entries` 对象，每个条目是字符串或 `{text, contexts}`。
 - 跳过规则按行处理：`target` 为空 → 跳过；`only-empty` 下字典已有非空译文 → 跳过；字典当前值与 `target` 相同 → 跳过（两种策略都算）。`contexts` 的合并顺序：字典里已有非空 contexts 优先，否则用表格行的 `contexts`，否则为空数组。
+- `--create`（0.15）：项目还没有字典时，先用 `emptyDictionary(gameTitle)` 建一个再合并（stderr 提示 `created an empty dictionary: <abs>`）；没有 `--create` 时行为与 0.13 相同（`E_NO_DICTIONARY`，消息末尾追加 `(pass --create to start one from this import)`）。解析先于建字典：表坏了不会留下半成品空字典。
 - `--dry-run` 完整执行匹配与校验但不写盘；`applied` 为 0 时也不写（不碰 `updatedAt`）。
 - 载荷 8 键平铺：`file` / `format`（实际格式名）/ `strategy` / `dryRun` / `read`（读到的行数，含表头与跳过行）/ `applied` / `skipped` / `entries`（本次实际写入的对象）。
 

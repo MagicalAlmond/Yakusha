@@ -1,7 +1,7 @@
 # 开发交接文档（DEVLOG）
 
 > 这份文档记录**阶段目标、已完成项、决策理由和下一步**，随开发进程更新。
-> 最后更新：2026-10-27（0.14.0 runner 抽缝 + Electron 最小外壳 + translate 取消完成于 `feat/0.14-gui`，未合入 `main`、未打 tag）。
+> 最后更新：2026-10-27（0.15.0 通用内容导入 v1：JSONL 输入 + `import --create`，在 `feat/0.15-generic-import`；0.14.0 GUI 在 `feat/0.14-gui`，均未合入 `main`、未打 tag）。
 > 0.9.0 项目改名 **Yakusha**，字典目录、插件文件、环境变量与备份后缀全部随之改名；
 > 仓库已发布到 https://github.com/MagicalAlmond/Yakusha（`main` 分支）。
 > 0.8.0 的 `doctor`、0.7.1 的 `uninstall` 漂移保护、0.7.0 的报告/模板见下）。
@@ -38,7 +38,7 @@
 | --- | --- |
 | 版本 | **0.14.0**（`package.json` 单一真源，`src/version.js` 读取它；插件模板的 `VERSION` 由安装器替换） |
 | 契约 | 0.10 的五篇设计稿（json-contract / config / engines / export-format / platforms）已冻结并全部实现；0.11 只有 `engines.md` 真正扩了内容（三个引擎、新增 §13.2 Ren'Py），`json-contract.md` 与 `platforms.md` 补了「0.11 复查后不变」的复核标注。0.12 继续扩 `engines.md`（四个引擎、新增 §13.3 RGSS 与 §7.7 的 pending 交付），`json-contract.md` 补 RGSS 的语义澄清（`E_NOT_IMPLEMENTED` 有了 CLI 入口、`install`/`uninstall`/`doctor` 的按引擎差异）；信封与字段类型仍未动，`platforms.md` / `config.md` / `export-format.md` 未动。0.13 扩 `engines.md`（五个引擎、新增 §13.4 Kirikiri），`export-format.md` 补 TSV/CSV 表格与 `import` 命令；JSON 信封（flat one-line object、退出码 0/1/2、13 个错误码）未动 |
-| 测试 | **645 个，全绿**（`npm test`，约 11–12s；0.14 新增 runner 15 + 取消 5 + GUI handlers 11 + 字典编辑 6） |
+| 测试 | **650 个，全绿**（`npm test`，约 11–12s；0.14 新增 runner 15 + 取消 5 + GUI handlers 11 + 字典编辑 6；0.15 新增 JSONL/--create 5） |
 | 持续集成 | GitHub Actions：`npm test` 在 Node 22 / 24（**windows-latest**，WP1 已从 ubuntu 切换） |
 | 平台 | Windows 10/11 x64 为唯一支持与验收环境（0.10 明确，见 [platforms.md](../platforms.md)） |
 | 支持引擎 | RPG Maker **MZ 1.3.2–1.9.0**、**MV 1.6.1–1.6.2**；**Ren'Py 8.x 脚本**（`.rpy` 明文 + `.rpyc` 编译）；**RGSS（XP / VX / VX Ace）**与 **Kirikiri（KAG / XP3）**——只到 L1–L3（识别 / 盘点 / 抽取 / 翻译 / 校验 / 导出），**没有交付层**（§6） |
@@ -257,6 +257,22 @@
       两条专用通道、+6 例测试）；全量 **645 pass**。
 - [ ] 暂缓：无（0.14 的 gui.md 范围全部落地；批量编辑仍走 export/import）。
 
+### H 阶段（0.15.0）：通用内容导入 v1
+
+- **动机**：ENGINE-STRATEGY §6.2 用户拍板"通用内容导入/导出（做）"（2026-10-25），
+  0.11 时顺延；0.13 的 `import` 只吃自己导出的三种文件且要求字典已存在，
+  外部内容没有入口。
+- **范围**：`import` 增加 JSONL 输入（每行 `{source|key, target|text, contexts|locator}`，
+  空行跳过、BOM/CRLF 容忍、坏行报带行号的 `E_DICTIONARY`）与 `--create`
+  （缺字典时先 `emptyDictionary(gameTitle)` 建一个再合并；解析先于建字典，
+  坏表不留半成品）。**不在范围**：字典 v2 的 provenance 字段（§8.1 #5 未拍板，
+  导入条目与本地抽取条目在格式上不可区分）、en→zh（§8.1 #6）。
+- **实现**：`parseJsonl` 在 `src/cli/table.js`（与表格解析同模块、复用 TableRow）；
+  `commandImport` 先读后建；`args.js` 的 BOOLEAN 加 `create`、import 白名单加
+  `create`；USAGE 补两行。
+- **测试**：`test/export.test.js` 23→28（JSONL 别名、坏行行号、--create、
+  无 --create 保持 E_NO_DICTIONARY、坏表不留字典）；全量 **650 pass / 0 fail**。
+
 ## 4. 文件地图
 
 ```
@@ -267,7 +283,8 @@ src/cli/envelope.js        0.10 信封、错误对象、sanitizeMessage、EXIT �
 src/cli/args.js            0.10 严格参数解析（未知选项 / 缺值 / 多余参数即 E_USAGE）
 src/cli/config.js          用户级配置读写（provider / model / baseUrl，密钥不落盘）
 src/cli/export.js          字典 → JSON 快照（UTF-16 键序、原子写、覆盖保护）
-src/cli/table.js           TSV / CSV 表格序列化与解析（RFC4180 quoting、BOM、CRLF）
+src/cli/table.js           TSV / CSV 表格序列化与解析（RFC4180 quoting、BOM、CRLF）；0.15 起
+                           另含 parseJsonl（通用内容导入的 JSONL 读取）
 src/version.js             版本单一真源（读 package.json）
 gui/handlers.js            0.14 主进程命令层：runCommand 包装、CLI 一致信封、命令白名单
 gui/main.js                0.14 Electron 主进程：窗口、IPC 白名单、长任务与 AbortController

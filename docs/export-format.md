@@ -1,4 +1,4 @@
-# 译文导出格式（0.13）
+# 译文导出格式（0.13；0.15 增补 JSONL 导入）
 
 > **状态：0.10 实现 JSON（WP4）；0.13 补上 TSV / CSV 表格与 `import` 命令。**
 > 本文冻结的是**格式契约**，不是排期；排期权威版本见
@@ -244,7 +244,40 @@ yakusha import <game-dir> --from <file> [--format tsv|csv|json] [--strategy only
 （`test/export.test.js`）。这只对“本项目导出、未被外部工具改写”的表格成立；§8.2 的
 引用规则保证含逗号、引号、换行的 context 也能无损往返。
 
-## 9. 验收清单
+## 9. 通用内容导入：JSONL（0.15）
+
+外部工具把任意引擎/任意来源的文本写成 JSONL（ENGINE-STRATEGY §6.2 拍板的文件型
+对接形状），`yakusha import --from content.jsonl [--create]` 把它并进字典。这不等于
+"支持某引擎"——导入的内容没有 fixture、没有真实游戏验收；其来源标记（provenance）
+要等字典 v2 字段（DEVLOG §8.1 #5）拍板后才有可能，现在导入的条目与本地抽取的条目
+在格式上不可区分。
+
+### 9.1 文件形状
+
+每行一个 JSON 对象，空行跳过，编码 UTF-8；读取端容忍行首 BOM（按空白剥掉）与
+CRLF 行尾：
+
+```json
+{"key": "Hello", "text": "你好", "locator": "script.rpy:12"}
+{"source": "World", "text": "世界", "contexts": ["Map001.json:1", "Map001.json:7"]}
+```
+
+- `source|key`：字典键，先出现的字段生效；缺失、非字符串或空串报 `E_DICTIONARY`：
+  `table line 1 needs a non-empty source/key and target/text`。
+- `target|text`：译文，规则同上。
+- `contexts`（字符串数组）或 `locator`（单个字符串）：写进该条目的 contexts；
+  都缺就是空数组。多余字段被忽略。
+- 坏 JSON 报 `E_DICTIONARY`：`table line 2 is not valid JSON`（行号从 1 起）。
+
+### 9.2 `--create`
+
+项目还没有字典时，`--create` 先建一个空字典（`emptyDictionary(gameTitle)`）再合并，
+stderr 打一行 `created an empty dictionary: <abs>`；表坏了不会留下半成品（解析先于
+建字典）。没有 `--create`，缺字典仍是 `E_NO_DICTIONARY`，消息末尾是
+`(pass --create to start one from this import)`。合并语义（strategy、跳过规则、
+contexts 优先级）与 §8.4 完全相同。
+
+## 10. 验收清单
 
 - [x] rich / flat 两种输出都能被 `JSON.parse`，字段与本文一致。
 - [x] entries 键顺序与 locale 无关；同一字典在 Windows CI 上重复导出字节一致。

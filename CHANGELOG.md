@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-10-27
+
+### Added
+
+- Added JSONL input for `import` (generic content import v1): one JSON object per line with `source|key`, `target|text` and `contexts|locator`; external tools can now feed arbitrary text into a Yakusha dictionary without a Yakusha extract. The merge rules, skip rules and payload keys are the same as the other import formats.
+- Added `--create` for `import`: when the project has no dictionary yet, the command starts one (`emptyDictionary(gameTitle)`), prints a stderr note and merges into it. A damaged table never leaves a half-made dictionary behind because parsing happens first.
+- Added `test/export.test.js` cases for JSONL field aliases, bad lines (E_DICTIONARY with the line number), `--create`, and the preserved E_NO_DICTIONARY without the flag (650 passing in total).
+
+### Changed
+
+- `import --format` now accepts `jsonl` and guesses it from the `.jsonl` extension; the usage text documents the new flag.
+- No breaking changes: the envelope, exit codes, the command table and all 13 error codes are unchanged, and the dictionary format stays `yakusha/1` with no new fields (dictionary v2 fields remain a pending decision).
+
+
 ## [0.14.0] - 2026-10-27
 
 ### Added
@@ -228,7 +242,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.13.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.15.0...HEAD
+[0.15.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.14.0...v0.15.0
+[0.14.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.10.0...v0.11.0

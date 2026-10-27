@@ -553,3 +553,70 @@ test("round-trip: export tsv, clear translations, import back byte-identical", (
   const restored = JSON.parse(fs.readFileSync(dictFile, "utf8"));
   assert.deepEqual(restored.entries, original.entries);
 });
+
+test("import: jsonl takes key/text and locator, or source/target and contexts", () => {
+  const game = tempGame();
+  writeDictionary(game, {
+    "Hello": { text: "", contexts: [] },
+    "World": { text: "", contexts: [] },
+  });
+  const from = path.join(game, "..", "ext.jsonl");
+  fs.writeFileSync(from, [
+    "{\"key\":\"Hello\",\"text\":\"你好\",\"locator\":\"ext:1\"}",
+    "{\"source\":\"World\",\"text\":\"世界\",\"contexts\":[\"ext:2\"]}",
+    "",
+  ].join("\n"));
+  const result = run(["import", game, "--from", from, "--json"]);
+  assert.equal(result.code, 0, result.stderr);
+  assert.equal(envelope(result).format, "jsonl");
+  assert.equal(envelope(result).applied, 2);
+  const onDisk = JSON.parse(fs.readFileSync(path.join(game, "yakusha", "dictionary.json"), "utf8"));
+  assert.deepEqual(onDisk.entries["Hello"], { text: "你好", contexts: ["ext:1"] });
+  assert.deepEqual(onDisk.entries["World"], { text: "世界", contexts: ["ext:2"] });
+});
+
+test("import: a bad jsonl line is E_DICTIONARY with the line number", () => {
+  const game = tempGame();
+  writeDictionary(game, { "Hello": { text: "", contexts: [] } });
+  const from = path.join(game, "..", "bad.jsonl");
+  fs.writeFileSync(from, "{\"key\":\"Hello\",\"text\":\"ok\"}\n{not json}\n");
+  const result = run(["import", game, "--from", from, "--json"]);
+  assert.equal(result.code, 2);
+  const err = envelope(result).error;
+  assert.equal(err.code, "E_DICTIONARY");
+  assert.match(err.message, /table line 2 is not valid JSON/);
+});
+
+test("import: --create starts a dictionary when the project has none", () => {
+  const game = tempGame();
+  fs.rmSync(path.join(game, "yakusha"), { recursive: true, force: true });
+  const from = path.join(game, "..", "ext.jsonl");
+  fs.writeFileSync(from, "{\"key\":\"Hello\",\"text\":\"你好\",\"locator\":\"ext:1\"}\n");
+  const result = run(["import", game, "--from", from, "--create", "--json"]);
+  assert.equal(result.code, 0, result.stderr);
+  assert.equal(envelope(result).applied, 1);
+  const onDisk = JSON.parse(fs.readFileSync(path.join(game, "yakusha", "dictionary.json"), "utf8"));
+  assert.deepEqual(onDisk.entries["Hello"], { text: "你好", contexts: ["ext:1"] });
+});
+
+test("import: without --create a missing dictionary is still E_NO_DICTIONARY", () => {
+  const game = tempGame();
+  fs.rmSync(path.join(game, "yakusha"), { recursive: true, force: true });
+  const from = path.join(game, "..", "ext.jsonl");
+  fs.writeFileSync(from, "{\"key\":\"Hello\",\"text\":\"你好\"}\n");
+  const result = run(["import", game, "--from", from, "--json"]);
+  assert.equal(result.code, 2);
+  const err = envelope(result).error;
+  assert.equal(err.code, "E_NO_DICTIONARY");
+  assert.match(err.message, /pass --create to start one/);
+});
+
+test("import: --create with a bad table leaves no dictionary behind", () => {
+  const game = tempGame();
+  fs.rmSync(path.join(game, "yakusha"), { recursive: true, force: true });
+  const from = path.join(game, "..", "bad.jsonl");
+  fs.writeFileSync(from, "{not json}\n");
+  const result = run(["import", game, "--from", from, "--create", "--json"]);
+  assert.equal(result.code, 2);
+  assert.equal(fs.existsSync(path.join(game, "yakusha", "dictionary.json")), false);
+});

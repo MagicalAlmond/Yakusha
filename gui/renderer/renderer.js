@@ -91,7 +91,7 @@ async function doExport() {
 // (only-empty) unless the user types overwrite.
 $("import-run").addEventListener("click", async () => {
   if (!currentDir) { setProjectLine("pick a project first"); return; }
-  const from = window.prompt("Table file to import (absolute path, .tsv/.csv/.json)");
+  const from = window.prompt("File to import (absolute path, .tsv/.csv/.json/.jsonl)");
   if (!from) return;
   const strategy = window.prompt("Strategy: only-empty or overwrite", "only-empty") || "only-empty";
   await run("import", [currentDir], { from: from.trim(), strategy: strategy.trim() });

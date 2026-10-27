@@ -47,6 +47,7 @@ import {
 } from "./export.js";
 import {
   parseTable,
+  parseJsonl,
   serialiseTable,
   buildTableRows,
 } from "./table.js";
@@ -860,15 +861,15 @@ async function commandImport(dir, flags, sink) {
   const dryRun = flags["dry-run"] === true;
   if (!formatName) {
     const ext = path.extname(from).toLowerCase();
-    if (ext === ".tsv" || ext === ".csv" || ext === ".json") {
+    if (ext === ".tsv" || ext === ".csv" || ext === ".json" || ext === ".jsonl") {
       formatName = ext.slice(1);
     }
   }
-  if (formatName !== "tsv" && formatName !== "csv" && formatName !== "json") {
-    throw new CliError("E_USAGE", "import --format must be tsv, csv or json (or a .tsv/.csv/.json file), not " + (formatName === null ? "(missing)" : formatName));
+  if (formatName !== "tsv" && formatName !== "csv" && formatName !== "json" && formatName !== "jsonl") {
+    throw new CliError("E_USAGE", "import --format must be tsv, csv, json or jsonl (or a .tsv/.csv/.json/.jsonl file), not " + (formatName === null ? "(missing)" : formatName));
   }
   const { project } = requireProject(dir);
-  const { file } = requireDictionary(project);
+  const file = dict.dictionaryPath(project.root);
   let text;
   try {
     text = fs.readFileSync(from, "utf8");
@@ -876,8 +877,17 @@ async function commandImport(dir, flags, sink) {
     throw new CliError("E_IO", "cannot read " + from + ": " + (error && error.code === "ENOENT" ? "the file does not exist" : String(error && error.code ? error.code : error)));
   }
   let rows;
-  if (formatName === "json") rows = parseExportEntries(text);
+  if (formatName === "jsonl") rows = parseJsonl(text);
+  else if (formatName === "json") rows = parseExportEntries(text);
   else rows = parseTable(text, formatName);
+  if (!fs.existsSync(file)) {
+    if (flags.create !== true) {
+      throw new CliError("E_NO_DICTIONARY", "no dictionary yet: " + file +
+        " (pass --create to start one from this import)");
+    }
+    dict.saveDictionary(file, dict.emptyDictionary(project.gameTitle));
+    sink.warn("created an empty dictionary: " + file);
+  }
   const dictionary = dict.loadDictionary(file);
   let applied = 0;
   let skipped = 0;

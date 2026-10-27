@@ -2,7 +2,7 @@
 
 > **状态：0.10 冻结并实现，0.11 至 0.13 原样沿用。** 信封、退出码、错误码清单一个都没动；
 > 0.11 起只新增按引擎（RPG Maker MZ/MV、Ren'Py、RGSS、Kirikiri）的语义澄清，见 §7.1，
-> 0.13 新增 `import` 命令（载荷见 §7），不新增保留键、不改字段类型。
+> 0.13 新增 `import` 命令（载荷见 §7）；0.15 给 `import` 加了 `jsonl` 输入与 `--create`，不新增保留键、不改字段类型、不加新载荷键。
 > 本文冻结的形状自 0.10 起不再变化，实际输出以 [commands.md](commands.md) 为准。
 
 ## 1. 目标与适用范围
@@ -219,7 +219,7 @@
 | `doctor` | ok / findings | `verdict, checks, failure, game{title, engine, engineVersion, root, dataFiles}, dictionary, sync, install, runtime, verify` | `broken` → findings / 1；`game.version` 改名 `game.engineVersion`；Ren'Py 与 RGSS 下 `checks` 少 `plugins.js` 与 `backup` 两项，`install` / `runtime` 子对象见 §7.1 |
 | `config` | ok | `action, ...` | 子命令字段见 [config.md](config.md) |
 | `export` | ok | `out, format, flat, entries, bytes` | 0.13 起 `format` 可为 `json` / `tsv` / `csv`（载荷里是实际格式名）；字段见 [export-format.md](export-format.md) |
-| `import` | ok | `file, format, strategy, dryRun, read, applied, skipped, entries` | 0.13 新增；`entries` 是本次实际写入的对象；语义见 [commands.md](commands.md) 的 import 一节 |
+| `import` | ok | `file, format, strategy, dryRun, read, applied, skipped, entries` | 0.13 新增；0.15 起 `format` 还可以是 `jsonl`、并支持 `--create`（缺字典时先建空字典；载荷键集不变）；`entries` 是本次实际写入的对象；语义见 [commands.md](commands.md) 的 import 一节 |
 | `launch` | ok | `root, exe, pid` | 只 spawn，不接管 |
 
 注意：
