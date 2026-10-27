@@ -1056,13 +1056,21 @@ RangeError），全量 657 绿。
 | 7 | 目标用户与商业目标 | 未定。影响 GUI 功能取舍与文档语气。 |
 | 8 | README / architecture 旧卖点措辞 | 已在 WP6 按"四档交付说明实际影响"改掉；若用户希望保留更强的表述，回退点是本包 commit。 |
 | 9 | `CHANGELOG.md` | **已补**（0.11.0 起有面向使用者的变更记录）。 |
-| 10 | RGSS / Kirikiri 交付层：纯 JS 写回 vs 原生注入器 | **2026-10-27 用户授权安装 C/C++/Rust 工具链以解锁原生注入器路线的可行性评估**（此前 `cl`/`gcc`/`clang`/`rustc`/`cargo`/`ruby` 实测全不在 PATH，该路线连编译都做不了）。路线最终选择仍待评估后拍板；在此之前 RGSS（0.12 起）与 Kirikiri（0.13 起）都停在 L1–L3，`install` / `uninstall` 报 `E_NOT_IMPLEMENTED`。 |
+| 10 | RGSS / Kirikiri 交付层：纯 JS 写回 vs 原生注入器 | **2026-10-27 用户授权安装 C/C++/Rust 工具链以解锁原生注入器路线的可行性评估**（此前 `cl`/`gcc`/`clang`/`rustc`/`cargo`/`ruby` 实测全不在 PATH，该路线连编译都做不了）。**2026-10-27 工具链已装**：Rust 1.99.1 stable-gnu 全局安装（`%USERPROFILE%\.cargo\bin`，已入用户 PATH；cargo build --release 实跑通过；GNU 自含 MinGW 只服务 Rust 自举，不能编任意 C，编 C/C++ 需另装 LLVM 或 MSVC）。路线最终选择仍待评估后拍板；在此之前 RGSS（0.12 起）与 Kirikiri（0.13 起）都停在 L1–L3，`install` / `uninstall` 报 `E_NOT_IMPLEMENTED`。 |
 | 11 | npm 打包范围（`package.json` 的 `files` 字段） | **2026-10-27 拍板：打包要包含 GUI**。`files` 已加 `gui`（README/LICENSE/package.json 本来就在）；`docs/` 用户未提及，按惯例不进 tarball（README 已把文档仓库链接作为入口）。变更见下一条目。原 0.16 实测：tarball 52 个文件、全部在 `bin/`+`src/`+根三件（package.json/README.md/LICENSE），**不含 `gui/` 也不含 `docs/`**；装出来的包能跑 CLI，但 `npx electron gui/main.js`（README:283）在 tarball 内容里不存在——维持现状则 npm 包是纯 CLI 包，带 GUI 需把 `gui/` 加进 `files`（决策仍归用户）。 |
 
 **第 10 行的两条路线**（只列代价，不替用户拍板；实现侧的注释在 `src/engines/rgss/adapter.js:240-250`）：
 
 - **纯 JS 写回数据文档**：把译文塞回 Ruby Marshal 流，重写 `Data/*.rvdata2` 或整个 `.rgss3a`。读写器已经在仓库里（`marshal.js` 的 `marshal()`、`archive.js` 的 `writeArchive()`），**不需要任何原生组件**，也就绕开了代码签名、托管渠道、安装命令名这三条待定项。代价是**改盘**：安装要先备份被改的文档、卸载要逐字节还原（与 MZ/MV 的插件档同一类风险，但文件大得多，一份归档 644 MB）；而且改过的归档与「游戏未来更新」必然冲突。
-- **原生注入器 + hook DLL**：运行时把译文喂给游戏进程，不改盘、卸载只需删注入器。代价是这条路线同时踩上 §8.1 的第 1/2/3 行（签名、托管、命令名），还要做崩溃隔离与版本矩阵；**而本机现在没有 C/C++/Rust 工具链，也没有 `ruby`**（`cl` / `gcc` / `clang` / `rustc` / `cargo` / `ruby` 实测全部不在 `PATH`），所以这条路在当前机器上连编译都做不了。
+- **原生注入器 + hook DLL**：运行时把译文喂给游戏进程，不改盘、卸载只需删注入器。代价是这条路线同时踩上 §8.1 的第 1/2/3 行（签名、托管、命令名），还要做崩溃隔离与版本矩阵；**Rust 工具链已于 2026-10-27 全局安装（1.99.1 stable-gnu，`%USERPROFILE%\.cargo\bin`，cargo build 实跑通过）**，这条路在当前机器上已具备编译条件；`cl` / `gcc` / `clang` / `ruby` 仍不在 `PATH`——用 Rust（windows-rs）写注入器可行，写 C/C++ 的 hook DLL 还需另装 LLVM 或 MSVC。
+
+  **注入器路线可行性探针（2026-10-27，仓库外完成，产物不进仓库）**：Rust `cdylib`
+  （`crate-type = ["cdylib"]`、`#[no_mangle] pub extern "system"` 导出函数）
+  在本机 cargo build --release 一次通过，产出 1.2 MB 的 `.dll`，导出符号存在，
+  并被 PowerShell `Add-Type` + `DllImport` 成功调用（返回探针字符串）。即
+  「Rust 产出可被宿主进程加载的 hook DLL」与「外部注入器进程」两半的编译前提都已实测成立；
+  剩下的是工程量（windows-rs 的 OpenProcess/WriteProcessMemory/CreateRemoteThread、
+  崩溃隔离、签名分发，见第 1/2/3 行）而不是能力缺口。
 
 Kirikiri 的 XP3 写回两条路线都适用（改盘：重建索引重算 adler-32；注入：KAG 变量层），
 但读写器只有读的一半（`xp3.js` 是只读的），等路线定了再排。0.13 没有为写回做任何铺垫。
