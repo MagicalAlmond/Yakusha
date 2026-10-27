@@ -314,6 +314,13 @@
       换 user-data-dir 无效），应用按「锁失败即退出」的设计退出。结论：剩余三条
       验收要走查，需要在正常桌面会话双击启动，不是代码缺口；`docs/gui.md` §9
       第 3 条已按实测改写。
+- [x] 原生注入器路线探针闭环（0.17 前置，仓库外）：Rust cdylib DLL（P/Invoke 调用通过）、
+      零依赖 Rust 注入器（裸 kernel32 FFI，CreateRemoteThread(LoadLibraryW) 返回模块句柄）、
+      32 位半边（rustup i686-pc-windows-gnullvm + llvm-mingw，PE32 三件套注入成功；RGSS 是 32 位
+      进程，这一步是路线硬前提）。工具链全局就位：Rust 1.99.1 stable-gnu + llvm-mingw
+      （clang 23.1.4，便携、注册用户 PATH）。教训：PS 探针（Start-Process 一族）会在 cwd 留下
+      `%SystemDrive%/ProgramData` 缓存库并被 `git add -A` 收进提交（9af59ed，179e114 已删）——
+      探针后除 `git status` 外还要 `git ls-files` 核对。
 
 ## 4. 文件地图
 
