@@ -1,8 +1,9 @@
-# 引擎适配器契约（0.16 契约）
+# 引擎适配器契约（0.17 契约）
 
-> **状态：0.16 覆盖五个引擎——RPG Maker MZ、RPG Maker MV、Ren'Py、RGSS（XP / VX / VX Ace）、Kirikiri。**
-> 0.14 交付 GUI 外壳，0.15 加 JSONL 导入，0.16 起 `scan` 载荷带引擎能力位（GUI 据此灰显按钮）；
-> RGSS 与 Kirikiri 的交付层仍未拍板（DEVLOG §8.1 第 10 行）。
+> **状态：0.17 覆盖五个引擎——RPG Maker MZ、RPG Maker MV、Ren'Py、RGSS（XP / VX / VX Ace）、Kirikiri。**
+> 0.14 交付 GUI 外壳，0.15 加 JSONL 导入，0.16 起 `scan` 载荷带引擎能力位（GUI 据此灰显按钮），
+> 0.17 给字典条目加可选的引擎与位置溯源（`engine` / `locator`，`FORMAT` 不变）；
+> RGSS 的交付层已于 2026-10-27 拍板走原生注入器 + hook DLL（实现待后续工作包，见 DEVLOG §8.1 第 10 行）；Kirikiri 的交付层仍未拍板。
 > 0.10 把 MZ 与 MV 包进统一的 adapter，**不搬文件、不重写算法**；0.11 用同一套
 > contract 接入 Ren'Py，作为第三个 adapter 挂在 registry 末位；0.12 接入 RGSS，排在
 > 第四位，只做到 L1–L3（detect / scan / extract），**没有交付层**；0.13 接入
@@ -564,23 +565,26 @@ $ yakusha install <game-dir> --json
   `--embed needs a dictionary`，有字典但没译文报 `--embed found no translated entries`，
   两条都是 `E_NO_DICTIONARY` / 退出 2——`--embed` 在 `adapter.installRuntime` 之前
   （`src/cli/runner.js:730-736`），RGSS 也躲不掉。
-- **为什么不是一句笼统的“未实现”**：RGSS 的交付层是**计划内**的，只是没拍板，所以
+- **为什么不是一句笼统的“未实现”**：RGSS 的交付层是**计划内**的，只是还没开始做，所以
   文案指向决策记录而不断言功能不存在——这与 `attach` 用的那句历史措辞是两种语气，
   两种都有测试盯着（前者 `test/rgss-adapter.test.js:246` 与 `test/rgss-cli.test.js:103`，
   后者 `test/engine-contract.test.js:410`）。
 
-两条路线都还没拍板，写在 `src/engines/rgss/adapter.js:232-244` 的注释里，
-待办清单见 [dev/DEVLOG.md](dev/DEVLOG.md) §8.1：
+2026-10-27 用户拍板：**RGSS 的交付层走原生注入器 + hook DLL**；纯 JS 写回保留为历史
+备选，不再按待定处理。当年两条候选写在 `src/engines/rgss/adapter.js:232-244` 的注释里，
+决策记录见 [dev/DEVLOG.md](dev/DEVLOG.md) §8.1 第 10 行：
 
-1. **纯 JS 写回数据文档**：把译文塞回 Ruby Marshal 流，重写 `Data/*.rvdata2` 或整个
-   `Game.rgss3a` 归档。读写器都已经在 `src/engines/rgss/` 里了
+1. **原生注入器 + hook DLL**（已拍板）：在游戏进程里装 hook，把译文在运行时交给引擎。
+   不改游戏文件，`uninstall` 删掉注入器与安装痕迹即还原。原生工具链已就绪
+   （Rust 1.99.1 GNU 工具链、llvm-mingw clang 23.1.4），32/64 位注入探针均通过；
+   RGSS300 / RGSS301 导出的 27 个 `RGSS*` C API（含 `RGSSEval`）是 Ruby 侧钩子的入口。
+2. **纯 JS 写回数据文档**（历史备选）：把译文塞回 Ruby Marshal 流，重写
+   `Data/*.rvdata2` 或整个 `Game.rgss3a` 归档。读写器都已经在 `src/engines/rgss/` 里了
    （`marshal.js` 的 `marshal()`、`archive.js` 的 `writeArchive()`），这条路不需要任何
    原生组件。
-2. **原生注入器 + hook DLL**：把译文在运行时塞给游戏进程。这条路需要编译器，而本机
-   没有 C/C++/Rust 工具链，也没有 ruby，编译不出来——这是 0.12 排期与验收的硬阻塞。
 
-选定哪条决定 `uninstall` 要还原什么：写回路线要备份被改的文档，注入路线不改盘、
-删掉注入器即还原。所以这件事不能靠猜。
+选定哪条决定 `uninstall` 要还原什么：注入路线不改盘、删掉注入器即还原；写回路线要备份被
+改的文档。所以这件事不能靠猜。
 
 另一件**尚未验证**的事：官方 RGSS 读数据时是归档优先还是 `Data/` 目录优先，本版没有
 结论（mkxp 的行为是归档优先，但官方 RGSS 不是 mkxp）。本版的 `openDataSource()`
@@ -1165,9 +1169,9 @@ L2 是真实归档提取（§13.4 末尾：开发期样本全部条目校验通�
 | Unity | 资源包 / Mono / IL2CPP | `inject` 或运行时补丁 | 不做 |
 | Wolf | 自有归档 | `inject` | 不做 |
 
-RGSS 的运行时档**不是** `inject`，这里不再给它排一个猜测的档位：两条候选路线（纯 JS
-写回数据文档、原生注入器 + hook DLL）都还没拍板，见 §7.7。写“RGSS 将来做 inject”
-就是把没决定的事写成计划。
+RGSS 不在上表里排档：它的交付层路线已拍板为原生注入器 + hook DLL（2026-10-27，见
+§7.7），但能力矩阵里 `runtime` 仍写 `null`，因为交付层还没有实现——拍板的是路线，
+不是能力位。
 
 L4-plugin / L4-resource 是 [dev/ENGINE-STRATEGY.md](dev/ENGINE-STRATEGY.md) §5.5
 的四档交付术语：plugin 是“加插件、删文件即还原”，resource 是“生成引擎自带的资源、

@@ -231,7 +231,7 @@
       `export.test.js` 的 TSV/CSV 用例重写（14 → 23 条），合计 **603 个，全绿**。
 - [x] 明确不做：与 RGSS 一样**没有交付层**，`install` / `uninstall` 抛
       `E_NOT_IMPLEMENTED`（退出码 2）且不写文件；Hxv4 改版索引明确报
-      `E_UNSUPPORTED` 不解析；字典 v2 字段（`engine` / `locator`）仍留在 §8.1 #5。
+      `E_UNSUPPORTED` 不解析；字典 v2 字段（`engine` / `locator`）当时仍留在 §8.1 #5（0.17 已补上）。
 
 ### G 阶段（0.14.0，已完成）
 
@@ -328,6 +328,7 @@
 - [x] 抽取器写 provenance：`src/core/fields.js` 的 `collectAtPaths` / `walkCommands(pointer)` / `pickParamsWithSlots` 给出精确路径；四个 adapter 统一走 `src/core/dict.js` 的 `recordExtracted()`（MZ/MV、RGSS、Ren'Py、Kirikiri 各传自己的 engine id）。重新 `extract` 会用新 locator 整体替换陈旧值，但不动已有译文。
 - [x] 导出/导入：rich JSON 原样带上 `engine` / `locator`，`--flat` 不带；`import --format json` 回填缺失的 provenance。TSV / CSV 仍是三列，不带。
 - [x] 测试：新增 `test/dict.test.js`（7 条，含 malformed provenance 丢弃与 `recordExtracted` 合并语义），`extract` / `rgss-extract` / `export` / `krkr-adapter` / `renpy-extract` 各补 locator 断言。合计 **670 个，全绿**。
+- [x] 2026-10-27 用户拍板 RGSS 交付层路线后，把用户文档（README / engines / commands / design / architecture / limitations / gui / ENGINE-STRATEGY）从「两条路线未拍板」同步为「已拍板：原生注入器 + hook DLL，工具链就绪，实现待后续工作包」；Kirikiri 仍按未拍板写。
 
 ## 4. 文件地图
 
@@ -1067,10 +1068,10 @@ RangeError），全量 657 绿。
 
 | # | 事项 | 现在的默认做法（未拍板就一直这样） |
 | --- | --- | --- |
-| 1 | Windows 代码签名 | **0.10/0.11/0.12 都不做**（纯 JS，用户跑自己签名的 `node.exe`）。0.12 实际**也没有**交付原生组件（RGSS 交付层没做，§6 末尾），所以仍然不需要；一旦交付层选「原生注入器」，这条必须先解决，不签名的四道拦截见 [ENGINE-STRATEGY.md](ENGINE-STRATEGY.md) §9.4。 |
+| 1 | Windows 代码签名 | **0.10/0.11/0.12 都不做**（纯 JS，用户跑自己签名的 `node.exe`）。0.12 实际**也没有**交付原生组件（RGSS 交付层没做，§6 末尾），所以仍然不需要；0.17 起 RGSS 交付层已拍板走「原生注入器」，这条必须在实现开始前先解决，不签名的四道拦截见 [ENGINE-STRATEGY.md](ENGINE-STRATEGY.md) §9.4。 |
 | 2 | 原生组件托管渠道 | 暂按 GitHub Release + 仓库内 manifest（二进制不进仓库）。CDN 方案未定。**0.12 没有原生组件，这个渠道还不需要，仍未定。** |
 | 3 | 原生组件安装命令名 | 暂记 `yakusha native install <engine>`，**属于新命令、要过契约评审**，不是既定事实。**0.12 没有原生组件，命令名仍未定。** |
-| 4 | RGSS 三版本验收基线 | 需要几款真实游戏才能算 L4 通过，未定。**而且 0.12 连交付层都还没有（`runtime: null`），L4 要等第 10 行定下路线才谈得上验收。** |
+| 4 | RGSS 三版本验收基线 | 需要几款真实游戏才能算 L4 通过，未定。0.12 连交付层都还没有（`runtime: null`）；第 10 行的交付层路线已在 2026-10-27 拍板为原生注入器，但验收基线仍未定。 |
 | 5 | 字典 v2 字段（`engine` / `locator`） | **已拍板并交付（0.17.0）**。2026-10-27 用户拍板「可以，现在就能加这两个字段」：`engine` 记条目来自哪个引擎（多游戏共用一份字典 / 导出后溯源时用），`locator` 记条目在游戏数据里的精确位置（事件 ID / 脚本行 / 归档条目，写回交付层按它定位）；两字段都是可选溯源元数据，`FORMAT` 仍是 `yakusha/1`，旧字典照读，不影响现有键值读写。实现见 §3 J 阶段。 |
 | 6 | 非 ja→zh 语言 | en→zh 何时进未定；en→ja 用户已明确"先不考虑"。 |
 | 7 | 目标用户与商业目标 | 未定。影响 GUI 功能取舍与文档语气。 |
@@ -1079,7 +1080,7 @@ RangeError），全量 657 绿。
 | 10 | RGSS / Kirikiri 交付层：纯 JS 写回 vs 原生注入器 | **2026-10-27 用户授权安装 C/C++/Rust 工具链以解锁原生注入器路线的可行性评估**（此前 `cl`/`gcc`/`clang`/`rustc`/`cargo`/`ruby` 实测全不在 PATH，该路线连编译都做不了）。**2026-10-27 工具链已装**：Rust 1.99.1 stable-gnu 全局安装（`%USERPROFILE%\.cargo\bin`，已入用户 PATH；cargo build --release 实跑通过；GNU 自含 MinGW 只服务 Rust 自举，不能编任意 C；C/C++ 已由 llvm-mingw（msvcrt 变体 20261020，clang 23.1.4，便携 zip 免管理员，装在仓库外工具目录并已注册用户 PATH）补齐。**64 位与 32 位（RGSS 硬前提）的编译/注入探针均已实证，见下方探针段**）。路线最终选择仍待评估后拍板；在此之前 RGSS（0.12 起）与 Kirikiri（0.13 起）都停在 L1–L3，`install` / `uninstall` 报 `E_NOT_IMPLEMENTED`。**2026-10-27 用户就第 10 行表态：确认该交付层面向 RGSS；RGSS 可以采用原生注入器路线**——RGSS 交付层据此按原生注入器推进（纯 JS 写回不再作为主路线，保留为历史备选记录）；Kirikiri 侧仍单列，未跟进。 |
 | 11 | npm 打包范围（`package.json` 的 `files` 字段） | **2026-10-27 拍板：打包要包含 GUI**。`files` 已加 `gui`（README/LICENSE/package.json 本来就在）；`docs/` 用户未提及，按惯例不进 tarball（README 已把文档仓库链接作为入口）。变更见下一条目。原 0.16 实测：tarball 52 个文件、全部在 `bin/`+`src/`+根三件（package.json/README.md/LICENSE），**不含 `gui/` 也不含 `docs/`**；装出来的包能跑 CLI，但 `npx electron gui/main.js`（README:283）在 tarball 内容里不存在——维持现状则 npm 包是纯 CLI 包，带 GUI 需把 `gui/` 加进 `files`（决策仍归用户）。 |
 
-**第 10 行的两条路线**（只列代价，不替用户拍板；实现侧的注释在 `src/engines/rgss/adapter.js:240-250`）：
+**第 10 行的两条路线**（2026-10-27 已拍板走原生注入器；以下保留为决策时的代价对比；实现侧的注释在 `src/engines/rgss/adapter.js:232-244`）：
 
 - **纯 JS 写回数据文档**：把译文塞回 Ruby Marshal 流，重写 `Data/*.rvdata2` 或整个 `.rgss3a`。读写器已经在仓库里（`marshal.js` 的 `marshal()`、`archive.js` 的 `writeArchive()`），**不需要任何原生组件**，也就绕开了代码签名、托管渠道、安装命令名这三条待定项。代价是**改盘**：安装要先备份被改的文档、卸载要逐字节还原（与 MZ/MV 的插件档同一类风险，但文件大得多，一份归档 644 MB）；而且改过的归档与「游戏未来更新」必然冲突。
 - **原生注入器 + hook DLL**：运行时把译文喂给游戏进程，不改盘、卸载只需删注入器。代价是这条路线同时踩上 §8.1 的第 1/2/3 行（签名、托管、命令名），还要做崩溃隔离与版本矩阵；**Rust 工具链已于 2026-10-27 全局安装（1.99.1 stable-gnu，`%USERPROFILE%\.cargo\bin`，cargo build 实跑通过）**，这条路在当前机器上已具备编译条件；`cl` / `gcc` / `ruby` 仍不在 `PATH`；C/C++ 已由 llvm-mingw（clang 23.1.4）补齐，且探针证明注入器连第三方 crate 都不需要（裸 `extern "system"` FFI 即可）——Rust 与 C/C++ 写 hook DLL/注入器两条子路都可用。
@@ -1128,7 +1129,8 @@ TextAsset 形式嵌在 `resources.assets` / `sharedassetsN.assets` 里，UTF-8 �
 游戏的 schema 都不同**（说话人列的 CSV、`key=value` 的 UI 表、命令行混合表）；部分游戏
 （`data.unity3d`）还要先过 UnityFS 包（LZ4/LZMA 解压）才能到 serialized-file 层。提取
 （L1–L3）对 Mono + TextAsset 子集可行、纯 JS；**交付（L4）要写回 serialized 文件，与
-本表第 10 行是同一个未拍板问题**，且 Unity 的每游戏 schema 差异远大于前四个引擎。
+本表第 10 行同属交付层路线问题（RGSS 已拍板走原生注入器，Unity 仍未定）**，且 Unity 的
+每游戏 schema 差异远大于前四个引擎。
 在路线拍板前不开 Unity 引擎工作包；字形表（font glyph atlas）在逐字节扫描时是高频误报，
 真做时必须按对象表定位 TextAsset，不能裸扫字节。
 

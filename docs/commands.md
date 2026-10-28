@@ -1,8 +1,8 @@
 # 命令参考
 
-本文是 yakusha 0.16.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG）：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出。
+本文是 yakusha 0.17.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG）：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出。
 
-**RGSS 在 0.12 只做到「盘点、建库、翻译、审校」，没有交付层。** `scan` / `extract` / `status` / `translate` / `verify` / `speaker` / `terms` / `export` 都能用，但 `install` / `uninstall` 在 RGSS 项目上直接报 `E_NOT_IMPLEMENTED`、退出 2、不写任何文件——游戏里不会出现译文。原因与两条未拍板的路线见下文 [install 与 uninstall](#install-与-uninstall)。
+**RGSS 在 0.12 只做到「盘点、建库、翻译、审校」，没有交付层。** `scan` / `extract` / `status` / `translate` / `verify` / `speaker` / `terms` / `export` 都能用，但 `install` / `uninstall` 在 RGSS 项目上直接报 `E_NOT_IMPLEMENTED`、退出 2、不写任何文件——游戏里不会出现译文。原因与路线状态见下文 [install 与 uninstall](#install-与-uninstall)。
 
 **Kirikiri 在 0.13 同样只做到「盘点、建库、翻译、审校」，没有交付层。** `scan` / `extract` / `status` / `translate` / `verify` / `speaker` / `terms` / `export` / `import` 都能用，但 `install` / `uninstall` 在 Kirikiri 项目上直接报 `E_NOT_IMPLEMENTED`、退出 2、不写任何文件——文本烧在 `.xp3` 归档里，写回归档的路（含 krkr2 / krkrz 的加密变体）被刻意搁置。原因见下文 [install 与 uninstall](#install-与-uninstall)。
 
@@ -630,7 +630,7 @@ error: install is not implemented for RGSS yet - see the pending decisions in do
 - 错误码 `E_NOT_IMPLEMENTED`、退出 2、stdout 为空；`--json` 的信封是 `{"schema":1,"command":"install","ok":false,"outcome":"error","error":{"code":"E_NOT_IMPLEMENTED","message":"install is not implemented for RGSS yet - see the pending decisions in docs/dev/DEVLOG.md"}}`。`uninstall` 同形，只是消息里 `install` 换成 `uninstall`。
 - **一条文件都不写。** 实测跑完 `install` / `uninstall` 后项目目录里仍然只有原来的 `Game.ini` / `Game.rgss3a` 和 `yakusha/dictionary.json`，新增文件为零。
 - 报错与有没有字典无关：普通 `install` 在无字典时也报 `E_NOT_IMPLEMENTED`。但 `--embed` 的两道前置检查排在引擎检查**之前**（`src/cli/runner.js:731-736`），所以 `install --embed` 在缺字典时报 `E_NO_DICTIONARY`（`--embed needs a dictionary, run: yakusha extract "<root>"`）、有字典但一条都没译时报 `--embed found no translated entries`，只有真的有已译条目时才落到 `E_NOT_IMPLEMENTED`。
-- 两条候选路线都没拍板，因此写成待定而不是猜：纯 JS 把译文写回 `.rvdata2` / `.rgss3a`（读写器已在 `src/engines/rgss/` 里），或原生注入器加 hook DLL（本机没有 C/C++/Rust 工具链，也编译不了）。选哪条会改变 `uninstall` 要还原什么，已记入 `docs/dev/DEVLOG.md` §8.1。
+- 交付层路线已于 2026-10-27 拍板：原生注入器 + hook DLL（纯 JS 写回保留为历史备选），实现排在后续工作包。原生工具链已就绪——Rust 1.99.1（GNU 工具链）与 llvm-mingw clang 23.1.4，32/64 位注入探针均通过。选哪条会改变 `uninstall` 要还原什么，决策记录见 `docs/dev/DEVLOG.md` §8.1 第 10 行。
 - `doctor` 的对应文案是 `install warn RGSS has no delivery layer yet, so nothing is written back into the game` 与 `runtime info nothing is loaded at run time, so the game keeps showing the original text`（见下一节）。
 
 **Kirikiri——同样没有交付层，`install` / `uninstall` 直接报错。** 文本烧在 `.xp3` 归档里的 `.ks` 脚本中，而 Kirikiri 没有插件目录、没有 `js/plugins.js`，也没有 Ren'Py 那种自带翻译资源的目录；要写回就得重写整个归档，而发行版常用的加密变体（krkr2 的逐文件密钥、krkrz 的 cxdec）需要游戏自己的密钥数据，本项目刻意不碰，所以写回路线在支持它们之前不成立。能力声明里 `runtime` 同样是 `null`（`src/engines/krkr/adapter.js:196`）：
@@ -643,7 +643,7 @@ error: install is not implemented for Kirikiri yet - see the pending decisions i
 - 错误码 `E_NOT_IMPLEMENTED`、退出 2、stdout 为空；`--json` 的信封与 RGSS 那个逐字同形，只是 `message` 里的引擎名换成 `Kirikiri`。`uninstall` 同形。
 - **一条文件都不写**：实测跑完 `install` / `uninstall` 后项目目录里只有原来的 `.exe` 与 `.xp3` 归档（可能还有 `yakusha/dictionary.json`），新增文件为零。
 - 与 RGSS 相同，`--embed` 的两道前置检查排在引擎检查之前：缺字典报 `E_NO_DICTIONARY`，有字典且有已译条目时才落到 `E_NOT_IMPLEMENTED`（实测带字典带 `--embed` 时就是这条错误）。
-- 候选路线已记入 [dev/DEVLOG.md](dev/DEVLOG.md) 的待拍板清单；与 RGSS 的两条路线一样，选哪条会改变 `uninstall` 要还原什么。
+- 候选路线已记入 [dev/DEVLOG.md](dev/DEVLOG.md) 的待拍板清单；与 RGSS 一样，选哪条会改变 `uninstall` 要还原什么，但 Kirikiri 的路线仍未拍板。
 
 ## doctor：体检
 

@@ -58,17 +58,13 @@ detect / scan / extract 三件都有，`capabilities.runtime` 却是 `null`
 那些文档还整体藏在 `Game.rgssad` / `.rgss2a` / `.rgss3a` 归档里
 （`src/engines/rgss/adapter.js:1-16`）。换掉文字等于**把这些文档写回去**，那是另一档的量级。
 
-两条候选路线都记下来了，但一条都没拍板（`src/engines/rgss/adapter.js:232-244`）：
+交付层的路线已于 2026-10-27 拍板：**原生注入器 + hook DLL**。纯 JS 写回数据文档保留为
+历史备选，不再按待定处理；实现工作包排后续版本（`src/engines/rgss/adapter.js:232-244`
+的注释仍记着当时的两条候选）。原生工具链已就绪——Rust 1.99.1（GNU 工具链）与 llvm-mingw
+clang 23.1.4，32/64 位注入探针均通过，0.12 时“没有编译器”的硬阻塞已经消失。
 
-1. **纯 JS 写回数据文档**：把译文塞回 Ruby Marshal 流，重写 `Data/*.rvdata2` 或整个归档。
-   需要的读写器已经在 `src/engines/rgss/` 里（`marshal.js` 的 `marshal()`、
-   `archive.js` 的 `writeArchive()`，`src/engines/rgss/archive.js:499`），这条路不需要任何
-   原生组件。
-2. **原生注入器 + hook DLL**：在运行时把译文喂给游戏进程。这条路要编译器，而本机没有
-   C/C++/Rust 工具链，也没有 ruby，编译不出来——这是 0.12 排期与验收的硬阻塞。
-
-选定哪条决定 `uninstall` 要还原什么：写回路线要备份被改的文档，注入路线不改盘、删掉注入器
-即还原。所以这件事记成**待拍板**，不靠猜（[dev/DEVLOG.md](dev/DEVLOG.md) §8.1）。
+选定哪条决定 `uninstall` 要还原什么：注入路线不改盘、删掉注入器即还原；写回路线要备份
+被改的文档。决策记录见 [dev/DEVLOG.md](dev/DEVLOG.md) §8.1 第 10 行。
 
 因为缺的是交付层而不是提取层，`install` / `uninstall` 报的是**指向决策记录**的那句
 `E_NOT_IMPLEMENTED`（`install is not implemented for RGSS yet - see the pending decisions in
@@ -88,8 +84,8 @@ Kirikiri（KAG）是第五种引擎，第二个只做到 L1–L3 的：`capabili
 把归档写回去这条路本身还有一道墙：发行版常用加密变体。krkr2 引入逐文件密钥，krkrz
 引入 cxdec 解密，两者都需要游戏自己的密钥数据；本项目**刻意不碰**这些加密变体，写回
 路线在支持它们之前不成立（`src/engines/krkr/adapter.js:226-237`）。另一条路线是原生注入器
-+ hook DLL，和 RGSS 一样要编译器，本机没有 C/C++/Rust 工具链，编译不出来。两条路线
-都没有拍板，所以交付层记成**待拍板**（[dev/DEVLOG.md](dev/DEVLOG.md) 的待拍板清单），
++ hook DLL（RGSS 已拍板走这条），Kirikiri 自己的两条路线都还没有拍板，所以交付层记成
+**待拍板**（[dev/DEVLOG.md](dev/DEVLOG.md) 的待拍板清单），
 `install` / `uninstall` 报指向决策记录的 `E_NOT_IMPLEMENTED`（`install is not implemented for
 Kirikiri yet - see the pending decisions in docs/dev/DEVLOG.md`，`src/engines/krkr/adapter.js:178-183`），
 `doctor` 的 install 检查是 warning、runtime 检查是 info。`src/index.js` 只导出

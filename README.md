@@ -14,7 +14,7 @@
   `verify`、`terms`、`speaker`、`export`、`doctor` 都能跑，但 `install` 与 `uninstall` 会明确报
   `E_NOT_IMPLEMENTED`（退出码 2）并且不写任何文件，游戏仍然显示原文。
   RGSS 的文本在 Ruby Marshal 数据文档里，Kirikiri 的文本在 XP3 归档内的 KAG 脚本里。
-  原因与两条候选路线见下面 install 一节和 [docs/limitations.md](docs/limitations.md)。
+  原因与路线状态见下面 install 一节和 [docs/limitations.md](docs/limitations.md)。
 
 每一档对游戏文件的实际影响写在该档的文档里（[docs/limitations.md](docs/limitations.md)、
 [docs/engines.md](docs/engines.md)），没有"整个产品都绝对可逆"的说法。
@@ -164,10 +164,12 @@ error: install is not implemented for Kirikiri yet - see the pending decisions i
 ```
 
 原因很直接：XP / VX / VX Ace 没有插件系统，文本被烤进 `.rxdata` / `.rvdata` / `.rvdata2`
-这些 Ruby Marshal 文档里（打包版藏在归档内），要让游戏显示中文就得把这些文档写回去；
-Kirikiri 同样没有可填的翻译资源目录，文本在 XP3 归档内的 KAG 脚本里，"写回"意味着重写归档。
-两条候选路线——纯 JS 把译文写回数据文档或归档，或做一个需要编译器的原生注入器——
-至今仍未拍板（待定清单见 `docs/dev/DEVLOG.md`），所以 RGSS 与 Kirikiri 停在字典：
+这些 Ruby Marshal 文档里（打包版藏在归档内），要让游戏显示中文，要么把这些文档写回去，
+要么在运行时把译文交给引擎；Kirikiri 同样没有可填的翻译资源目录，文本在 XP3 归档内的
+KAG 脚本里，"写回"意味着重写归档。
+RGSS 的交付层路线已于 2026-10-27 拍板走原生注入器 + hook DLL（工具链已就绪，实现待后续
+工作包），Kirikiri 的写回路线仍未拍板（待定清单见 `docs/dev/DEVLOG.md`），所以两者目前
+停在字典：
 `translate` 之后游戏仍然显示原文，
 `doctor` 会把 `install` 报成 warning、`runtime` 报成 info。
 `export` 仍然是拿到译文的出口。
