@@ -1063,7 +1063,7 @@ RangeError），全量 657 绿。
 | 7 | 目标用户与商业目标 | 未定。影响 GUI 功能取舍与文档语气。 |
 | 8 | README / architecture 旧卖点措辞 | 已在 WP6 按"四档交付说明实际影响"改掉；若用户希望保留更强的表述，回退点是本包 commit。 |
 | 9 | `CHANGELOG.md` | **已补**（0.11.0 起有面向使用者的变更记录）。 |
-| 10 | RGSS / Kirikiri 交付层：纯 JS 写回 vs 原生注入器 | **2026-10-27 用户授权安装 C/C++/Rust 工具链以解锁原生注入器路线的可行性评估**（此前 `cl`/`gcc`/`clang`/`rustc`/`cargo`/`ruby` 实测全不在 PATH，该路线连编译都做不了）。**2026-10-27 工具链已装**：Rust 1.99.1 stable-gnu 全局安装（`%USERPROFILE%\.cargo\bin`，已入用户 PATH；cargo build --release 实跑通过；GNU 自含 MinGW 只服务 Rust 自举，不能编任意 C；C/C++ 已由 llvm-mingw（msvcrt 变体 20261020，clang 23.1.4，便携 zip 免管理员，装在仓库外工具目录并已注册用户 PATH）补齐。**64 位与 32 位（RGSS 硬前提）的编译/注入探针均已实证，见下方探针段**）。路线最终选择仍待评估后拍板；在此之前 RGSS（0.12 起）与 Kirikiri（0.13 起）都停在 L1–L3，`install` / `uninstall` 报 `E_NOT_IMPLEMENTED`。 |
+| 10 | RGSS / Kirikiri 交付层：纯 JS 写回 vs 原生注入器 | **2026-10-27 用户授权安装 C/C++/Rust 工具链以解锁原生注入器路线的可行性评估**（此前 `cl`/`gcc`/`clang`/`rustc`/`cargo`/`ruby` 实测全不在 PATH，该路线连编译都做不了）。**2026-10-27 工具链已装**：Rust 1.99.1 stable-gnu 全局安装（`%USERPROFILE%\.cargo\bin`，已入用户 PATH；cargo build --release 实跑通过；GNU 自含 MinGW 只服务 Rust 自举，不能编任意 C；C/C++ 已由 llvm-mingw（msvcrt 变体 20261020，clang 23.1.4，便携 zip 免管理员，装在仓库外工具目录并已注册用户 PATH）补齐。**64 位与 32 位（RGSS 硬前提）的编译/注入探针均已实证，见下方探针段**）。路线最终选择仍待评估后拍板；在此之前 RGSS（0.12 起）与 Kirikiri（0.13 起）都停在 L1–L3，`install` / `uninstall` 报 `E_NOT_IMPLEMENTED`。**2026-10-27 用户就第 10 行表态：确认该交付层面向 RGSS；RGSS 可以采用原生注入器路线**——RGSS 交付层据此按原生注入器推进（纯 JS 写回不再作为主路线，保留为历史备选记录）；Kirikiri 侧仍单列，未跟进。 |
 | 11 | npm 打包范围（`package.json` 的 `files` 字段） | **2026-10-27 拍板：打包要包含 GUI**。`files` 已加 `gui`（README/LICENSE/package.json 本来就在）；`docs/` 用户未提及，按惯例不进 tarball（README 已把文档仓库链接作为入口）。变更见下一条目。原 0.16 实测：tarball 52 个文件、全部在 `bin/`+`src/`+根三件（package.json/README.md/LICENSE），**不含 `gui/` 也不含 `docs/`**；装出来的包能跑 CLI，但 `npx electron gui/main.js`（README:283）在 tarball 内容里不存在——维持现状则 npm 包是纯 CLI 包，带 GUI 需把 `gui/` 加进 `files`（决策仍归用户）。 |
 
 **第 10 行的两条路线**（只列代价，不替用户拍板；实现侧的注释在 `src/engines/rgss/adapter.js:240-250`）：
@@ -1096,6 +1096,14 @@ RangeError），全量 657 绿。
   去不掉该依赖（Rust 自身 `-lunwind` 的解析顺序），彻底静态要换 GCC 系 i686 工具链，留待真开工再调。
   C/C++ 半边：clang 对 hello.c 的 32/64 位编译运行都通过（第 1 项授权的 C/C++ 工具链落地；
   cl/gcc/ruby 仍缺，不影响本路线）。
+
+  **本机 RGSS 样本的事实（2026-10-27 实测，供注入器设计参考）**：唯一 RGSS 样本是 VX Ace——`Game.ini` 的
+  `Library=System\RGSS300.dll`（另带 `RGSS301.dll`），两个 DLL 都是 32 位 PE（machine=0x14c），各导出 27 个
+  `RGSS*` C API，其中含 `RGSSEval`（可在游戏自己的 Ruby VM 里求值）与 `RGSSGameMain` / `RGSSInitialize`；
+  没有导出任何 `rb_*` Ruby 符号。含义：注入后不必逆 Ruby 符号表，**用 `RGSSEval` 在 VM 就绪后装入
+  Ruby 侧的文本钩子**是一条可行子路线（时机=等 VM 起来后调，具体入口待设计）。样本归档 `Game.rgss3a` 644 MB，
+  `Game.exe` 402 MB 且旁边有 `.enigma1` 保护文件——疑似加壳，**外部注入在这个样本上可能受限**，
+  注入验收要准备干净样本或先验证壳的影响。
 
 Kirikiri 的 XP3 写回两条路线都适用（改盘：重建索引重算 adler-32；注入：KAG 变量层），
 但读写器只有读的一半（`xp3.js` 是只读的），等路线定了再排。0.13 没有为写回做任何铺垫。
