@@ -1,4 +1,4 @@
-# 译文导出格式（0.13；0.15 增补 JSONL 导入）
+# 译文导出格式（0.13；0.15 增补 JSONL 导入；0.17 增补来源字段）
 
 > **状态：0.10 实现 JSON（WP4）；0.13 补上 TSV / CSV 表格与 `import` 命令。**
 > 本文冻结的是**格式契约**，不是排期；排期权威版本见
@@ -9,7 +9,9 @@
 > `src/cli/export.js` 没有任何按引擎分支的代码，导出仍是 `yakusha/1`、只投影已翻译条目。
 > 各引擎的字典 key 都是原文——MZ/MV 是 JSON 字段串，RGSS 是 Ruby Marshal 文档里的
 > 原文字符串（`src/engines/rgss/marshal.js:344-357`），Kirikiri 是 `.ks` 的行文本
-> （`src/engines/krkr/extract.js:117-119`）——所以导出的 key 就是原文，可以跨引擎合并。
+> （`src/engines/krkr/extract.js:119-122`）——所以导出的 key 就是原文，可以跨引擎合并。
+> 0.17 给字典条目加了两个**可选**溯源字段 `engine` / `locator`，rich JSON 导出会原样带上；
+> 表格（TSV / CSV）仍是三列、不带 provenance（见 §8.2）。
 
 ## 1. 命令
 
@@ -40,7 +42,9 @@ yakusha export <game-dir> --out <file> [--format json|tsv|csv] [--flat] [--force
   "entries": {
     "これはテストの台詞です。": {
       "text": "这是测试用的台词。",
-      "contexts": ["Map001.json:401"]
+      "contexts": ["Map001.json:401"],
+      "engine": "mz",
+      "locator": ["Map001.json#/events/1/pages/0/list/2/parameters/0"]
     }
   }
 }
@@ -65,9 +69,11 @@ yakusha export <game-dir> --out <file> [--format json|tsv|csv] [--flat] [--force
   才是导出时间。这样导出文件保留“这份译文对应哪个游戏、字典最后何时更新”的出处。
 - `contexts` 原样复制（顺序、重复都保留）。它记录文本出现在哪些文件/字段，
   是人工校对与合并时的定位信息，导出不该丢。
+- `engine` / `locator`（0.17）也是原样复制：条目里有这两个可选溯源字段就带上，没有就不补。
+  `locator` 是字符串数组，每项形如 `<文件>#<JSON Pointer>`（行式引擎是 `file:line`）。
 - **不导出 `error`**：导出的是“已翻译”的条目；带 `error` 的条目通常没有译文，
   它们本来就不会进来。`error` 是本地审计信息，给消费者看只会泄进下游工具。
-- `--flat` 会丢 `contexts`；需要定位信息时不要用。
+- `--flat` 会丢 `contexts` 与 `engine` / `locator`（只剩 `text`）；需要定位信息时不要用。
 
 ## 3. 选哪些条目
 
@@ -150,6 +156,8 @@ yakusha export <game-dir> --out <file> [--format json|tsv|csv] [--flat] [--force
   假设它存在。
 - 导出不是备份：它只含已翻译条目，丢了未翻条目的 `contexts` 与 `error`。
   要备份就复制 `yakusha/dictionary.json`。
+- 0.17 起 rich 导出还复制 `engine` / `locator`（条目里有就带）；JSON 导入会把这两个字段写回字典，
+  表格三列没有它们。
 - 导出文件可以被外部工具消费（字幕、校对表、CAT）。外部工具改过的文件**不承诺**无损
   导入；本项目只对自己导出的表格保证 round-trip：`export --format tsv` → `import --from`
   → 再 `export`，字节一致（见 §8 与 `test/export.test.js`）。
@@ -182,6 +190,8 @@ yakusha import <game-dir> --from <file> [--format tsv|csv|json] [--strategy only
 
 - 表头固定一行三列：`source`、`target`、`contexts`（TSV 用制表符分隔，CSV 用逗号，
   `src/cli/table.js:20-24`）。
+- 表格**不携带 provenance**：0.17 的 `engine` / `locator` 只存在字典与 JSON 导出里，TSV / CSV 仍是三列；
+  从表格 `import` 不会写这两个字段，也不会清掉字典里已有的。
 - 每个已翻译条目一行；行顺序与 §3 相同（字典 key 的 UTF-16 码点序，
   `src/cli/table.js:38-50`）。
 - **UTF-8 BOM**：写出时永远带（`src/cli/table.js:26,98-109`），让 Excel 直接识别 UTF-8；

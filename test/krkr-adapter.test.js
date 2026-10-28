@@ -131,7 +131,12 @@ test("extract: writes a dictionary with empty targets and merged contexts", () =
   assert.equal(result.total, 1);
   assert.equal(result.pending, 1);
   const dict = loadDictionary(dictionaryPath(root));
-  assert.deepEqual(dict.entries["あおい「せりふ」"], { text: "", contexts: ["scenario/s1.ks:2"] });
+  assert.deepEqual(dict.entries["あおい「せりふ」"], {
+    text: "",
+    contexts: ["scenario/s1.ks:2"],
+    engine: "krkr",
+    locator: ["scenario/s1.ks:2"],
+  });
 });
 
 test("extract: never overwrites existing translations", () => {

@@ -7,8 +7,19 @@
  *   "format": "yakusha/1",
  *   "game": "Example Game",
  *   "updatedAt": "2026-...",
- *   "entries": { "<source>": { "text": "<translation>", "contexts": ["Map003:401"] } }
+ *   "entries": {
+ *     "<source>": {
+ *       "text": "<translation>",
+ *       "contexts": ["Map003.json:401"],
+ *       "engine": "mz",
+ *       "locator": ["Map003.json#/events/0/pages/0/list/4/parameters/0"]
+ *     }
+ *   }
  * }
+ *
+ * `engine` and `locator` are optional provenance added in 0.17. A dictionary
+ * written by an older version has neither and still loads; both are dropped
+ * from an entry only when they are malformed.
  *
  * @module core/dict
  */
@@ -21,7 +32,7 @@ export const DICT_DIR = "yakusha";
 export const DICT_FILE = "dictionary.json";
 
 /**
- * @typedef {{ text: string, contexts: string[], error?: string }} Entry
+ * @typedef {{ text: string, contexts: string[], engine?: string, locator?: string[], error?: string }} Entry
  * @typedef {{ format: string, game: string|null, updatedAt: string, entries: Record<string, Entry> }} Dictionary
  */
 
@@ -52,6 +63,13 @@ export function loadDictionary(file) {
     if (typeof value === "string") entries[key] = { text: value, contexts: [] };
     else if (value && typeof value.text === "string") {
       const entry = { text: value.text, contexts: Array.isArray(value.contexts) ? value.contexts : [] };
+      // Optional provenance (0.17). Malformed values are dropped rather than
+      // failing the whole dictionary: they never change what is translated.
+      if (typeof value.engine === "string" && value.engine.length > 0) entry.engine = value.engine;
+      if (Array.isArray(value.locator)) {
+        const locator = value.locator.filter((item) => typeof item === "string" && item.length > 0);
+        if (locator.length > 0) entry.locator = locator;
+      }
       // A previous run may have recorded why a translation was rejected; keep
       // it so `status` can report it without guessing.
       if (typeof value.error === "string" && value.error.length > 0) entry.error = value.error;
@@ -91,6 +109,36 @@ export function note(dict, source, context) {
     return;
   }
   dict.entries[source] = { text: "", contexts: context ? [context] : [] };
+}
+
+/**
+ * Record one freshly extracted entry in the dictionary.
+ *
+ * A new key starts empty; an existing key keeps its translation and only gains
+ * the contexts, engine and locators the new extraction found. Locators are
+ * positions in the current game files, so a re-extraction replaces them
+ * wholesale instead of accumulating stale ones.
+ *
+ * @param {Record<string, Entry>} entries dictionary entries
+ * @param {{ text: string, contexts: Set<string>, locators?: Set<string> }} source extracted entry
+ * @param {string} engine engine id, e.g. "mz" or "rgss"
+ * @returns {boolean} true when a new key was added
+ */
+export function recordExtracted(entries, source, engine) {
+  const locator = [...(source.locators || [])].sort();
+  const before = entries[source.text];
+  if (!before) {
+    const entry = { text: "", contexts: [...source.contexts].sort(), engine };
+    if (locator.length > 0) entry.locator = locator;
+    entries[source.text] = entry;
+    return true;
+  }
+  for (const context of source.contexts) {
+    if (!before.contexts.includes(context)) before.contexts.push(context);
+  }
+  if (typeof before.engine !== "string" || before.engine.length === 0) before.engine = engine;
+  if (locator.length > 0) before.locator = locator;
+  return false;
 }
 
 /**

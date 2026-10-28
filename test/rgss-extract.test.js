@@ -152,3 +152,22 @@ test("extract: the command table lists exactly the codes that carry text", () =>
   assert.equal(COMMAND_TEXT.some((rule) => rule.code === 108), false);
   assert.deepEqual(Object.keys(RGSS_DB_FIELDS).includes("System"), false);
 });
+
+test("extract: every entry carries the exact Marshal path it came from", () => {
+  const result = extractRgssProject(plain());
+  const byText = (text) => [...result.entries.values()].find((entry) => entry.text === text);
+  assert.deepEqual([...byText("Yuki").locators], ["Actors.rvdata2#/1/@name"]);
+  assert.deepEqual([...byText("This room exists only for the tests.").locators], [
+    "Map001.rvdata2#/@events/1/@pages/0/@list/1/@parameters/0",
+  ]);
+  assert.deepEqual([...byText("Max HP").locators], ["System.rvdata2#/@terms/@params/0"]);
+  assert.deepEqual([...byText("Open the door").locators], ["Map001.rvdata2#/@events/1/@pages/0/@list/5/@parameters/0/0"]);
+  assert.deepEqual([...byText("Test Room").locators], ["MapInfos.rvdata2#/1/@name"]);
+});
+
+test("extract: a walk keeps the pointer through maps and arrays", () => {
+  const seen = [];
+  const command = (code, parameters) => ({ __type: "object", className: "RPG::EventCommand", ivars: { "@code": code, "@parameters": parameters } });
+  walkCommands({ __type: "object", className: "RPG::Map", ivars: { "@events": new Map([[7, { __type: "object", className: "RPG::Event", ivars: { "@pages": [{ __type: "object", className: "RPG::Event::Page", ivars: { "@list": [command(401, [makeString("x")])] } }] } }]]) } }, (parameters, code, pointer) => seen.push(pointer));
+  assert.deepEqual(seen, ["/@events/7/@pages/0/@list/0"]);
+});

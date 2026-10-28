@@ -93,3 +93,19 @@ test("a missing data dir yields nothing", () => {
   assert.equal(result.entries.size, 0);
   assert.equal(result.totalStrings, 0);
 });
+
+test("extract records an exact locator for every context", () => {
+  const result = extractProject(FIXTURE);
+  assert.deepEqual([...result.entries.get("レベル").locators], ["System.json#/terms/basic/0"]);
+  assert.deepEqual([...result.entries.get("酒場").locators], ["Map001.json#/displayName"]);
+  assert.deepEqual([...result.entries.get("お金が足りない！").locators], ["CommonEvents.json#/1/list/1/parameters/0"]);
+  assert.deepEqual([...result.entries.get("はい").locators], ["CommonEvents.json#/1/list/3/parameters/0/0"]);
+});
+
+test("toSortedArray carries the locators with each entry", () => {
+  const result = extractProject(FIXTURE);
+  const sorted = toSortedArray(result);
+  const level = sorted.find((entry) => entry.text === "レベル");
+  assert.deepEqual(level.locators, ["System.json#/terms/basic/0"]);
+  for (const entry of sorted) assert.ok(Array.isArray(entry.locators));
+});

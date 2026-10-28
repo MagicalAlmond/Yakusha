@@ -32,12 +32,17 @@ export function buildExport(dictionary, options = {}) {
     if (flat) {
       entries[key] = entry.text;
     } else {
-      entries[key] = {
+      const value = {
         text: entry.text,
         // Copy the array so a caller cannot mutate the dictionary through the
         // export object; order and duplicates are part of the contract.
         contexts: Array.isArray(entry.contexts) ? entry.contexts.slice() : [],
       };
+      // Provenance is optional; an export of an older dictionary simply has no
+      // engine or locator keys.
+      if (typeof entry.engine === "string" && entry.engine.length > 0) value.engine = entry.engine;
+      if (Array.isArray(entry.locator) && entry.locator.length > 0) value.locator = entry.locator.slice();
+      entries[key] = value;
     }
   }
   return {
@@ -227,11 +232,11 @@ function ioError(message, error) {
 
 /**
  * Read an export document back into rows for import. Accepts both the rich
- * shape ({text, contexts}) and the flat one (a bare string per key), which is
- * what buildExport writes depending on --flat.
+ * shape ({text, contexts, engine?, locator?}) and the flat one (a bare string
+ * per key), which is what buildExport writes depending on --flat.
  *
  * @param {string} text
- * @returns {{source: string, target: string, contexts: string[]}[]}
+ * @returns {{source: string, target: string, contexts: string[], engine?: string, locator?: string[]}[]}
  */
 export function parseExportEntries(text) {
   let document;
@@ -255,7 +260,14 @@ export function parseExportEntries(text) {
       const contexts = Array.isArray(value.contexts)
         ? value.contexts.filter((context) => typeof context === "string")
         : [];
-      rows.push({ source, target: value.text, contexts });
+      /** @type {{ source: string, target: string, contexts: string[], engine?: string, locator?: string[] }} */
+      const row = { source, target: value.text, contexts };
+      if (typeof value.engine === "string" && value.engine.length > 0) row.engine = value.engine;
+      if (Array.isArray(value.locator)) {
+        const locator = value.locator.filter((item) => typeof item === "string" && item.length > 0);
+        if (locator.length > 0) row.locator = locator;
+      }
+      rows.push(row);
       continue;
     }
     const label = JSON.stringify(source.length > 80 ? source.slice(0, 80) : source);

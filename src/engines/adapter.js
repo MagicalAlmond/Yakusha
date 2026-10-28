@@ -24,6 +24,7 @@ import {
   dictionaryPath,
   emptyDictionary,
   loadDictionary,
+  recordExtracted,
   saveDictionary,
   stats,
 } from "../core/dict.js";
@@ -205,17 +206,10 @@ export function extractIntoDictionary(project) {
     }
   }
   const target = existing || emptyDictionary(project.gameTitle);
+  const engine = project.engine === "mv" ? "mv" : "mz";
   let added = 0;
   for (const entry of result.entries.values()) {
-    const before = target.entries[entry.text];
-    if (!before) {
-      target.entries[entry.text] = { text: "", contexts: [...entry.contexts].sort() };
-      added += 1;
-    } else {
-      for (const context of entry.contexts) {
-        if (!before.contexts.includes(context)) before.contexts.push(context);
-      }
-    }
+    if (recordExtracted(target.entries, entry, engine)) added += 1;
   }
   saveDictionary(file, target);
   const summary = stats(target);

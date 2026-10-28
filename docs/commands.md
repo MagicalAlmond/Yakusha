@@ -15,7 +15,7 @@
 | 命令 | 用途 |
 | --- | --- |
 | `scan` | 报告什么可以翻译：数据文件数、字符串数、带控制码的字符串数 |
-| `extract` | 建立或刷新 `yakusha/dictionary.json`（`contexts` 记录每条串出现在哪） |
+| `extract` | 建立或刷新 `yakusha/dictionary.json`（`contexts` 记录每条串出现在哪；0.17 起另带 `engine` / `locator` 溯源字段） |
 | `status` | 看翻译进度 |
 | `translate` | 调用模型把字典填满 |
 | `verify` | 按十条判据审计字典里的坏条目 |
@@ -359,7 +359,7 @@ encodings : rvdata2 7
   ...
 ```
 
-- 第 4 行仍叫 `data files`（`adapter.dataUnit`，`src/engines/rgss/adapter.js:280`），数的是**读过的 Marshal 文档数**（`result.documents`），不是磁盘上的文件数——打包版一块 `.rgss3a` 里能读出 394 个文档。
+- 第 4 行仍叫 `data files`（`adapter.dataUnit`，`src/engines/rgss/adapter.js:272`），数的是**读过的 Marshal 文档数**（`result.documents`），不是磁盘上的文件数——打包版一块 `.rgss3a` 里能读出 394 个文档。
 - `engineVersion` 是 `"1"` / `"2"` / `"3"` 或 `null`（字符串，不是 `"1.7.0"` 那种点分版本）；文本模式拼在引擎名后面，写成 `engine    : rgss 3`。判定按这个顺序（`src/engines/rgss/project.js:309` 的 `detectVersion`）：归档扩展名（`.rgss3a` → 3 / `.rgss2a` → 2 / `.rgssad` → 1）→ `Game.ini` 的 `Library=`（`RGSS300` / `RGSS301` → 3，`RGSS20x` → 2，`RGSS10x` → 1）→ `Scripts=` 的扩展名 → `Data/` 里的文件扩展名 → `null`。归档排第一，因为打包游戏没有数据文件可看。
 - `gameTitle` 取自 `Game.ini` 的 `Title=`；`Game.ini` 按 UTF-8 → Shift_JIS → GBK → latin1 的顺序解码（编辑器按系统区域写这个文件）。
 - `encodings` 分两种：磁盘版按扩展名计数（`{"rvdata2": 7}`，`.rxdata` / `.rvdata` / `.rvdata2` 各自计数），打包版是 `{"marshal": N}`——归档里的文档没有磁盘扩展名可比，只能按容器格式计。
@@ -383,7 +383,7 @@ encodings : xp3 1
 ```
 
 - `.xp3` 归档在游戏根目录或 `data/` 下都能识别；`engineVersion` 与 `gameTitle` 恒为 `null`（0.13 不解析任何加密或可选的配置文件），文本模式第 1 行是占位符 `(untitled)`、第 4 行 `engine    : krkr` 不带版本后缀。
-- 第 4 行仍叫 `data files`（`adapter.dataUnit`，`src/engines/krkr/adapter.js:273`），数值是 `dataFiles` 键，数的是**打开的 `.xp3` 归档数**（`result.documents`）——打包游戏没有松散文件可数，归档清单是唯一诚实的数字。
+- 第 4 行仍叫 `data files`（`adapter.dataUnit`，`src/engines/krkr/adapter.js:265`），数值是 `dataFiles` 键，数的是**打开的 `.xp3` 归档数**（`result.documents`）——打包游戏没有松散文件可数，归档清单是唯一诚实的数字。
 - `encodings` 是归档格式计数 `{"xp3": N}`，0.13 只有这一个键。
 - 文本从 `.ks` 脚本按行抽：注释行（行首 `;`）、标签行（行首 `*`）与纯标签行跳过，行内 KAG 标签（`[r]` 这类）剥掉后存纯文本；`.tjs` 是编程语言，只计数不读内容。编码先按 UTF-8 严格解码、失败回退 Shift_JIS，仍解不开的记进 `undecodable`。
 - `perFile` 的键是归档内路径（`scene1.ks`），context 是 `<归档内文件名>:<行号>`（`scene1.ks:2`）；`undecodable` 是字符串数组，元素形如 `"scenario.xp3:scene1.ks: U+FFFD …"`（`<归档名>:<文件名>: <错误>`，`src/engines/krkr/adapter.js:113`）。
@@ -423,6 +423,17 @@ progress  : 0/32 translated, 32 pending
 | Kirikiri（`.ks` 行） | `scene1.ks:2`（归档内路径加 1 起始行号） |
 
 新建条目的 `contexts` 会排序后落盘；同一条串在多处出现就有多个 context。实测 `test/fixtures/renpy-extract/lineless` 的 5 条串全部只有路径 `["game/script.rpyc"]`。
+
+**`engine` / `locator` 是 0.17 新增的机器定位。** 每条新抽取的条目还会写 `engine`（`mz` / `mv` / `renpy` / `rgss` / `krkr`）与 `locator`（字符串数组）。`locator` 的格式是 `<文件>#<JSON Pointer>`，指向这条串在数据文件里的精确位置；行式引擎（Ren'Py / Kirikiri）直接用 `file:line`。旧字典没有这两个字段照样读，重新 `extract` 会补上：
+
+| 引擎 | locator 例子 |
+| --- | --- |
+| MZ/MV（字段） | `Actors.json#/3/name`、`System.json#/terms/basic/0` |
+| MZ/MV（事件指令） | `CommonEvents.json#/1/list/1/parameters/0`、`CommonEvents.json#/1/list/3/parameters/0/0`（选项标签） |
+| Ren'Py | `game/script.rpy:12`（与 context 同形；`.rpyc` 无行号时只有路径） |
+| RGSS（事件指令） | `Map001.rvdata2#/@events/1/@pages/0/@list/1/@parameters/0`、`.../@parameters/0/0`（选项标签） |
+| RGSS（数据库字段） | `Actors.rvdata2#/1/@name`、`System.rvdata2#/@terms/@params/0`、`MapInfos.rvdata2#/1/@name` |
+| Kirikiri | `scene1.ks:2`（与 context 同形） |
 
 `status` 只读一行进度：`progress  : 32/32 translated, 0 pending`。载荷多一个 `withError`（模型拒答或被校验挡下的条目数），`withError > 0` 仍算 `ok`。`status` 与引擎无关，Ren'Py 字典同样只输出这一行。
 
@@ -609,7 +620,7 @@ uninstall  : yakusha uninstall "<abs>"
 - 语言固定写进 `config.default_language = "schinese"`（只在它还是 `None` 时设），条目按原文排序、重复原文去重。文件头注释写明「删掉这个文件即卸载」。
 - `uninstall` 只删这一个文件：第一次输出 `translation removed`，之后是 `translation file was not installed`（退出码都是 0）。载荷 5 键不变，`restored` 恒 `false`、`backupPath` 与 `keptBackup` 恒 `null`。
 
-**RGSS（XP / VX / VX Ace）——本版没有交付层，`install` / `uninstall` 直接报错。** XP、VX、VX Ace 没有插件系统，译文要真正生效只能写回游戏自己的数据（`Data/*.rvdata2` 或 `.rgss3a` 归档），这一层 0.12 没做，能力声明里 `runtime` 是 `null`（`src/engines/rgss/adapter.js:210`）而不是某种产物。所以：
+**RGSS（XP / VX / VX Ace）——本版没有交付层，`install` / `uninstall` 直接报错。** XP、VX、VX Ace 没有插件系统，译文要真正生效只能写回游戏自己的数据（`Data/*.rvdata2` 或 `.rgss3a` 归档），这一层 0.12 没做，能力声明里 `runtime` 是 `null`（`src/engines/rgss/adapter.js:202`）而不是某种产物。所以：
 
 ```text
 $ yakusha install <rgss-game>
@@ -622,7 +633,7 @@ error: install is not implemented for RGSS yet - see the pending decisions in do
 - 两条候选路线都没拍板，因此写成待定而不是猜：纯 JS 把译文写回 `.rvdata2` / `.rgss3a`（读写器已在 `src/engines/rgss/` 里），或原生注入器加 hook DLL（本机没有 C/C++/Rust 工具链，也编译不了）。选哪条会改变 `uninstall` 要还原什么，已记入 `docs/dev/DEVLOG.md` §8.1。
 - `doctor` 的对应文案是 `install warn RGSS has no delivery layer yet, so nothing is written back into the game` 与 `runtime info nothing is loaded at run time, so the game keeps showing the original text`（见下一节）。
 
-**Kirikiri——同样没有交付层，`install` / `uninstall` 直接报错。** 文本烧在 `.xp3` 归档里的 `.ks` 脚本中，而 Kirikiri 没有插件目录、没有 `js/plugins.js`，也没有 Ren'Py 那种自带翻译资源的目录；要写回就得重写整个归档，而发行版常用的加密变体（krkr2 的逐文件密钥、krkrz 的 cxdec）需要游戏自己的密钥数据，本项目刻意不碰，所以写回路线在支持它们之前不成立。能力声明里 `runtime` 同样是 `null`（`src/engines/krkr/adapter.js:204`）：
+**Kirikiri——同样没有交付层，`install` / `uninstall` 直接报错。** 文本烧在 `.xp3` 归档里的 `.ks` 脚本中，而 Kirikiri 没有插件目录、没有 `js/plugins.js`，也没有 Ren'Py 那种自带翻译资源的目录；要写回就得重写整个归档，而发行版常用的加密变体（krkr2 的逐文件密钥、krkrz 的 cxdec）需要游戏自己的密钥数据，本项目刻意不碰，所以写回路线在支持它们之前不成立。能力声明里 `runtime` 同样是 `null`（`src/engines/krkr/adapter.js:196`）：
 
 ```text
 $ yakusha install <krkr-game>
@@ -703,7 +714,7 @@ verdict   : usable with 2 warning(s)
 ```
 
 - 首行括号里是 `(Kirikiri, 1 data files)`——引擎名不带版本（`engineVersion` 恒 `null`），数字是打开的归档数；首行的标题是 `(untitled)`，因为 0.13 不从归档里解析游戏标题。
-- `sync` 的文案是 `every dictionary key still appears in xp3 archives`。`install` / `runtime` 的判定走同一个 `delivery.pending` 分支（`src/core/doctor.js:183`），两行的消息在 `src/engines/krkr/adapter.js:300` 与 RGSS 一样声明在 `diagnostics` 里。
+- `sync` 的文案是 `every dictionary key still appears in xp3 archives`。`install` / `runtime` 的判定走同一个 `delivery.pending` 分支（`src/core/doctor.js:183`），两行的消息在 `src/engines/krkr/adapter.js:277-296` 与 RGSS 一样声明在 `diagnostics` 里。
 - 翻完全部条目后 `progress` 行消失，`verdict` 是 `usable with 1 warning(s)`、退出 0——没有交付层，`install` 那条 warn 永远在，`ready` 在这个引擎上不可达。
 - 没有字典时与 RGSS 一致：`dictionary fail no dictionary at <abs> - run: yakusha extract <game>`，`verdict` 是 `broken`、退出 1。
 - `install` 载荷子键与 RGSS 一样全 `null` / `false`，`runtime` 恒为 `{embedded: false, entries: 0, path: null, found: null}`。
@@ -753,7 +764,9 @@ exported 32 entries to <abs> (4159 B)
   "entries": {
     "HPを50回復する。": {
       "text": "译:HPを50回復する。",
-      "contexts": ["Items.json:description"]
+      "contexts": ["Items.json:description"],
+      "engine": "mz",
+      "locator": ["Items.json#/3/description"]
     }
   }
 }
@@ -765,6 +778,8 @@ exported 32 entries to <abs> (4159 B)
 - 目标是游戏目录内但不在 `yakusha/` 下时 stderr 警告：`warning: export target is inside the game directory but outside yakusha/: <path>`。
 - 空字典也能导出：`exported 0 entries to <abs> (120 B)`，载荷 `entries: 0`。载荷：`out` / `format`（实际格式名）/ `flat` / `entries`（条数，不是对象）/ `bytes`（实际写入的 UTF-8 字节数）。TSV / CSV 时 `--flat` 无意义，给了报 `E_USAGE`：`--flat applies to --format json only`。
 - 序列化细节（键排序、不导出 `error`、`updatedAt` 原样复制）见 [export-format.md](export-format.md)。
+- 0.17 起条目里的 `engine` / `locator` 会原样进 rich JSON；`--flat` 与 TSV / CSV 都不带，
+  表格永远是三列 `source` / `target` / `contexts`。
 
 ## import：从导出文件回填字典
 
@@ -776,6 +791,7 @@ exported 32 entries to <abs> (4159 B)
 - 文件不存在报 `E_IO`：`cannot read <abs>: the file does not exist`（home 缩写成 `~`）。
 - 表格文件必须有表头行 `source<分隔符>target<分隔符>contexts`，不符报 `E_DICTIONARY`：`table file must start with the header row source target contexts`（消息里显示实际的分隔符：TSV 用 tab、CSV 用逗号）；某行格数不是 3 报 `E_DICTIONARY`：`table row 1 has 2 cells, expected 3`（行号含表头、从 1 起）。JSON 文件则要求有 `entries` 对象，每个条目是字符串或 `{text, contexts}`。
 - 跳过规则按行处理：`target` 为空 → 跳过；`only-empty` 下字典已有非空译文 → 跳过；字典当前值与 `target` 相同 → 跳过（两种策略都算）。`contexts` 的合并顺序：字典里已有非空 contexts 优先，否则用表格行的 `contexts`，否则为空数组。
+- provenance（0.17）：JSON 导入时，字典里没有 `engine` 就用行里的 `engine`；字典里没有 `locator` 且行里有就写入。表格三列没有 provenance，既不写也不清掉字典里已有的 `engine` / `locator`。
 - `--create`（0.15）：项目还没有字典时，先用 `emptyDictionary(gameTitle)` 建一个再合并（stderr 提示 `created an empty dictionary: <abs>`）；没有 `--create` 时行为与 0.13 相同（`E_NO_DICTIONARY`，消息末尾追加 `(pass --create to start one from this import)`）。解析先于建字典：表坏了不会留下半成品空字典。
 - `--dry-run` 完整执行匹配与校验但不写盘；`applied` 为 0 时也不写（不碰 `updatedAt`）。
 - 载荷 8 键平铺：`file` / `format`（实际格式名）/ `strategy` / `dryRun` / `read`（读到的行数，含表头与跳过行）/ `applied` / `skipped` / `entries`（本次实际写入的对象）。

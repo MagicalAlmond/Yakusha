@@ -10,7 +10,7 @@
  */
 
 import path from "node:path";
-import { DB_FIELDS, SYSTEM_FIELDS, COMMAND_PATHS, collectAt, pickParams, walkCommands } from "./fields.js";
+import { DB_FIELDS, SYSTEM_FIELDS, COMMAND_PATHS, collectAtPaths, pickParamsWithSlots, walkCommands } from "./fields.js";
 import { readDataDir } from "./datafile.js";
 
 /** Files that hold nothing but records with event command lists. */
@@ -20,6 +20,8 @@ const COMMAND_ONLY_FILES = new Set(["CommonEvents.json", "Troops.json"]);
  * @typedef {object} ExtractedEntry
  * @property {string} text source string
  * @property {Set<string>} contexts where it was found, e.g. "Map003.json:401"
+ * @property {Set<string>} locators exact positions as JSON Pointers, e.g.
+ *   "Map003.json#/events/0/pages/0/list/4/parameters/0"
  * @property {number} count number of occurrences
  */
 
@@ -36,7 +38,7 @@ const COMMAND_ONLY_FILES = new Set(["CommonEvents.json", "Troops.json"]);
 /**
  * @typedef {object} FileMatcher
  * @property {(name: string) => boolean} matches decide whether this rule owns a file
- * @property {(data: any, name: string, add: (text: string, context: string) => void, counts: Record<string, number>) => void} collect
+ * @property {(data: any, name: string, add: (text: string, context: string, locator?: string) => void, counts: Record<string, number>) => void} collect
  *   pull every player visible string out of the parsed document
  */
 
@@ -61,24 +63,29 @@ export const rmFilePlan = {
       matches: (name) => name === "System.json",
       collect: (data, name, add) => {
         for (const field of SYSTEM_FIELDS) {
-          for (const value of collectAt(data, field)) add(value, name + ":" + field);
+          for (const hit of collectAtPaths(data, field)) {
+            add(hit.value, name + ":" + field, name + "#" + hit.path);
+          }
         }
       },
     },
     {
       matches: (name) => name === "MapInfos.json",
       collect: (data, name, add) => {
-        if (Array.isArray(data)) {
-          for (const info of data) {
-            if (info && typeof info.name === "string") add(info.name, name + ":name");
+        if (!Array.isArray(data)) return;
+        data.forEach((info, index) => {
+          if (info && typeof info.name === "string") {
+            add(info.name, name + ":name", name + "#/" + index + "/name");
           }
-        }
+        });
       },
     },
     {
       matches: (name) => /^Map\d+\.json$/i.test(name),
       collect: (data, name, add, counts) => {
-        if (data && typeof data.displayName === "string") add(data.displayName, name + ":displayName");
+        if (data && typeof data.displayName === "string") {
+          add(data.displayName, name + ":displayName", name + "#/displayName");
+        }
         extractCommands(data, name, add, counts);
       },
     },
@@ -89,12 +96,14 @@ export const rmFilePlan = {
       collect: (data, name, add, counts) => {
         const fields = DB_FIELDS[name];
         if (fields && Array.isArray(data)) {
-          for (const record of data) {
-            if (!record || typeof record !== "object") continue;
+          data.forEach((record, index) => {
+            if (!record || typeof record !== "object") return;
             for (const field of fields) {
-              if (typeof record[field] === "string") add(record[field], name + ":" + field);
+              if (typeof record[field] === "string") {
+                add(record[field], name + ":" + field, name + "#/" + index + "/" + field);
+              }
             }
-          }
+          });
         }
         extractCommands(data, name, add, counts);
       },
@@ -104,15 +113,14 @@ export const rmFilePlan = {
     matches: () => true,
     collect: (data, name, add) => {
       const fields = DB_FIELDS[name];
-      if (fields && Array.isArray(data)) {
-        for (const record of data) {
-          if (!record || typeof record !== "object") continue;
-          for (const field of fields) {
-            const value = record[field];
-            if (typeof value === "string") add(value, name + ":" + field);
-          }
+      if (!fields || !Array.isArray(data)) return;
+      data.forEach((record, index) => {
+        if (!record || typeof record !== "object") return;
+        for (const field of fields) {
+          const value = record[field];
+          if (typeof value === "string") add(value, name + ":" + field, name + "#/" + index + "/" + field);
         }
-      }
+      });
     },
   },
 };
@@ -129,16 +137,19 @@ export function extractProject(projectRoot, plan) {
   const result = { entries: new Map(), perFile: {}, totalStrings: 0, commandCounts: {}, undecodable: [], encodings: {} };
   const dataDir = path.join(projectRoot, enginePlan.dataDir);
 
-  const add = (text, context) => {
+  const add = (text, context, locator) => {
     if (typeof text !== "string" || text.length === 0) return;
     result.totalStrings += 1;
     const existing = result.entries.get(text);
     if (existing) {
       existing.count += 1;
       existing.contexts.add(context);
+      if (typeof locator === "string" && locator.length > 0) existing.locators.add(locator);
       return;
     }
-    result.entries.set(text, { text, contexts: new Set([context]), count: 1 });
+    const locators = new Set();
+    if (typeof locator === "string" && locator.length > 0) locators.add(locator);
+    result.entries.set(text, { text, contexts: new Set([context]), locators, count: 1 });
   };
 
   for (const file of readDataDir(dataDir)) {
@@ -192,11 +203,13 @@ export function listJsonFiles(dataDir) {
  * @param {Record<string, number>} counts
  */
 function extractCommands(data, name, add, counts) {
-  walkCommands(data, ({ code, params }) => {
+  walkCommands(data, ({ code, params, pointer, paramKey }) => {
     counts[code] = (counts[code] || 0) + 1;
     const spec = COMMAND_PATHS[String(code)];
     if (!spec) return;
-    for (const value of pickParams(params, spec)) add(value, name + ":" + code);
+    for (const hit of pickParamsWithSlots(params, spec)) {
+      add(hit.value, name + ":" + code, name + "#" + pointer + "/" + paramKey + "/" + hit.path);
+    }
   });
 }
 
@@ -209,6 +222,11 @@ function extractCommands(data, name, add, counts) {
  */
 export function toSortedArray(result) {
   return [...result.entries.values()]
-    .map((entry) => ({ text: entry.text, contexts: [...entry.contexts].sort(), count: entry.count }))
+    .map((entry) => ({
+      text: entry.text,
+      contexts: [...entry.contexts].sort(),
+      locators: [...entry.locators].sort(),
+      count: entry.count,
+    }))
     .sort((a, b) => b.count - a.count || (a.text < b.text ? -1 : a.text > b.text ? 1 : 0));
 }

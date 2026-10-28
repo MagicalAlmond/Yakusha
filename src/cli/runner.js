@@ -908,13 +908,21 @@ async function commandImport(dir, flags, sink) {
       skipped += 1;
       continue;
     }
-    const base = existing && typeof existing === "object" ? existing : { contexts: [] };
+    // Spread the existing entry so its provenance survives an import that only
+    // replaces the text. A freshly applied translation clears a stale rejection.
+    const base = existing && typeof existing === "object" ? { ...existing } : { contexts: [] };
+    delete base.error;
     const contexts = Array.isArray(base.contexts) && base.contexts.length > 0
       ? base.contexts
       : Array.isArray(row.contexts) && row.contexts.length > 0
         ? row.contexts
         : [];
-    entries[row.source] = { text: row.target, contexts };
+    const entry = { ...base, text: row.target, contexts };
+    if (typeof entry.engine !== "string" && typeof row.engine === "string") entry.engine = row.engine;
+    if (!Array.isArray(entry.locator) && Array.isArray(row.locator) && row.locator.length > 0) {
+      entry.locator = row.locator.slice();
+    }
+    entries[row.source] = entry;
     applied += 1;
   }
   if (!dryRun && applied > 0) {

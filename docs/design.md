@@ -52,13 +52,13 @@ Ren'Py 自己就有字符串翻译机制：`translate <language> strings:` 里�
 
 RGSS（XP / VX / VX Ace）是本项目接的第四种引擎，也是第一种**只做到 L1–L3 的引擎**：
 detect / scan / extract 三件都有，`capabilities.runtime` 却是 `null`
-（`src/engines/rgss/adapter.js:203-213`）。原因不是没排上，而是这一族没有可以挂的钩子：
+（`src/engines/rgss/adapter.js:195-205`）。原因不是没排上，而是这一族没有可以挂的钩子：
 它没有插件目录、没有 `js/plugins.js`、也没有一个工具能改写而不碰游戏自身文件的数据目录——
 文本直接烧在 `Data/*.rxdata`、`*.rvdata`、`*.rvdata2` 这些 Ruby Marshal 文档里，打包发行时
 那些文档还整体藏在 `Game.rgssad` / `.rgss2a` / `.rgss3a` 归档里
 （`src/engines/rgss/adapter.js:1-16`）。换掉文字等于**把这些文档写回去**，那是另一档的量级。
 
-两条候选路线都记下来了，但一条都没拍板（`src/engines/rgss/adapter.js:240-250`）：
+两条候选路线都记下来了，但一条都没拍板（`src/engines/rgss/adapter.js:232-244`）：
 
 1. **纯 JS 写回数据文档**：把译文塞回 Ruby Marshal 流，重写 `Data/*.rvdata2` 或整个归档。
    需要的读写器已经在 `src/engines/rgss/` 里（`marshal.js` 的 `marshal()`、
@@ -72,7 +72,7 @@ detect / scan / extract 三件都有，`capabilities.runtime` 却是 `null`
 
 因为缺的是交付层而不是提取层，`install` / `uninstall` 报的是**指向决策记录**的那句
 `E_NOT_IMPLEMENTED`（`install is not implemented for RGSS yet - see the pending decisions in
-docs/dev/DEVLOG.md`，`src/engines/rgss/adapter.js:192-197`），而不是“这个功能不存在”那句
+docs/dev/DEVLOG.md`，`src/engines/rgss/adapter.js:184-189`），而不是“这个功能不存在”那句
 历史措辞；`doctor` 的 install 检查因此是 warning、runtime 检查是 info。同理 `src/index.js`
 只导出 `openRgssProject` / `extractRgssProject`（`src/index.js:17-18`），没有 `installRgss`
 之类的入口——库的公开面本身就不会许诺一个不存在的交付层。
@@ -80,18 +80,18 @@ docs/dev/DEVLOG.md`，`src/engines/rgss/adapter.js:192-197`），而不是“这
 ## Kirikiri 为什么没有交付层
 
 Kirikiri（KAG）是第五种引擎，第二个只做到 L1–L3 的：`capabilities.runtime` 同样是 `null`
-（`src/engines/krkr/adapter.js:193-213`），而且比 RGSS 更“没有可挂的钩子”——它没有插件
+（`src/engines/krkr/adapter.js:189-199`），而且比 RGSS 更“没有可挂的钩子”——它没有插件
 目录、没有 `js/plugins.js`，也不像 Ren'Py 那样自带一个可以放翻译资源的目录
 （`src/engines/krkr/adapter.js:1-15`）。文本烧在 `.xp3` 归档里的 `.ks` / `.tjs` 脚本中，
 换掉文字等于**把归档写回去**。
 
 把归档写回去这条路本身还有一道墙：发行版常用加密变体。krkr2 引入逐文件密钥，krkrz
 引入 cxdec 解密，两者都需要游戏自己的密钥数据；本项目**刻意不碰**这些加密变体，写回
-路线在支持它们之前不成立（`src/engines/krkr/adapter.js:234-248`）。另一条路线是原生注入器
+路线在支持它们之前不成立（`src/engines/krkr/adapter.js:226-237`）。另一条路线是原生注入器
 + hook DLL，和 RGSS 一样要编译器，本机没有 C/C++/Rust 工具链，编译不出来。两条路线
 都没有拍板，所以交付层记成**待拍板**（[dev/DEVLOG.md](dev/DEVLOG.md) 的待拍板清单），
 `install` / `uninstall` 报指向决策记录的 `E_NOT_IMPLEMENTED`（`install is not implemented for
-Kirikiri yet - see the pending decisions in docs/dev/DEVLOG.md`，`src/engines/krkr/adapter.js:186-191`），
+Kirikiri yet - see the pending decisions in docs/dev/DEVLOG.md`，`src/engines/krkr/adapter.js:178-183`），
 `doctor` 的 install 检查是 warning、runtime 检查是 info。`src/index.js` 只导出
 `openKrkrProject` / `extractKrkrProject`（`src/index.js:19-20`），同样没有 install 入口。
 
@@ -139,7 +139,7 @@ RGSS 的数据面在 Ruby Marshal 文档里，字段名带 `@`（`@name` 而不�
 `src/engines/rgss/extract.js:29-39`）。数据库里所有 `@*_name` 字段也一样：它们存的是图片或
 音频文件名，不进字典。
 
-Kirikiri 的文本面在 `.xp3` 归档内的 `.ks` 脚本里，按行抽取（`src/engines/krkr/extract.js:118-119`）：
+Kirikiri 的文本面在 `.xp3` 归档内的 `.ks` 脚本里，按行抽取（`src/engines/krkr/extract.js:119-122`）：
 
 | 行类型 | 处理 |
 | --- | --- |
@@ -252,7 +252,7 @@ Kirikiri 又换了一族：KAG 的控制码是**方括号标签**，不是反斜
   这条约束是刻意的——先有一个可靠的提取面，再谈改盘还是注入。
 - **Kirikiri 本版也只到 L1–L3**：同 RGSS，`capabilities.runtime` 是 `null`，`install` /
   `uninstall` 抛指向决策记录的 `E_NOT_IMPLEMENTED`。写回 `.xp3` 还多一道墙——发行版常用的
-  krkr2 / krkrz 加密变体刻意不碰（`src/engines/krkr/adapter.js:234-248`），所以 0.13 同样
+  krkr2 / krkrz 加密变体刻意不碰（`src/engines/krkr/adapter.js:226-237`），所以 0.13 同样
   **不往游戏里写回任何一个字节**，交付路线定了才有下一步。
 - **字典 key = 原文**：不做语言检测、不改写原文，hash 之类的方案会让译文无法人工校对。
 - **校验在写之前**：宁可留原文，也不留一条会显示成乱码的译文。
@@ -289,7 +289,7 @@ Ren'Py 走的是另一条交付路：提取是 `extractRenpyProject`，安装是
 import { openRenpyProject, extractRenpyProject, installTranslation, uninstallTranslation } from "./src/index.js";
 
 const project = openRenpyProject("/games/SomeRenpyGame"); // 指到启动器目录或 game/ 都行
-const extracted = extractRenpyProject(project.root);      // entries: Map<原文, { text, contexts, count }>
+const extracted = extractRenpyProject(project.root);      // entries: Map<原文, { text, contexts, count, locators }>
 
 // pairs 是 [原文, 译文] 数组，由调用方提供（通常来自字典或自己的流水线）
 const pairs = [["Original line", "译好的那一行"]];
@@ -299,7 +299,7 @@ uninstallTranslation(project);                                // 删掉它，游
 ```
 
 RGSS 没有对应的安装/卸载函数——本版没有交付层，所以公开面上只有读取和提取。
-提取结果与 MZ/MV 同形（`entries` 是 `Map<原文, { text, contexts, count }>`），可以直接喂给
+提取结果与 MZ/MV 同形（`entries` 是 `Map<原文, { text, contexts, count, locators }>`），可以直接喂给
 同一条翻译、校验流水线：
 
 ```js
@@ -307,7 +307,7 @@ import { openRgssProject, extractRgssProject } from "./src/index.js";
 
 const project = openRgssProject("/games/SomeRgssGame"); // 目录或 exe 都行，向上找 3 层
 const extracted = extractRgssProject(project.root);
-// entries: Map<原文, { text, contexts, count }>
+// entries: Map<原文, { text, contexts, count, locators }>
 // contexts 形如 "Map001.rvdata2:401"，commandCounts 统计每种指令码收了多少条
 console.log(extracted.entries.size + " strings in " + extracted.documents + " documents");
 // 没有 installRgss / uninstallRgss：交付路线定了才会有
@@ -320,7 +320,7 @@ import { openKrkrProject, extractKrkrProject } from "./src/index.js";
 
 const project = openKrkrProject("/games/SomeKrkrGame"); // 目录或其 data/ 里放 .xp3
 const extracted = extractKrkrProject(project.root);
-// entries: Map<原文, { text, contexts, count }>
+// entries: Map<原文, { text, contexts, count, locators }>
 // contexts 形如 "script.ks:12"；scripts 统计 ks / tjs 文件数，tjs 只计数不读
 console.log(extracted.entries.size + " strings in " + extracted.documents + " archives");
 // 没有 installKrkr / uninstallKrkr：交付路线定了才会有

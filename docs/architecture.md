@@ -139,12 +139,14 @@ Kirikiri 则要重写 XP3 归档（krkr2 / krkrz 的加密变体刻意不碰）�
   "game": "游戏标题",
   "updatedAt": "2026-10-25T00:00:00.000Z",
   "entries": {
-    "原文": { "text": "译文", "contexts": ["Map001.json:401"] }
+    "原文": { "text": "译文", "contexts": ["Map001.json:401"], "engine": "mz", "locator": ["Map001.json#/events/1/pages/0/list/2/parameters/0"] }
   }
 }
 ```
 
 手写的字典可以用扁平形式 `"原文": "译文"`（工具会当成没有 `contexts`），但工具写出的永远是上一种。
+`engine` / `locator` 是 0.17 新增的可选溯源字段（`FORMAT` 仍是 `yakusha/1`）：前者记条目来自哪个引擎，
+后者记原文在数据文件里的精确位置；0.17 之前写出的字典没有它们，照常读。
 
 三种投递方式，按引擎能力选：
 

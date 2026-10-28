@@ -20,7 +20,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { capabilities, detectFail, detectOk, notImplemented } from "../adapter.js";
-import { dictionaryPath, emptyDictionary, loadDictionary, saveDictionary, stats } from "../../core/dict.js";
+import { dictionaryPath, emptyDictionary, loadDictionary, recordExtracted, saveDictionary, stats } from "../../core/dict.js";
 import { launchProject } from "../launch.js";
 import { rgssProfile } from "./profile.js";
 import { extractRgssProject } from "./extract.js";
@@ -144,15 +144,7 @@ export function extractIntoDictionary(project) {
   const target = existing || emptyDictionary(project.gameTitle);
   let added = 0;
   for (const entry of result.entries.values()) {
-    const before = target.entries[entry.text];
-    if (!before) {
-      target.entries[entry.text] = { text: "", contexts: [...entry.contexts].sort() };
-      added += 1;
-    } else {
-      for (const context of entry.contexts) {
-        if (!before.contexts.includes(context)) before.contexts.push(context);
-      }
-    }
+    if (recordExtracted(target.entries, entry, "rgss")) added += 1;
   }
   saveDictionary(file, target);
   const summary = stats(target);

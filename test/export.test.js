@@ -620,3 +620,35 @@ test("import: --create with a bad table leaves no dictionary behind", () => {
   assert.equal(result.code, 2);
   assert.equal(fs.existsSync(path.join(game, "yakusha", "dictionary.json")), false);
 });
+
+test("export: rich json carries engine and locator, and import restores them", () => {
+  const game = tempGame();
+  const entry = {
+    text: "阿丽亚",
+    contexts: ["Map001.json:401"],
+    engine: "mz",
+    locator: ["Map001.json#/events/1/pages/0/list/0/parameters/0"],
+  };
+  writeDictionary(game, { "アリア": { ...entry } });
+  const out = path.join(game, "yakusha", "provenance.json");
+  assert.equal(run(["export", game, "--out", out, "--json"]).code, 0);
+  const exported = JSON.parse(fs.readFileSync(out, "utf8"));
+  assert.deepEqual(exported.entries["アリア"], entry);
+  // Clear the translation but keep an entry without provenance, then import.
+  writeDictionary(game, { "アリア": { text: "", contexts: ["Map001.json:401"] } });
+  const result = run(["import", game, "--from", out, "--json"]);
+  assert.equal(result.code, 0, result.stderr);
+  const onDisk = JSON.parse(fs.readFileSync(path.join(game, "yakusha", "dictionary.json"), "utf8"));
+  assert.deepEqual(onDisk.entries["アリア"], entry);
+});
+
+test("export: flat json stays a plain string map without provenance", () => {
+  const game = tempGame();
+  writeDictionary(game, {
+    "アリア": { text: "阿丽亚", contexts: [], engine: "mz", locator: ["Map001.json#/displayName"] },
+  });
+  const out = path.join(game, "yakusha", "flat.json");
+  assert.equal(run(["export", game, "--out", out, "--json", "--flat"]).code, 0);
+  const exported = JSON.parse(fs.readFileSync(out, "utf8"));
+  assert.deepEqual(exported.entries, { "アリア": "阿丽亚" });
+});

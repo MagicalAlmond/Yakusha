@@ -182,7 +182,7 @@ function contextOf(unit) {
  *
  * @param {string} projectRoot project root, the directory holding the game/
  *   directory
- * @returns {{entries: Map<string, {text: string, contexts: Set<string>, count: number}>,
+ * @returns {{entries: Map<string, {text: string, contexts: Set<string>, locators: Set<string>, count: number}>,
  *   perFile: Record<string, number>, totalStrings: number, commandCounts: {},
  *   undecodable: Array<{file: string, error: string}>,
  *   encodings: {rpy: number, rpyc: number}, scripts: {rpy: number, rpyc: number}}}
@@ -192,7 +192,7 @@ function contextOf(unit) {
  */
 export function extractRenpyProject(projectRoot) {
   const { units, undecodable, scripts } = collectRenpyUnits(projectRoot);
-  /** @type {Map<string, {text: string, contexts: Set<string>, count: number}>} */
+  /** @type {Map<string, {text: string, contexts: Set<string>, locators: Set<string>, count: number}>} */
   const entries = new Map();
   /** @type {Record<string, number>} */
   const perFile = {};
@@ -204,8 +204,11 @@ export function extractRenpyProject(projectRoot) {
     if (known) {
       known.count += 1;
       known.contexts.add(context);
+      known.locators.add(context);
     } else {
-      entries.set(unit.text, { text: unit.text, contexts: new Set([context]), count: 1 });
+      // A script line is addressed by file and line, so the locator is the
+      // context itself: the position a writer would edit.
+      entries.set(unit.text, { text: unit.text, contexts: new Set([context]), locators: new Set([context]), count: 1 });
     }
     totalStrings += 1;
     // Occurrences, not distinct texts: a line said twice is two positions to

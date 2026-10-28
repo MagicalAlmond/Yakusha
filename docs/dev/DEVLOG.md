@@ -36,9 +36,9 @@
 
 | 项 | 状态 |
 | --- | --- |
-| 版本 | **0.14.0**（`package.json` 单一真源，`src/version.js` 读取它；插件模板的 `VERSION` 由安装器替换） |
-| 契约 | 0.10 的五篇设计稿（json-contract / config / engines / export-format / platforms）已冻结并全部实现；0.11 只有 `engines.md` 真正扩了内容（三个引擎、新增 §13.2 Ren'Py），`json-contract.md` 与 `platforms.md` 补了「0.11 复查后不变」的复核标注。0.12 继续扩 `engines.md`（四个引擎、新增 §13.3 RGSS 与 §7.7 的 pending 交付），`json-contract.md` 补 RGSS 的语义澄清（`E_NOT_IMPLEMENTED` 有了 CLI 入口、`install`/`uninstall`/`doctor` 的按引擎差异）；信封与字段类型仍未动，`platforms.md` / `config.md` / `export-format.md` 未动。0.13 扩 `engines.md`（五个引擎、新增 §13.4 Kirikiri），`export-format.md` 补 TSV/CSV 表格与 `import` 命令；JSON 信封（flat one-line object、退出码 0/1/2、13 个错误码）未动 |
-| 测试 | **650 个，全绿**（`npm test`，约 11–12s；0.14 新增 runner 15 + 取消 5 + GUI handlers 11 + 字典编辑 6；0.15 新增 JSONL/--create 5） |
+| 版本 | **0.17.0**（`package.json` 单一真源，`src/version.js` 读取它；插件模板的 `VERSION` 由安装器替换） |
+| 契约 | 0.10 的五篇设计稿（json-contract / config / engines / export-format / platforms）已冻结并全部实现；0.11 只有 `engines.md` 真正扩了内容（三个引擎、新增 §13.2 Ren'Py），`json-contract.md` 与 `platforms.md` 补了「0.11 复查后不变」的复核标注。0.12 继续扩 `engines.md`（四个引擎、新增 §13.3 RGSS 与 §7.7 的 pending 交付），`json-contract.md` 补 RGSS 的语义澄清（`E_NOT_IMPLEMENTED` 有了 CLI 入口、`install`/`uninstall`/`doctor` 的按引擎差异）；信封与字段类型仍未动，`platforms.md` / `config.md` / `export-format.md` 未动。0.13 扩 `engines.md`（五个引擎、新增 §13.4 Kirikiri），`export-format.md` 补 TSV/CSV 表格与 `import` 命令；JSON 信封（flat one-line object、退出码 0/1/2、13 个错误码）未动。0.17 给字典条目加可选 `engine` / `locator` 溯源字段（`FORMAT` 仍是 `yakusha/1`），rich JSON 导出与导入带、表格不带，信封与错误码未动 |
+| 测试 | **670 个，全绿**（`npm test`，约 11–12s；0.14 新增 runner 15 + 取消 5 + GUI handlers 11 + 字典编辑 6；0.15 新增 JSONL/--create 5；0.17 新增 dict 7 + 各引擎 locator 断言） |
 | 持续集成 | GitHub Actions：`npm test` 在 Node 22 / 24（**windows-latest**，WP1 已从 ubuntu 切换） |
 | 平台 | Windows 10/11 x64 为唯一支持与验收环境（0.10 明确，见 [platforms.md](../platforms.md)） |
 | 支持引擎 | RPG Maker **MZ 1.3.2–1.9.0**、**MV 1.6.1–1.6.2**；**Ren'Py 8.x 脚本**（`.rpy` 明文 + `.rpyc` 编译）；**RGSS（XP / VX / VX Ace）**与 **Kirikiri（KAG / XP3）**——只到 L1–L3（识别 / 盘点 / 抽取 / 翻译 / 校验 / 导出），**没有交付层**（§6） |
@@ -322,6 +322,13 @@
       `%SystemDrive%/ProgramData` 缓存库并被 `git add -A` 收进提交（9af59ed，179e114 已删）——
       探针后除 `git status` 外还要 `git ls-files` 核对。
 
+### J 阶段（0.17.0，已完成）
+
+- [x] 字典条目加可选溯源字段：`engine`（`mz` / `mv` / `renpy` / `rgss` / `krkr`）与 `locator`（字符串数组，`<文件>#<JSON Pointer>`；行式引擎为 `file:line`）。`FORMAT` 仍是 `yakusha/1`，旧字典照读；`loadDictionary` 丢弃非法的引擎/定位值而不是让整份字典失败。
+- [x] 抽取器写 provenance：`src/core/fields.js` 的 `collectAtPaths` / `walkCommands(pointer)` / `pickParamsWithSlots` 给出精确路径；四个 adapter 统一走 `src/core/dict.js` 的 `recordExtracted()`（MZ/MV、RGSS、Ren'Py、Kirikiri 各传自己的 engine id）。重新 `extract` 会用新 locator 整体替换陈旧值，但不动已有译文。
+- [x] 导出/导入：rich JSON 原样带上 `engine` / `locator`，`--flat` 不带；`import --format json` 回填缺失的 provenance。TSV / CSV 仍是三列，不带。
+- [x] 测试：新增 `test/dict.test.js`（7 条，含 malformed provenance 丢弃与 `recordExtracted` 合并语义），`extract` / `rgss-extract` / `export` / `krkr-adapter` / `renpy-extract` 各补 locator 断言。合计 **670 个，全绿**。
+
 ## 4. 文件地图
 
 ```
@@ -384,7 +391,7 @@ src/pipeline/terms.js     名字/术语的主流译法挖掘与漂移检测
 src/pipeline/speaker.js   说话人标记的识别、房规统计与按房规修复
 src/pipeline/report.js    verify 结果的 markdown 报告（只格式化，不重算）
 src/plugin/YAKUSHA_Translator.js  运行时插件模板（install 时注入规则表）
-test/                     603 个测试（含 CLI 端到端、0.10 信封契约、配置/前置、引擎/启动契约、
+test/                     670 个测试（含 CLI 端到端、0.10 信封契约、配置/前置、引擎/启动契约、
                           五个引擎的适配器契约、Ren'Py 的 .rpy/.rpyc 抽取、RGSS 的
                           Marshal / 归档 / 数据文档抽取与 Kirikiri 的 XP3 / KS 抽取）
 docs/design.md            为什么走运行时钩子、文本面覆盖、转义码、设计约束、作为库用
@@ -941,6 +948,12 @@ decompress (incorrect header check)"，只有合成夹具能过。两个根因�
 识别 utf-16le / utf-16be。新增 2 个负面测试（变换头 → `E_UNSUPPORTED` 而不是裸
 RangeError），全量 657 绿。
 
+### 0.17 字典溯源字段实测（feat/0.17-dictionary-provenance）
+
+- mini-mz 夹具 `extract` 后：`レベル` 的条目是 `{"text":"","contexts":["System.json:terms.basic[]"],"engine":"mz","locator":["System.json#/terms/basic/0"]}`；`お金が足りない！` 的 locator 是 `CommonEvents.json#/1/list/1/parameters/0`。
+- 参数列表（`"0[]"` 形状）曾经少一层路径（只到 `parameters` 就停），已修成 `parameters/<i>/<slot>`；选项标签的 locator 现在是 `.../parameters/0/0`。
+- `pnpm pack --dry-run`：0.17 tarball 64 个文件（`bin/` 1 个 + `src/` 52 个 + `gui/` 8 个 + 根三件）。
+
 ## 7. 已知限制
 
 1. 只处理 `data/` 里的文本；插件 `js/plugins/*.js` 里硬编码的 UI 文案不动。
@@ -1058,7 +1071,7 @@ RangeError），全量 657 绿。
 | 2 | 原生组件托管渠道 | 暂按 GitHub Release + 仓库内 manifest（二进制不进仓库）。CDN 方案未定。**0.12 没有原生组件，这个渠道还不需要，仍未定。** |
 | 3 | 原生组件安装命令名 | 暂记 `yakusha native install <engine>`，**属于新命令、要过契约评审**，不是既定事实。**0.12 没有原生组件，命令名仍未定。** |
 | 4 | RGSS 三版本验收基线 | 需要几款真实游戏才能算 L4 通过，未定。**而且 0.12 连交付层都还没有（`runtime: null`），L4 要等第 10 行定下路线才谈得上验收。** |
-| 5 | 字典 v2 字段（`engine` / `locator`） | 是否加 `engine` / `locator` 字段未定；0.13 交付了表格载体（TSV / CSV + `import`）但**仍没有加这两个字段**——表格与 JSON 的键完全同构，字典结构未动。2026-10-27 用户询问两字段用途，已答复：`engine` 记条目来自哪个引擎（多游戏共用一份字典/导出后溯源时用），`locator` 记条目在游戏数据里的精确位置（事件 ID / 脚本行 / 归档条目，写回交付层按它定位）；两字段都是**可选的溯源元数据，不影响现有键值读写**。用户尚未拍板是否加。 |
+| 5 | 字典 v2 字段（`engine` / `locator`） | **已拍板并交付（0.17.0）**。2026-10-27 用户拍板「可以，现在就能加这两个字段」：`engine` 记条目来自哪个引擎（多游戏共用一份字典 / 导出后溯源时用），`locator` 记条目在游戏数据里的精确位置（事件 ID / 脚本行 / 归档条目，写回交付层按它定位）；两字段都是可选溯源元数据，`FORMAT` 仍是 `yakusha/1`，旧字典照读，不影响现有键值读写。实现见 §3 J 阶段。 |
 | 6 | 非 ja→zh 语言 | en→zh 何时进未定；en→ja 用户已明确"先不考虑"。 |
 | 7 | 目标用户与商业目标 | 未定。影响 GUI 功能取舍与文档语气。 |
 | 8 | README / architecture 旧卖点措辞 | 已在 WP6 按"四档交付说明实际影响"改掉；若用户希望保留更强的表述，回退点是本包 commit。 |

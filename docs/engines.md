@@ -171,7 +171,7 @@ Ren'Py 的 adapter 用同一个形状，但多两个字段、少一半 project �
   走原有分支。
 
 RGSS 同样用这个形状，带着 `dataUnit: "data files"` 与一个 `diagnostics()`
-（`src/engines/rgss/adapter.js:298-317`）：
+（`src/engines/rgss/adapter.js:290-309`）：
 
 ```js
 {
@@ -197,7 +197,7 @@ RGSS 同样用这个形状，带着 `dataUnit: "data files"` 与一个 `diagnost
   `"1"` / `"2"` / `"3"`（不是 MZ 那样的 `"1.7.0"`），读不到就是 `null`。
 
 Kirikiri（0.13，第五位）也用这个形状，带着 `dataUnit: "data files"` 与一个
-`diagnostics()`（`src/engines/krkr/adapter.js:285-304`）：
+`diagnostics()`（`src/engines/krkr/adapter.js:277-296`）：
 
 ```js
 {
@@ -212,7 +212,7 @@ Kirikiri（0.13，第五位）也用这个形状，带着 `dataUnit: "data files
 ```
 
 - `runtime: null` 与 RGSS 同理，是**诚实取值**：交付意味着把归档写回去（重打包
-  XP3），0.13 没做这一层（`src/engines/krkr/adapter.js:200-203` 的注释明说）。
+  XP3），0.13 没做这一层（`src/engines/krkr/adapter.js:226-237` 的注释明说）。
 - `diagnostics()` 的 `sourceLabel` 是 `"xp3 archives"`，`delivery` 是
   `{pending: true, message: "Kirikiri has no delivery layer yet, so nothing is written back into the game"}`。
 - `gameTitle` / `version` 恒为 `null`：标题与版本住在加密或可选的配置文件里，
@@ -314,8 +314,8 @@ adapter 只负责给 `code` + `message`；CLI 负责把它塞进错误信封（`
 | `attach` | false | false | false | false | false | 从 0.10 起就没有实现 |
 | `liveReload` | false | false | false | false | false | RM 插件有 `window.__YAKUSHA.reload()`，但没有文件监听；Ren'Py 每次启动重读翻译文件；RGSS 与 Kirikiri 没有可重读的文件 |
 
-RGSS 与 Kirikiri 两列的值由 `src/engines/rgss/adapter.js:199-213` 与
-`src/engines/krkr/adapter.js:193-207` 固定，并在
+RGSS 与 Kirikiri 两列的值由 `src/engines/rgss/adapter.js:195-205` 与
+`src/engines/krkr/adapter.js:189-199` 固定，并在
 `test/engine-contract.test.js:71-94` 里对五个引擎逐个断言
 （`ALL_ENGINES = ["mz","mv","renpy","rgss","krkr"]`、
 `RUNTIME_TIERS = { mz:"plugin", mv:"plugin", renpy:"translation", rgss:null, krkr:null }`）。
@@ -337,7 +337,7 @@ RGSS 与 Kirikiri 两列的值由 `src/engines/rgss/adapter.js:199-213` 与
     0.13 没实现。
 - `debuggable`：**引擎本身**是否支持 CDP。MZ 为 true，是实测结论；不代表工具能用。
 - `attach`：**工具是否实现** attach。从 0.10 起所有引擎都为 false，RGSS 与 Kirikiri 也一样
-  （`src/engines/rgss/adapter.js:268-270`、`src/engines/krkr/adapter.js:261-263` 都抛共享的
+  （`src/engines/rgss/adapter.js:260-262`、`src/engines/krkr/adapter.js:253-255` 都抛共享的
   `notImplemented("attach")`）；GUI 只有它为 true 才显示“调试注入”。
 
 MV 的 `debuggable:false` 有实测依据：2019/2020 年的 nw.js 版本传
@@ -391,7 +391,7 @@ adapter 只是把“装哪个插件、怎么探测”变成统一接口，不改
 | 投递 | 装插件 / 生成翻译资源 | **无**（`runtime: null`，见 §7.7） |
 | 卸载 | 删插件文件 + 摘 `$plugins` 条目 + 还原备份；Ren'Py 删那一个翻译文件 | **无**（`uninstall` 抛 `E_NOT_IMPLEMENTED`） |
 | 备份 | `js/plugins.js.yakusha-backup`；Ren'Py 不需要 | **无**（不改任何原有文件，所以没有要备份的东西） |
-| 计数单位 | data files（`data/` 下的文件数）；Ren'Py 是 scripts | data files，但含义是**实际解码成功的文档数**——打包版磁盘上没有文件可数，只能数归档里读到的文档（`src/engines/rgss/extract.js:385`） |
+| 计数单位 | data files（`data/` 下的文件数）；Ren'Py 是 scripts | data files，但含义是**实际解码成功的文档数**——打包版磁盘上没有文件可数，只能数归档里读到的文档（`src/engines/rgss/extract.js:421-423`） |
 | 控制码 | 反斜杠转义（如 `\C[6]`、`\N[1]`）；Ren'Py 是 `{b}` / `[var]` | `\C[n]`、`\V[n]`、`\N[n]`、`\i[n]`、`\!` 等，**同样是反斜杠转义，与 MZ / MV 同族**，所以直接复用 `src/core/textkey.js` 的 tokenizer（`src/engines/rgss/profile.js:22`） |
 | 只读来源 | 不读 `js/plugins/*.js`；Ren'Py 跳过 `game/tl/` 与自己生成的翻译文件 | 跳过 `@note` 与所有资源名字段；不含玩家文本的文档根本不打开（见 §13.3） |
 
@@ -405,11 +405,11 @@ adapter 只是把“装哪个插件、怎么探测”变成统一接口，不改
 | 投递 | 装插件 / 生成翻译资源 / **无** | **无**（`runtime: null`，写回意味着重打包 XP3，见 §7.8） |
 | 卸载 | 删文件还原 / Ren'Py 删一个文件 / **无** | **无**（`uninstall` 抛 `E_NOT_IMPLEMENTED`） |
 | 备份 | `js/plugins.js.yakusha-backup` / 不需要 / **无** | **无**（不改任何原有文件） |
-| 计数单位 | data files / scripts / data files（RGSS 是解码成功的文档数） | data files，含义是**成功打开的 XP3 归档数**（`src/engines/krkr/extract.js:93-94`） |
+| 计数单位 | data files / scripts / data files（RGSS 是解码成功的文档数） | data files，含义是**成功打开的 XP3 归档数**（`src/engines/krkr/extract.js:96`） |
 | 控制码 | 反斜杠转义 / `{b}` 文本标签 / 反斜杠转义 | `[r]`、`[er]`、`[emb exp=...]` 等 KAG 方括号标签；`[[` 转义出字面 `[`（`src/engines/krkr/profile.js:29`） |
 | 占位符校验 | `%1` / `[...]` / 反斜杠槽位 | `%N` 形式的数字槽（`src/engines/krkr/profile.js:123`）；方括号标签已按控制码比较，不重复报 |
 | 说话人 | 不追踪（speaker 命令靠字典键形态） | `.ks` 里 `[name_set name=...]` 被逐行跟踪（`src/engines/krkr/ks.js:94-100`），但 0.13 的字典不存说话人 |
-| 只读来源 | 不读插件 / 跳过 `game/tl/` / 跳过 `@note` 与资源字段 | `.tjs` 脚本**只计数不解析**——TJS 是编程语言，不懂代码就翻字符串不安全（`src/engines/krkr/extract.js:98-101`） |
+| 只读来源 | 不读插件 / 跳过 `game/tl/` / 跳过 `@note` 与资源字段 | `.tjs` 脚本**只计数不解析**——TJS 是编程语言，不懂代码就翻字符串不安全（`src/engines/krkr/extract.js:98-102`） |
 
 ## 7. 安装 / 卸载契约
 
@@ -532,7 +532,7 @@ translate schinese strings:
 ### 7.7 RGSS：本版没有交付层
 
 RGSS 的 `capabilities.runtime` 是 `null`，`installRuntime()` 与 `uninstallRuntime()`
-直接抛错（`src/engines/rgss/adapter.js:192-197` 的 `pending()`、`:253-262`）：
+直接抛错（`src/engines/rgss/adapter.js:184-189` 的 `pending()`、`:245-254`）：
 
 ```js
 installRuntime() { throw pending("install"); }    // E_NOT_IMPLEMENTED
@@ -569,7 +569,7 @@ $ yakusha install <game-dir> --json
   两种都有测试盯着（前者 `test/rgss-adapter.test.js:246` 与 `test/rgss-cli.test.js:103`，
   后者 `test/engine-contract.test.js:410`）。
 
-两条路线都还没拍板，写在 `src/engines/rgss/adapter.js:240-250` 的注释里，
+两条路线都还没拍板，写在 `src/engines/rgss/adapter.js:232-244` 的注释里，
 待办清单见 [dev/DEVLOG.md](dev/DEVLOG.md) §8.1：
 
 1. **纯 JS 写回数据文档**：把译文塞回 Ruby Marshal 流，重写 `Data/*.rvdata2` 或整个
@@ -593,10 +593,10 @@ $ yakusha install <game-dir> --json
 
 - `install` / `uninstall` 抛 `E_NOT_IMPLEMENTED`，消息
   `install is not implemented for Kirikiri yet - see the pending decisions in docs/dev/DEVLOG.md`
-  （`uninstall` 换个动词），退出 2（`src/engines/krkr/adapter.js:186-191` 的 `pending()`，
-  `installRuntime` / `uninstallRuntime` 在 :246-248 / :253-255 调它）。
+  （`uninstall` 换个动词），退出 2（`src/engines/krkr/adapter.js:178-183` 的 `pending()`，
+  `installRuntime` / `uninstallRuntime` 在 :238-240 / :245-247 调它）。
 - **不写任何文件**。交付层缺位意味着写回就得重打包 XP3 归档，0.13 没做，也留下
-  两个待拍板项（`src/engines/krkr/adapter.js:200-203` 的注释）。
+  两个待拍板项（`src/engines/krkr/adapter.js:226-237` 的注释）。
 - **带 `--embed` 时先撞的是 CLI 那层通用校验**：没有字典报 `--embed needs a dictionary`，
   有字典但没译文报 `--embed found no translated entries`，都是 `E_NO_DICTIONARY` /
   退出 2（`src/cli/runner.js:730-736`）；不带 `--embed` 时没有字典也先报 pending 那句。
@@ -914,6 +914,8 @@ RPG Maker 那句（registry 第一个 adapter 的文案）。
 
 ## 13. 文本抽取契约
 
+0.17 起每条抽取结果还带 `locators`（`<文件>#<JSON Pointer>`，行式引擎为 `file:line`）；写字典时由 `src/core/dict.js` 的 `recordExtracted()` 统一落成条目的 `engine` 与 `locator` 字段。各引擎的 locator 形状见本节各小节与 [json-contract.md](json-contract.md) §7.1。
+
 ### 13.1 RPG Maker（MZ / MV）
 
 - 数据源只来自 `data/*.json`（按文件名排序）。不读 `js/plugins/*.js`、
@@ -922,6 +924,7 @@ RPG Maker 那句（registry 第一个 adapter 的文案）。
   `empty`，不算 `undecodable`。
 - 字段表与指令表来自 `src/core/fields.js`（唯一真源）；adapter 不得复制一份。
 - context 形如 `<文件名>:<code>` 或 `<文件名>:<字段>`，与现有 `extract.js` 一致。
+- locator 形如 `Map002.json#/events/12/pages/0/list/5/parameters/0`（事件指令）或 `Actors.json#/3/name`（字段）；`pickParamsWithSlots` 对列表参数再退一格（`parameters/0/0`）。
 - `engineVersion` 来自 core 文件的 `vX.Y.Z`；读不到就是 `null`，不猜。
 - `scan` 不需要字典；`extract` 会写 `yakusha/dictionary.json`，已存在时只增不删。
 
@@ -1027,7 +1030,7 @@ RPG Maker 那句（registry 第一个 adapter 的文案）。
 | `Tilesets` | `name` |
 | `CommonEvents` | `name`，加上它的事件指令 |
 
-**`System`** 只收两处纯文本与四张术语表（`src/engines/rgss/extract.js:58-61`、`:227-247`）：
+**`System`** 只收两处纯文本与四张术语表（`src/engines/rgss/extract.js:58-61`、`:260-287`）：
 
 - `@game_title`（游戏标题）与 `@currency_unit`（货币单位），context 分别是
   `System.rvdata2:game_title` / `System.rvdata2:currency_unit`。
@@ -1048,12 +1051,12 @@ RPG Maker 那句（registry 第一个 adapter 的文案）。
 `MapInfos.rvdata2:name`。打包版与磁盘版用同一个文档名，所以 context 不随分发形式变。
 
 **失败不中断。** 一个解不开的文档进 `undecodable`（`<文档名>: <error>`，单行），遍历
-继续；`documents` 与 `encodings` 只在成功解码后加一（`src/engines/rgss/extract.js:385`），
+继续；`documents` 与 `encodings` 只在成功解码后加一（`src/engines/rgss/extract.js:421-423`），
 所以 `scan` 的 `data files` 与 `doctor` 首行括号里的数是同一个数。
 
 **`encodings` 的语义按来源变**：打包版一律记 `marshal`（所有文档都来自同一份 Marshal
 字节流），磁盘版记文件扩展名（`rvdata2` / `rvdata` / `rxdata`）——
-`src/engines/rgss/extract.js:386-387`。
+`src/engines/rgss/extract.js:422-423`。
 
 **`engineVersion`** 是字符串 `"1"` / `"2"` / `"3"`（对应 XP / VX / VX Ace），
 来路见 §6.2 的版本来源一行；一个都读不到就是 `null`，`scan` 的 `engine    : rgss`
@@ -1075,7 +1078,7 @@ RPG Maker 那句（registry 第一个 adapter 的文案）。
 版本判定的旁证（离线核过，不是工具行为）：该游戏的 `Data/Scripts.rvdata2` 里有 234 个
 脚本条目，`codeobj` 是 deflate 压缩的 Ruby 源码（解压后是 `# ■ Main` 这类 RGSS 脚本）。
 本版**既不抽也不读** `Scripts`：它不在 `RGSS_DB_FIELDS` 里，也不是 `System` /
-`MapInfos` / `Map*` / `Troops`，所以 `src/engines/rgss/extract.js:377` 的 `continue`
+`MapInfos` / `Map*` / `Troops`，所以 `src/engines/rgss/extract.js:413` 的 `continue`
 直接跳过，连 `readDocument` 都不会调。这份样本不是仓库里的夹具，也不构成对商业 RGSS
 游戏的验收。
 
@@ -1117,7 +1120,7 @@ RPG Maker 那句（registry 第一个 adapter 的文案）。
 
 **失败不中断。** 一个打不开的归档进 `undecodable`（`<归档名>: <error>`，单行），
 遍历继续；`documents` 与 `encodings.xp3` 只在归档成功打开后加一
-（`src/engines/krkr/extract.js:93-94`），所以 `scan` 的 `data files` 与 `doctor`
+（`src/engines/krkr/extract.js:96`），所以 `scan` 的 `data files` 与 `doctor`
 首行括号里的数是同一个数。`encodings` 一律记 `xp3`。
 
 **`engineVersion` / `gameTitle` 恒为 `null`**：标题与版本住在加密或可选的配置文件里，
@@ -1125,7 +1128,7 @@ RPG Maker 那句（registry 第一个 adapter 的文案）。
 `(untitled)`，engine 行不带版本后缀。
 
 **同名文本合并。** 不同位置出现同一字符串时，字典里只有一条，`count` 累加、
-contexts 合并（`src/engines/krkr/extract.js:74-81`）。
+contexts 合并（`src/engines/krkr/extract.js:74`）。
 
 **实测规模（外部样本，非仓库可复现）。** 开发期读过两款真实 Kirikiri 游戏的归档
 （含一份语音归档），所有条目的 adler32 与长度都校验通过；具体数字不写进文档——

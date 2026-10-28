@@ -246,6 +246,7 @@
 | `scan.encodings` | `{"json": N}` | `{"rpy": N, "rpyc": N}`，脚本格式计数 | 磁盘版按扩展名 `{"rvdata2": N}`（`.rxdata` / `.rvdata` 各自计数）；打包版 `{"marshal": N}` | `{"xp3": N}`，0.13 只有这一个键 |
 | `scan.undecodable` | 字符串数组，元素是文件名 | 字符串数组，元素是 `"<相对路径>: <解码错误>"` | 字符串数组，元素是 `"<文件名>: <解码错误>"`（`src/engines/rgss/adapter.js:118`） | 字符串数组，元素是 `"<归档名>:<文件名>: <错误>"`（`src/engines/krkr/adapter.js:113`） |
 | `scan.perFile` / 字典 `contexts` | `Items.json:description` | `game/script.rpy:12`（`.rpyc` 无行号时只有路径） | `Map001.rvdata2:401`（事件指令号）、`Actors.rvdata2:name`、`System.rvdata2:terms.params` | `scene1.ks:2`（归档内路径加 1 起始行号） |
+| 字典条目的 `engine` / `locator`（0.17） | `mz` / `mv`；`Items.json#/3/description`、`CommonEvents.json#/1/list/1/parameters/0` | `renpy`；`game/script.rpy:12`（与 context 同形） | `rgss`；`Map001.rvdata2#/@events/1/@pages/0/@list/1/@parameters/0`、`Actors.rvdata2#/1/@name` | `krkr`；`scene1.ks:2`（与 context 同形） |
 | `install.pluginPath` | `js/plugins/YAKUSHA_Translator.js` 绝对路径 | `game/yakusha_translation.rpy` 绝对路径 | 无载荷：命令失败 `E_NOT_IMPLEMENTED` / 2 | 无载荷：同 RGSS |
 | `install.registered` | 插件是否已写进 `js/plugins.js` | 恒 `true`（文件写成就等于注册） | 同上，无载荷 | 同 RGSS，无载荷 |
 | `install.backupPath` / `createdBackup` / `staleBackup` | 备份 `js/plugins.js`，可能为 `null` | 恒 `null` / `false` / `false`（没有要备份的原文件） | 同上，无载荷 | 同 RGSS，无载荷 |
@@ -258,6 +259,8 @@
 | `doctor.install.entryParameters` | `{dictionaryPath, strictCodes, debug}` | `{"language": "<lang>"}`，语言从生成的翻译脚本里读回 | 恒 `null` | 恒 `null` |
 | `doctor.install.backup` | `{path, stale}` 或 `null` | 恒 `null` | 恒 `null` | 恒 `null` |
 | `doctor.runtime` | `{embedded, entries, path, found}`，`path` 是 `yakusha/dictionary.json` | 同四键，`path` 是 `game/yakusha_translation.rpy`，`found` 是它的绝对路径 | 同四键但恒 `{embedded:false, entries:0, path:null, found:null}` | 同 RGSS：恒 `{embedded:false, entries:0, path:null, found:null}` |
+
+`engine` / `locator` 是 0.17 加进字典条目的可选字段：`engine` 是引擎 id，`locator` 是精确定位数组（`<文件>#<JSON Pointer>`，行式引擎为 `file:line`）。旧字典没有它们照常读；`export` / `import --format json` 会原样带上，TSV / CSV 表格不带。
 
 RGSS 与 Kirikiri 的 `doctor` 走的都是 `src/core/doctor.js:183` 的 `delivery.pending` 分支（两者的 `capabilities.runtime` 都是 `null`）：
 `install` 检查固定是 `warn`、`runtime` 检查固定是 `info`，所以 `verdict` 只可能是 `usable`

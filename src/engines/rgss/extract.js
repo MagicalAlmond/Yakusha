@@ -98,14 +98,43 @@ export const TEXT_CODES = new Set(COMMAND_TEXT.map((rule) => rule.code));
  * @returns {any[]} Marshal string nodes, in parameter order
  */
 export function pickParams(parameters, spec) {
+  return pickParamsWithSlots(parameters, spec).map((hit) => hit.value);
+}
+
+/**
+ * Like {@link pickParams}, but keeps the parameter slot of every string so the
+ * extractor can record an exact locator.
+ *
+ * @param {any[]} parameters the @parameters array of a command
+ * @param {string} spec "0" or "0[]"
+ * @returns {Array<{ value: any, slot: number, path: string }>} `path` is the
+ *   pointer suffix inside `@parameters`, e.g. `"0"` or `"0/2"`
+ */
+export function pickParamsWithSlots(parameters, spec) {
   if (!Array.isArray(parameters)) return [];
   if (spec.endsWith("[]")) {
-    const value = parameters[Number(spec.slice(0, -2))];
+    const index = Number(spec.slice(0, -2));
+    const value = parameters[index];
     if (!Array.isArray(value)) return [];
-    return value.filter((item) => isString(item));
+    const out = [];
+    value.forEach((item, slot) => {
+      if (isString(item)) out.push({ value: item, slot, path: index + "/" + slot });
+    });
+    return out;
   }
-  const value = parameters[Number(spec)];
-  return isString(value) ? [value] : [];
+  const slot = Number(spec);
+  const value = parameters[slot];
+  return isString(value) ? [{ value, slot, path: String(slot) }] : [];
+}
+
+/**
+ * Escape one JSON Pointer segment (RFC 6901).
+ *
+ * @param {string|number} value
+ * @returns {string}
+ */
+function pointerSegment(value) {
+  return String(value).replace(/~/g, "~0").replace(/\//g, "~1");
 }
 
 /**
@@ -119,13 +148,15 @@ export function pickParams(parameters, spec) {
  * @param {unknown} node any value of a Marshal document
  * @param {(parameters: any[], code: number) => void} visit
  */
-export function walkCommands(node, visit) {
+export function walkCommands(node, visit, pointer = "") {
   if (Array.isArray(node)) {
-    for (const item of node) walkCommands(item, visit);
+    node.forEach((item, index) => walkCommands(item, visit, pointer + "/" + index));
     return;
   }
   if (node instanceof Map) {
-    for (const item of node.values()) walkCommands(item, visit);
+    for (const [key, item] of node.entries()) {
+      walkCommands(item, visit, pointer + "/" + pointerSegment(key));
+    }
     return;
   }
   if (!isObject(node)) return;
@@ -134,11 +165,11 @@ export function walkCommands(node, visit) {
   const code = ivars["@code"];
   if (typeof code === "number") {
     const parameters = ivars["@parameters"];
-    if (Array.isArray(parameters)) visit(parameters, code);
+    if (Array.isArray(parameters)) visit(parameters, code, pointer);
     // A command's parameters never hold another command list, so the walk stops.
     return;
   }
-  for (const key of Object.keys(ivars)) walkCommands(ivars[key], visit);
+  for (const key of Object.keys(ivars)) walkCommands(ivars[key], visit, pointer + "/" + pointerSegment(key));
 }
 
 /**
@@ -185,15 +216,15 @@ function contextOf(file, where) {
  */
 function collectFields(document, file, fields, add) {
   if (!Array.isArray(document)) return;
-  for (const record of document) {
+  document.forEach((record, index) => {
     const ivars = ivarsOf(record);
-    if (!ivars) continue;
+    if (!ivars) return;
     for (const field of fields) {
       const value = ivars["@" + field];
       if (!isString(value)) continue;
-      add(text(value), contextOf(file, field));
+      add(text(value), contextOf(file, field), file + "#/" + index + "/@" + field);
     }
-  }
+  });
 }
 
 /**
@@ -205,11 +236,13 @@ function collectFields(document, file, fields, add) {
  * @param {Record<string, number>} counts occurrences per command code
  */
 function collectCommands(document, file, add, counts) {
-  walkCommands(document, (parameters, code) => {
+  walkCommands(document, (parameters, code, pointer) => {
     counts[code] = (counts[code] || 0) + 1;
     const spec = COMMAND_PATHS[String(code)];
     if (spec === undefined) return;
-    for (const node of pickParams(parameters, spec)) add(text(node), contextOf(file, String(code)));
+    for (const hit of pickParamsWithSlots(parameters, spec)) {
+      add(text(hit.value), contextOf(file, String(code)), file + "#" + pointer + "/@parameters/" + hit.path);
+    }
   });
 }
 
@@ -230,19 +263,19 @@ function collectSystem(document, file, add) {
   for (const field of SYSTEM_TEXT_FIELDS) {
     const value = ivars[field];
     if (!isString(value)) continue;
-    add(text(value), contextOf(file, field.slice(1)));
+    add(text(value), contextOf(file, field.slice(1)), file + "#/" + pointerSegment(field));
   }
   const termIvars = ivarsOf(ivars["@terms"]);
   if (!termIvars) return;
   for (const field of TERM_FIELDS) {
     const list = termIvars[field];
     if (!Array.isArray(list)) continue;
-    for (const entry of list) {
-      if (!isString(entry)) continue;
+    list.forEach((entry, index) => {
+      if (!isString(entry)) return;
       // Term lists pad themselves with empty strings (an unused slot prints
       // nothing), so an empty entry is a slot, not a text worth a dictionary key.
-      add(text(entry), contextOf(file, "terms." + field.slice(1)));
-    }
+      add(text(entry), contextOf(file, "terms." + field.slice(1)), file + "#/@terms/" + pointerSegment(field) + "/" + index);
+    });
   }
 }
 
@@ -256,16 +289,16 @@ function collectSystem(document, file, add) {
 function collectMapInfos(document, file, add) {
   const records = [];
   if (document instanceof Map) {
-    for (const value of document.values()) records.push(value);
+    for (const [id, value] of document.entries()) records.push({ id, value });
   } else if (Array.isArray(document)) {
-    records.push(...document);
+    document.forEach((value, index) => records.push({ id: index, value }));
   }
   for (const record of records) {
-    const ivars = ivarsOf(record);
+    const ivars = ivarsOf(record.value);
     if (!ivars) continue;
     const value = ivars["@name"];
     if (!isString(value)) continue;
-    add(text(value), contextOf(file, "name"));
+    add(text(value), contextOf(file, "name"), file + "#/" + pointerSegment(record.id) + "/@name");
   }
 }
 
@@ -330,7 +363,7 @@ function sourceExtension(name) {
  * continues: one damaged map must not cost the user the rest of the game.
  *
  * @param {string} projectRoot project root, the directory holding Game.ini
- * @returns {{entries: Map<string, {text: string, contexts: Set<string>, count: number}>,
+ * @returns {{entries: Map<string, {text: string, contexts: Set<string>, locators: Set<string>, count: number}>,
  *   perFile: Record<string, number>, totalStrings: number,
  *   commandCounts: Record<string, number>,
  *   undecodable: Array<{file: string, error: string}>,
@@ -338,7 +371,7 @@ function sourceExtension(name) {
  */
 export function extractRgssProject(projectRoot) {
   const source = openDataSource({ root: projectRoot, archive: findProjectArchive(projectRoot) });
-  /** @type {Map<string, {text: string, contexts: Set<string>, count: number}>} */
+  /** @type {Map<string, {text: string, contexts: Set<string>, locators: Set<string>, count: number}>} */
   const entries = new Map();
   /** @type {Record<string, number>} */
   const perFile = {};
@@ -352,7 +385,7 @@ export function extractRgssProject(projectRoot) {
   let documents = 0;
   let currentFile = "";
 
-  const add = (value, context) => {
+  const add = (value, context, locator) => {
     if (typeof value !== "string" || value.length === 0) return;
     totalStrings += 1;
     perFile[currentFile] = (perFile[currentFile] || 0) + 1;
@@ -360,9 +393,12 @@ export function extractRgssProject(projectRoot) {
     if (known !== undefined) {
       known.count += 1;
       known.contexts.add(context);
+      if (typeof locator === "string" && locator.length > 0) known.locators.add(locator);
       return;
     }
-    entries.set(value, { text: value, contexts: new Set([context]), count: 1 });
+    const locators = new Set();
+    if (typeof locator === "string" && locator.length > 0) locators.add(locator);
+    entries.set(value, { text: value, contexts: new Set([context]), locators, count: 1 });
   };
 
   try {

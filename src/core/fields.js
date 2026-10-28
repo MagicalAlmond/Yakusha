@@ -90,14 +90,45 @@ export const TEXT_CODES = new Set(COMMAND_TEXT.map((rule) => rule.code));
  * @returns {string[]}
  */
 export function pickParams(params, spec) {
+  return pickParamsWithSlots(params, spec).map((hit) => hit.value);
+}
+
+/**
+ * Like {@link pickParams}, but keeps the array slot every string came from so
+ * the extractor can point at the exact position inside `parameters`.
+ *
+ * @param {any[]} params
+ * @param {string} spec e.g. `"4"` or `"0[]"`
+ * @returns {Array<{ value: string, slot: number, path: string }>} `path` is the
+ *   pointer suffix inside `parameters`, e.g. `"4"` or `"0/2"`
+ */
+export function pickParamsWithSlots(params, spec) {
   if (!Array.isArray(params)) return [];
   if (spec.endsWith("[]")) {
-    const value = params[Number(spec.slice(0, -2))];
+    const index = Number(spec.slice(0, -2));
+    const value = params[index];
     if (!Array.isArray(value)) return [];
-    return value.filter((item) => typeof item === "string" && item.length > 0);
+    const out = [];
+    value.forEach((item, slot) => {
+      if (typeof item === "string" && item.length > 0) out.push({ value: item, slot, path: index + "/" + slot });
+    });
+    return out;
   }
-  const value = params[Number(spec)];
-  return typeof value === "string" && value.length > 0 ? [value] : [];
+  const slot = Number(spec);
+  const value = params[slot];
+  return typeof value === "string" && value.length > 0 ? [{ value, slot, path: String(slot) }] : [];
+}
+
+/**
+ * Escape one JSON Pointer segment (RFC 6901): `~` becomes `~0`, `/` becomes
+ * `~1`. Locators are documented as JSON Pointers, so a key that happens to
+ * contain either character must not break the path.
+ *
+ * @param {string|number} value
+ * @returns {string}
+ */
+export function pointerSegment(value) {
+  return String(value).replace(/~/g, "~0").replace(/\//g, "~1");
 }
 
 /**
@@ -108,17 +139,31 @@ export function pickParams(params, spec) {
  * @returns {string[]} every string found
  */
 export function collectAt(obj, dotted) {
+  return collectAtPaths(obj, dotted).map((hit) => hit.value);
+}
+
+/**
+ * Resolve a dotted path against an object and keep a JSON Pointer for every
+ * string found, so a dictionary entry can record where exactly it came from.
+ *
+ * @param {any} obj
+ * @param {string} dotted
+ * @returns {Array<{ value: string, path: string }>} every string plus its pointer
+ */
+export function collectAtPaths(obj, dotted) {
   const out = [];
-  const walk = (node, parts) => {
+  const walk = (node, parts, pointer) => {
     if (node === null || node === undefined) return;
     if (parts.length === 0) {
       if (Array.isArray(node)) {
-        for (const value of node) if (typeof value === "string") out.push(value);
+        node.forEach((value, index) => {
+          if (typeof value === "string") out.push({ value, path: pointer + "/" + index });
+        });
       } else if (typeof node === "string") {
-        out.push(node);
+        out.push({ value: node, path: pointer });
       } else if (typeof node === "object") {
-        for (const value of Object.values(node)) {
-          if (typeof value === "string") out.push(value);
+        for (const [key, value] of Object.entries(node)) {
+          if (typeof value === "string") out.push({ value, path: pointer + "/" + pointerSegment(key) });
         }
       }
       return;
@@ -126,15 +171,16 @@ export function collectAt(obj, dotted) {
     const head = parts[0];
     const rest = parts.slice(1);
     if (head.endsWith("[]")) {
-      const value = node[head.slice(0, -2)];
+      const key = head.slice(0, -2);
+      const value = node[key];
       if (!Array.isArray(value)) return;
-      for (const item of value) walk(item, rest);
+      value.forEach((item, index) => walk(item, rest, pointer + "/" + pointerSegment(key) + "/" + index));
       return;
     }
     if (typeof node !== "object") return;
-    walk(node[head], rest);
+    walk(node[head], rest, pointer + "/" + pointerSegment(head));
   };
-  walk(obj, dotted.split("."));
+  walk(obj, dotted.split("."), "");
   return out;
 }
 
@@ -144,26 +190,22 @@ export function collectAt(obj, dotted) {
  * @param {any} node
  * @param {(cmd: { code: number, params: any[] }) => void} visit
  */
-export function walkCommands(node, visit) {
+export function walkCommands(node, visit, pointer = "") {
   if (Array.isArray(node)) {
-    for (const item of node) walkCommands(item, visit);
+    node.forEach((item, index) => walkCommands(item, visit, pointer + "/" + index));
     return;
   }
   if (node === null || typeof node !== "object") return;
   if (typeof node.code === "number") {
     // RPG Maker stores the slots in `parameters`; `params` is tolerated so
     // hand written fixtures stay terse.
-    const parameters = Array.isArray(node.parameters)
-      ? node.parameters
-      : Array.isArray(node.params)
-        ? node.params
-        : null;
-    if (parameters && TEXT_CODES.has(node.code)) {
-      visit({ code: node.code, params: parameters });
+    const key = Array.isArray(node.parameters) ? "parameters" : Array.isArray(node.params) ? "params" : null;
+    if (key !== null && TEXT_CODES.has(node.code)) {
+      visit({ code: node.code, params: node[key], pointer, paramKey: key });
     }
     return;
   }
-  for (const key of Object.keys(node)) walkCommands(node[key], visit);
+  for (const key of Object.keys(node)) walkCommands(node[key], visit, pointer + "/" + pointerSegment(key));
 }
 
 /**

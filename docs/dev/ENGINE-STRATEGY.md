@@ -319,6 +319,8 @@ ContentProvider = {
 
 - `locator` 是结构化定位（文件、路径、事件码、行号、字段），`context` 仍是人看的字符串。
   字典 v1 继续用 `contexts` 字符串；v2 再考虑加 `locators`，不要为了多引擎立刻改冻结格式。
+- **0.17 已交付**：字典条目加了可选 `engine` / `locator` 字段（`FORMAT` 仍是 `yakusha/1`），
+  抽取器写、JSON 导出 / 导入带、表格不带。
 - 提取只读；写回只发生在显式的 patch 模式，并且必须先备份、后校验、可卸载。
 - 新引擎不允许把特判写进 `src/pipeline`；pipeline 只消费 `ContentProvider` 的输出。
 

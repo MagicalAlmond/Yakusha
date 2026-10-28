@@ -48,7 +48,7 @@ function errorLine(error) {
  * rest of the game, so failures land in `undecodable` and the walk continues.
  *
  * @param {string} projectRoot project root, the directory holding the archives
- * @returns {{entries: Map<string, {text: string, contexts: Set<string>, count: number}>,
+ * @returns {{entries: Map<string, {text: string, contexts: Set<string>, locators: Set<string>, count: number}>,
  *   perFile: Record<string, number>, totalStrings: number,
  *   documents: number, scripts: {ks: number, tjs: number},
  *   undecodable: Array<{file: string, error: string}>,
@@ -56,7 +56,7 @@ function errorLine(error) {
  */
 export function extractKrkrProject(projectRoot) {
   const project = openKrkrProject(projectRoot);
-  /** @type {Map<string, {text: string, contexts: Set<string>, count: number}>} */
+  /** @type {Map<string, {text: string, contexts: Set<string>, locators: Set<string>, count: number}>} */
   const entries = new Map();
   /** @type {Record<string, number>} */
   const perFile = {};
@@ -76,9 +76,12 @@ export function extractKrkrProject(projectRoot) {
     if (known !== undefined) {
       known.count += 1;
       known.contexts.add(context);
+      known.locators.add(context);
       return;
     }
-    entries.set(value, { text: value, contexts: new Set([context]), count: 1 });
+    // A Kag scenario line is addressed by file and line, so the locator is the
+    // context itself: the position a writer would rewrite.
+    entries.set(value, { text: value, contexts: new Set([context]), locators: new Set([context]), count: 1 });
   };
 
   for (const archivePath of project.archives) {

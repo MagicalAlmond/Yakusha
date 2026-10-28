@@ -198,8 +198,9 @@ test("the result keeps the shape extractProject produces", () => {
   assert.deepEqual(result.commandCounts, {});
   assert.ok(result.entries instanceof Map);
   for (const entry of result.entries.values()) {
-    assert.deepEqual(sortedKeys(entry), ["contexts", "count", "text"]);
+    assert.deepEqual(sortedKeys(entry), ["contexts", "count", "locators", "text"]);
     assert.ok(entry.contexts instanceof Set);
+    assert.ok(entry.locators instanceof Set);
     assert.equal(typeof entry.count, "number");
     assert.equal(typeof entry.text, "string");
   }
