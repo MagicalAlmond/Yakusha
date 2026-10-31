@@ -7,13 +7,14 @@
 
 - 只处理游戏自己的文本资源：MZ/MV 是 `data/` 里的 JSON，Ren'Py 是 `game/` 下
   `.rpy` / `.rpyc` 里的对话、选项、`_()` 字符串与 screen 文本，RGSS 是数据文档里
-  事件指令与数据库字段的文本。插件 `js/plugins/*.js` 里硬编码的 UI 文案、图片里的文字不处理。
+  事件指令与数据库字段的文本，Kirikiri 是 XP3 归档内 `.ks` 脚本里的对话文本。
+  插件 `js/plugins/*.js` 里硬编码的 UI 文案、图片里的文字不处理。
 
 ## 引擎覆盖
 
 - 多引擎只接了 MZ / MV / Ren'Py / RGSS / Kirikiri 五个适配器；Unity、Godot、Wolf
-  不在当前版本内，inject 档只有契约。0.12 注册的 RGSS 与 0.13 注册的 Kirikiri 都
-  只到 L1–L3（识别 / 盘点 / 提取 / 翻译 / 校验 / 导出），没有交付层。
+  不在当前版本内。0.12 注册的 RGSS 在 0.18 补上了注入交付层（`install --native`），
+  0.13 注册的 Kirikiri 仍只到 L1–L3（识别 / 盘点 / 提取 / 翻译 / 校验 / 导出），没有交付层。
 
 ## Ren'Py
 
@@ -23,16 +24,26 @@
 
 ## RGSS（XP / VX / VX Ace）
 
-- 本版没有交付层：`install` 与 `uninstall` 报 `E_NOT_IMPLEMENTED`（退出码 2），
-  一个文件都不写，游戏仍然显示原文。交付层的路线已于 2026-10-27 拍板走原生注入器 +
-  hook DLL（纯 JS 写回保留为历史备选），实现待后续工作包；工具链已就绪。
+- 0.18 起有交付层：`install --native` 把原生注入器与 hook DLL 装进 `<游戏>/yakusha/native/`，
+  游戏文件一个字节都不改；`uninstall` 递归删掉这个目录。`--dry-run` 只校验不写盘。
+  注入器以挂起方式启动 `Game.exe` 后载入 hook DLL，hook 在 `RGSSGameMain` 之前用
+  `RGSSEval` 跑 `bootstrap.rb`，由它包一层 `load_data` 替换数据文档返回的对象里的字符串。
+  运行日志写在 `yakusha/native/rgss-hook.log`。
+- 交付层是 32 位 Windows 的原生组件，只在一款 VX Ace 商业游戏（RGSS300.dll）上做过
+  真机验收；XP / VX（RGSS1 / RGSS2）未测，RGSS301 只有同族兼容性推断。
+- 注入是进程内 IAT patch：未签名的注入器与 DLL 可能被杀软误报；0.18 的完整性机制是
+  SHA-256 `manifest.json`，Authenticode 签名是后续步骤。已被可执行保护器加壳的游戏
+  不在范围内（没有尝试注入）。
+- 译文只覆盖 `load_data` 返回的 Ruby 对象可达的字符串（外加 `Vocab` 兜底）；
+  脚本里写死的字面量不翻译。64 位 RGSS 不存在，工具链只构建 32 位。
+- 原生组件随 npm 包分发（`native/prebuilt/`），不从网络下载；`uninstall` 只删带我们
+  `manifest.json` 的目录，其它内容一律不动。
 - 只提取玩家可读的位置：事件指令 401 / 405 / 102 / 101 与数据库字段 320。
   Ruby 脚本（codeobj）不碰。
 - 归档（`.rgssad` / `.rgss2a` / `.rgss3a`）与散装 `Data/` 目录只读一边，不合并。
 - Ruby Marshal 只认 4.x 版本。
 - 一款 RGSS3 / VX Ace 商业游戏实测：644MB 归档、394 个数据文档、31,730 条唯一串、
   0 条解不开、约 380ms。
-- 写回从未真机验证（没有交付层，谈不上验证）。
 
 ## Kirikiri（KRKR）
 
@@ -61,9 +72,9 @@
   错误码 13 个，冻结于 0.10（详见 `docs/json-contract.md`）；其余 14 条命令
   走同一信封，没有第二种机器可读出口。
 - 0.13 起有译文导入：`import` 配合 `export --format tsv / csv` 做表格往返
-  （表头 `source` / `target` / `contexts`，UTF-8 BOM + CRLF，round-trip 字节相同）。
-  仍然没有的：字典 v2 的 engine / locator 字段（多引擎共存与精确定位），
-  待拍板事项见 `docs/dev/DEVLOG.md`。
+  （表头 `source` / `target` / `contexts`，UTF-8 BOM + CRLF，round-trip 字节相同）；
+  0.15 起还接受 JSONL 与 `--create`，0.17 起条目可带 `engine` / `locator` 溯源字段
+  （`FORMAT` 仍是 `yakusha/1`）。字典 v2 的其余字段仍未拍板，见 `docs/dev/DEVLOG.md`。
 - GUI 最小外壳 0.14 已交付（Electron，safeStorage 存 key，能力位驱动按钮灰显）；
   完整字典编辑界面等仍未做，见 `docs/gui.md`。
 - 只在 Windows 10/11 x64 上支持与验收；Linux、macOS、WSL、Wine、Proton 不作为

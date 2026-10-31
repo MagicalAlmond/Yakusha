@@ -71,7 +71,7 @@ const ENGINES = [
 const ALL_ENGINES = ["mz", "mv", "renpy", "rgss", "krkr"];
 
 /** The delivery tier each engine ships, keyed by id: null means "not yet". */
-const RUNTIME_TIERS = { mz: "plugin", mv: "plugin", renpy: "translation", rgss: null, krkr: null };
+const RUNTIME_TIERS = { mz: "plugin", mv: "plugin", renpy: "translation", rgss: "inject", krkr: null };
 
 after(() => {
   for (const dir of tempDirs) fs.rmSync(dir, { recursive: true, force: true });
@@ -88,9 +88,9 @@ test("registry: adapters are ordered and capabilities are complete", () => {
     assert.equal(adapter.capabilities.extract, true);
     assert.equal(adapter.capabilities.export, true);
     // Delivery differs per engine: RPG Maker ships a plugin plus a dictionary
-    // file, Ren'Py a generated translation script, and RGSS and Kirikiri have
-    // no delivery layer yet, which they say by reporting null instead of a
-    // guessed tier.
+    // file, Ren'Py a generated translation script, RGSS a native injector, and
+    // Kirikiri has no delivery layer yet, which it says by reporting null
+    // instead of a guessed tier.
     assert.equal(adapter.capabilities.runtime, RUNTIME_TIERS[adapter.id], adapter.id + " runtime tier");
     assert.equal(adapter.capabilities.launch, true);
     assert.equal(adapter.capabilities.attach, false);
@@ -259,7 +259,7 @@ test("capabilities: every adapter declares the frozen capability set", () => {
     mz: { extract: true, export: true, runtime: "plugin", launch: true, debuggable: true, attach: false, liveReload: false },
     mv: { extract: true, export: true, runtime: "plugin", launch: true, debuggable: false, attach: false, liveReload: false },
     renpy: { extract: true, export: true, runtime: "translation", launch: true, debuggable: false, attach: false, liveReload: false },
-    rgss: { extract: true, export: true, runtime: null, launch: true, debuggable: false, attach: false, liveReload: false },
+    rgss: { extract: true, export: true, runtime: "inject", launch: true, debuggable: false, attach: false, liveReload: false },
     krkr: { extract: true, export: true, runtime: null, launch: true, debuggable: false, attach: false, liveReload: false },
   };
   for (const id of ALL_ENGINES) {

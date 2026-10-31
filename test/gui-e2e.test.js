@@ -16,6 +16,7 @@ import { fileURLToPath } from "node:url";
 
 import { runGuiCommand } from "../gui/handlers.js";
 import { writeRgssProject } from "./rgss-fixture.js";
+import { nativeAssets } from "./rgss-native-fixture.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const MZ_FIXTURE = path.join(HERE, "fixtures", "mini-mz");
@@ -113,22 +114,26 @@ test("Ren'Py pipeline: scan → extract → translate (dry run) → install → 
     "translation file must be gone after uninstall");
 });
 
-test("RGSS pipeline: scan → extract → doctor; install reports E_NOT_IMPLEMENTED", async () => {
+test("RGSS pipeline: scan → extract → install --native → doctor", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "yakusha-gui-e2e-"));
   writeRgssProject(dir);
+  process.env.YAKUSHA_NATIVE_ASSETS = nativeAssets().dir;
   const scan = await runGuiCommand("scan", [dir], { flags: {} });
   assert.equal(scan.ok, true);
   assert.equal(scan.engine, "rgss");
-  // capabilities: runtime === null — the GUI grays install/uninstall out. The
-  // envelope must agree with the grayed-out rule: clicking would report E_NOT_IMPLEMENTED.
-  assert.equal(scan.capabilities.runtime, null);
+  // capabilities: runtime === "inject" — the GUI keeps install enabled, and the
+  // native flag is what the handler receives when that button is used.
+  assert.equal(scan.capabilities.runtime, "inject");
   const extract = await runGuiCommand("extract", [dir], { flags: {} });
   assert.equal(extract.ok, true);
   assert.ok(extract.added > 0);
-  const install = await runGuiCommand("install", [dir], { flags: {} });
-  assert.equal(install.ok, false);
-  assert.equal(install.error.code, "E_NOT_IMPLEMENTED");
+  const plain = await runGuiCommand("install", [dir], { flags: {} });
+  assert.equal(plain.ok, false);
+  assert.equal(plain.error.code, "E_USAGE");
+  const install = await runGuiCommand("install", [dir], { flags: { native: true } });
+  assert.equal(install.ok, true);
+  assert.equal(install.state, "added");
   const doctor = await runGuiCommand("doctor", [dir], { flags: {} });
-  // no dictionary for install, but extract made one — doctor is usable or findings.
   assert.equal(doctor.ok, true);
+  assert.equal(doctor.verdict, "usable");
 });

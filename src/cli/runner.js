@@ -726,6 +726,13 @@ async function commandTranslate(dir, flags, sink, onProgress, opts = {}) {
  */
 async function commandInstall(dir, flags, sink) {
   const { project, adapter } = requireProject(dir);
+  const native = flags.native === true;
+  if (native && adapter.id !== "rgss") {
+    throw new CliError("E_USAGE", "install --native applies to RGSS games only");
+  }
+  if (native && flags.embed) {
+    throw new CliError("E_USAGE", "install --native cannot be combined with --embed: the injector reads dictionary.txt at run time");
+  }
   let embed = null;
   if (flags.embed) {
     const file = dict.dictionaryPath(project.root);
@@ -735,13 +742,22 @@ async function commandInstall(dir, flags, sink) {
     embed = translatedOnly(dict.loadDictionary(file));
     if (Object.keys(embed).length === 0) throw new CliError("E_NO_DICTIONARY", "--embed found no translated entries");
   }
-  const result = await pluginStep(() => adapter.installRuntime(project, { embed }));
+  const result = await pluginStep(() => adapter.installRuntime(project, { embed, native, dryRun: flags["dry-run"] === true }));
   if (result.staleBackup) {
     sink.warn(
       "warning: plugins.js changed after the backup was taken; uninstall will keep those edits and only remove the yakusha entry\n"
     );
   }
-  if (adapter.capabilities && adapter.capabilities.runtime === "translation") {
+  if (result.native) {
+    // RGSS: the delivery is a directory of native components next to the game.
+    // There is no registry entry, no backup and no embedded payload: the hook
+    // loads dictionary.txt at run time.
+    sink.out("native    : " + result.native.dir);
+    sink.out("components: " + result.native.files.length + " files");
+    sink.out("dictionary: " + result.native.dictionaryEntries + " strings");
+    if (result.native.dryRun) sink.out("dry run   : nothing written");
+    sink.out("uninstall : yakusha uninstall \"" + project.root + "\"");
+  } else if (adapter.capabilities && adapter.capabilities.runtime === "translation") {
     // Ren'Py: the delivered file is the translation script, there is no
     // registry entry and no backup to take.
     sink.out("translation: " + result.pluginPath);
@@ -754,16 +770,18 @@ async function commandInstall(dir, flags, sink) {
     if (embed) sink.out("embedded  : " + Object.keys(embed).length + " translations");
     else sink.out("dictionary: yakusha/dictionary.json (loaded at runtime)");
   }
-  return {
-    payload: {
-      pluginPath: result.pluginPath,
-      registered: result.registered,
-      backupPath: result.backupPath,
-      createdBackup: result.createdBackup,
-      staleBackup: result.staleBackup,
-      state: result.state,
-    },
+  const payload = {
+    pluginPath: result.pluginPath,
+    registered: result.registered,
+    backupPath: result.backupPath,
+    createdBackup: result.createdBackup,
+    staleBackup: result.staleBackup,
+    state: result.state,
   };
+  // The native layer is one optional object, not a different envelope: a
+  // consumer that does not know RGSS keeps reading the six keys above.
+  if (result.native) payload.native = result.native;
+  return { payload };
 }
 
 /**
@@ -775,7 +793,9 @@ async function commandInstall(dir, flags, sink) {
 async function commandUninstall(dir, sink) {
   const { project, adapter } = requireProject(dir);
   const result = await pluginStep(() => adapter.uninstallRuntime(project));
-  if (adapter.capabilities && adapter.capabilities.runtime === "translation") {
+  if (result.native) {
+    sink.out(result.removed ? "native components removed" : "the native components are not installed");
+  } else if (adapter.capabilities && adapter.capabilities.runtime === "translation") {
     sink.out(result.removed ? "translation removed" : "translation file was not installed");
   } else {
     sink.out(result.removed ? "plugin removed" : "plugin was not installed");
@@ -786,15 +806,15 @@ async function commandUninstall(dir, sink) {
       sink.out("backup kept : " + result.keptBackup);
     }
   }
-  return {
-    payload: {
-      removed: result.removed,
-      restored: result.restored,
-      backupPath: result.backupPath,
-      drifted: result.drifted,
-      keptBackup: result.keptBackup,
-    },
+  const payload = {
+    removed: result.removed,
+    restored: result.restored,
+    backupPath: result.backupPath,
+    drifted: result.drifted,
+    keptBackup: result.keptBackup,
   };
+  if (result.native) payload.native = result.native;
+  return { payload };
 }
 
 /**

@@ -11,7 +11,8 @@
  * This module wires the engine into the same shape the other adapters expose, so
  * `scan`, `extract`, `translate`, `verify`, `speaker`, `terms`, `export` and
  * `doctor` all work for XP, VX and VX Ace without knowing which engine they are
- * talking to. The runtime tier is deliberately absent: see `capabilities` below.
+ * talking to. The runtime tier is the native injector: `capabilities.runtime` is
+ * `"inject"`, and the components live in `native.js` below.
  *
  * @module engines/rgss/adapter
  */
@@ -22,6 +23,7 @@ import path from "node:path";
 import { capabilities, detectFail, detectOk, notImplemented } from "../adapter.js";
 import { dictionaryPath, emptyDictionary, loadDictionary, recordExtracted, saveDictionary, stats } from "../../core/dict.js";
 import { launchProject } from "../launch.js";
+import { installNative, launchNative, nativeStatus, uninstallNative } from "./native.js";
 import { rgssProfile } from "./profile.js";
 import { extractRgssProject } from "./extract.js";
 import { MAX_SEARCH_DEPTH, findRgssRoot, findRgssRoots, looksLikeRgssProject, openRgssProject } from "./project.js";
@@ -170,23 +172,6 @@ function coded(code, message) {
   return error;
 }
 
-/**
- * The runtime tier is not implemented, and says so in its own words.
- *
- * `notImplemented()` from ../adapter.js is the shared wording for features that
- * were never planned for this release; RGSS delivery *is* planned and only
- * pending, so it gets a message that points at the decision instead of claiming
- * the feature does not exist.
- *
- * @param {string} what
- * @returns {Error}
- */
-function pending(what) {
-  return coded(
-    "E_NOT_IMPLEMENTED",
-    what + " is not implemented for RGSS yet - see the pending decisions in docs/dev/DEVLOG.md"
-  );
-}
 
 export const adapter = {
   id: "rgss",
@@ -195,11 +180,11 @@ export const adapter = {
   capabilities: capabilities({
     extract: true,
     export: true,
-    // XP, VX and VX Ace ship no plugin system and no loadable add-on: text is
-    // baked into the data documents, so delivering a translation means writing
-    // those documents back. That layer is 0.12 work and still open (see the
-    // module comment), which is why the tier is null rather than a guess.
-    runtime: null,
+    // XP, VX and VX Ace ship no plugin system and no loadable add-on, so the
+    // translation is delivered by injecting a native hook into the running game
+    // (see ./native.js and DEVLOG §8.1 item 10). This is the "inject" tier:
+    // install copies components next to the game, launch starts the injector.
+    runtime: "inject",
     launch: true,
     debuggable: false,
   }),
@@ -230,30 +215,63 @@ export const adapter = {
   },
 
   /**
-   * Delivery: writing a translation back into the game's own data.
+   * Delivery: install the native injector components next to the game.
    *
-   * Two routes exist and neither is decided: rewriting the archive (or the
-   * `Data/*.rvdata2` documents of an unpacked game) with the translated strings
-   * kept inside the Ruby Marshal stream, or injecting a native helper into the
-   * running game. The first is pure JavaScript and the readers and writers it
-   * needs are already in this directory; the second needs a compiler this
-   * project does not have on hand. Choosing between them changes what uninstall
-   * has to restore, so it is recorded as a pending decision rather than guessed.
+   * RGSS has no plugin directory, so there is no harmless default: the layer
+   * has to be asked for explicitly with `--native`. Without the flag the
+   * command refuses with usage rather than guessing, because installing a
+   * native component is a visible change to what starts with the game.
    *
-   * @returns {never}
+   * @param {import("../../core/mzproject.js").Project} project
+   * @param {{ native?: boolean, dryRun?: boolean, assetsDir?: string }} [options]
+   * @returns {{ pluginPath: string, registered: boolean, backupPath: null, createdBackup: false, staleBackup: false, state: string, native: object }}
    */
-  installRuntime() {
-    throw pending("install");
+  installRuntime(project, options = {}) {
+    if (!options.native) {
+      throw coded(
+        "E_USAGE",
+        "RGSS has no plugin delivery layer - pass --native to install the injector: yakusha install --native \"" + project.root + "\""
+      );
+    }
+    const result = installNative(project, { dryRun: options.dryRun, assetsDir: options.assetsDir });
+    return {
+      pluginPath: result.dir,
+      registered: true,
+      backupPath: null,
+      createdBackup: false,
+      staleBackup: false,
+      state: result.created ? "added" : "unchanged",
+      native: {
+        dir: result.dir,
+        files: result.files,
+        dictionaryEntries: result.dictionaryEntries,
+        dryRun: result.dryRun,
+      },
+    };
   },
 
   /**
-   * @returns {never}
+   * @param {import("../../core/mzproject.js").Project} project
+   * @returns {{ removed: boolean, restored: false, backupPath: null, drifted: false, keptBackup: null, native: object }}
    */
-  uninstallRuntime() {
-    throw pending("uninstall");
+  uninstallRuntime(project) {
+    const state = nativeStatus(project);
+    if (!fs.existsSync(state.dir)) {
+      return { removed: false, restored: false, backupPath: null, drifted: false, keptBackup: null, native: { dir: state.dir, removed: false } };
+    }
+    // The directory exists: let uninstallNative check the manifest. A directory
+    // without our manifest is not ours to delete, and saying "not installed"
+    // would leave a broken half-install behind silently.
+    const result = uninstallNative(project);
+    return { removed: result.removed, restored: false, backupPath: null, drifted: false, keptBackup: null, native: { dir: result.dir, removed: result.removed } };
   },
 
+  /**
+   * Launch the game through the injector when the native layer is installed;
+   * otherwise start the game normally, exactly like the other engines.
+   */
   launch(project, options = {}) {
+    if (nativeStatus(project).installed) return launchNative(project, options);
     return launchProject(project, options);
   },
 
@@ -275,9 +293,8 @@ export const adapter = {
    * Engine-specific inputs for `diagnose()`.
    *
    * Doctor is engine-neutral but its checks are not: it needs the engine's own
-   * extractor, its own document count, the label of its data source and - for an
-   * engine whose delivery layer does not exist yet - a delivery state that says
-   * so instead of one that claims nothing was installed.
+   * extractor, its own document count, the label of its data source and the
+   * state of its native delivery layer.
    *
    * The count is the number of documents the scan reports, which is the number
    * that actually decoded: a document the Marshal reader rejects is missing from
@@ -285,7 +302,7 @@ export const adapter = {
    * user never saw.
    *
    * @param {{ root: string }} project
-   * @returns {{ extract: () => object, dataFiles: number, delivery: { pending: true, message: string }, sourceLabel: string }}
+   * @returns {{ extract: () => object, dataFiles: number, delivery: { path: string, exists: boolean, mode: string, language: null, entries: number }, sourceLabel: string }}
    */
   diagnostics(project) {
     let extracted = null;
@@ -296,14 +313,20 @@ export const adapter = {
     return {
       extract,
       dataFiles: extract().documents,
-      // Doctor's delivery question - "is what install wrote still there?" - has
-      // no answer for an engine that cannot write yet. Returning null would fall
-      // through to the RPG Maker branch, which reads pluginsFile (null here) and
-      // throws; "pending" is the branch that tells the truth instead.
-      delivery: {
-        pending: true,
-        message: "RGSS has no delivery layer yet, so nothing is written back into the game",
-      },
+      // Doctor's delivery question - "is what install wrote still there?" - is
+      // answered by the native directory. It follows the same shape the Ren'Py
+      // translation file uses, so doctor's generic branch prints the path and
+      // the number of strings without knowing which engine it is looking at.
+      delivery: (() => {
+        const state = nativeStatus(project);
+        return {
+          path: state.dir,
+          exists: state.installed,
+          mode: "inject",
+          language: null,
+          entries: state.dictionaryEntries,
+        };
+      })(),
       sourceLabel: "Data/",
     };
   },

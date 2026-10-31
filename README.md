@@ -1,19 +1,21 @@
 # Yakusha
 
-**非侵入式游戏运行时翻译工具，支持 RPG Maker MZ / MV、Ren'Py，以及 RPG Maker XP / VX / VX Ace 与 Kirikiri（RGSS 与 Kirikiri 只到提取与翻译）。**
+**非侵入式游戏运行时翻译工具，支持 RPG Maker MZ / MV、Ren'Py、RPG Maker XP / VX / VX Ace（RGSS，原生注入）与 Kirikiri（只到提取与翻译）。**
 
-把游戏文本抽出来交给任意 LLM 翻译，再让游戏**在运行时**显示中文。当前覆盖两档交付，
-外加两个只做到提取与翻译的引擎：
+把游戏文本抽出来交给任意 LLM 翻译，再让游戏**在运行时**显示中文。当前覆盖三档交付，
+外加一个只做到提取与翻译的引擎：
 
 - **插件档（MZ / MV）**：游戏目录只多一个插件文件、`js/plugins.js` 里多一行注册，
   `uninstall` 会把这两处还原到安装前。
 - **translation 档（Ren'Py）**：`install` 在 `game/` 下生成一个
   `yakusha_translation.rpy`，用引擎自己的 `translate <lang> strings:` 块替换源文；
   游戏脚本一个字节都不改，`uninstall` 只删这一个文件。
-- **RGSS（XP / VX / VX Ace）与 Kirikiri 本版没有交付层**：`scan`、`extract`、`translate`、
-  `verify`、`terms`、`speaker`、`export`、`doctor` 都能跑，但 `install` 与 `uninstall` 会明确报
-  `E_NOT_IMPLEMENTED`（退出码 2）并且不写任何文件，游戏仍然显示原文。
-  RGSS 的文本在 Ruby Marshal 数据文档里，Kirikiri 的文本在 XP3 归档内的 KAG 脚本里。
+- **inject 档（RGSS，0.18 起）**：`install --native` 把注入器与 hook DLL 装进
+  `yakusha/native/`，`launch` 通过 `yakusha_injector.exe` 启动游戏；游戏文件一个字节都不改，
+  `uninstall` 只删这个目录。只构建了 32 位 Windows 组件。
+- **Kirikiri 本版没有交付层**：`scan`、`extract`、`translate`、`verify`、`terms`、`speaker`、
+  `export`、`doctor` 都能跑，但 `install` 与 `uninstall` 会明确报 `E_NOT_IMPLEMENTED`
+  （退出码 2）并且不写任何文件，游戏仍然显示原文。Kirikiri 的文本在 XP3 归档内的 KAG 脚本里。
   原因与路线状态见下面 install 一节和 [docs/limitations.md](docs/limitations.md)。
 
 每一档对游戏文件的实际影响写在该档的文档里（[docs/limitations.md](docs/limitations.md)、
@@ -24,8 +26,8 @@ scan  →  extract  →  translate  →  install
 看有多少   建字典      LLM 填译文    装进游戏
 ```
 
-本版最后一步只对 MZ / MV / Ren'Py 有效；RGSS 与 Kirikiri 的流程停在 `translate`，
-`install` 会拒绝而不是假装装好。
+本版最后一步对 MZ / MV / Ren'Py 有效，RGSS 需要 `install --native`；Kirikiri 的流程停在
+`translate`，`install` 会拒绝而不是假装装好。
 
 运行时效果不在仓库里放截图；支持范围、匿名实测数据与编号见 [docs/games.md](docs/games.md)。
 
@@ -39,7 +41,7 @@ npm test         # 全部测试，应该全绿
 ```
 
 CLI 只用 Node 标准库，没有第三方运行时依赖（`package.json` 也没有 `dependencies`）；
-将来 GUI 迭代会引入 Electron，那是外壳的成本，不影响 CLI。
+GUI 是单独的 Electron 外壳（只进 devDependencies），那是外壳的成本，不影响 CLI。
 
 ## 五步上手
 
@@ -155,23 +157,45 @@ uninstall  : yakusha uninstall "/games/MyGame"
 命令行没有选语言的入口，这一版固定投 `schinese`；文件里还会加一段
 `if config.default_language is None` 的守卫，不覆盖玩家自己在设置里选的语言。
 
-**RGSS（XP / VX / VX Ace）与 Kirikiri 本版装不进去**：没有交付层，`install` 与 `uninstall`
-都以 `E_NOT_IMPLEMENTED` 失败、退出码 2、一个文件都不写，报错文案各自点名引擎：
+**RGSS（XP / VX / VX Ace）** 走注入档，安装命令要加 `--native`：
+
+```bash
+node bin/yakusha.js install "/games/MyGame" --native
+```
 
 ```
-error: install is not implemented for RGSS yet - see the pending decisions in docs/dev/DEVLOG.md
+native    : /games/MyGame/yakusha/native
+components: 4 files
+dictionary: 3812 strings
+uninstall : yakusha uninstall "/games/MyGame"
+```
+
+它把四个组件（`yakusha_injector.exe`、`yakusha_rgss_hook.dll`、`libunwind.dll`、
+`bootstrap.rb`）、按当前字典生成的 `dictionary.txt` 和一份 SHA-256 `manifest.json`
+写进 `yakusha/native/`，游戏自己的文件一个都不改。装好之后 `launch` 用注入器启动游戏：
+注入器以挂起方式创建 `Game.exe`，把 hook DLL 载入游戏进程；hook 在 `RGSSGameMain` 之前
+用引擎自己的 `RGSSEval` 跑 `bootstrap.rb`，由后者把 `dictionary.txt` 读成 Ruby 哈希、
+包一层 `load_data`，把数据文档返回的对象里的字符串替换成译文。`uninstall` 只递归删掉
+`yakusha/native/`。
+
+`--dry-run` 只校验组件与字典并打印计划（`dry run   : nothing written`），不写盘；组件缺失或
+SHA-256 对不上会报 `E_IO` 并拒绝安装；`--native` 与 `--embed` 不能同时给。不带 `--native`
+时 RGSS 直接报 `E_USAGE`（退出码 2），不会去猜用户想用哪种投递方式：
+
+```
+error: RGSS has no plugin delivery layer - pass --native to install the injector: yakusha install --native "/games/MyGame"
+```
+
+**Kirikiri 本版装不进去**：没有交付层，`install` 与 `uninstall` 都以 `E_NOT_IMPLEMENTED`
+失败、退出码 2、一个文件都不写：
+
+```
 error: install is not implemented for Kirikiri yet - see the pending decisions in docs/dev/DEVLOG.md
 ```
 
-原因很直接：XP / VX / VX Ace 没有插件系统，文本被烤进 `.rxdata` / `.rvdata` / `.rvdata2`
-这些 Ruby Marshal 文档里（打包版藏在归档内），要让游戏显示中文，要么把这些文档写回去，
-要么在运行时把译文交给引擎；Kirikiri 同样没有可填的翻译资源目录，文本在 XP3 归档内的
-KAG 脚本里，"写回"意味着重写归档。
-RGSS 的交付层路线已于 2026-10-27 拍板走原生注入器 + hook DLL（工具链已就绪，实现待后续
-工作包），Kirikiri 的写回路线仍未拍板（待定清单见 `docs/dev/DEVLOG.md`），所以两者目前
-停在字典：
-`translate` 之后游戏仍然显示原文，
-`doctor` 会把 `install` 报成 warning、`runtime` 报成 info。
+原因很直接：Kirikiri 没有可填的翻译资源目录，文本在 XP3 归档内的 KAG 脚本里，
+"写回"意味着重写归档，路线仍未拍板（待定清单见 `docs/dev/DEVLOG.md`），所以它停在字典：
+`translate` 之后游戏仍然显示原文，`doctor` 会把 `install` 报成 warning、`runtime` 报成 info。
 `export` 仍然是拿到译文的出口。
 
 ### 5. verify / doctor：自检
@@ -212,14 +236,21 @@ game      : Example Game (Ren'Py 1.0, 2 scripts)
 verdict   : ready
 ```
 
-RGSS 的 `install` 与 `runtime` 两项都只有提示，verdict 停在上限 `usable`：
+RGSS 装之前 `install` 是提示、verdict 是 `not-installed`；装完 `install` 与 `runtime` 都变 `ok`，
+verdict 到 `ready`：
 
 ```
 game      : Example Game (RGSS 3, 7 data files)
   sync        ok    every dictionary key still appears in Data/
-  install     warn  RGSS has no delivery layer yet, so nothing is written back into the game
-  runtime     info  nothing is loaded at run time, so the game keeps showing the original text
-verdict   : usable with 2 warning(s)
+  install     info  not installed - run: yakusha install --native "<game>"
+  runtime     info  the injector loads yakusha/native when the game starts
+verdict   : not-installed
+```
+
+```
+  install     ok    yakusha/native (written by install)
+  runtime     ok    yakusha/native (3812 strings)
+verdict   : ready
 ```
 
 Kirikiri 的 doctor 输出同一形态：`install` 一行换成
@@ -269,11 +300,11 @@ node bin/yakusha.js import "/games/MyGame" --from external.jsonl --create
 node bin/yakusha.js launch "/games/MyGame"
 ```
 
-仅 Windows，五个引擎共用同一套规则：项目根恰好一个 `.exe` 时直接启动；多个时用
-`--exe <name>` 指定（只收裸文件名）。启动后工具立即退出，游戏继续运行；子进程环境会删掉
-`YAKUSHA_API_KEY` / `OPENAI_API_KEY`。RGSS 的启动器就是项目根那个 `.exe`，
-规则与 RPG Maker 完全一样。`attach` 调试注入仍是桩，
-能力表里 `attach: false`，没有 CLI 入口。
+仅 Windows。MZ / MV / Ren'Py / Kirikiri 共用同一套规则：项目根恰好一个 `.exe` 时直接启动；
+多个时用 `--exe <name>` 指定（只收裸文件名）。启动后工具立即退出，游戏继续运行；子进程环境
+会删掉 `YAKUSHA_API_KEY` / `OPENAI_API_KEY`。RGSS 多一步：装过 `install --native` 时走
+`yakusha_injector.exe`，输出仍是 `launched:` / `pid:` 两行；没装时照常启动项目根的 exe。
+`attach` 调试注入仍是桩，能力表里 `attach: false`，没有 CLI 入口。
 
 ## 图形界面（0.14 起步）
 
@@ -290,7 +321,7 @@ npx electron gui/main.js
 speaker、terms 与 `config list`。API key 可以显式勾选"记住"（Windows DPAPI 加密
 存盘，CLI 不读它），也可以照旧用环境变量或 `--api-key`；`launch` 也在外壳里（与 CLI 同一条
 启动路径，`--exe` 歧义时展示候选）；最小字典编辑器也在外壳里（逐条改 pending
-译文，批量仍走 export/import）。0.16 起按钮可用性由引擎能力位驱动：没有交付层的引擎（RGSS、Kirikiri）把 install/uninstall 置灰并写明原因，不再让用户点了才知道报错。设计与验收清单见 [docs/gui.md](docs/gui.md)。
+译文，批量仍走 export/import）。0.16 起按钮可用性由引擎能力位驱动：没有交付层的引擎（本版是 Kirikiri）把 install/uninstall 置灰并写明原因，不再让用户点了才知道报错；RGSS 从 0.18 起按引擎自动带 `--native`，按钮正常可用。设计与验收清单见 [docs/gui.md](docs/gui.md)。
 
 ## 命令一览
 
@@ -303,9 +334,9 @@ speaker、terms 与 `config list`。API key 可以显式勾选"记住"（Windows
 | `verify` | 体检字典（发布前自检） |
 | `speaker` | 按本作自己的写法修复说话人名 |
 | `terms` | 挖人名/术语的主流译法，报出漂移 |
-| `install` | 装进游戏：MZ/MV 装插件，Ren'Py 写 `game/yakusha_translation.rpy`；RGSS 与 Kirikiri 报 `E_NOT_IMPLEMENTED` |
-| `uninstall` | 卸载并还原：删插件与注册行，或删那个翻译文件；RGSS 与 Kirikiri 同样未实现 |
-| `doctor` | 查安装产物、备份（Ren'Py 无）、字典是否还与这版游戏对得上；RGSS 与 Kirikiri 只报「没有交付层」 |
+| `install` | 装进游戏：MZ/MV 装插件，Ren'Py 写 `game/yakusha_translation.rpy`，RGSS 用 `--native` 装注入器；Kirikiri 报 `E_NOT_IMPLEMENTED` |
+| `uninstall` | 卸载并还原：删插件与注册行、删那个翻译文件，或删 `yakusha/native/`；Kirikiri 未实现 |
+| `doctor` | 查安装产物、备份（Ren'Py 无）、字典是否还与这版游戏对得上；Kirikiri 只报「没有交付层」 |
 | `export` | 把已翻译条目导出成 JSON 快照，或 TSV / CSV 表格 |
 | `import` | 把导出的表格或快照回灌进字典；JSONL + `--create` 接外部内容 |
 | `config` | 读写用户级配置（`provider` / `model` / `baseUrl`，不存密钥） |
@@ -351,10 +382,11 @@ message 保证是单行、不含堆栈与密钥。`YAKUSHA_DEBUG=1` 时堆栈只
 ```
 bin/yakusha.js            CLI 薄壳，当前十四个命令
 src/cli/                  JSON 信封、严格参数解析、用户级配置、导出与表格读写
-src/engines/              适配器与 registry（MZ/MV 插件档、Ren'Py translation 档、RGSS 与 Kirikiri 仅 L1–L3）
+src/engines/              适配器与 registry（MZ/MV 插件档、Ren'Py translation 档、RGSS inject 档、Kirikiri 仅 L1–L3）
   src/engines/renpy/      .rpy / .rpyc 解析、身份读取、translation 文件生成与状态
-  src/engines/rgss/       .rxdata / .rvdata / .rvdata2 的 Ruby Marshal 读写、三版本归档解密、抽取
+  src/engines/rgss/       .rxdata / .rvdata / .rvdata2 的 Ruby Marshal 读写、三版本归档解密、抽取、注入器组件安装与启动
   src/engines/krkr/       XP3 归档解包、KAG 脚本（.ks）行解析、抽取
+native/                   注入器与 hook 的 Rust 源码、构建脚本；native/prebuilt 随 npm 包分发
 src/index.js              库门面（与 CLI 共用同一套实现）
 src/core/                 项目发现、数据解码、文本抽取、字典、安装、doctor（引擎无关）
 src/pipeline/             provider、批处理、校验、折行、verify、terms、speaker、报告
@@ -371,8 +403,11 @@ docs/                     设计说明、命令参考、契约、实测记录、
   事件指令与数据库字段的文本，Kirikiri 是 XP3 归档内 `.ks` 脚本里的对话文本。
   插件 `js/plugins/*.js` 里硬编码的 UI 文案、图片里的文字不处理。
 - 支持 RPG Maker **MZ / MV**、**Ren'Py**、**RPG Maker XP / VX / VX Ace（RGSS）** 与
-  **Kirikiri**。但 RGSS 与 Kirikiri 这一版只有「识别 / 盘点 / 提取 / 翻译 / 校验 / 导出」，
-  **没有运行时交付**：`install` 与 `uninstall` 报 `E_NOT_IMPLEMENTED`，游戏里看不到中文。
+  **Kirikiri**。RGSS 0.18 起有运行时交付（原生注入器），但只在 32 位 Windows 上、
+  只在一款 VX Ace 商业游戏上做过真机验收：XP / VX（RGSS1 / RGSS2）未测，RGSS301 只有
+  同族兼容性推断；未签名的注入器与 DLL 可能被杀软误报；加壳样本不在范围内。
+  **Kirikiri** 这一版只有「识别 / 盘点 / 提取 / 翻译 / 校验 / 导出」，**没有运行时交付**：
+  `install` 与 `uninstall` 报 `E_NOT_IMPLEMENTED`，游戏里看不到中文。
   Unity、Godot、Wolf 仍然不支持；多引擎路线与每一档的验收标准见
   [docs/dev/ENGINE-STRATEGY.md](docs/dev/ENGINE-STRATEGY.md)。
 - Ren'Py 只投 `schinese` 一种语言（命令行没有选语言的入口）；`game/tl/` 下已有的
@@ -400,7 +435,7 @@ docs/                     设计说明、命令参考、契约、实测记录、
 | [docs/commands.md](docs/commands.md) | 所有命令的完整选项、`verify` 十类判据、`terms`/`speaker` 算法说明 |
 | [docs/architecture.md](docs/architecture.md) | 三层结构（CLI 内核 / Electron 壳 / 引擎适配器）、引擎能力分档、载荷契约、分批计划 |
 | [docs/dev/ENGINE-STRATEGY.md](docs/dev/ENGINE-STRATEGY.md) | 多引擎战略稿（内部）：竞品适配方法、目标架构、四档交付、版本顺序、质量门禁、代码签名成本 |
-| [docs/json-contract.md](docs/json-contract.md) | `--json` 信封、错误码、退出码、严格参数解析、破坏性变更（0.10 冻结，0.11、0.12、0.13 原样沿用） |
+| [docs/json-contract.md](docs/json-contract.md) | `--json` 信封、错误码、退出码、严格参数解析、破坏性变更（0.10 冻结；后续版本只加字段与命令，信封不变） |
 | [docs/engines.md](docs/engines.md) | adapter 契约、能力矩阵、各引擎的安装/卸载、launch；attach 桩 |
 | [docs/config.md](docs/config.md) | 0.10 实现：用户级配置、密钥优先级与威胁模型（不落盘） |
 | [docs/export-format.md](docs/export-format.md) | 0.10 实现：JSON 导出格式、排序、原子写与覆盖规则；0.13 起另有 TSV / CSV 表格与 import 回灌；0.15 起另有 JSONL 通用内容导入 |

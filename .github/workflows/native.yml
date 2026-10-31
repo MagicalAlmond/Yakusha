@@ -1,0 +1,36 @@
+name: native
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "native/**"
+      - ".github/workflows/native.yml"
+  pull_request:
+    paths:
+      - "native/**"
+      - ".github/workflows/native.yml"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: i686-pc-windows-gnullvm
+      - name: Download llvm-mingw
+        shell: pwsh
+        run: |
+          $url = "https://github.com/mstorsjo/llvm-mingw/releases/download/20261020/llvm-mingw-20261020-msvcrt-x86_64.zip"
+          Invoke-WebRequest -Uri $url -OutFile llvm-mingw.zip
+          Expand-Archive llvm-mingw.zip -DestinationPath C:\Tools
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build the native components
+        run: node native/build.mjs --llvm-mingw C:\Tools\llvm-mingw-20261020-msvcrt-x86_64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-prebuilt
+          path: native/prebuilt

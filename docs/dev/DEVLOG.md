@@ -1,7 +1,7 @@
 # 开发交接文档（DEVLOG）
 
 > 这份文档记录**阶段目标、已完成项、决策理由和下一步**，随开发进程更新。
-> 最后更新：2026-10-27（0.15.0 通用内容导入 v1：JSONL 输入 + `import --create`，在 `feat/0.15-generic-import`；0.14.0 GUI 在 `feat/0.14-gui`，均未合入 `main`、未打 tag）。
+> 最后更新：2026-10-27（0.18.0 RGSS 原生注入器交付层：`install --native`，工作树未提交；0.17 字典溯源字段在 `feat/0.17-dictionary-provenance`；0.15 通用内容导入 v1 在 `feat/0.15-generic-import`；0.14.0 GUI 在 `feat/0.14-gui`；均未合入 `main`、未打 tag）。
 > 0.9.0 项目改名 **Yakusha**，字典目录、插件文件、环境变量与备份后缀全部随之改名；
 > 仓库已发布到 https://github.com/MagicalAlmond/Yakusha（`main` 分支）。
 > 0.8.0 的 `doctor`、0.7.1 的 `uninstall` 漂移保护、0.7.0 的报告/模板见下）。
@@ -36,14 +36,14 @@
 
 | 项 | 状态 |
 | --- | --- |
-| 版本 | **0.17.0**（`package.json` 单一真源，`src/version.js` 读取它；插件模板的 `VERSION` 由安装器替换） |
-| 契约 | 0.10 的五篇设计稿（json-contract / config / engines / export-format / platforms）已冻结并全部实现；0.11 只有 `engines.md` 真正扩了内容（三个引擎、新增 §13.2 Ren'Py），`json-contract.md` 与 `platforms.md` 补了「0.11 复查后不变」的复核标注。0.12 继续扩 `engines.md`（四个引擎、新增 §13.3 RGSS 与 §7.7 的 pending 交付），`json-contract.md` 补 RGSS 的语义澄清（`E_NOT_IMPLEMENTED` 有了 CLI 入口、`install`/`uninstall`/`doctor` 的按引擎差异）；信封与字段类型仍未动，`platforms.md` / `config.md` / `export-format.md` 未动。0.13 扩 `engines.md`（五个引擎、新增 §13.4 Kirikiri），`export-format.md` 补 TSV/CSV 表格与 `import` 命令；JSON 信封（flat one-line object、退出码 0/1/2、13 个错误码）未动。0.17 给字典条目加可选 `engine` / `locator` 溯源字段（`FORMAT` 仍是 `yakusha/1`），rich JSON 导出与导入带、表格不带，信封与错误码未动 |
-| 测试 | **670 个，全绿**（`npm test`，约 11–12s；0.14 新增 runner 15 + 取消 5 + GUI handlers 11 + 字典编辑 6；0.15 新增 JSONL/--create 5；0.17 新增 dict 7 + 各引擎 locator 断言） |
+| 版本 | **0.18.0**（`package.json` 单一真源，`src/version.js` 读取它；插件模板的 `VERSION` 由安装器替换） |
+| 契约 | 0.10 的五篇设计稿（json-contract / config / engines / export-format / platforms）已冻结并全部实现；0.11 只有 `engines.md` 真正扩了内容（三个引擎、新增 §13.2 Ren'Py），`json-contract.md` 与 `platforms.md` 补了「0.11 复查后不变」的复核标注。0.12 继续扩 `engines.md`（四个引擎、新增 §13.3 RGSS 与 §7.7 的 pending 交付），`json-contract.md` 补 RGSS 的语义澄清（`E_NOT_IMPLEMENTED` 有了 CLI 入口、`install`/`uninstall`/`doctor` 的按引擎差异）；信封与字段类型仍未动，`platforms.md` / `config.md` / `export-format.md` 未动。0.13 扩 `engines.md`（五个引擎、新增 §13.4 Kirikiri），`export-format.md` 补 TSV/CSV 表格与 `import` 命令；JSON 信封（flat one-line object、退出码 0/1/2、13 个错误码）未动。0.17 给字典条目加可选 `engine` / `locator` 溯源字段（`FORMAT` 仍是 `yakusha/1`），rich JSON 导出与导入带、表格不带，信封与错误码未动。0.18 给 RGSS 增加原生注入器交付层（`install --native` / `uninstall` / `doctor` 的 delivery 检查 / `scan` 的 `runtime: "inject"`），文档侧 `engines.md`、`commands.md` 按 0.18 补契约；信封、退出码与 13 个错误码未动 |
+| 测试 | **677 个，全绿**（`npm test`，50 个测试文件，约 12s；0.18 新增/改写 RGSS native 与 doctor 用例，净增 7 条——旧的 pending 交付测试被替换；0.14–0.17 的累计增量见历史） |
 | 持续集成 | GitHub Actions：`npm test` 在 Node 22 / 24（**windows-latest**，WP1 已从 ubuntu 切换） |
 | 平台 | Windows 10/11 x64 为唯一支持与验收环境（0.10 明确，见 [platforms.md](../platforms.md)） |
-| 支持引擎 | RPG Maker **MZ 1.3.2–1.9.0**、**MV 1.6.1–1.6.2**；**Ren'Py 8.x 脚本**（`.rpy` 明文 + `.rpyc` 编译）；**RGSS（XP / VX / VX Ace）**与 **Kirikiri（KAG / XP3）**——只到 L1–L3（识别 / 盘点 / 抽取 / 翻译 / 校验 / 导出），**没有交付层**（§6） |
-| 实测游戏 | 22 款可识别（0.16 全量普查：mz 7 / mv 8 / rgss 1 / krkr 6），其中 **4 款**全量翻译 + 运行时验收；Ren'Py 侧用一套 8.5.3 SDK 的两个示例游戏做抽文本与覆盖率验收（§6）；RGSS 侧用一款 RGSS3 / VX Ace 商业游戏、Kirikiri 侧用两款 XP3 商业归档（含一款语音归档）做抽取实测（§6，外部样本，不是仓库夹具） |
-| 磁盘改动 | MZ/MV 走插件档：只加 1 个插件文件 + `plugins.js` 里 1 条注册，卸载还原到安装前；Ren'Py 走 translation 档：只在 `game/` 下新建 1 个 `yakusha_translation.rpy`，卸载删它；**RGSS 与 Kirikiri 不动任何文件**——没有交付层，`install` / `uninstall` 报 `E_NOT_IMPLEMENTED` 且一个字节都不写（四档交付见 [ENGINE-STRATEGY.md](ENGINE-STRATEGY.md) §5.5） |
+| 支持引擎 | RPG Maker **MZ 1.3.2–1.9.0**、**MV 1.6.1–1.6.2**；**Ren'Py 8.x 脚本**（`.rpy` 明文 + `.rpyc` 编译）；**RGSS（XP / VX / VX Ace）**从 0.18 起有 **inject 交付层**（`install --native`，原生注入器，不改游戏文件）；**Kirikiri（KAG / XP3）** 仍只到 L1–L3（识别 / 盘点 / 抽取 / 翻译 / 校验 / 导出），**没有交付层**（§6） |
+| 实测游戏 | 22 款可识别（0.16 全量普查：mz 7 / mv 8 / rgss 1 / krkr 6），其中 **4 款**全量翻译 + 运行时验收；Ren'Py 侧用一套 8.5.3 SDK 的两个示例游戏做抽文本与覆盖率验收（§6）；RGSS 侧用一款 RGSS3 / VX Ace 商业游戏做抽取实测、并在它上面验收 0.18 的注入器（安装 / 启动 / 卸载，§6）；Kirikiri 侧用两款 XP3 商业归档（含一款语音归档）做抽取实测（§6，外部样本，不是仓库夹具） |
+| 磁盘改动 | MZ/MV 走插件档：只加 1 个插件文件 + `plugins.js` 里 1 条注册，卸载还原到安装前；Ren'Py 走 translation 档：只在 `game/` 下新建 1 个 `yakusha_translation.rpy`，卸载删它；**RGSS 从 0.18 起走注入器档**：只在 `<game>/yakusha/native/` 下写 6 个文件（四组件 + 生成的 `dictionary.txt` + `manifest.json`），游戏文件一个字节不动，卸载递归删这个目录（没有 `manifest.json` 的目录拒删）；Kirikiri 仍不动任何文件——没有交付层，`install` / `uninstall` 报 `E_NOT_IMPLEMENTED`（四档交付见 [ENGINE-STRATEGY.md](ENGINE-STRATEGY.md) §5.5） |
 | 运行时依赖 | 无第三方依赖（Node >= 22） |
 | 产品形态 | CLI 为内核；Electron 最小外壳已随 **0.14** 交付（`gui/`，同一 runner 缝；`launch`、目录选择、记住密钥、最小字典编辑器已进外壳） |
 | 许可 | GPL-3.0-or-later |
@@ -328,7 +328,18 @@
 - [x] 抽取器写 provenance：`src/core/fields.js` 的 `collectAtPaths` / `walkCommands(pointer)` / `pickParamsWithSlots` 给出精确路径；四个 adapter 统一走 `src/core/dict.js` 的 `recordExtracted()`（MZ/MV、RGSS、Ren'Py、Kirikiri 各传自己的 engine id）。重新 `extract` 会用新 locator 整体替换陈旧值，但不动已有译文。
 - [x] 导出/导入：rich JSON 原样带上 `engine` / `locator`，`--flat` 不带；`import --format json` 回填缺失的 provenance。TSV / CSV 仍是三列，不带。
 - [x] 测试：新增 `test/dict.test.js`（7 条，含 malformed provenance 丢弃与 `recordExtracted` 合并语义），`extract` / `rgss-extract` / `export` / `krkr-adapter` / `renpy-extract` 各补 locator 断言。合计 **670 个，全绿**。
-- [x] 2026-10-27 用户拍板 RGSS 交付层路线后，把用户文档（README / engines / commands / design / architecture / limitations / gui / ENGINE-STRATEGY）从「两条路线未拍板」同步为「已拍板：原生注入器 + hook DLL，工具链就绪，实现待后续工作包」；Kirikiri 仍按未拍板写。
+- [x] 2026-10-27 用户拍板 RGSS 交付层路线后，把用户文档（README / engines / commands / design / architecture / limitations / gui / ENGINE-STRATEGY）从「两条路线未拍板」同步为「已拍板：原生注入器 + hook DLL，工具链就绪，实现待后续工作包」（0.18 已交付，见 K 阶段）；Kirikiri 仍按未拍板写。
+
+### K 阶段（0.18.0，已完成）
+
+- [x] 交付层：新增 `src/engines/rgss/native.js`（338 行）——原生组件校验（SHA-256 manifest）、`install --native` / `uninstall` / `launch` 的注入器路径、`dictionary.txt` 生成；RGSS 的 `capabilities.runtime` 从 `null` 改为 `inject`（全仓唯一 inject 档）。
+- [x] CLI：`install` 的选项白名单加 `native` 与 `dry-run`；非 RGSS 传 `--native` 报 `E_USAGE`（`install --native applies to RGSS games only`）；RGSS 不带 `--native` 报 `E_USAGE` 并给出完整命令；文本输出五行、payload 六键 + `native`。`uninstall` 删 `<game>/yakusha/native` 并回 `native{dir,removed}`。
+- [x] `doctor`：`delivery` 不再是 pending 桩，改成统一的 `{path, exists, language:null, entries}`；装前 `install info` / verdict `not-installed`，装后 `install ok` / `runtime ok`，无 warning 时 verdict `ready`（有 warning 时 `usable`）。
+- [x] 原生组件：`native/rgss-hook`（cdylib）+ `native/injector`（bin）两个零依赖 Rust crate；`native/build.mjs` 用 `i686-pc-windows-gnullvm` 构建并写 `native/prebuilt/manifest.json`；`native/prebuilt/` gitignore、随 npm 包发布。
+- [x] GUI：渲染层记住 scan 的 `lastEngine`，RGSS 的 install / uninstall 按钮自动带 `--native`。
+- [x] 版内修复：`gui/renderer/renderer.js` 的 capabilities 代码块从 0.16 起误放在 scan 成功分支的闭括号之外（引用块内 `const e`，扫描成功会 `ReferenceError`）；已移回分支内，按钮灰显逻辑不变，未加渲染器单测（只有 `node --check` 与 stub DOM 冒烟）。
+- [x] 测试：`rgss-adapter` 17→21、`rgss-cli` 13→16、`gui-e2e` 的 RGSS 走查重写、`engine-contract` 冻结 `runtime: "inject"`；合计 **677 个，全绿**（50 个文件，约 12s）。
+- [x] 明确不做：XP/VX（RGSS1/RGSS2）未测；注入器与 DLL 不签名；脚本字面量不翻；不改游戏文件、不写注册表、不装服务。
 
 ## 4. 文件地图
 
@@ -360,12 +371,13 @@ src/engines/renpy/project.js game/ 定位、脚本遍历（跳过 tl/）与身�
 src/engines/renpy/extract.js 两种源合成单元表，逐条标不可解码
 src/engines/renpy/profile.js Ren'Py 的 prompt / grammar / validate / verify
 src/engines/renpy/runtime.js translation 档投递（生成 / 删除 yakusha_translation.rpy）
-src/engines/rgss/adapter.js RGSS 能力位、scan/detect 入口、diagnostics 与两条 pending 入口
+src/engines/rgss/adapter.js RGSS 能力位、scan/detect 入口、diagnostics 与 install/uninstall/launch 的注入器入口
 src/engines/rgss/project.js Game.ini 多编码解码、Data/ 与归档定位、XP/VX/VX Ace 版本判定
 src/engines/rgss/archive.js .rgssad / .rgss2a / .rgss3a 三种归档的读与写（目录只读头部窗口）
 src/engines/rgss/marshal.js Ruby Marshal 4.8 读与写（纯 JS，不 eval，class/module 只记名字）
 src/engines/rgss/extract.js 事件指令 + 数据库字段 + System/MapInfos 的文本抽取
 src/engines/rgss/profile.js RGSS 的 prompt / grammar / validate / verify（复用 textkey 分词）
+src/engines/rgss/native.js 原生交付层：组件 manifest 校验、安装/卸载、dictionary.txt 生成、注入器启动
 src/engines/krkr/adapter.js Kirikiri 能力位、scan/detect 入口、diagnostics 与两条 pending 入口
 src/engines/krkr/xp3.js    XP3 归档只读解析（索引 zlib、info/segm/adlr、手写 adler-32）
 src/engines/krkr/ks.js     KAG 脚本解码与字符串收集（UTF-8 strict 先、Shift_JIS 兜底）
@@ -392,9 +404,13 @@ src/pipeline/terms.js     名字/术语的主流译法挖掘与漂移检测
 src/pipeline/speaker.js   说话人标记的识别、房规统计与按房规修复
 src/pipeline/report.js    verify 结果的 markdown 报告（只格式化，不重算）
 src/plugin/YAKUSHA_Translator.js  运行时插件模板（install 时注入规则表）
-test/                     670 个测试（含 CLI 端到端、0.10 信封契约、配置/前置、引擎/启动契约、
+native/build.mjs          原生组件构建（i686-pc-windows-gnullvm → native/prebuilt/manifest.json）
+native/rgss-hook/         Rust cdylib：IAT 补 GetProcAddress、包装 RGSSGameMain、执行 bootstrap.rb
+native/injector/          Rust bin：CreateProcessW(CREATE_SUSPENDED) → CreateRemoteThread(LoadLibraryW)
+native/prebuilt/          预编译四件套（gitignore，CI/本地构建；随 npm 包发布）
+test/                     677 个测试（含 CLI 端到端、0.10 信封契约、配置/前置、引擎/启动契约、
                           五个引擎的适配器契约、Ren'Py 的 .rpy/.rpyc 抽取、RGSS 的
-                          Marshal / 归档 / 数据文档抽取与 Kirikiri 的 XP3 / KS 抽取）
+                          Marshal / 归档 / 数据文档抽取与 native 交付层、Kirikiri 的 XP3 / KS 抽取）
 docs/design.md            为什么走运行时钩子、文本面覆盖、转义码、设计约束、作为库用
 docs/commands.md          所有命令的完整选项与 verify / terms / speaker 判据
 docs/games.md             15 款实测游戏、全量翻译记录、官中游戏的处理
@@ -425,7 +441,7 @@ docs/platforms.md         平台支持矩阵与决策记录（Windows-only 的�
 | **trunk-based：一条 `main` + 短分支 + self-PR squash** | 单人开发没有并行评审需求，`develop`/`release` 这类长期分支只会制造同步债；短分支让 CI 在合并前跑一遍，squash 保持 `main` 线性、可读、可回滚。发布用 `vX.Y.Z` tag；只有旧版本确实有人在用时，才从 tag 切维护分支（规则见 §9）。 |
 | **Windows-only，Linux/macOS 不做也不测** | 单人开发，需求证据与验收机器都没有；macOS 还要签名/公证，且在 macOS 上注入类引擎一个都跑不了。写成决策记录，避免以后“顺手加一个平台”把测试面乘二（[platforms.md](../platforms.md)）。 |
 | **detect 返回判别式，openProject 继续抛** | 库调用方已经依赖 `openProject` 抛错；CLI 不应靠解析异常文本决定错误码。`adapter.detect` 把预期失败变成 `{ok:false,code,message,candidates?}`；registry 按 MZ→MV 顺序（0.11 起加上 Ren'Py 排第三），`E_MULTI_ROOT` 立即返回，缺 `data/`、缺 `plugins.js` 的具体文案优先于另一个引擎的通用失败。适配器只薄包装 core，不搬文件。 |
-| **引擎适配器 + 四种运行时模式，注入不是前提** | 长期要像成熟的多引擎汉化工具一样支持多引擎，但 MZ/MV 用插件就够；CDP（`--remote-debugging-port`）还能覆盖一整类 Chromium 壳。把 `inject` 留在契约里，pipeline 与 GUI 不因新引擎返工。0.11 加进第四种 `translation`（Ren'Py，见 §6）：它证明不写原生代码也不改游戏脚本就能覆盖一整个家族；`debug` / `inject` 仍只有契约位，`debug` 的机制已在 MZ 上实机验证、`attach` 命令未实现，`inject` 完全未实现。 |
+| **引擎适配器 + 四种运行时模式，注入不是前提** | 长期要像成熟的多引擎汉化工具一样支持多引擎，但 MZ/MV 用插件就够；CDP（`--remote-debugging-port`）还能覆盖一整类 Chromium 壳。把 `inject` 留在契约里，pipeline 与 GUI 不因新引擎返工。0.11 加进第四种 `translation`（Ren'Py，见 §6）：它证明不写原生代码也不改游戏脚本就能覆盖一整个家族；`debug` / `inject` 长期只有契约位，`debug` 的机制已在 MZ 上实机验证、`attach` 命令未实现，`inject` 到 0.18 才在 RGSS 上落地（`install --native`，见 §6 的 0.18 段）。 |
 | **运行时载荷形状先定死（`format` + `rules` + `entries`）** | 插件、调试注入、原生 hook 吃同一份数据；以后加投递通道不用改游戏侧钩子。 |
 | **字典 key = 原文** | 不用 hash/自增 id：译文要能人工校对，key 必须是玩家能看懂的原文。 |
 | **校验在写之前** | 宁可留日文，也不留一条会显示成乱码或吞掉转义码的译文。 |
@@ -469,6 +485,11 @@ docs/platforms.md         平台支持矩阵与决策记录（Windows-only 的�
 | **Hxv4 改版索引报 `E_UNSUPPORTED`，绝不猜** | 某些本地化发行版的 XP3 用 `Hxv4` 索引替代标准索引；猜解析等于对未定义格式下赌注，错了会把玩家文件读坏。明确报「只读标准 XP3 索引」让上游工具先转换。 |
 | **TSV / CSV 走 RFC4180 风格 quoting** | 分隔符 / 引号 / CR / LF / 首尾空格五类字符一律加引号、引号翻倍，是表格往返（export → import 字节相同）的唯一可靠判据；「看起来不含分隔符就不用引号」会在某一天遇到带制表符的台词时静默坏表。 |
 | **import 的 contexts：字典自身优先于行** | 同一 textkey 的行 contexts 只是导出时刻的快照，而字典 contexts 是后续人工维护的最新意图；合并时字典赢、行只补空，避免旧快照覆盖人工修正。 |
+| **RGSS 交付只走 `--native`，不给默认档** | RGSS 没有插件目录，「装上了但没生效」是最坏的结果：用户以为翻译已启用，启动后还是日文。做成显式开关，不带就 `E_USAGE` 并给出完整命令，把「要改启动链」这件事摆到台面上；`--dry-run` 再把验证和写入分开一次。 |
+| **原生组件用 SHA-256 manifest 校验，先校验后写入** | 「我装的四个文件是不是我构建的那四个」不需要签名也能逐字节回答；签名解决的是分发信誉（§8.1 #1，仍未定）。校验在任何写入之前，缺文件报 `native component is missing`、被改过报 `failed its integrity check`，两条分开说，失败一个字节都不写。 |
+| **`dictionary.txt` 用 `base64(source)\tbase64(target)` 纯文本** | bootstrap.rb 跑在游戏进程内的 Ruby VM 里，不能依赖 Node 或 JSON；base64 让任何 Unicode、制表符、换行都能安全过行协议，按 source 排序又保证同一份字典两次安装字节相同（可复现、可 diff）。 |
+| **卸载只认自己写的 `manifest.json`** | `<game>/yakusha/native` 可能是用户手建的目录；没有 manifest 就拒绝递归删除（`E_CONFIG`），宁可留下垃圾也不误删别人的文件。「自己的目录」由自己写的凭证证明，不由路径猜测。 |
+| **只翻 `load_data` 返回对象可达的字符串 + Vocab 兜底** | 脚本里的字面量在 Ruby 对象树里不可达，注入器无法可靠区分「UI 文案」与「代码」；宁可漏翻也不猜。代价写进 §7：脚本硬编码的字面量不翻。 |
 
 ## 6. 实测数据（可复现的基准）
 
@@ -955,6 +976,16 @@ RangeError），全量 657 绿。
 - 参数列表（`"0[]"` 形状）曾经少一层路径（只到 `parameters` 就停），已修成 `parameters/<i>/<slot>`；选项标签的 locator 现在是 `.../parameters/0/0`。
 - `pnpm pack --dry-run`：0.17 tarball 64 个文件（`bin/` 1 个 + `src/` 52 个 + `gui/` 8 个 + 根三件）。
 
+### 0.18 RGSS 原生注入器交付（0.18.0，工作树）
+
+- 0.18 交付 RGSS 的 L4 交付层，也是目前唯一 `capabilities.runtime: "inject"` 的引擎：`install --native` 把四个预编译组件复制到 `<game>/yakusha/native/`，`launch` 改为拉起 `yakusha_injector.exe`，`uninstall` 递归删这个目录；MZ/MV 仍是 `plugin`、Ren'Py 仍是 `translation`、Kirikiri 仍是 `null`（`test/engine-contract.test.js` 的 runtime tier 矩阵冻结为 `plugin, plugin, translation, inject, null`）。
+- 安装布局（`install --native` 成功后目录恰好 6 个文件）：`yakusha_rgss_hook.dll`、`libunwind.dll`、`yakusha_injector.exe`、`bootstrap.rb`、`dictionary.txt`、`manifest.json`。`manifest.json` 是 `{"schema":1,"files":{"<name>":"<sha256 hex>"}}`，只列四个组件——`dictionary.txt` 是每游戏生成、不进 manifest；`dictionary.txt` 每行 `base64(source)\tbase64(target)`，按 source 排序、空译文跳过。没有字典时 `install --native` 报 `E_NO_DICTIONARY`，先跑一次 `extract`。
+- 机制（installer → hook → bootstrap 三段，全程不改游戏文件）：`yakusha_injector.exe` 用 `CreateProcessW` + `CREATE_SUSPENDED` 启动游戏，把 hook DLL 路径写进目标进程，`CreateRemoteThread(LoadLibraryW)` 加载后 resume；`yakusha_rgss_hook.dll` 只补 IAT 的 `kernel32!GetProcAddress` 槽，借游戏自己解析 `RGSSEval` / `RGSSGameMain` 的时机拿到两个入口，给 `RGSSGameMain` 返回 wrapper；wrapper 先用真 `RGSSEval` 跑 `bootstrap.rb`（这时 Ruby VM 已初始化），再调真 `RGSSGameMain`。`bootstrap.rb` 把字典读成 Ruby Hash，包 `Kernel#load_data`：对返回对象递归（String / Array / Hash / 实例变量，深度 64）替换完全匹配的字符串——Map events、CommonEvents、数据库 terms 等可达字符串都能翻；另有 `Vocab` 零参方法兜底。日志写 `<game>/yakusha/native/rgss-hook.log`，记 patched slot、resolved exports、字典大小和每次 `load_data` 的名字与替换数。
+- CLI 行为：`install --native --dry-run` 只做验证与打印（`native    : <abs>` / `components: 4 files` / `dictionary: <n> strings` / `dry run   : nothing written` / `uninstall : yakusha uninstall "<abs>"`），一个字节不写；`install --native --json` 的 `pluginPath` 指向 `<game>/yakusha/native`，`backupPath` / `createdBackup` / `staleBackup` 恒为 `null` / `false` / `false`，`state` 首次 `added`、重装 `unchanged`，并多一个 `native: {dir, files, dictionaryEntries, dryRun}`。`uninstall` 输出 `native components removed` / `the native components are not installed`，payload 是五键 + `native: {dir, removed}`。
+- `doctor`：`delivery` 从 pending 桩改为 `{path, exists, mode:"inject", language:null, entries}`；装前 `install info  not installed - run: yakusha install --native "<game>"`、verdict `not installed yet`，装后 `install ok` / `runtime ok  yakusha/native (<n> strings)`、无 warning 时 verdict `ready`。`scan --json` 的 RGSS `capabilities.runtime` 为 `"inject"`（其余能力位不变）。
+- 实测验收（本机一款 RGSS3 / VX Ace 商业游戏，RGSS300.dll，32 位进程）：`install --native` 后目录是上述 6 个文件，`launch` 走注入器拉起游戏，`uninstall` 后目录整体消失；游戏自己的文件没有任何改写。XP / VX（RGSS1 / RGSS2）未测，RGSS301 只是同族已知。
+- 仓库测试：`rgss-native-fixture.js` 用真 SHA-256 伪造四组件；`rgss-adapter` 17→21 条、`rgss-cli` 13→16 条、`gui-e2e` 的 RGSS 走查从 `E_NOT_IMPLEMENTED` 改为 `runtime: "inject"` → plain install 报 `E_USAGE` → `install --native` 成功 → doctor 可用的完整链路。全套 **677 pass / 0 fail / 0 skipped**（50 个测试文件，约 12s）；`node bin/yakusha.js --version` 为 `yakusha 0.18.0`。
+
 ## 7. 已知限制
 
 1. 只处理 `data/` 里的文本；插件 `js/plugins/*.js` 里硬编码的 UI 文案不动。
@@ -964,14 +995,14 @@ RangeError），全量 657 绿。
    超宽即裁，只有纵向 `needsNewPage` 分页。默认靠 prompt 约束，硬保证加 `--max-length`。
 5. 老 MV（2019/2020 的 nw.js）不吃 `--remote-debugging-port`，MV 的运行时取证不能靠 CDP。
 6. 有些 MV 游戏把说话人写成 `\N<名字>`（插件自定义标记，非 RPG Maker 转义码），译文必须原样保留。
-7. 不支持 Unity / Godot 等其它引擎。**XP / VX / VX Ace（RGSS）从 0.12 起支持，
-   Kirikiri（KAG / XP3）从 0.13 起支持，但都只到 L1–L3**（识别 / 盘点 / 提取 / 翻译 /
-   校验 / 导出）：两者的 `capabilities.runtime` 都是
-   `null`，`install` / `uninstall` 报 `E_NOT_IMPLEMENTED`（退出码 2）且一个字节都不写，
-   装完游戏仍然显示原文——这两版**都没有交付层**（§6 末尾、§8.1）。
-   Ren'Py 从 0.11 起支持，但只到 `game/` 里的脚本文本（`.rpy` / `.rpyc`）：屏幕语言的
-   UI 文案、`example:` 演示块里的台词，以及只有编译文件时屏幕语言那一部分取不到（§6），
-   `.rpyc` 里结构上不可达的字符串不计入。
+7. 不支持 Unity / Godot 等其它引擎。**XP / VX / VX Ace（RGSS）从 0.12 起支持，0.18 起有
+   inject 交付层**：`install --native` 只写 `<game>/yakusha/native/`，不改游戏文件；不带
+   `--native` 报 `E_USAGE` 并给出完整命令。**Kirikiri（KAG / XP3）从 0.13 起支持，但仍只到
+   L1–L3**（识别 / 盘点 / 提取 / 翻译 / 校验 / 导出）：`capabilities.runtime` 是 `null`，
+   `install` / `uninstall` 报 `E_NOT_IMPLEMENTED`（退出码 2）且一个字节都不写，装完游戏
+   仍然显示原文（§6 末尾、§8.1）。Ren'Py 从 0.11 起支持，但只到 `game/` 里的脚本文本
+   （`.rpy` / `.rpyc`）：屏幕语言的 UI 文案、`example:` 演示块里的台词，以及只有编译文件时
+   屏幕语言那一部分取不到（§6），`.rpyc` 里结构上不可达的字符串不计入。
 8. `verify` 只看字典里的结构性问题（回显 / 转义码 / 占位符 / 换行 / 宽度 / 假名残留 /
    繁体字混入 / 说话人名漏译），看不出风格、语义是否贴切；那部分仍需人工抽读。
 9. `verify` 的 width 档只在显式传 `--max-length` 时才有意义——不传就不知道窗口宽度该是多少。
@@ -1015,6 +1046,11 @@ RangeError），全量 657 绿。
 20. `doctor` 只诊断不修：不改字典、不重装插件、不碰游戏文件。`sync` 能发现「字典里的 key 在
     新 `data/` 里不存在」，但发现不了「游戏新增了台词」——后者要看 `extract` 报的 new 计数，
     而 `doctor` 本身不抽文本。
+21. **RGSS 注入器只在 32 位 Windows 上工作**：RGSS 运行时没有 64 位版本，注入器与两个 DLL 都按 `i686-pc-windows-gnullvm` 构建；`libunwind.dll` 是 gnullvm 动态链接的附带依赖，必须和 hook DLL 放在同一目录。
+22. **注入器与 DLL 未签名**：Windows 可能弹 SmartScreen / 杀软误报，尤其是 `CreateRemoteThread` 这一段行为。0.18 的完整性机制是 SHA-256 manifest（安装前逐文件校验），不解决代码签名与分发信誉（§8.1 #1）。
+23. **RGSS 注入只在单款 VX Ace 游戏（RGSS300.dll）上验收过**：XP / VX（RGSS1 / RGSS2）未测，RGSS301 只是同族已知；遇到老版本先 `scan` 确认再 `install --native`。
+24. **只翻 `load_data` 返回对象可达的字符串**：脚本里硬编码的字面量（直接写在 `.rb` 里的字符串）不翻；`Vocab` 兜底也只是常见 UI 词。
+25. **已被可执行保护壳/加壳的游戏不在支持范围**：本机 Enigma 样本未尝试注入；这类游戏可能让 `CreateProcessW(CREATE_SUSPENDED)` 或 `LoadLibraryW` 失败并报 `E_EXE`。
 
 ## 8. 下一步（backlog，按优先级）
 
@@ -1055,12 +1091,10 @@ RangeError），全量 657 绿。
 11. 可选：MV 老 nw 的运行时取证目前靠临时注入脚本，如果能找到不注入的办法（例如日志钩子）更好。
 12. 可选：`terms` 目前只认数据库 name 字段；若以后要挖地名/技能术语，需要另找锚点
     （例如 `System.json` 的 `terms` 分组），且必须先解决「没有正确答案」的判定问题。
-13. **RGSS / Kirikiri 交付层**（0.12 的欠账，0.13 把 Kirikiri 并了进来）：两条路线都还没拍
-    板——纯 JS 把译文写回 `.rvdata2` / `.rgss3a`（`marshal.js` 的 `marshal()` 与
-    `archive.js` 的 `writeArchive()` 已经能用，不需要任何原生组件），或原生注入器 + hook
-    DLL（本机没有 C/C++/Rust 工具链也没有 `ruby`，编不出来）。Kirikiri 侧的 XP3 写回
-    等路线定了再排：XP3 索引可重建但条目重组要重算 adler-32。代价与「卸载要还原什么」见
-    §8.1 与 [engines.md](../engines.md) §7.7；选定之前 RGSS 与 Kirikiri 都停在 L1–L3。
+13. **RGSS / Kirikiri 交付层**（0.12 的欠账，0.13 把 Kirikiri 并了进来）：**RGSS 已于 0.18 交付**
+    （原生注入器 + hook DLL，`install --native`，见 §3 K 阶段与 §6 的 0.18 段），不再停在 L1–L3。
+    **Kirikiri 侧仍未定**：XP3 写回等路线定了再排——XP3 索引可重建但条目重组要重算
+    adler-32。代价与「卸载要还原什么」见 §8.1 与 [engines.md](../engines.md) §7.7。
 
 ### 8.1 待用户拍板清单（先记下，不阻塞开发）
 
@@ -1068,19 +1102,19 @@ RangeError），全量 657 绿。
 
 | # | 事项 | 现在的默认做法（未拍板就一直这样） |
 | --- | --- | --- |
-| 1 | Windows 代码签名 | **0.10/0.11/0.12 都不做**（纯 JS，用户跑自己签名的 `node.exe`）。0.12 实际**也没有**交付原生组件（RGSS 交付层没做，§6 末尾），所以仍然不需要；0.17 起 RGSS 交付层已拍板走「原生注入器」，这条必须在实现开始前先解决，不签名的四道拦截见 [ENGINE-STRATEGY.md](ENGINE-STRATEGY.md) §9.4。 |
-| 2 | 原生组件托管渠道 | 暂按 GitHub Release + 仓库内 manifest（二进制不进仓库）。CDN 方案未定。**0.12 没有原生组件，这个渠道还不需要，仍未定。** |
-| 3 | 原生组件安装命令名 | 暂记 `yakusha native install <engine>`，**属于新命令、要过契约评审**，不是既定事实。**0.12 没有原生组件，命令名仍未定。** |
-| 4 | RGSS 三版本验收基线 | 需要几款真实游戏才能算 L4 通过，未定。0.12 连交付层都还没有（`runtime: null`）；第 10 行的交付层路线已在 2026-10-27 拍板为原生注入器，但验收基线仍未定。 |
+| 1 | Windows 代码签名 | **0.10/0.11/0.12 都不做**（纯 JS，用户跑自己签名的 `node.exe`）。0.12 实际**也没有**交付原生组件（RGSS 交付层没做，§6 末尾）；**0.18 已交付未签名的注入器与两个 DLL**（完整性靠 SHA-256 manifest，见 §6 的 0.18 段），面向公开分发前仍需解决签名。不签名的四道拦截见 [ENGINE-STRATEGY.md](ENGINE-STRATEGY.md) §9.4。 |
+| 2 | 原生组件托管渠道 | 暂按 GitHub Release + 仓库内 manifest（二进制不进仓库）。CDN 方案未定。**0.18 把预编译组件直接放进 npm 包**（`native/prebuilt/`，见 `package.json` 的 `files`）；GitHub Release / CDN 渠道仍未定，仓库内仍不放二进制（该目录已 gitignore，由 CI/本地构建）。 |
+| 3 | 原生组件安装命令名 | 暂记 `yakusha native install <engine>`，**属于新命令、要过契约评审**，不是既定事实。**0.18 实际用的是 `install --native`**（挂在现有 `install` 上，不新增命令）；这条算按「不新增命令」落地，但正式命名仍未拍板。 |
+| 4 | RGSS 三版本验收基线 | 需要几款真实游戏才能算 L4 通过，未定。0.12 连交付层都还没有（`runtime: null`）；第 10 行的交付层路线已在 2026-10-27 拍板为原生注入器，**0.18 只在单款 VX Ace（RGSS300.dll）上验过**，XP / VX（RGSS1 / RGSS2）未测；验收基线仍未定。 |
 | 5 | 字典 v2 字段（`engine` / `locator`） | **已拍板并交付（0.17.0）**。2026-10-27 用户拍板「可以，现在就能加这两个字段」：`engine` 记条目来自哪个引擎（多游戏共用一份字典 / 导出后溯源时用），`locator` 记条目在游戏数据里的精确位置（事件 ID / 脚本行 / 归档条目，写回交付层按它定位）；两字段都是可选溯源元数据，`FORMAT` 仍是 `yakusha/1`，旧字典照读，不影响现有键值读写。实现见 §3 J 阶段。 |
 | 6 | 非 ja→zh 语言 | en→zh 何时进未定；en→ja 用户已明确"先不考虑"。 |
 | 7 | 目标用户与商业目标 | 未定。影响 GUI 功能取舍与文档语气。 |
 | 8 | README / architecture 旧卖点措辞 | 已在 WP6 按"四档交付说明实际影响"改掉；若用户希望保留更强的表述，回退点是本包 commit。 |
 | 9 | `CHANGELOG.md` | **已补**（0.11.0 起有面向使用者的变更记录）。 |
-| 10 | RGSS / Kirikiri 交付层：纯 JS 写回 vs 原生注入器 | **2026-10-27 用户授权安装 C/C++/Rust 工具链以解锁原生注入器路线的可行性评估**（此前 `cl`/`gcc`/`clang`/`rustc`/`cargo`/`ruby` 实测全不在 PATH，该路线连编译都做不了）。**2026-10-27 工具链已装**：Rust 1.99.1 stable-gnu 全局安装（`%USERPROFILE%\.cargo\bin`，已入用户 PATH；cargo build --release 实跑通过；GNU 自含 MinGW 只服务 Rust 自举，不能编任意 C；C/C++ 已由 llvm-mingw（msvcrt 变体 20261020，clang 23.1.4，便携 zip 免管理员，装在仓库外工具目录并已注册用户 PATH）补齐。**64 位与 32 位（RGSS 硬前提）的编译/注入探针均已实证，见下方探针段**）。路线最终选择仍待评估后拍板；在此之前 RGSS（0.12 起）与 Kirikiri（0.13 起）都停在 L1–L3，`install` / `uninstall` 报 `E_NOT_IMPLEMENTED`。**2026-10-27 用户就第 10 行表态：确认该交付层面向 RGSS；RGSS 可以采用原生注入器路线**——RGSS 交付层据此按原生注入器推进（纯 JS 写回不再作为主路线，保留为历史备选记录）；Kirikiri 侧仍单列，未跟进。 |
+| 10 | RGSS / Kirikiri 交付层：纯 JS 写回 vs 原生注入器 | **2026-10-27 用户授权安装 C/C++/Rust 工具链以解锁原生注入器路线的可行性评估**（此前 `cl`/`gcc`/`clang`/`rustc`/`cargo`/`ruby` 实测全不在 PATH，该路线连编译都做不了）。**2026-10-27 工具链已装**：Rust 1.99.1 stable-gnu 全局安装（`%USERPROFILE%\.cargo\bin`，已入用户 PATH；cargo build --release 实跑通过；GNU 自含 MinGW 只服务 Rust 自举，不能编任意 C；C/C++ 已由 llvm-mingw（msvcrt 变体 20261020，clang 23.1.4，便携 zip 免管理员，装在仓库外工具目录并已注册用户 PATH）补齐。**64 位与 32 位（RGSS 硬前提）的编译/注入探针均已实证，见下方探针段**）。路线最终选择 2026-10-27 拍板为原生注入器；**0.18 已交付 RGSS 交付层**（`install --native`），Kirikiri 仍停在 L1–L3、`install` / `uninstall` 报 `E_NOT_IMPLEMENTED`。**2026-10-27 用户就第 10 行表态：确认该交付层面向 RGSS；RGSS 可以采用原生注入器路线**——RGSS 交付层据此按原生注入器推进（纯 JS 写回不再作为主路线，保留为历史备选记录）；Kirikiri 侧仍单列，未跟进。**0.18 已交付 RGSS 注入器（`install --native`），Kirikiri 未跟进。** |
 | 11 | npm 打包范围（`package.json` 的 `files` 字段） | **2026-10-27 拍板：打包要包含 GUI**。`files` 已加 `gui`（README/LICENSE/package.json 本来就在）；`docs/` 用户未提及，按惯例不进 tarball（README 已把文档仓库链接作为入口）。变更见下一条目。原 0.16 实测：tarball 52 个文件、全部在 `bin/`+`src/`+根三件（package.json/README.md/LICENSE），**不含 `gui/` 也不含 `docs/`**；装出来的包能跑 CLI，但 `npx electron gui/main.js`（README:283）在 tarball 内容里不存在——维持现状则 npm 包是纯 CLI 包，带 GUI 需把 `gui/` 加进 `files`（决策仍归用户）。 |
 
-**第 10 行的两条路线**（2026-10-27 已拍板走原生注入器；以下保留为决策时的代价对比；实现侧的注释在 `src/engines/rgss/adapter.js:232-244`）：
+**第 10 行的两条路线**（2026-10-27 已拍板走原生注入器；0.18 已按此落地，实现见 `src/engines/rgss/native.js` 与 `native/`；以下保留为决策时的代价对比）：
 
 - **纯 JS 写回数据文档**：把译文塞回 Ruby Marshal 流，重写 `Data/*.rvdata2` 或整个 `.rgss3a`。读写器已经在仓库里（`marshal.js` 的 `marshal()`、`archive.js` 的 `writeArchive()`），**不需要任何原生组件**，也就绕开了代码签名、托管渠道、安装命令名这三条待定项。代价是**改盘**：安装要先备份被改的文档、卸载要逐字节还原（与 MZ/MV 的插件档同一类风险，但文件大得多，一份归档 644 MB）；而且改过的归档与「游戏未来更新」必然冲突。
 - **原生注入器 + hook DLL**：运行时把译文喂给游戏进程，不改盘、卸载只需删注入器。代价是这条路线同时踩上 §8.1 的第 1/2/3 行（签名、托管、命令名），还要做崩溃隔离与版本矩阵；**Rust 工具链已于 2026-10-27 全局安装（1.99.1 stable-gnu，`%USERPROFILE%\.cargo\bin`，cargo build 实跑通过）**，这条路在当前机器上已具备编译条件；`cl` / `gcc` / `ruby` 仍不在 `PATH`；C/C++ 已由 llvm-mingw（clang 23.1.4）补齐，且探针证明注入器连第三方 crate 都不需要（裸 `extern "system"` FFI 即可）——Rust 与 C/C++ 写 hook DLL/注入器两条子路都可用。
@@ -1273,6 +1307,36 @@ node bin/yakusha.js import "<game>" --from dict.tsv --json
 8 键 flat 信封（`file` / `format` / `strategy` / `dryRun` / `read` / `applied` / `skipped` /
 `entries`），坏表（表头不匹配、列数不是 3）报 `E_DICTIONARY`，缺文件报 `E_IO`。
 
+0.18 的验证方式（RGSS 有交付层了；合成分发目录与真实游戏都能照着走）：
+
+```bash
+# 不带 --native：必须报 E_USAGE，并给出完整命令（不会静默降级）
+node bin/yakusha.js install "<game>"
+
+# 干跑：先验证四组件与字典，再打印计划，一个字节不写
+node bin/yakusha.js install "<game>" --native --dry-run
+
+# 真装：写 <game>/yakusha/native/ 的 6 个文件（四组件 + dictionary.txt + manifest.json）
+node bin/yakusha.js install "<game>" --native
+node bin/yakusha.js install "<game>" --native --json    # native: {dir, files, dictionaryEntries, dryRun}
+
+# 装后检查：scan 的 capabilities.runtime 是 "inject"；doctor 的 install / runtime 都是 ok
+node bin/yakusha.js scan   "<game>" --json
+node bin/yakusha.js doctor "<game>"
+
+# 启动走注入器（没装 native 时回落到普通 Game.exe）
+node bin/yakusha.js launch "<game>"
+
+# 卸载：递归删 <game>/yakusha/native；再卸一次要说 the native components are not installed
+node bin/yakusha.js uninstall "<game>"
+node bin/yakusha.js uninstall "<game>" --json          # native: {dir, removed}
+
+# 非 RGSS 误传 --native：E_USAGE "install --native applies to RGSS games only"（退出码 2）
+node bin/yakusha.js install "<mz-game>" --native
+```
+
+`install --json` 的 `native.files` 是四个组件名（`dictionary.txt` 与 `manifest.json` 不在里面）；`doctor --json` 的 `install` / `runtime` 两段沿用既有形状（`pluginFile` / `pluginFilePresent` / `entryPresent` / `entryParameters` / `backup`，以及 `embedded` / `entries` / `path` / `found`），0.18 只是让 RGSS 第一次有值。`manifest.json` 只有 `{"schema":1,"files":{...}}` 一层，四个组件各一条 SHA-256；`dictionary.txt` 是 `base64(source)\tbase64(target)` 一行一条、按 source 排序。
+
 ## 10. 工程教训（踩过的坑，别再踩）
 
 - **命令行输出里的 `return` 会吞掉后半段**：`terms` 在 terms 为空时 `return`，把后面的 glossary 行
@@ -1411,3 +1475,7 @@ node bin/yakusha.js import "<game>" --from dict.tsv --json
   与 Ren'Py 跳过 `tl/` 相反（那边是「原文优先」，译文目录整个排除），这边的正确做法
   是**两个都读、逐条都收**。「数据源并存的优先级」没有普适答案，每个引擎要单独想清楚
   并写进代码。
+- **「能解码」和「能交付」之间隔着进程边界**：0.18 真正的新东西不是 Rust，而是必须在别人的进程里跑代码。安装/卸载的边界（只碰自己的目录）、失败即不写、manifest 就是所有权凭证，这三条比任何解析都重要。
+- **IAT 上的一个槽比逆整个 Ruby 符号表便宜**：RGSS DLL 不导出任何 `rb_*`，但游戏自己要解析 `RGSSEval` / `RGSSGameMain`；补 `GetProcAddress` 一个槽就同时拿到「VM 就绪后执行 Ruby」和「接管主循环」两个入口。先找宿主已有的调用点，再考虑逆符号。
+- **帮助文本会落后于行为**：`--native` 在参数解析和实现里先能用了，`install --help` 却还只列 `--embed`（0.18 收尾时已补上）；`doctor` 的 `not installed` 提示仍写着不带 `--native` 的 `yakusha install <game>`——RGSS 上照抄会直接 `E_USAGE`。参数白名单、USAGE 文案、doctor 建议语是三处，改一处要同时检查另外两处，最好让测试读 help / doctor 文本。
+- **完整性校验要在任何写入之前，失败也要说清是缺文件还是文件被动过**：`E_IO` 的两条消息分开（`native component is missing` / `native component failed its integrity check`），用户才知道是「没构建」还是「被改动」。先验证后复制，失败时目标目录一个字节都不写。

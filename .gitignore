@@ -2,3 +2,5 @@ node_modules/
 *.log
 _test-tmp/
 .dsh-scratch/
+native/prebuilt/
+native/*/target/

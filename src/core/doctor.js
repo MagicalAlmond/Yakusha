@@ -83,7 +83,7 @@ export function runtimeLookup(root, dictionaryPath) {
  *   dataFiles?: number,
  *   sourceLabel?: string,
  *   delivery?: { path?: string|null, exists?: boolean, language?: string|null, entries?: number,
- *     pending?: boolean, message?: string }|null,
+ *     mode?: string, pending?: boolean, message?: string }|null,
  * }} [options]
  */
 export function diagnose(project, options = {}) {
@@ -202,7 +202,9 @@ export function diagnose(project, options = {}) {
     const relPath = deliveryPath && project.root ? path.relative(project.root, deliveryPath).split(path.sep).join("/") : deliveryPath;
     installCheck = present
       ? add("install", "ok", relPath + " (written by install)")
-      : add("install", "info", "not installed - run: yakusha install <game>");
+      : add("install", "info", delivery.mode === "inject"
+          ? "not installed - run: yakusha install --native \"<game>\""
+          : "not installed - run: yakusha install <game>");
     if (present) {
       const language = delivery.language || null;
       runtime = { embedded: false, entries: delivery.entries || 0, path: relPath, found: deliveryPath };
@@ -213,7 +215,9 @@ export function diagnose(project, options = {}) {
       );
     } else {
       runtime = { embedded: false, entries: 0, path: relPath, found: null };
-      add("runtime", "info", "the game reads " + relPath + " at startup once installed");
+      add("runtime", "info", delivery.mode === "inject"
+        ? "the injector loads " + relPath + " when the game starts"
+        : "the game reads " + relPath + " at startup once installed");
     }
     installPayload = {
       pluginFile: deliveryPath,

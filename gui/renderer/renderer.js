@@ -6,6 +6,9 @@
 const $ = (id) => document.getElementById(id);
 let currentDir = null;
 let runSeq = 0;
+// Remember the engine from the last successful scan: the RGSS install path
+// needs --native, and the renderer must not guess it from a stale state.
+let lastEngine = null;
 
 function showEnvelope(envelope) {
   $("payload").textContent = JSON.stringify(envelope, null, 2);
@@ -33,8 +36,8 @@ async function run(command, args, flags) {
     const badge = $("engine-badge");
     badge.hidden = false;
     badge.textContent = (e.engine || "?") + (e.engineVersion ? " " + e.engineVersion : "");
+    lastEngine = e.engine || null;
     setProjectLine(e.root + " — " + (e.gameTitle || "(untitled)"));
-  }
     // Buttons follow the engine's capabilities (docs/gui.md acceptance: a button
     // for an unsupported capability is disabled with the reason shown). The
     // capability facts come from the scan payload — the same object the CLI
@@ -61,6 +64,7 @@ async function run(command, args, flags) {
       launchBtn.disabled = !launchable;
       launchBtn.title = launchable ? "" : "this engine cannot be launched from yakusha";
     }
+  }
   if (command === "scan" && !envelope.ok && envelope.error && envelope.error.code === "E_MULTI_ROOT") {
     setProjectLine("multiple projects found — see details.candidates in the output");
   }
@@ -72,6 +76,12 @@ for (const button of document.querySelectorAll("button[data-cmd]")) {
     button.addEventListener("click", doExport);
   } else if (button.dataset.cmd === "config") {
     button.addEventListener("click", () => run("config", ["list"]));
+  } else if (button.dataset.cmd === "install" || button.dataset.cmd === "uninstall") {
+    // RGSS has no plugin layer: its delivery is the native injector, so the
+    // button passes --native. Every other engine keeps the plain command.
+    button.addEventListener("click", () => {
+      run(button.dataset.cmd, undefined, lastEngine === "rgss" ? { native: true } : {});
+    });
   } else {
     button.addEventListener("click", () => run(button.dataset.cmd));
   }

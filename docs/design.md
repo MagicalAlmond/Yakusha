@@ -48,38 +48,54 @@ Ren'Py 自己就有字符串翻译机制：`translate <language> strings:` 里�
 `_()` 标出的可翻译串（`translate ... strings` 的原文）、`screen` 里 `text` /
 `textbutton` / `label` / `tooltip` / `notify` 的文本。
 
-## RGSS 为什么没有交付层
+## RGSS 为什么用原生注入器
 
-RGSS（XP / VX / VX Ace）是本项目接的第四种引擎，也是第一种**只做到 L1–L3 的引擎**：
-detect / scan / extract 三件都有，`capabilities.runtime` 却是 `null`
-（`src/engines/rgss/adapter.js:195-205`）。原因不是没排上，而是这一族没有可以挂的钩子：
-它没有插件目录、没有 `js/plugins.js`、也没有一个工具能改写而不碰游戏自身文件的数据目录——
-文本直接烧在 `Data/*.rxdata`、`*.rvdata`、`*.rvdata2` 这些 Ruby Marshal 文档里，打包发行时
-那些文档还整体藏在 `Game.rgssad` / `.rgss2a` / `.rgss3a` 归档里
-（`src/engines/rgss/adapter.js:1-16`）。换掉文字等于**把这些文档写回去**，那是另一档的量级。
+RGSS（XP / VX / VX Ace）是本项目接的第四种引擎。它没有可以挂的钩子：没有插件目录、没有
+`js/plugins.js`、也没有一个工具能改写而不碰游戏自身文件的数据目录——文本直接烧在
+`Data/*.rxdata`、`*.rvdata`、`*.rvdata2` 这些 Ruby Marshal 文档里，打包发行时那些文档还
+整体藏在 `Game.rgssad` / `.rgss2a` / `.rgss3a` 归档里（`src/engines/rgss/adapter.js:1-16`）。
+换掉文字要么把这些文档写回去，要么在运行时把译文喂进游戏进程。
 
-交付层的路线已于 2026-10-27 拍板：**原生注入器 + hook DLL**。纯 JS 写回数据文档保留为
-历史备选，不再按待定处理；实现工作包排后续版本（`src/engines/rgss/adapter.js:232-244`
-的注释仍记着当时的两条候选）。原生工具链已就绪——Rust 1.99.1（GNU 工具链）与 llvm-mingw
-clang 23.1.4，32/64 位注入探针均通过，0.12 时“没有编译器”的硬阻塞已经消失。
+交付层路线于 2026-10-27 拍板走**原生注入器 + hook DLL**，0.18 实现，`capabilities.runtime`
+从 `null` 变成 `"inject"`（`src/engines/rgss/adapter.js:179-189`）。选它而不是纯 JS 写回，
+是因为它不改盘：游戏自身文件一个字节不动，卸载删掉注入器目录即还原；写回路线则要重打
+归档，备份、游戏更新与还原的责任都落在游戏文件上，所以纯 JS 写回只保留为历史备选。
 
-选定哪条决定 `uninstall` 要还原什么：注入路线不改盘、删掉注入器即还原；写回路线要备份
-被改的文档。决策记录见 [dev/DEVLOG.md](dev/DEVLOG.md) §8.1 第 10 行。
+**注入怎么发生**（32 位 Windows）：`yakusha_injector.exe` 以挂起方式启动 `Game.exe`
+（`CreateProcessW` 的 `CREATE_SUSPENDED`），把 hook DLL 的路径写进目标进程，用
+`CreateRemoteThread(LoadLibraryW)` 加载 DLL，等加载完成再恢复主线程
+（`native/injector/src/main.rs`）。游戏文件全程不改，游戏自己的工作目录与命令行也保持原样。
 
-因为缺的是交付层而不是提取层，`install` / `uninstall` 报的是**指向决策记录**的那句
-`E_NOT_IMPLEMENTED`（`install is not implemented for RGSS yet - see the pending decisions in
-docs/dev/DEVLOG.md`，`src/engines/rgss/adapter.js:184-189`），而不是“这个功能不存在”那句
-历史措辞；`doctor` 的 install 检查因此是 warning、runtime 检查是 info。同理 `src/index.js`
-只导出 `openRgssProject` / `extractRgssProject`（`src/index.js:17-18`），没有 `installRgss`
-之类的入口——库的公开面本身就不会许诺一个不存在的交付层。
+`yakusha_rgss_hook.dll` 在进程里改的是游戏导入表里 `kernel32!GetProcAddress` 这一格：游戏
+每次解析 `RGSSEval` / `RGSSGameMain` 都会经过它。解析 `RGSSGameMain` 时返回自己的包装函数；
+包装函数先用真正的 `RGSSEval` 执行 `bootstrap.rb`（此时 Ruby VM 已经初始化），再把控制权
+交回真正的 `RGSSGameMain`（`native/rgss-hook/src/lib.rs`）。`bootstrap.rb` 把
+`dictionary.txt` 读成 Ruby 哈希，包装 `Kernel#load_data`：每个加载出来的数据库 / 地图对象
+被递归遍历（String、Array、Hash、实例变量，深度上限 64），命中的字符串就地替换——地图
+事件、公共事件、数据库术语这些从 `load_data` 返回对象里能到达的文本都在覆盖范围内。菜单
+标签这类写在脚本源码里的字符串另有一个 `Vocab` 兜底（`native/rgss-hook/bootstrap.rb`）。
+日志写在 `<game>/yakusha/native/rgss-hook.log`：打了哪一格、解析到哪些导出、字典多大、
+每次 `load_data` 替换了几条。
+
+`install --native` 往 `<game>/yakusha/native/` 放 6 个文件：4 个组件
+（`yakusha_rgss_hook.dll`、`libunwind.dll`、`yakusha_injector.exe`、`bootstrap.rb`）+
+按字典生成的 `dictionary.txt` + 记录组件 SHA-256 的 `manifest.json`。复制前逐个核对
+`manifest.json` 里的大小与哈希，`uninstall` 整个目录删掉；目录里没有我们的 `manifest.json` 时
+拒绝删除而不是删别人的目录（`src/engines/rgss/native.js`）。不带 `--native` 的 `install`
+直接报 `E_USAGE`，因为装原生组件是可见的改动，必须显式要求。
+
+覆盖不到的地方也要说清楚：只有 `load_data` 返回对象里能到达的字符串（加 `Vocab` 兜底）会被
+替换，直接写在脚本里的字面量参数不经过这里；注入器是进程内 IAT patch，未签名的 exe / DLL
+可能被杀毒软件拦，SHA-256 清单是 0.18 的完整性机制、代码签名留给后续；已经加壳的可执行
+文件不在范围内。版本上只在一款 VX Ace 商业游戏的副本上实测过（RGSS300.dll），XP / VX
+（RGSS1 / RGSS2）未测，RGSS301 只按同族推断。
 
 ## Kirikiri 为什么没有交付层
 
-Kirikiri（KAG）是第五种引擎，第二个只做到 L1–L3 的：`capabilities.runtime` 同样是 `null`
-（`src/engines/krkr/adapter.js:189-199`），而且比 RGSS 更“没有可挂的钩子”——它没有插件
-目录、没有 `js/plugins.js`，也不像 Ren'Py 那样自带一个可以放翻译资源的目录
-（`src/engines/krkr/adapter.js:1-15`）。文本烧在 `.xp3` 归档里的 `.ks` / `.tjs` 脚本中，
-换掉文字等于**把归档写回去**。
+Kirikiri（KAG）是第五种引擎，也是目前唯一只做到 L1–L3 的：`capabilities.runtime` 是 `null`
+（`src/engines/krkr/adapter.js:189-199`）。它没有插件目录、没有 `js/plugins.js`，也不像
+Ren'Py 那样自带一个可以放翻译资源的目录（`src/engines/krkr/adapter.js:1-15`）。文本烧在
+`.xp3` 归档里的 `.ks` / `.tjs` 脚本中，换掉文字等于**把归档写回去**。
 
 把归档写回去这条路本身还有一道墙：发行版常用加密变体。krkr2 引入逐文件密钥，krkrz
 引入 cxdec 解密，两者都需要游戏自己的密钥数据；本项目**刻意不碰**这些加密变体，写回
@@ -237,16 +253,17 @@ Kirikiri 又换了一族：KAG 的控制码是**方括号标签**，不是反斜
 
 - **插件档只碰两处**：只加一个插件文件 + 一行注册，卸载时还原这两处（`plugins.js` 用备份
   逐字节还原）。重写 `plugins.js` 时会记住原文件是否带尾逗号、用 LF 还是 CRLF，免得一次安装
-  把整份文件变成全文件 diff。注意这是**插件档**的性质；将来注入档是"游戏文件不改、退出即恢复"，
+  把整份文件变成全文件 diff。注意这是**插件档**的性质；0.18 起的注入档是"游戏文件不改、退出即恢复"，
   两者不能混成一句"整个产品可逆"，四档见 [dev/ENGINE-STRATEGY.md](dev/ENGINE-STRATEGY.md) §5.5。
 - **translation 档只写一个新文件**：Ren'Py 的交付是 `game/yakusha_translation.rpy` 一个文件，
   不碰 `game/` 里的任何原脚本，也不碰 `game/tl/`（社区翻译补丁的目录，扫描时整个跳过）。
   卸载删掉它即恢复；因为是引擎自带的翻译资源，这一档是 L4-resource，不是插件档。
-- **RGSS 本版只到 L1–L3**：`detect` / `scan` / `extract` 三件事做完，`capabilities.runtime` 是
-  `null`，`install` / `uninstall` 抛 `E_NOT_IMPLEMENTED`（退出码 2）。也就是说 0.12 **不往
-  游戏里写回任何一个字节**：提取出来的字典就是一份普通字典，交付路线定了才有下一步。
-  这条约束是刻意的——先有一个可靠的提取面，再谈改盘还是注入。
-- **Kirikiri 本版也只到 L1–L3**：同 RGSS，`capabilities.runtime` 是 `null`，`install` /
+- **RGSS 的交付只写一个目录**：`install --native` 往 `<game>/yakusha/native/` 放 6 个文件——
+  4 个组件（`yakusha_rgss_hook.dll`、`libunwind.dll`、`yakusha_injector.exe`、`bootstrap.rb`）
+  + 按字典生成的 `dictionary.txt` + 记录组件 SHA-256 的 `manifest.json`；游戏自身文件一个字节
+  不改，`uninstall` 删掉这个目录即还原。注入器是 32 位 Windows 程序；装了 native 层后
+  `launch` 先经过 `yakusha_injector.exe`，没装则照旧直接启动 `Game.exe`。
+- **Kirikiri 也只到 L1–L3**：`capabilities.runtime` 是 `null`，`install` /
   `uninstall` 抛指向决策记录的 `E_NOT_IMPLEMENTED`。写回 `.xp3` 还多一道墙——发行版常用的
   krkr2 / krkrz 加密变体刻意不碰（`src/engines/krkr/adapter.js:226-237`），所以 0.13 同样
   **不往游戏里写回任何一个字节**，交付路线定了才有下一步。
@@ -294,9 +311,10 @@ installTranslation(project, pairs, { language: "schinese" }); // 写 game/yakush
 uninstallTranslation(project);                                // 删掉它，游戏回到原样
 ```
 
-RGSS 没有对应的安装/卸载函数——本版没有交付层，所以公开面上只有读取和提取。
-提取结果与 MZ/MV 同形（`entries` 是 `Map<原文, { text, contexts, count, locators }>`），可以直接喂给
-同一条翻译、校验流水线：
+RGSS 的交付走 CLI 的 `install --native`（`src/engines/rgss/native.js` 里的 `installNative` /
+`uninstallNative`），库的公开面仍然只有读取和提取。提取结果与 MZ/MV 同形
+（`entries` 是 `Map<原文, { text, contexts, count, locators }>`），可以直接喂给同一条翻译、
+校验流水线：
 
 ```js
 import { openRgssProject, extractRgssProject } from "./src/index.js";
@@ -306,10 +324,10 @@ const extracted = extractRgssProject(project.root);
 // entries: Map<原文, { text, contexts, count, locators }>
 // contexts 形如 "Map001.rvdata2:401"，commandCounts 统计每种指令码收了多少条
 console.log(extracted.entries.size + " strings in " + extracted.documents + " documents");
-// 没有 installRgss / uninstallRgss：交付路线定了才会有
+// 没有 installRgss / uninstallRgss：交付只走 CLI 的 install --native
 ```
 
-Kirikiri 同 RGSS：公开面上只有读取和提取，没有安装/卸载函数：
+Kirikiri 同样：公开面上只有读取和提取，没有安装/卸载函数：
 
 ```js
 import { openKrkrProject, extractKrkrProject } from "./src/index.js";

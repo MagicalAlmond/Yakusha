@@ -15,12 +15,16 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 import { writePackedProject, writeRgssProject } from "./rgss-fixture.js";
+import { nativeAssets } from "./rgss-native-fixture.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const BIN = path.join(HERE, "..", "bin", "yakusha.js");
 // The config file is user level, so one empty directory per process keeps the
 // suite hermetic without giving every spawn its own config.
 const CONFIG_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "yakusha-rgss-cli-config-"));
+// The real native components are prebuilt binaries; the CLI tests only exercise
+// the manifest protocol and the copy, so a fake assets directory is enough.
+const NATIVE_ASSETS = nativeAssets().dir;
 
 /** @returns {string} a private copy of the synthetic game, safe to mutate */
 function tempGame(kind = "plain") {
@@ -37,7 +41,17 @@ function cleanEnv() {
     if (/^YAKUSHA_/i.test(key) || /^OPENAI_API_KEY$/i.test(key)) delete env[key];
   }
   env.YAKUSHA_CONFIG_DIR = CONFIG_DIR;
+  env.YAKUSHA_NATIVE_ASSETS = NATIVE_ASSETS;
   return env;
+}
+
+/** Extract, then give every entry a synthetic target so install has work to do. */
+function translateAll(game) {
+  assert.equal(run(["extract", game, "--json"]).code, 0);
+  const file = path.join(game, "yakusha", "dictionary.json");
+  const dictionary = JSON.parse(fs.readFileSync(file, "utf8"));
+  for (const key of Object.keys(dictionary.entries)) dictionary.entries[key].text = "T:" + key;
+  fs.writeFileSync(file, JSON.stringify(dictionary, null, 2) + "\n");
 }
 
 function run(args) {
@@ -91,7 +105,7 @@ test("cli: extract writes a dictionary for the RGSS strings", () => {
   assert.equal(dictionary.entries["Narrator"].contexts[0], "Map001.rvdata2:101");
 });
 
-test("cli: install says the delivery layer is pending, and writes nothing", () => {
+test("cli: install without --native refuses with usage and writes nothing", () => {
   const game = tempGame();
   assert.equal(run(["extract", game, "--json"]).code, 0);
   const result = run(["install", game, "--json"]);
@@ -99,44 +113,88 @@ test("cli: install says the delivery layer is pending, and writes nothing", () =
   const payload = JSON.parse(result.stdout);
   assert.equal(payload.ok, false);
   assert.equal(payload.outcome, "error");
-  assert.equal(payload.error.code, "E_NOT_IMPLEMENTED");
-  assert.match(payload.error.message, /^install is not implemented for RGSS yet/);
-  // The dictionary was written by extract; nothing else changed.
-  assert.equal(fs.existsSync(path.join(game, "Game.rgss3a")), false);
+  assert.equal(payload.error.code, "E_USAGE");
+  assert.match(payload.error.message, /pass --native/);
+  assert.equal(fs.existsSync(path.join(game, "yakusha", "native")), false);
 });
 
-test("cli: install on a game with no dictionary reports the same pending layer", () => {
-  // The delivery layer is missing before the dictionary is even looked at, so
-  // the user gets one clear reason rather than a "no dictionary" hint that
-  // would not help: extracting first would still not install anything.
-  const result = run(["install", tempGame(), "--json"]);
-  assert.equal(result.code, 2);
-  const payload = JSON.parse(result.stdout);
-  assert.equal(payload.error.code, "E_NOT_IMPLEMENTED");
-  assert.match(payload.error.message, /docs\/dev\/DEVLOG\.md$/);
-});
-test("cli: uninstall reports the same pending layer", () => {
-  const result = run(["uninstall", tempGame(), "--json"]);
-  assert.equal(result.code, 2);
-  const payload = JSON.parse(result.stdout);
-  assert.equal(payload.error.code, "E_NOT_IMPLEMENTED");
-  assert.match(payload.error.message, /^uninstall is not implemented for RGSS yet/);
-});
-
-test("cli: doctor reports the game as usable and names the pending layer", () => {
+test("cli: install --native rejects --embed", () => {
   const game = tempGame();
-  assert.equal(run(["extract", game, "--json"]).code, 0);
-  const result = run(["doctor", game, "--json"]);
+  const result = run(["install", game, "--native", "--embed", "--json"]);
+  assert.equal(result.code, 2);
+  const payload = JSON.parse(result.stdout);
+  assert.equal(payload.error.code, "E_USAGE");
+  assert.match(payload.error.message, /cannot be combined with --embed/);
+  assert.equal(fs.existsSync(path.join(game, "yakusha", "native")), false);
+});
+
+test("cli: install --native copies the injector and reports the native payload", () => {
+  const game = tempGame();
+  translateAll(game);
+  const result = run(["install", game, "--native", "--json"]);
   assert.equal(result.code, 0, result.stderr);
   const payload = JSON.parse(result.stdout);
   assert.equal(payload.ok, true);
-  assert.equal(payload.verdict, "usable");
-  assert.equal(payload.game.engine, "rgss");
-  assert.equal(payload.game.dataFiles, 7);
-  const levels = Object.fromEntries(payload.checks.map((check) => [check.id, check.level]));
-  assert.equal(levels.install, "warn");
-  const install = payload.checks.find((check) => check.id === "install");
-  assert.match(install.message, /no delivery layer yet/);
+  assert.equal(payload.state, "added");
+  assert.equal(payload.backupPath, null);
+  assert.equal(payload.native.dictionaryEntries, 29);
+  assert.deepEqual(payload.native.files, ["yakusha_rgss_hook.dll", "libunwind.dll", "yakusha_injector.exe", "bootstrap.rb"]);
+  const dir = path.join(game, "yakusha", "native");
+  assert.equal(fs.existsSync(path.join(dir, "manifest.json")), true);
+  assert.equal(fs.readFileSync(path.join(dir, "dictionary.txt"), "utf8").trim().split("\n").length, 29);
+});
+
+test("cli: install --native --dry-run reports the plan without writing", () => {
+  const game = tempGame();
+  translateAll(game);
+  const result = run(["install", game, "--native", "--dry-run", "--json"]);
+  assert.equal(result.code, 0, result.stderr);
+  const payload = JSON.parse(result.stdout);
+  assert.equal(payload.native.dryRun, true);
+  assert.equal(payload.native.dictionaryEntries, 29);
+  assert.equal(fs.existsSync(path.join(game, "yakusha", "native")), false);
+});
+
+test("cli: install --native on a game with no dictionary asks for extract first", () => {
+  const result = run(["install", tempGame(), "--native", "--json"]);
+  assert.equal(result.code, 2);
+  const payload = JSON.parse(result.stdout);
+  assert.equal(payload.error.code, "E_NO_DICTIONARY");
+  assert.match(payload.error.message, /^install --native needs a dictionary, run: yakusha extract/);
+});
+
+test("cli: uninstall removes the native directory and is idempotent", () => {
+  const game = tempGame();
+  translateAll(game);
+  assert.equal(run(["install", game, "--native", "--json"]).code, 0);
+  const first = run(["uninstall", game, "--json"]);
+  assert.equal(first.code, 0, first.stderr);
+  const payload = JSON.parse(first.stdout);
+  assert.equal(payload.removed, true);
+  assert.equal(payload.native.removed, true);
+  assert.equal(fs.existsSync(path.join(game, "yakusha", "native")), false);
+  const second = run(["uninstall", game, "--json"]);
+  assert.equal(second.code, 0, second.stderr);
+  assert.equal(JSON.parse(second.stdout).removed, false);
+});
+
+test("cli: doctor before install reports not-installed, after install reports usable", () => {
+  const game = tempGame();
+  translateAll(game);
+  const before = JSON.parse(run(["doctor", game, "--json"]).stdout);
+  assert.equal(before.ok, true);
+  assert.equal(before.verdict, "not-installed");
+  const beforeLevels = Object.fromEntries(before.checks.map((check) => [check.id, check.level]));
+  assert.equal(beforeLevels.install, "info");
+  assert.match(before.checks.find((check) => check.id === "install").message, /- run: yakusha install --native \"<game>\"$/);
+
+  assert.equal(run(["install", game, "--native", "--json"]).code, 0);
+  const after = JSON.parse(run(["doctor", game, "--json"]).stdout);
+  assert.equal(after.verdict, "ready");
+  const afterLevels = Object.fromEntries(after.checks.map((check) => [check.id, check.level]));
+  assert.equal(afterLevels.install, "ok");
+  assert.equal(after.runtime.entries, 29);
+  assert.match(after.checks.find((check) => check.id === "runtime").message, /29 strings/);
 });
 
 test("cli: doctor on a game with no dictionary is broken, and says what to run", () => {
@@ -150,8 +208,8 @@ test("cli: doctor on a game with no dictionary is broken, and says what to run",
   const dictionary = payload.checks.find((check) => check.id === "dictionary");
   assert.equal(dictionary.level, "fail");
   assert.match(dictionary.message, /- run: yakusha extract <game>$/);
-  // Even then the pending delivery layer is reported, not hidden.
-  assert.equal(payload.checks.find((check) => check.id === "install").level, "warn");
+  // Even then the delivery state is reported, not hidden.
+  assert.equal(payload.checks.find((check) => check.id === "install").level, "info");
 });
 
 test("cli: verify reads the dictionary the extractor wrote", () => {

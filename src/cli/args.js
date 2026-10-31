@@ -37,6 +37,7 @@ const BOOLEAN = new Set([
   "flat",
   "force",
   "create",
+  "native",
 ]);
 
 /**
@@ -87,7 +88,7 @@ const COMMAND_OPTIONS = {
   import: ["from", "format", "strategy", "dry-run", "create"],
   launch: ["exe"],
   uninstall: [],
-  install: ["embed"],
+  install: ["embed", "native", "dry-run"],
   doctor: ["max-length"],
   translate: [
     "provider",

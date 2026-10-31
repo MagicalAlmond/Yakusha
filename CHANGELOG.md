@@ -6,10 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-10-27
+
+### Added
+
+- Added native injector delivery for RGSS: `yakusha install <game> --native` writes `<game>/yakusha/native/` with `yakusha_rgss_hook.dll`, `libunwind.dll`, `yakusha_injector.exe`, `bootstrap.rb`, a generated `dictionary.txt` and a `manifest.json`. The injector starts the game suspended, loads the hook into the 32-bit process and lets `bootstrap.rb` translate every string reachable through `Kernel#load_data`; no existing game file is modified. `--native` is required on RGSS, refused on every other engine with `E_USAGE` and cannot be combined with `--embed`, all before anything is touched.
+- Added `install --native --dry-run`: it validates the components and the dictionary, reports the native directory, the four components and the dictionary entry count, and writes nothing.
+- Added SHA-256 integrity checks for the native components: `manifest.json` records `{ "schema": 1, "files": { <name>: <sha256> } }` for the four component files, and install refuses a missing file or a hash mismatch with `E_IO` (a missing, unreadable or invalid manifest is `E_CONFIG`) before copying anything.
+- Added `uninstall` for the native layer: it removes `<game>/yakusha/native/` recursively, but only when the directory carries a valid Yakusha `manifest.json`; any other directory is refused with `E_CONFIG` instead of deleted.
+- Added `launch` support for RGSS: when the native layer is installed the game starts through `yakusha_injector.exe`, with the same `launched` / `pid` output and `{root, exe, pid}` payload as before; without it the previous executable launch is unchanged.
+- Added a real `doctor` delivery check for RGSS: before install it reports `not-installed`; after install it reports the installed directory and the number of dictionary strings, and a clean install reaches `ready` (it used to report that the engine had no delivery layer).
+- Added GUI wiring for the native delivery: the install and uninstall buttons pass `--native` when the last scan identified an RGSS project.
+
 ### Changed
 
-- The npm package now ships the GUI: `gui/` was added to the `files` allowlist in `package.json`
-  (README and LICENSE were already included). `docs/` stays out of the tarball.
+- The npm package now ships the GUI: `gui/` was added to the `files` allowlist in `package.json` (README and LICENSE were already included). `docs/` stays out of the tarball.
+- The `scan` capabilities now report `runtime: "inject"` for RGSS (previously null), so capability-aware clients enable the install and uninstall actions for that engine.
+- The npm package now publishes the prebuilt native components: `native/prebuilt/` was added to the `files` allowlist in `package.json`. The binaries are built on CI for the 32-bit `i686-pc-windows-gnullvm` target, ship inside the npm package (nothing is downloaded at install time), and `native/prebuilt/` stays out of git.
+
+### Unchanged
+
+- No breaking changes: the envelope, exit codes, command table, all 13 error codes and the dictionary format (`yakusha/1`) are unchanged. The `native` payload key is additive and only appears for RGSS installs.
 
 ## [0.17.0] - 2026-10-27
 
@@ -269,9 +286,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[0.16.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.15.0...v0.16.0
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.17.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.18.0...HEAD
+[0.18.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.16.0...v0.17.0
+[0.16.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.12.0...v0.13.0

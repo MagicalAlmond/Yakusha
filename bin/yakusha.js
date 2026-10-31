@@ -111,6 +111,8 @@ const USAGE = [
   "",
   "install options:",
   "  --embed             embed the translations into the plugin file",
+  "  --native            install the RGSS injector components (RGSS only)",
+  "  --dry-run           report what would change without writing",
   "",
   "config commands (no game directory):",
   "  yakusha config list",

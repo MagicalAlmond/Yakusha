@@ -18,6 +18,7 @@ import { dictionaryPath, loadDictionary, saveDictionary } from "../src/core/dict
 import { rmProfile } from "../src/engines/profile.js";
 import { rgssProfile } from "../src/engines/rgss/profile.js";
 import { writePackedProject, writeRgssProject } from "./rgss-fixture.js";
+import { nativeAssets } from "./rgss-native-fixture.js";
 
 /**
  * Directories created by the tests, removed once the file has finished.
@@ -63,7 +64,7 @@ function translateAll(project, adapter) {
 after(() => {
   for (const dir of created) fs.rmSync(dir, { recursive: true, force: true });
 });
-test("the registry ships RGSS fourth, with its own profile and no runtime tier", () => {
+test("the registry ships RGSS fourth, with its own profile and the inject runtime tier", () => {
   assert.deepEqual(
     getAdapters().map((adapter) => adapter.id),
     ["mz", "mv", "renpy", "rgss", "krkr"]
@@ -73,10 +74,9 @@ test("the registry ships RGSS fourth, with its own profile and no runtime tier",
   assert.equal(adapter.profile, rgssProfile);
   assert.notEqual(adapter.profile, rmProfile);
   assert.equal(adapter.rules.controlCodes, true);
-  // XP, VX and VX Ace have no plugin system: delivering a translation means
-  // rewriting the game data, and that layer is not built yet, so there is no
-  // runtime tier to advertise.
-  assert.equal(adapter.capabilities.runtime, null);
+  // XP, VX and VX Ace have no plugin system: the translation is delivered by
+  // the native injector, which is the "inject" runtime tier.
+  assert.equal(adapter.capabilities.runtime, "inject");
   assert.equal(adapter.capabilities.extract, true);
   assert.equal(adapter.capabilities.export, true);
   assert.equal(adapter.capabilities.launch, true);
@@ -234,41 +234,96 @@ test("extract: a dictionary that cannot be parsed is rebuilt, not fatal", () => 
   assert.equal(result.added, 29);
   assert.equal(loadDictionary(dictionaryPath(root)).entries["Yuki"].text, "");
 });
-test("install: there is no delivery layer yet, and the error says which kind", () => {
+test("install: without --native the adapter refuses with usage, not a fake install", () => {
   const { project, adapter } = projectFor();
   translateAll(project, adapter);
   assert.throws(
     () => adapter.installRuntime(project),
     (error) => {
-      assert.equal(error.code, "E_NOT_IMPLEMENTED");
-      assert.equal(
-        error.message,
-        "install is not implemented for RGSS yet - see the pending decisions in docs/dev/DEVLOG.md"
-      );
+      assert.equal(error.code, "E_USAGE");
+      assert.match(error.message, /^RGSS has no plugin delivery layer - pass --native to install the injector/);
       return true;
     }
   );
-  assert.throws(() => adapter.uninstallRuntime(project), /^Error: uninstall is not implemented for RGSS yet/);
+  // Uninstall stays harmless: there is nothing to remove and no error.
+  assert.deepEqual(adapter.uninstallRuntime(project), {
+    removed: false,
+    restored: false,
+    backupPath: null,
+    drifted: false,
+    keptBackup: null,
+    native: { dir: path.join(project.root, "yakusha", "native"), removed: false },
+  });
 });
 
-test("install: nothing is written into the game before the layer exists", () => {
+test("install: --native copies the components and builds the runtime dictionary", () => {
   const { root, project, adapter } = projectFor();
   translateAll(project, adapter);
-  const snapshot = () => {
-    const out = {};
-    const walk = (dir) => {
-      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-        const full = path.join(dir, entry.name);
-        if (entry.isDirectory()) walk(full);
-        else out[path.relative(root, full)] = fs.readFileSync(full).toString("base64");
-      }
-    };
-    walk(root);
-    return out;
-  };
-  const before = snapshot();
-  assert.throws(() => adapter.installRuntime(project));
-  assert.deepEqual(snapshot(), before);
+  const assets = nativeAssets();
+  const result = adapter.installRuntime(project, { native: true, assetsDir: assets.dir });
+  assert.equal(result.registered, true);
+  assert.equal(result.state, "added");
+  assert.equal(result.backupPath, null);
+  assert.equal(result.native.dictionaryEntries, 29);
+  const dir = path.join(root, "yakusha", "native");
+  for (const name of ["yakusha_rgss_hook.dll", "libunwind.dll", "yakusha_injector.exe", "bootstrap.rb", "dictionary.txt", "manifest.json"]) {
+    assert.equal(fs.existsSync(path.join(dir, name)), true, name);
+  }
+  const lines = fs.readFileSync(path.join(dir, "dictionary.txt"), "utf8").trim().split("\n");
+  assert.equal(lines.length, 29);
+  const [source, target] = lines[0].split("\t");
+  assert.equal(Buffer.from(source, "base64").toString("utf8"), "A battle line.");
+  assert.equal(Buffer.from(target, "base64").toString("utf8"), "T:A battle line.");
+  // A second install is idempotent.
+  const again = adapter.installRuntime(project, { native: true, assetsDir: assets.dir });
+  assert.equal(again.state, "unchanged");
+  assert.equal(adapter.diagnostics(project).delivery.exists, true);
+  assert.equal(adapter.diagnostics(project).delivery.entries, 29);
+});
+
+test("install: --native --dry-run reports the plan and writes nothing", () => {
+  const { root, project, adapter } = projectFor();
+  translateAll(project, adapter);
+  const assets = nativeAssets();
+  const result = adapter.installRuntime(project, { native: true, dryRun: true, assetsDir: assets.dir });
+  assert.equal(result.native.dryRun, true);
+  assert.equal(result.native.dictionaryEntries, 29);
+  assert.equal(fs.existsSync(path.join(root, "yakusha", "native")), false);
+});
+
+test("install: a tampered component stops the install before anything is written", () => {
+  const { root, project, adapter } = projectFor();
+  translateAll(project, adapter);
+  const assets = nativeAssets();
+  fs.writeFileSync(path.join(assets.dir, "yakusha_rgss_hook.dll"), "tampered");
+  assert.throws(
+    () => adapter.installRuntime(project, { native: true, assetsDir: assets.dir }),
+    (error) => {
+      assert.equal(error.code, "E_IO");
+      assert.match(error.message, /^native component failed its integrity check: yakusha_rgss_hook\.dll/);
+      return true;
+    }
+  );
+  assert.equal(fs.existsSync(path.join(root, "yakusha", "native")), false);
+});
+
+test("uninstall: removes the native directory only when the manifest is ours", () => {
+  const { root, project, adapter } = projectFor();
+  translateAll(project, adapter);
+  const assets = nativeAssets();
+  adapter.installRuntime(project, { native: true, assetsDir: assets.dir });
+  assert.equal(fs.existsSync(path.join(root, "yakusha", "native")), true);
+  const result = adapter.uninstallRuntime(project);
+  assert.equal(result.removed, true);
+  assert.equal(result.restored, false);
+  assert.equal(fs.existsSync(path.join(root, "yakusha", "native")), false);
+  // The dictionary survives, because uninstall only owns the native directory.
+  assert.equal(fs.existsSync(path.join(root, "yakusha", "dictionary.json")), true);
+
+  fs.mkdirSync(path.join(root, "yakusha", "native"), { recursive: true });
+  fs.writeFileSync(path.join(root, "yakusha", "native", "stray.txt"), "not ours");
+  assert.throws(() => adapter.uninstallRuntime(project), /native component manifest is missing or unreadable/);
+  assert.equal(fs.existsSync(path.join(root, "yakusha", "native", "stray.txt")), true);
 });
 
 test("attach: RGSS has no debug injection, and says so in the shared wording", () => {
@@ -282,7 +337,7 @@ test("attach: RGSS has no debug injection, and says so in the shared wording", (
   );
 });
 
-test("doctor: the pending delivery is a warning, not a broken game", () => {
+test("doctor: before install the native layer reads as not installed", () => {
   const { project, adapter } = projectFor();
   translateAll(project, adapter);
   const own = adapter.diagnostics(project);
@@ -299,19 +354,41 @@ test("doctor: the pending delivery is a warning, not a broken game", () => {
   });
   assert.equal(result.game.engine, "rgss");
   assert.equal(result.game.dataFiles, 7);
-  assert.equal(result.verdict, "usable");
+  assert.equal(result.verdict, "not-installed");
   assert.equal(result.ok, true);
   const levels = Object.fromEntries(result.checks.map((check) => [check.id, check.level]));
-  assert.equal(levels.install, "warn");
+  assert.equal(levels.install, "info");
   assert.equal(levels.runtime, "info");
   assert.equal(levels.dictionary, "ok");
   assert.equal(levels.sync, "ok");
-  const install = result.checks.find((check) => check.id === "install");
-  assert.equal(install.message, "RGSS has no delivery layer yet, so nothing is written back into the game");
-  assert.equal(result.install.pluginFile, null);
-  assert.equal(result.install.pluginFilePresent, false);
-  assert.equal(result.runtime.embedded, false);
+  assert.match(result.checks.find((check) => check.id === "install").message, /- run: yakusha install --native \"<game>\"$/);
+  assert.equal(result.runtime.entries, 0);
   assert.equal(result.runtime.found, null);
+});
+
+test("doctor: after install the native layer is the delivery the game uses", () => {
+  const { project, adapter } = projectFor();
+  translateAll(project, adapter);
+  const assets = nativeAssets();
+  adapter.installRuntime(project, { native: true, assetsDir: assets.dir });
+  const own = adapter.diagnostics(project);
+  const result = diagnose(project, {
+    dictionary: loadDictionary(dictionaryPath(project.root)),
+    dictionaryFile: dictionaryPath(project.root),
+    maxColumns: 0,
+    engineLabel: adapter.name,
+    profile: adapter.profile,
+    extract: own.extract,
+    dataFiles: own.dataFiles,
+    sourceLabel: own.sourceLabel,
+    delivery: own.delivery,
+  });
+  assert.equal(result.verdict, "ready");
+  const levels = Object.fromEntries(result.checks.map((check) => [check.id, check.level]));
+  assert.equal(levels.install, "ok");
+  assert.equal(levels.runtime, "ok");
+  assert.equal(result.runtime.entries, 29);
+  assert.match(result.checks.find((check) => check.id === "runtime").message, /29 strings/);
 });
 
 test("doctor: diagnostics counts the documents the scan counts", () => {

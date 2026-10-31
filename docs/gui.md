@@ -1,6 +1,6 @@
 # GUI 设计与用户流程（Electron 外壳，0.14）
 
-> 状态：0.14 已交付最小外壳（`gui/main.js` + `preload.js` + `renderer/`，含原生目录选择、export/import/speaker/terms/config/launch 按钮、「记住密钥」（safeStorage，见 §5）、最小字典编辑器（见 §3 字典编辑分区）），长任务接口（进度事件 + 取消）随 0.14 的 runner seam 落地；0.16 起按钮可用性按 §3 的规则由 `capabilities` 驱动（`scan` 载荷新增 `capabilities`，不支持交付层的引擎灰掉 install/uninstall 并写明原因）；本文其余部分仍是演进的设计稿（完整字典编辑界面未做——已交付的是 §3 描述的最小逐条编辑器）。
+> 状态：0.14 已交付最小外壳（`gui/main.js` + `preload.js` + `renderer/`，含原生目录选择、export/import/speaker/terms/config/launch 按钮、「记住密钥」（safeStorage，见 §5）、最小字典编辑器（见 §3 字典编辑分区）），长任务接口（进度事件 + 取消）随 0.14 的 runner seam 落地；0.16 起按钮可用性按 §3 的规则由 `capabilities` 驱动（`scan` 载荷新增 `capabilities`，不支持交付层的引擎灰掉 install/uninstall 并写明原因；0.18 起 RGSS 的注入交付层落地，install/uninstall 对 RGSS 自动带 `--native`，不再灰）；本文其余部分仍是演进的设计稿（完整字典编辑界面未做——已交付的是 §3 描述的最小逐条编辑器）。
 
 ## 1. 定位与边界
 
@@ -25,21 +25,22 @@ GUI 排在 0.14 不是资源问题，是依赖顺序（ENGINE-STRATEGY §6.3）�
 | 0.10.x | 引擎拆缝：profile + rmFilePlan，pipeline 从 `options.profile` 读引擎事实 | GUI 才能不写引擎特判地驱动多引擎 |
 | 0.11 | Ren'Py（`.rpy` + `.rpyc`、translation-file 交付） | 第二个家族验证抽象是否通用，GUI 不能只包 MZ/MV |
 | 0.12 | RGSS inject + 原生 helper、组件分发/签名/manifest | GUI 需要的"原生组件安装向导"才有真实对象 |
-| 0.13 | 字典导出 v2（TSV/CSV） | 字典编辑/导入导出界面才有可用的格式契约 |
+| 0.13 | 表格导出与回灌（TSV/CSV + `import`） | 字典编辑/导入导出界面才有可用的格式契约 |
 
-> 0.12 注记：0.12 实际只交付 RGSS 的 L1–L3（识别 / 盘点 / 提取 / 翻译 / 校验）。RGSS
-> 交付层路线已于 2026-10-27 拍板为原生注入器 + hook DLL，实现待后续工作包（[DEVLOG](dev/DEVLOG.md)
-> §8.1 第 10 行）；上表按 2026-10-25 的拍板路线保留。
+> 0.12 注记：0.12 实际只交付 RGSS 的 L1–L3（识别 / 盘点 / 提取 / 翻译 / 校验）。交付层在 0.18
+> 以原生注入器 + hook DLL 落地（`install --native`，组件随 npm 包分发、SHA-256 manifest、
+> 不改游戏文件），[DEVLOG](dev/DEVLOG.md) §8.1 第 10 行记录的路线已执行；上表按 2026-10-25
+> 的拍板路线保留。
 
 在 0.13 之前动工，GUI 只能做成一个 MZ/MV 专用壳，0.11–0.13 的每一版都要回头改 UI；
-在 0.12 之前动工，原生组件的下载/校验/缺组件提示没有契约可依。
+在 0.12 之前动工，原生组件的分发/校验/缺组件提示没有契约可依。
 GUI 版本只做壳与它需要的接口（能力矩阵、原生组件向导、进度/错误展示），不夹带新引擎。
 
 ## 3. 界面分区与主流程
 
 八个分区。每区列出驱动的 CLI 命令、消费的 JSON 载荷、失败时用户看到什么
 （退出码与错误码遵循 [json-contract.md](json-contract.md)，GUI 按 `outcome` + `error.code` 分支，
-不解析 `message` 文案）。按钮可不可点由 adapter 的 `capabilities` 决定，未实现能力灰掉并写明原因（0.16 已交付：能力位随 `scan` 载荷下发，`runtime: null` 的引擎灰掉 install/uninstall、`launch: false` 灰掉启动）。
+不解析 `message` 文案）。按钮可不可点由 adapter 的 `capabilities` 决定，未实现能力灰掉并写明原因（0.16 已交付：能力位随 `scan` 载荷下发，`runtime: null` 的引擎灰掉 install/uninstall、`launch: false` 灰掉启动；0.18 起 `runtime: "inject"` 的 RGSS 自动带 `--native`）。
 
 | 分区 | 驱动的命令 / 库调用 | 消费的载荷 | 失败时用户看到 |
 | --- | --- | --- | --- |
@@ -48,7 +49,7 @@ GUI 版本只做壳与它需要的接口（能力矩阵、原生组件向导、�
 | 字典编辑 | `extract` / `export --json --out <f>`（原设计；0.14 另有下面的最小逐条编辑器） | `file, added, total, translated, pending`；export 的 `out, entries, bytes` | `E_NO_DICTIONARY`（退出 2，提示先提取）；`E_EXISTS` / `E_IO` |
 | 翻译执行 | `translate`（`--limit`/`--context`/`--glossary`/`--save-every`） | `provider, translated, rejected, failedBatches, progress{total,translated,pending}` | `E_CONFIG`（缺 provider/model/key，退出 2）；`E_PROVIDER`；`rejected > 0` 仍是 `ok`，按 pending 数字提示跑 verify |
 | 校验 | `verify`（`--kind`/`--limit`/`--write-report`） | `errors, warnings, counts, problems[{kind,severity,key,target,detail}]` | findings（退出 1）不是命令失败：按 kind 分组展示，error 拦安装按钮 |
-| 安装与卸载 | `install` / `uninstall` / `launch` | `pluginPath, state, backupPath`；`removed, restored, drifted, keptBackup`；`root, exe, pid` | `E_EXE`（launch 多/无 .exe，列 details.candidates）；`E_UNSUPPORTED_PLATFORM`；`drifted: true` 时明确"只摘了自己那条，备份保留" |
+| 安装与卸载 | `install`（RGSS 加 `--native`）/ `uninstall` / `launch` | `pluginPath, state, backupPath`（RGSS 另带 `native{dir, files, dictionaryEntries, dryRun}`）；`removed, restored, drifted, keptBackup`（RGSS 另带 `native{dir, removed}`）；`root, exe, pid` | `E_EXE`（launch 多/无 .exe，列 details.candidates）；`E_UNSUPPORTED_PLATFORM`；`drifted: true` 时明确"只摘了自己那条，备份保留"；RGSS 没有字典时 `E_NO_DICTIONARY` |
 | 设置 | `config list/get/set/unset` | `values{provider,model,baseUrl}, apiKey{set,source}` | `E_CONFIG`（文件损坏，不覆盖）；`E_USAGE`（非法值，退出 2） |
 | 诊断 | `doctor`（`--max-length`） | `verdict, checks[{id,level,message}]` | broken → findings（退出 1）：逐项列出 fail/warn 与建议动作 |
 
@@ -111,7 +112,7 @@ GUI 的安装/卸载界面必须如实呈现四档交付（ENGINE-STRATEGY §5.5
 | --- | --- | --- |
 | L4-plugin（MZ/MV） | 安装即备份 `js/plugins.js`，卸载时逐字节还原 | `uninstall` 的 `restored: true`；检测到漂移（`drifted: true`）时只摘自己那条、保留备份 |
 | L4-resource（Ren'Py） | 生成/替换引擎自带翻译资源，删资源即恢复 | 游戏文件按引擎机制恢复 |
-| L4-inject（RGSS 等） | 需要先下载原生组件；不改游戏文件，卸载后游戏照常运行 | 进程退出/卸载后恢复，`inject` 失败必须能回退原版启动 |
+| L4-inject（RGSS，0.18 起） | 原生组件随 npm 包分发（SHA-256 `manifest.json` 校验），装进 `yakusha/native/`；不改游戏文件，卸载后游戏照常运行 | 删 `yakusha/native/` 即恢复；`inject` 失败必须能回退原版启动；未签名组件可能被杀软误报 |
 | L3-only | 界面明说"只能提取/翻译/校验，交付需要你自行部署" | 不适用 |
 
 降级必须显式确认：插件失败不能静默改 patch（ENGINE-STRATEGY §8）。
@@ -122,9 +123,10 @@ install 的 `staleBackup: true` 与 uninstall 的 `drifted: true` 都要停下�
 
 - Electron 只进 devDependencies，core 保持零第三方依赖（architecture.md §1）；
   便携包体积约 120–180 MB，首次运行可能被 Defender 拦一次——这是壳的成本，写进文档，不掩盖。
-- Windows 代码签名：0.10/0.11 不做（纯 JS）；0.12 起有原生组件时必须重新评估，
-  未拍板项见 DEVLOG §8.1（证书路线、成本与 SmartScreen 四道拦截见 ENGINE-STRATEGY §9.3/§9.4）。
-  GUI 首发若未签名，安装包和首启动提示里如实说明。
+- Windows 代码签名：0.10/0.11 不做（纯 JS）；0.18 起已有原生组件（RGSS 注入器与 hook DLL），
+  签名仍未做，完整性靠 SHA-256 manifest；未拍板项见 DEVLOG §8.1（证书路线、成本与
+  SmartScreen 四道拦截见 ENGINE-STRATEGY §9.3/§9.4）。GUI 首发若未签名，安装包和
+  首启动提示里如实说明。
 - **首个 GUI 版本不做自动更新**：更新渠道、增量与校验未设计；用户从发布页手动更新。
   这不是省事，是避免在签名问题解决前引入一个未被审计的下载通道。
 
@@ -153,12 +155,12 @@ GUI 永远不做以下事情（与 [limitations.md](limitations.md) 的工具边
 - [ ] 在四档测试矩阵上，从 GUI 卸载后游戏回到可运行状态（plugin 档逐字节还原）。（CLI 路径在 0.10/0.11 真机验过；GUI 按同一路径调同一 runner，但「从 GUI 点出来」的走查未做）
 - [x] 密钥只存在于系统凭据存储或内存；`config` 文件、游戏目录、日志与导出文件里都没有。（test/gui-credentials.test.js：文件里只有密文信封）
 - [x] 拖入非项目目录、多项目目录、损坏字典时，错误提示与 CLI 的错误码一一对应。（gui-handlers 对拍）
-- [ ] MZ/MV + Ren'Py + RGSS 三条链路都能从 GUI 一键跑通（ENGINE-STRATEGY §6.3 的 0.14 验收）。（`test/gui-e2e.test.js` 已按 GUI 的调用缝 `runGuiCommand` 把三条链路的完整命令序列各走通一遍；剩下的未验部分只有 Electron 窗口本身的点击与渲染。0.16 复查：在本机自动化会话里实测，`gui/main.js` 能被 Electron 37.2.3 加载、`BrowserWindow` 能创建（隐藏窗口冒烟 exit 0），但 Chromium 的单实例锁在自动化会话派生的进程令牌下无法创建（`process_singleton_win.cc:454 Lock file can not be created! Error code: 5`，与 user-data-dir 无关），应用按设计退出——窗口交互走查需要在正常桌面会话里双击启动，不是 headless 限制，是本会话进程令牌的限制）
+- [ ] MZ/MV + Ren'Py + RGSS 三条链路都能从 GUI 一键跑通（ENGINE-STRATEGY §6.3 的 0.14 验收）。（`test/gui-e2e.test.js` 已按 GUI 的调用缝 `runGuiCommand` 把三条链路的完整命令序列各走通一遍（RGSS 走 `install --native`）；剩下的未验部分只有 Electron 窗口本身的点击与渲染。0.16 复查：在本机自动化会话里实测，`gui/main.js` 能被 Electron 37.2.3 加载、`BrowserWindow` 能创建（隐藏窗口冒烟 exit 0），但 Chromium 的单实例锁在自动化会话派生的进程令牌下无法创建（`process_singleton_win.cc:454 Lock file can not be created! Error code: 5`，与 user-data-dir 无关），应用按设计退出——窗口交互走查需要在正常桌面会话里双击启动，不是 headless 限制，是本会话进程令牌的限制）
 
 ## 相关文档
 
 - [architecture.md](architecture.md)：分层、EngineAdapter 契约、GUI 与 core 的边界
-- [commands.md](commands.md)：13 个命令的选项、载荷与实测输出
+- [commands.md](commands.md)：14 个命令的选项、载荷与实测输出
 - [json-contract.md](json-contract.md)：信封、退出码、错误码——GUI 分支处理的唯一依据
 - [config.md](config.md)：配置、密钥不落盘、GUI 凭据存储的既定边界
 - [engines.md](engines.md)：能力矩阵、launch 契约、attach 桩

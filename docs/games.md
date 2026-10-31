@@ -131,10 +131,14 @@ Ren'Py 的安装产物是一个文件：`install` 写 `game/yakusha_translation.
 以及 `System` 里的游戏标题、货币单位与四张术语表（`src/engines/rgss/extract.js:339`）。为什么不收
 `402`、编辑器注释和 `@note`，见 [design.md](design.md) 的「文本面覆盖」。
 
-**本版没有运行时交付。** `capabilities.runtime` 是 `null`，`install` / `uninstall` 直接以
-`E_NOT_IMPLEMENTED` 退出（退出码 2），一个文件都不写；`doctor` 里 `install` 检查是 warning、
-`runtime` 检查是 info。所以上表证明的是"读得到、翻得了、校验得了"，**不是**"RGSS 游戏已经能在
-游戏里看到中文"。
+**0.18 起有运行时交付（原生注入器）。** `capabilities.runtime` 现在是 `"inject"`：
+`install --native` 往 `<game>/yakusha/native/` 放 4 个组件（`yakusha_rgss_hook.dll`、
+`libunwind.dll`、`yakusha_injector.exe`、`bootstrap.rb`）加上按字典生成的 `dictionary.txt`
+与记录组件 SHA-256 的 `manifest.json`，游戏自身文件一个字节不改；装了以后 `launch` 通过
+`yakusha_injector.exe` 启动 `Game.exe`，`uninstall` 删掉这个目录即还原；`doctor` 的
+`install` / `runtime` 检查都转为 `ok`。机制与覆盖边界见 [design.md](design.md) 的
+「RGSS 为什么用原生注入器」。所以上表证明的仍是"读得到、翻得了、校验得了"；运行时效果只在
+下面这一款样本上验证过——**不是**对整个 RGSS 家族的验收。
 
 文本里的控制码仍是反斜杠一族（`\i[n]` 图标、`\c[n]` 换色、`\v[n]` 变量、`\!` 停顿……实测
 共 23 种），所以 tokenize、校验、运行时查表直接复用 MZ/MV 那套 `src/core/textkey.js`，没有为
@@ -148,8 +152,8 @@ RGSS 的根目录形状是 `Game.ini` + `Data/`，或者启动器 `.exe` + 一�
 `Library=` → `Scripts=` 的扩展名 → `Data/` 里的文件扩展名依次推断
 （`src/engines/rgss/project.js:309`）。
 
-**这不等于对 RGSS 游戏的运行时验收**：本机只有这一款，XP 与 VX 两款还没有实测数字，三个版本的
-验收基线也没定；而且这一版本来就没有交付层，游戏里的文字不会变。
+**这不等于对 RGSS 全家族的运行时验收**：本机只有这一款 VX Ace 样本（RGSS300.dll），XP 与 VX
+两款还没有实测数字，三个版本的验收基线也没定；带可执行文件保护壳的样本没有尝试注入。
 
 ## Kirikiri（KAG）
 
@@ -172,9 +176,9 @@ XP3 索引只读标准格式：索引体以 `File` 开头的是标准索引；�
 标签（`[r]`、`[er]`、`[emb exp=...]`），转义是 `[[`，与 MZ/MV 的反斜杠一族完全不同，
 所以 Kirikiri 带了自己的 tokenizer（见 [design.md](design.md) 的「Kirikiri 控制码」）。
 
-**本版没有运行时交付。** `capabilities.runtime` 是 `null`，`install` / `uninstall` 直接以
+**Kirikiri 没有运行时交付。** `capabilities.runtime` 是 `null`，`install` / `uninstall` 直接以
 `E_NOT_IMPLEMENTED` 退出（退出码 2），一个文件都不写；`doctor` 里 `install` 检查是 warning、
-`runtime` 检查是 info。Kirikiri 这一版和 RGSS 一样，只到“读得到、翻得了、校验得了”。
+`runtime` 检查是 info。Kirikiri 仍然只到“读得到、翻得了、校验得了”。
 
 根目录形状是目录里（或其 `data/` 子目录里）放着 `.xp3` 归档；`findKrkrRoot` 往下最多 3 层
 找这个形状，同层出现多个项目报 `E_MULTI_ROOT` 并列出候选（`src/engines/krkr/project.js:99-114`），

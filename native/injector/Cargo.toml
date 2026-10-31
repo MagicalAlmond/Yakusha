@@ -1,0 +1,14 @@
+[package]
+name = "yakusha_injector"
+version = "0.18.0"
+edition = "2021"
+
+[[bin]]
+name = "yakusha_injector"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = "s"
+lto = true
+panic = "abort"
+strip = true
