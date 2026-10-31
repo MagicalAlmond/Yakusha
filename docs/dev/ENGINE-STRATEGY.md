@@ -538,6 +538,7 @@ TextGrammar = {
 | 0.18 | RGSS inject 交付层：`install --native`（原生注入器 + hook DLL + 生成的 dictionary.txt）、`uninstall` 递归删 native 目录、`doctor` 的 delivery 检查、`scan` 的 `runtime: "inject"`（**已交付**） | GUI 对 RGSS 自动带 `--native`；native/ 两个 Rust crate + build.mjs + prebuilt 进 npm 包 | 677 pass / 50 文件；合成项目上干跑/安装/卸载/JSON 载荷走通；实机只在单款 VX Ace（RGSS300.dll）走查 |
 | 0.19 | `verify --kind` 严格校验：未知 kind 报 `E_USAGE` / 退出 2（**已交付**） | — | 678 pass；合法 `--kind` 与空值行为不变 |
 | 0.20 | GUI 渲染层契约测试与扫描状态重置（`test/gui-renderer.test.js`，7 条；修复 0.16 起的能力位状态残留）（**已交付**） | — | 685 pass / 51 个文件；真机窗口交互仍顺延 |
+| 0.21 | RGSS 原生组件完整性检查：`nativeStatus()` 按 `manifest.json` 复核组件与 `dictionary.txt`；`doctor` 把损坏安装判 `broken`，`launch` 启动前报 `E_IO`，重装可修复（**已交付**） | — | 688 pass / 51 个文件；新增 3 条 adapter 用例 |
 | 1.0 | 10 个引擎目标 + 能力矩阵 + 便携 exe | — | 每个引擎有 L4 证据；不达标的明确标 experimental |
 
 说明：

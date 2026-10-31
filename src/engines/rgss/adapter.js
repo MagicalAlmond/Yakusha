@@ -302,7 +302,7 @@ export const adapter = {
    * user never saw.
    *
    * @param {{ root: string }} project
-   * @returns {{ extract: () => object, dataFiles: number, delivery: { path: string, exists: boolean, mode: string, language: null, entries: number }, sourceLabel: string }}
+   * @returns {{ extract: () => object, dataFiles: number, delivery: { path: string, exists: boolean, mode: string, language: null, entries: number, intact: boolean, problems: string[] }, sourceLabel: string }}
    */
   diagnostics(project) {
     let extracted = null;
@@ -319,12 +319,18 @@ export const adapter = {
       // the number of strings without knowing which engine it is looking at.
       delivery: (() => {
         const state = nativeStatus(project);
+        const problems = [];
+        if (state.manifestError) problems.push(state.manifestError);
+        for (const name of state.missing) problems.push(name + " is missing");
+        for (const name of state.mismatched) problems.push(name + " has changed");
         return {
           path: state.dir,
           exists: state.installed,
           mode: "inject",
           language: null,
           entries: state.dictionaryEntries,
+          intact: state.intact,
+          problems,
         };
       })(),
       sourceLabel: "Data/",

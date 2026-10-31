@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-10-27
+
+### Added
+
+- Added an integrity check for an installed RGSS native layer: `nativeStatus()` now re-reads `manifest.json` and verifies the four component files plus the generated `dictionary.txt`. `doctor` reports a deleted or modified component as `install: fail` and `runtime: fail` with `verdict: broken` (exit 1), and `launch` refuses to start a damaged install with `E_IO` instead of falling back to an untranslated game. Running `install --native` again repairs the directory.
+
+### Unchanged
+
+- No breaking changes: the envelope, exit codes, command table, all 13 error codes and the dictionary format (`yakusha/1`) are unchanged. The check only changes what `doctor` and `launch` conclude about an already-damaged native directory.
+
 ## [0.20.0] - 2026-10-27
 
 ### Added
@@ -310,7 +320,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.20.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.21.0...HEAD
+[0.21.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.20.0...v0.21.0
 [0.20.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.17.0...v0.18.0

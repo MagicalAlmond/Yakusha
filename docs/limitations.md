@@ -37,7 +37,9 @@
 - 译文只覆盖 `load_data` 返回的 Ruby 对象可达的字符串（外加 `Vocab` 兜底）；
   脚本里写死的字面量不翻译。64 位 RGSS 不存在，工具链只构建 32 位。
 - 原生组件随 npm 包分发（`native/prebuilt/`），不从网络下载；`uninstall` 只删带我们
-  `manifest.json` 的目录，其它内容一律不动。
+  `manifest.json` 的目录，其它内容一律不动。0.21 起 `doctor` 与 `launch` 会按 `manifest.json`
+  复核组件是否被删或被改（坏安装报 `broken` / `E_IO`），但**不会自动修复**——修复手段仍是
+  再跑一次 `install --native`。
 - 只提取玩家可读的位置：事件指令 401 / 405 / 102 / 101 与数据库字段 320。
   Ruby 脚本（codeobj）不碰。
 - 归档（`.rgssad` / `.rgss2a` / `.rgss3a`）与散装 `Data/` 目录只读一边，不合并。

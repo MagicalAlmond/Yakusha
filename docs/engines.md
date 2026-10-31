@@ -1,11 +1,11 @@
-# 引擎适配器契约（0.20 契约）
+# 引擎适配器契约（0.21 契约）
 
-> **状态：0.20 覆盖五个引擎——RPG Maker MZ、RPG Maker MV、Ren'Py、RGSS（XP / VX / VX Ace）、Kirikiri。**
+> **状态：0.21 覆盖五个引擎——RPG Maker MZ、RPG Maker MV、Ren'Py、RGSS（XP / VX / VX Ace）、Kirikiri。**
 > 0.14 交付 GUI 外壳，0.15 加 JSONL 导入，0.16 起 `scan` 载荷带引擎能力位（GUI 据此灰显按钮），
 > 0.17 给字典条目加可选的引擎与位置溯源（`engine` / `locator`，`FORMAT` 不变），
 > 0.18 给 RGSS 接上原生注入器交付层（`runtime: "inject"`）：`install --native` 把四个
 > 原生组件与 `dictionary.txt` 写进 `yakusha/native/`，`launch` 经 `yakusha_injector.exe`
-> 启动游戏；0.19 把 `verify --kind` 的未知值从静默过滤改为 `E_USAGE`（命令层校验，adapter 契约不变）；0.20 只有 GUI 渲染层契约测试与扫描状态重置，adapter 契约不变；Kirikiri 的交付层仍未拍板（见 §7.8）。
+> 启动游戏；0.19 把 `verify --kind` 的未知值从静默过滤改为 `E_USAGE`（命令层校验，adapter 契约不变）；0.20 只有 GUI 渲染层契约测试与扫描状态重置，adapter 契约不变；0.21 让 `doctor` 与 `launch` 识别被删除或被改动的原生组件，adapter 契约不变；Kirikiri 的交付层仍未拍板（见 §7.8）。
 > 0.10 把 MZ 与 MV 包进统一的 adapter，**不搬文件、不重写算法**；0.11 用同一套
 > contract 接入 Ren'Py，作为第三个 adapter 挂在 registry 末位；0.12 接入 RGSS，排在
 > 第四位，只做到 L1–L3（detect / scan / extract），**没有交付层**；0.13 接入
@@ -176,7 +176,7 @@ Ren'Py 的 adapter 用同一个形状，但多两个字段、少一半 project �
   走原有分支。
 
 RGSS 同样用这个形状，带着 `dataUnit: "data files"` 与一个 `diagnostics()`
-（`src/engines/rgss/adapter.js:307-331`）：
+（`src/engines/rgss/adapter.js:307-338`）：
 
 ```js
 {
@@ -195,11 +195,14 @@ RGSS 同样用这个形状，带着 `dataUnit: "data files"` 与一个 `diagnost
   `src/engines/rgss/native.js`）。能力默认值仍是 `runtime: null`
   （`src/engines/adapter.js:53-64`），RGSS 现在显式覆盖成 `"inject"`。
 - `diagnostics()` 返回 `{extract, dataFiles, delivery, sourceLabel}`，其中
-  `sourceLabel` 是 `"Data/"`，`delivery` 是 `{path, exists, mode: "inject", language: null, entries}`：
-  `path` 是 `<game>/yakusha/native`，`exists` 看 `manifest.json` 与四个组件是否齐全，
-  `mode` 是 `"inject"`（doctor 靠它把安装提示换成 `--native` 那一句），`entries` 是
-  `dictionary.txt` 的行数，`language` 对 RGSS 恒为 `null`。`doctor` 直接用它报
-  `install` / `runtime` 两行（见 §7.7 末段）。
+  `sourceLabel` 是 `"Data/"`，`delivery` 是
+  `{path, exists, mode: "inject", language: null, entries, intact, problems}`：
+  `path` 是 `<game>/yakusha/native`，`exists` 只看 `manifest.json` 在不在（它是我方安装过的凭证；
+  组件齐全与否由 `intact` 回答），`intact` 表示 manifest 可读、四个组件与 `dictionary.txt` 都在且
+  哈希与 manifest 一致，`problems` 是给人看的问题列表（`<name> is missing` / `<name> has changed` /
+  manifest 错误原文），`entries` 是 `dictionary.txt` 的行数，`language` 对 RGSS 恒为 `null`。
+  `doctor` 直接用它报 `install` / `runtime` 两行（见 §7.7 末段）：`exists` 为真但 `intact` 为假时
+  报 `fail` 并给出修复命令。
 - `pluginDir` / `pluginsFile` / `indexPath` 全为 `null`，`version` 是字符串
   `"1"` / `"2"` / `"3"`（不是 MZ 那样的 `"1.7.0"`），读不到就是 `null`。
 
@@ -571,7 +574,7 @@ yakusha uninstall <game-dir>
 | `manifest.json` | 四个**组件**的 SHA-256 清单（`dictionary.txt` 不列入，它是按游戏生成的） |
 
 `manifest.json` 的形状是 `{"schema": 1, "files": {"<name>": "<sha256 hex>"}}`，只列四个
-组件文件。安装前 CLI 逐个比对大小与哈希；对不上就在写盘前失败（见下面的错误表）。
+组件文件。安装前 CLI 逐个比对存在性与 SHA-256 哈希；对不上就在写盘前失败（见下面的错误表）。
 
 `dictionary.txt` 一行一条译文：`base64(source)\tbase64(target)`，按 source 排序，空译文
 不写；base64 是标准字母表、带 padding，UTF-8 编码。行数就是 payload 里的
@@ -646,7 +649,14 @@ uninstall : yakusha uninstall "<abs>"
 `the injector loads yakusha/native when the game starts`（退出 0）。
 装之后 `install` 是 ok（`yakusha/native (written by install)`）、`runtime` 是 ok
 （`yakusha/native (<n> strings)`），没有别的警告时结论 `ready`。JSON 里
-`delivery` 就是 §3 那个 `{path, exists, mode: "inject", language: null, entries}`。
+`delivery` 就是 §3 那个 `{path, exists, mode: "inject", language: null, entries, intact, problems}`。
+
+**组件被删或被改。** `doctor` 不再把 `manifest.json` 的存在当成“装好了”：它按 manifest 重新校验
+四个组件与 `dictionary.txt`。缺文件或哈希不符时 `install` 检查是 `fail`，消息形如
+`yakusha/native is damaged: libunwind.dll is missing - run: yakusha install --native "<game>"`，
+`runtime` 同时记 `fail`，`verdict` 是 `broken`、退出 1。`launch` 也在启动前做同一检查，
+坏安装报 `E_IO` `the native components are damaged: ... - run: yakusha install --native "<abs>"`，
+**不会静默按未安装处理**去启动一个没有译文、甚至可能在加载 hook 时崩溃的游戏。
 
 **原理。** 只有 32 位 Windows。`yakusha_injector.exe` 用 `CreateProcessW` 的
 `CREATE_SUSPENDED` 启动 `Game.exe`，在目标进程里分配内存、写入 hook DLL 路径，
@@ -942,8 +952,8 @@ Ren'Py 专属（`test/renpy-adapter.test.js`，14 条）：
 - uninstall 只删那一个文件；install + uninstall 前后游戏脚本逐字节不变。
 - doctor 把交付的文件当成 install 与 runtime 两项来检查。
 
-RGSS 专属（`test/rgss-adapter.test.js` 21 条 + `test/rgss-cli.test.js` 16 条；其中原生注入器
-相关的是 adapter 侧 6 条、doctor 2 条、CLI 侧 6 条）：
+RGSS 专属（`test/rgss-adapter.test.js` 24 条 + `test/rgss-cli.test.js` 16 条；其中原生注入器
+相关的是 adapter 侧 9 条、doctor 2 条、CLI 侧 6 条）：
 
 - registry 里排第四、带自己的 profile、`runtime` 为 `inject`、`dataUnit` 为 `data files`、
   有 `diagnostics`（`test/rgss-adapter.test.js:67` 的 `the registry ships RGSS fourth, with its
@@ -971,6 +981,12 @@ RGSS 专属（`test/rgss-adapter.test.js` 21 条 + `test/rgss-cli.test.js` 16 �
   装之后 install 记 ok、runtime 记 ok 且 `entries` 是字典行数，verdict 是 `ready`
   （`doctor: before install the native layer reads as not installed` /
   `doctor: after install the native layer is the delivery the game uses`）；
+  删掉一个组件后 `delivery.exists` 仍为真、`intact` 为假且 `problems` 点名缺失文件；
+  改掉 hook DLL 后 doctor 是 `broken`、install 记 `fail`，再装一次可修复
+  （`native status: a deleted component is visible before the game is launched` /
+  `doctor: a tampered native component is broken, and install repairs it`）；
+  坏安装下 `launch` 抛 `E_IO` 而不是启动游戏
+  （`launch: a damaged native layer refuses to start instead of running untranslated`）；
   `diagnostics.dataFiles` 必须等于 scan 数出来的文档数
   （`doctor: diagnostics counts the documents the scan counts`）。
 - profile：`\C[n]` / `\N[n]` 这类转义码被 `grammar.controlCodes` 认出来，译文里的

@@ -200,12 +200,19 @@ export function diagnose(project, options = {}) {
     const deliveryPath = delivery.path || null;
     const present = Boolean(delivery.exists);
     const relPath = deliveryPath && project.root ? path.relative(project.root, deliveryPath).split(path.sep).join("/") : deliveryPath;
-    installCheck = present
+    const damaged = present && delivery.intact === false;
+    installCheck = damaged
+      ? add(
+          "install",
+          "fail",
+          relPath + " is damaged" + (delivery.problems && delivery.problems.length ? ": " + delivery.problems.join(", ") : "") + " - run: yakusha install --native \"<game>\""
+        )
+      : present
       ? add("install", "ok", relPath + " (written by install)")
       : add("install", "info", delivery.mode === "inject"
           ? "not installed - run: yakusha install --native \"<game>\""
           : "not installed - run: yakusha install <game>");
-    if (present) {
+    if (present && !damaged) {
       const language = delivery.language || null;
       runtime = { embedded: false, entries: delivery.entries || 0, path: relPath, found: deliveryPath };
       add(
@@ -213,6 +220,9 @@ export function diagnose(project, options = {}) {
         "ok",
         relPath + " (" + (delivery.entries || 0) + " string" + ((delivery.entries || 0) === 1 ? "" : "s") + (language ? ", language " + language : "") + ")"
       );
+    } else if (damaged) {
+      runtime = { embedded: false, entries: delivery.entries || 0, path: relPath, found: deliveryPath };
+      add("runtime", "fail", "the injector cannot start until the native components are repaired");
     } else {
       runtime = { embedded: false, entries: 0, path: relPath, found: null };
       add("runtime", "info", delivery.mode === "inject"

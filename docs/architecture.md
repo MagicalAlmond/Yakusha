@@ -139,7 +139,8 @@ hook 改的是 `kernel32!GetProcAddress` 的 IAT 槽，借此在 `RGSSGameMain` 
 包一层 `load_data`，把数据文档返回的 Ruby 对象里可达的字符串（深度 64）替换成译文，
 `Vocab` 兜底；日志写在 `yakusha/native/rgss-hook.log`。原生源码在 `native/rgss-hook/`
 （Rust cdylib）与 `native/injector/`（Rust bin），`native/build.mjs` 构建，`native/prebuilt/`
-随 npm 包分发。
+随 npm 包分发。0.21 起 `doctor` 与 `launch` 会按 `manifest.json` 复核这六个文件：组件被删或
+被改时 `doctor` 报 `broken`、`launch` 在启动前报 `E_IO`，不会把坏安装当成没装。
 
 ## 5. 文本通道：各档投递吃同一份数据
 
@@ -261,6 +262,7 @@ test/fixtures/           各引擎最小夹具（mini-mz、mini-mv、renpy-*、r
 | 0.18.0 | **已交付**：RGSS 原生注入器交付层——`install --native` 把四个原生组件、`dictionary.txt` 与 SHA-256 `manifest.json` 装进 `yakusha/native/`，`launch` 经 `yakusha_injector.exe` 启动，`uninstall` 删目录；游戏文件不改 | 677 pass / 0 fail（新增 7 条）；一款 VX Ace 商业游戏真机验收；无签名 |
 | 0.19.0 | **已交付**：`verify --kind` 严格校验——未知 kind 报 `E_USAGE` / 退出 2，合法值单一真源为 `src/pipeline/verify.js` 的 `VERIFY_KINDS`；合法列表与空 `--kind` 行为不变 | 678 pass / 0 fail（新增 1 条 CLI 用例） |
 | 0.20.0 | **已交付**：GUI 渲染层契约测试与扫描状态重置——`test/gui-renderer.test.js` 用 stub DOM 覆盖扫描成功/能力灰显/多项目提示/字典编辑/密钥输入 7 条；新扫描开始时清空上一引擎的能力位，失败扫描后不会再带 `--native` | 685 pass / 0 fail（51 个测试文件） |
+| 0.21.0 | **已交付**：RGSS 原生组件完整性检查——`nativeStatus()` 按 `manifest.json` 复核四个组件与 `dictionary.txt`；`doctor` 对损坏安装记 `install fail` / `runtime fail`、`verdict: broken`，`launch` 启动前报 `E_IO`，重装可修复 | 688 pass / 0 fail（新增 3 条 adapter 用例） |
 | 1.0.0 | 10 个引擎 + 能力矩阵 + 便携 exe（图标、无控制台、最近游戏） | 双击 exe 可用 |
 
 ## 10. 风险

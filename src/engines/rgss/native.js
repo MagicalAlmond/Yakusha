@@ -156,6 +156,52 @@ export function verifyAssets(dir) {
 }
 
 /**
+ * Check an installed native directory against the manifest that install wrote.
+ *
+ * This is the read-only twin of `installNative`: install verifies the packaged
+ * assets before copying them, while this checks what is actually next to the
+ * game. A damaged install must not be mistaken for a working one: the game
+ * would start without translation, or crash while loading the hook.
+ *
+ * @param {{ root: string }} project
+ * @returns {{ dir: string, installed: boolean, intact: boolean, files: string[], missing: string[], mismatched: string[], manifestError: string | null, dictionaryEntries: number }}
+ */
+export function nativeStatus(project) {
+  const dir = nativeDir(project);
+  const manifestFile = path.join(dir, MANIFEST_FILE);
+  const installed = fs.existsSync(manifestFile);
+  const missing = [];
+  const mismatched = [];
+  let manifestError = null;
+  if (installed) {
+    try {
+      const manifest = readManifest(dir);
+      for (const [name, digest] of Object.entries(manifest.files)) {
+        const file = path.join(dir, name);
+        if (!fs.existsSync(file)) missing.push(name);
+        else if (hashFile(file) !== digest) mismatched.push(name);
+      }
+    } catch (error) {
+      manifestError = error && error.message ? error.message : "native component manifest is unreadable";
+    }
+  }
+  const dictionary = path.join(dir, DICTIONARY_FILE);
+  if (installed && !fs.existsSync(dictionary)) missing.push(DICTIONARY_FILE);
+  const files = COMPONENT_FILES.filter((name) => fs.existsSync(path.join(dir, name)));
+  const intact = installed && manifestError === null && missing.length === 0 && mismatched.length === 0;
+  return {
+    dir,
+    installed,
+    intact,
+    files,
+    missing,
+    mismatched,
+    manifestError,
+    dictionaryEntries: countDictionaryLines(dictionary),
+  };
+}
+
+/**
  * Turn the project dictionary into the line format bootstrap.rb reads.
  *
  * Only entries with a non-empty translation are written. The order is the
@@ -193,26 +239,6 @@ function countDictionaryLines(file) {
     if (line.length > 0 && line.includes("\t")) count += 1;
   }
   return count;
-}
-
-/**
- * What install --native would do, and what it did.
- *
- * @param {{ root: string }} project
- * @returns {{ dir: string, installed: boolean, files: string[], dictionaryEntries: number }}
- */
-export function nativeStatus(project) {
-  const dir = nativeDir(project);
-  const manifest = path.join(dir, MANIFEST_FILE);
-  const installed =
-    fs.existsSync(manifest) &&
-    COMPONENT_FILES.every((name) => fs.existsSync(path.join(dir, name)));
-  return {
-    dir,
-    installed,
-    files: installed ? COMPONENT_FILES.slice() : [],
-    dictionaryEntries: countDictionaryLines(path.join(dir, DICTIONARY_FILE)),
-  };
 }
 
 /**
@@ -300,6 +326,15 @@ export async function launchNative(project, options = {}) {
   const status = nativeStatus(project);
   if (!status.installed) {
     throw coded("E_EXE", "the native components are not installed - run: yakusha install --native \"" + project.root + "\"");
+  }
+  if (!status.intact) {
+    const problems = status.manifestError
+      ? [status.manifestError]
+      : status.missing.concat(status.mismatched);
+    throw coded(
+      "E_IO",
+      "the native components are damaged: " + (problems.join(", ") || "unknown damage") + " - run: yakusha install --native \"" + project.root + "\""
+    );
   }
   const exePath = selectExecutable(project.root, options.exe);
   const injector = path.join(status.dir, INJECTOR_FILE);

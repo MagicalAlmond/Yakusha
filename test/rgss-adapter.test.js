@@ -61,6 +61,22 @@ function translateAll(project, adapter) {
   saveDictionary(file, dictionary);
 }
 
+/** Run doctor with the engine inputs the adapter owns. */
+function diagnoseOwn(project, adapter) {
+  const own = adapter.diagnostics(project);
+  return diagnose(project, {
+    dictionary: loadDictionary(dictionaryPath(project.root)),
+    dictionaryFile: dictionaryPath(project.root),
+    maxColumns: 0,
+    engineLabel: adapter.name,
+    profile: adapter.profile,
+    extract: own.extract,
+    dataFiles: own.dataFiles,
+    sourceLabel: own.sourceLabel,
+    delivery: own.delivery,
+  });
+}
+
 after(() => {
   for (const dir of created) fs.rmSync(dir, { recursive: true, force: true });
 });
@@ -391,6 +407,53 @@ test("doctor: after install the native layer is the delivery the game uses", () 
   assert.match(result.checks.find((check) => check.id === "runtime").message, /29 strings/);
 });
 
+test("native status: a deleted component is visible before the game is launched", () => {
+  const { root, project, adapter } = projectFor();
+  translateAll(project, adapter);
+  const assets = nativeAssets();
+  adapter.installRuntime(project, { native: true, assetsDir: assets.dir });
+  fs.rmSync(path.join(root, "yakusha", "native", "libunwind.dll"));
+  const delivery = adapter.diagnostics(project).delivery;
+  assert.equal(delivery.exists, true, "the manifest still marks the layer as installed");
+  assert.equal(delivery.intact, false);
+  assert.ok(delivery.problems.some((problem) => /libunwind\.dll is missing/.test(problem)), delivery.problems.join(", "));
+});
+
+test("doctor: a tampered native component is broken, and install repairs it", () => {
+  const { root, project, adapter } = projectFor();
+  translateAll(project, adapter);
+  const assets = nativeAssets();
+  adapter.installRuntime(project, { native: true, assetsDir: assets.dir });
+  fs.appendFileSync(path.join(root, "yakusha", "native", "yakusha_rgss_hook.dll"), "tampered");
+  const result = diagnoseOwn(project, adapter);
+  assert.equal(result.ok, false);
+  assert.equal(result.verdict, "broken");
+  const installCheck = result.checks.find((check) => check.id === "install");
+  assert.equal(installCheck.level, "fail");
+  assert.match(installCheck.message, /is damaged: yakusha_rgss_hook\.dll has changed/);
+  assert.match(installCheck.message, /- run: yakusha install --native "<game>"$/);
+  assert.equal(result.checks.find((check) => check.id === "runtime").level, "fail");
+  // Reinstalling from intact assets is the repair path the message names.
+  adapter.installRuntime(project, { native: true, assetsDir: assets.dir });
+  assert.equal(adapter.diagnostics(project).delivery.intact, true);
+});
+
+test("launch: a damaged native layer refuses to start instead of running untranslated", async () => {
+  const { root, project, adapter } = projectFor();
+  translateAll(project, adapter);
+  const assets = nativeAssets();
+  adapter.installRuntime(project, { native: true, assetsDir: assets.dir });
+  fs.rmSync(path.join(root, "yakusha", "native", "libunwind.dll"));
+  await assert.rejects(
+    () => adapter.launch(project),
+    (error) => {
+      assert.equal(error.code, "E_IO");
+      assert.match(error.message, /the native components are damaged: libunwind\.dll/);
+      assert.match(error.message, /- run: yakusha install --native/);
+      return true;
+    }
+  );
+});
 test("doctor: diagnostics counts the documents the scan counts", () => {
   const { root, project, adapter } = projectFor();
   const before = adapter.scan(project).dataFiles;
