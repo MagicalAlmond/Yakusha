@@ -6,7 +6,8 @@
 > 0.16 给 `scan` 载荷追加了 `capabilities` 能力位对象（新增字段，脚本按 §1 忽略不认识的键）；
 > 0.17 给字典条目加了可选的 `engine` / `locator`；0.18 给 RGSS 加了原生注入器交付
 > （`install --native` / `uninstall` 的 `native` 子对象与 `runtime: "inject"`）；0.19 把
-> `verify --kind` 的未知值从静默过滤改为 `E_USAGE`（输入校验，信封与载荷不变）。
+> `verify --kind` 的未知值从静默过滤改为 `E_USAGE`（输入校验，信封与载荷不变）；0.20 只修
+> GUI 渲染层的扫描状态，JSON 契约没有变化。
 > 这些都是只增不改：不新增保留键约束、不改字段类型、已有载荷键一个没动。
 > 本文冻结的形状自 0.10 起不再变化，实际输出以 [commands.md](commands.md) 为准。
 
@@ -339,6 +340,8 @@ pending decisions in docs/dev/DEVLOG.md` 都是新文案，脚本不应依赖 `m
 变化只在输入校验：`verify --kind` 的未知值从静默过滤改为 `E_USAGE` / 退出 2，错误消息形如
 `unknown verify kind: bogus (expected one of: kana, echo, codes, slots, lines, width, no-text, trad, speaker, rejected)`；
 合法的 `--kind` 列表与空 `--kind` 的输出不变。
+
+**0.20 没有契约变化。** 这一版只修 GUI 渲染层的扫描状态并补它的 stub-DOM 契约测试；信封、退出码、命令表、错误码与所有载荷键都不变。
 
 ## 9. 实现落点
 

@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-10-27
+
+### Added
+
+- Added a dependency-free contract test for the GUI renderer (`test/gui-renderer.test.js`): it loads `gui/renderer/renderer.js` into a stub DOM and covers the successful scan view, capability-driven button state, the multi-root hint, the stale-state reset, the dictionary editor and the key input clearing.
+
+### Fixed
+
+- The GUI now resets the previous engine's capability state when a new scan starts. Before this fix, a successful RGSS scan followed by a failed scan left install/uninstall/launch enabled with the old engine's flags, and a later install could pass `--native` to an engine that does not support it. The renderer resets `lastEngine`, hides the engine badge and disables those three buttons at scan start; the runner and CLI were unaffected.
+
+### Unchanged
+
+- No breaking changes: the envelope, exit codes, command table, all 13 error codes and the dictionary format (`yakusha/1`) are unchanged. The fix is renderer-only.
+
 ## [0.19.0] - 2026-10-27
 
 ### Fixed
@@ -296,7 +310,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.19.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.20.0...HEAD
+[0.20.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.16.0...v0.17.0

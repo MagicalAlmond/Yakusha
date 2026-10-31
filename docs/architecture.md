@@ -260,6 +260,7 @@ test/fixtures/           各引擎最小夹具（mini-mz、mini-mv、renpy-*、r
 | 0.17.0 | **已交付**：字典溯源字段——条目可选 `engine`（来源引擎）与 `locator`（精确位置，`<file>#<JSON Pointer>`）；`FORMAT` 仍 `yakusha/1`，旧字典照读；rich JSON 导出/导入携带，TSV/CSV 仍三列 | 670 pass / 0 fail（新增 13 条） |
 | 0.18.0 | **已交付**：RGSS 原生注入器交付层——`install --native` 把四个原生组件、`dictionary.txt` 与 SHA-256 `manifest.json` 装进 `yakusha/native/`，`launch` 经 `yakusha_injector.exe` 启动，`uninstall` 删目录；游戏文件不改 | 677 pass / 0 fail（新增 7 条）；一款 VX Ace 商业游戏真机验收；无签名 |
 | 0.19.0 | **已交付**：`verify --kind` 严格校验——未知 kind 报 `E_USAGE` / 退出 2，合法值单一真源为 `src/pipeline/verify.js` 的 `VERIFY_KINDS`；合法列表与空 `--kind` 行为不变 | 678 pass / 0 fail（新增 1 条 CLI 用例） |
+| 0.20.0 | **已交付**：GUI 渲染层契约测试与扫描状态重置——`test/gui-renderer.test.js` 用 stub DOM 覆盖扫描成功/能力灰显/多项目提示/字典编辑/密钥输入 7 条；新扫描开始时清空上一引擎的能力位，失败扫描后不会再带 `--native` | 685 pass / 0 fail（51 个测试文件） |
 | 1.0.0 | 10 个引擎 + 能力矩阵 + 便携 exe（图标、无控制台、最近游戏） | 双击 exe 可用 |
 
 ## 10. 风险

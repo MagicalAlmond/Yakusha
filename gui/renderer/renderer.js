@@ -20,6 +20,20 @@ function setProjectLine(text) {
 
 async function run(command, args, flags) {
   const runId = ++runSeq;
+  if (command === "scan") {
+    // A scan starts a new project view. Do not let the previous engine's
+    // capabilities keep install/uninstall/launch enabled while this scan is
+    // running or after it fails.
+    lastEngine = null;
+    const badge = $("engine-badge");
+    if (badge) badge.hidden = true;
+    const installBtn = document.querySelector('button[data-cmd="install"]');
+    const uninstallBtn = document.querySelector('button[data-cmd="uninstall"]');
+    const launchBtn = $("launch-run");
+    if (installBtn) { installBtn.disabled = true; installBtn.title = "scan a project first"; }
+    if (uninstallBtn) { uninstallBtn.disabled = true; uninstallBtn.title = "scan a project first"; }
+    if (launchBtn) { launchBtn.disabled = true; launchBtn.title = "scan a project first"; }
+  }
   if (command === "translate") $("cancel").disabled = false;
   const useStoredKey = command === "translate" && $("key-use").checked;
   const envelope = await window.yakusha.run(command, args || (currentDir ? [currentDir] : []), flags, runId, useStoredKey);
