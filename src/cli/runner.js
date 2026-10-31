@@ -24,7 +24,7 @@ import { diagnose } from "../core/doctor.js";
 import { detectProject } from "../engines/registry.js";
 import { createProvider } from "../pipeline/provider.js";
 import { translateDictionary } from "../pipeline/translate.js";
-import { verifyDictionary } from "../pipeline/verify.js";
+import { VERIFY_KINDS, verifyDictionary } from "../pipeline/verify.js";
 import { buildReport, namesNeedingInput } from "../pipeline/report.js";
 import { repairSpeakerNames } from "../pipeline/speaker.js";
 import { mineTerms, toGlossary } from "../pipeline/terms.js";
@@ -242,6 +242,15 @@ async function commandVerify(dir, flags, sink) {
   const { file, data } = requireDictionary(project);
   const maxColumns = numberFlag(flags, "max-length", 0);
   const kinds = typeof flags.kind === "string" ? flags.kind.split(",").map((k) => k.trim()).filter(Boolean) : undefined;
+  if (kinds && kinds.length > 0) {
+    const unknown = kinds.filter((kind) => !VERIFY_KINDS.includes(kind));
+    if (unknown.length > 0) {
+      throw new CliError(
+        "E_USAGE",
+        "unknown verify kind: " + unknown.join(", ") + " (expected one of: " + VERIFY_KINDS.join(", ") + ")"
+      );
+    }
+  }
   const result = verifyDictionary(data, { maxColumns, kinds, profile: adapter.profile });
   const shown = numberFlag(flags, "limit", 20);
   // An error makes the command fail, so a release script can gate on it

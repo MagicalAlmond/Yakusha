@@ -259,6 +259,7 @@ test/fixtures/           各引擎最小夹具（mini-mz、mini-mv、renpy-*、r
 | 0.16.0 | **已交付**：GUI 按引擎能力位灰显按钮——`scan` 载荷带 `capabilities`（只增不改），没有交付层的引擎（RGSS、Kirikiri）install/uninstall 置灰并写明原因；GUI handler 缝的 E2E 测试把三条交付档链路各走通 | 652 → 655 pass / 0 fail（0.16 内的 Kirikiri 真机修正后全量 657）；无窗口环境可验项全验，真机窗口走查顺延 |
 | 0.17.0 | **已交付**：字典溯源字段——条目可选 `engine`（来源引擎）与 `locator`（精确位置，`<file>#<JSON Pointer>`）；`FORMAT` 仍 `yakusha/1`，旧字典照读；rich JSON 导出/导入携带，TSV/CSV 仍三列 | 670 pass / 0 fail（新增 13 条） |
 | 0.18.0 | **已交付**：RGSS 原生注入器交付层——`install --native` 把四个原生组件、`dictionary.txt` 与 SHA-256 `manifest.json` 装进 `yakusha/native/`，`launch` 经 `yakusha_injector.exe` 启动，`uninstall` 删目录；游戏文件不改 | 677 pass / 0 fail（新增 7 条）；一款 VX Ace 商业游戏真机验收；无签名 |
+| 0.19.0 | **已交付**：`verify --kind` 严格校验——未知 kind 报 `E_USAGE` / 退出 2，合法值单一真源为 `src/pipeline/verify.js` 的 `VERIFY_KINDS`；合法列表与空 `--kind` 行为不变 | 678 pass / 0 fail（新增 1 条 CLI 用例） |
 | 1.0.0 | 10 个引擎 + 能力矩阵 + 便携 exe（图标、无控制台、最近游戏） | 双击 exe 可用 |
 
 ## 10. 风险

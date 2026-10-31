@@ -53,6 +53,28 @@ const TRADITIONAL = (() => {
 })();
 
 /**
+ * Every problem kind verify can report, in the order they are defined below.
+ *
+ * The CLI uses this list to reject a misspelt `--kind` instead of silently
+ * filtering it to an empty report. Keep this array as the single source of
+ * truth for both validation and the help text.
+ *
+ * @type {readonly string[]}
+ */
+export const VERIFY_KINDS = Object.freeze([
+  "kana",
+  "echo",
+  "codes",
+  "slots",
+  "lines",
+  "width",
+  "no-text",
+  "trad",
+  "speaker",
+  "rejected",
+]);
+
+/**
  * @typedef {object} Problem
  * @property {"kana"|"echo"|"codes"|"slots"|"lines"|"width"|"no-text"|"trad"|"speaker"|"rejected"} kind
  * @property {"error"|"warn"} severity

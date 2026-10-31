@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-10-27
+
+### Fixed
+
+- `verify --kind` now rejects a misspelt problem kind with `E_USAGE` and exit code 2 instead of silently filtering the report to `counts: {}` / `outcome: ok`. The accepted names are `kana`, `echo`, `codes`, `slots`, `lines`, `width`, `no-text`, `trad`, `speaker` and `rejected`; the message names the unknown values and lists the accepted set. Valid `--kind` lists and an empty `--kind` behave as before.
+
+### Unchanged
+
+- No breaking changes to valid invocations: the envelope, exit codes, command table, all 13 error codes and the dictionary format (`yakusha/1`) are unchanged. Only an invalid `--kind` value changes behaviour.
+
 ## [0.18.0] - 2026-10-27
 
 ### Added
@@ -286,7 +296,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.18.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.19.0...HEAD
+[0.19.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.15.0...v0.16.0

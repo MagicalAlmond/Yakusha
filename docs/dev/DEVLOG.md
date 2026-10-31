@@ -1,7 +1,7 @@
 # 开发交接文档（DEVLOG）
 
 > 这份文档记录**阶段目标、已完成项、决策理由和下一步**，随开发进程更新。
-> 最后更新：2026-10-27（0.18.0 RGSS 原生注入器交付层：`install --native`，已提交于 `feat/0.18-rgss-native`；0.17 字典溯源字段在 `feat/0.17-dictionary-provenance`；0.15 通用内容导入 v1 在 `feat/0.15-generic-import`；0.14.0 GUI 在 `feat/0.14-gui`；均未合入 `main`、未打 tag）。
+> 最后更新：2026-10-27（0.19.0 `verify --kind` 严格校验：未知 kind 报 `E_USAGE`；0.18.0 RGSS 原生注入器交付层在 `feat/0.18-rgss-native`；0.17 字典溯源字段在 `feat/0.17-dictionary-provenance`；0.15 通用内容导入 v1 在 `feat/0.15-generic-import`；0.14.0 GUI 在 `feat/0.14-gui`；均未合入 `main`、未打 tag）。
 > 0.9.0 项目改名 **Yakusha**，字典目录、插件文件、环境变量与备份后缀全部随之改名；
 > 仓库已发布到 https://github.com/MagicalAlmond/Yakusha（`main` 分支）。
 > 0.8.0 的 `doctor`、0.7.1 的 `uninstall` 漂移保护、0.7.0 的报告/模板见下）。
@@ -36,9 +36,9 @@
 
 | 项 | 状态 |
 | --- | --- |
-| 版本 | **0.18.0**（`package.json` 单一真源，`src/version.js` 读取它；插件模板的 `VERSION` 由安装器替换） |
-| 契约 | 0.10 的五篇设计稿（json-contract / config / engines / export-format / platforms）已冻结并全部实现；0.11 只有 `engines.md` 真正扩了内容（三个引擎、新增 §13.2 Ren'Py），`json-contract.md` 与 `platforms.md` 补了「0.11 复查后不变」的复核标注。0.12 继续扩 `engines.md`（四个引擎、新增 §13.3 RGSS 与 §7.7 的 pending 交付），`json-contract.md` 补 RGSS 的语义澄清（`E_NOT_IMPLEMENTED` 有了 CLI 入口、`install`/`uninstall`/`doctor` 的按引擎差异）；信封与字段类型仍未动，`platforms.md` / `config.md` / `export-format.md` 未动。0.13 扩 `engines.md`（五个引擎、新增 §13.4 Kirikiri），`export-format.md` 补 TSV/CSV 表格与 `import` 命令；JSON 信封（flat one-line object、退出码 0/1/2、13 个错误码）未动。0.17 给字典条目加可选 `engine` / `locator` 溯源字段（`FORMAT` 仍是 `yakusha/1`），rich JSON 导出与导入带、表格不带，信封与错误码未动。0.18 给 RGSS 增加原生注入器交付层（`install --native` / `uninstall` / `doctor` 的 delivery 检查 / `scan` 的 `runtime: "inject"`），文档侧 `engines.md`、`commands.md` 按 0.18 补契约；信封、退出码与 13 个错误码未动 |
-| 测试 | **677 个，全绿**（`npm test`，50 个测试文件，约 12s；0.18 新增/改写 RGSS native 与 doctor 用例，净增 7 条——旧的 pending 交付测试被替换；0.14–0.17 的累计增量见历史） |
+| 版本 | **0.19.0**（`package.json` 单一真源，`src/version.js` 读取它；插件模板的 `VERSION` 由安装器替换） |
+| 契约 | 0.10 的五篇设计稿（json-contract / config / engines / export-format / platforms）已冻结并全部实现；0.11 只有 `engines.md` 真正扩了内容（三个引擎、新增 §13.2 Ren'Py），`json-contract.md` 与 `platforms.md` 补了「0.11 复查后不变」的复核标注。0.12 继续扩 `engines.md`（四个引擎、新增 §13.3 RGSS 与 §7.7 的 pending 交付），`json-contract.md` 补 RGSS 的语义澄清（`E_NOT_IMPLEMENTED` 有了 CLI 入口、`install`/`uninstall`/`doctor` 的按引擎差异）；信封与字段类型仍未动，`platforms.md` / `config.md` / `export-format.md` 未动。0.13 扩 `engines.md`（五个引擎、新增 §13.4 Kirikiri），`export-format.md` 补 TSV/CSV 表格与 `import` 命令；JSON 信封（flat one-line object、退出码 0/1/2、13 个错误码）未动。0.17 给字典条目加可选 `engine` / `locator` 溯源字段（`FORMAT` 仍是 `yakusha/1`），rich JSON 导出与导入带、表格不带，信封与错误码未动。0.18 给 RGSS 增加原生注入器交付层（`install --native` / `uninstall` / `doctor` 的 delivery 检查 / `scan` 的 `runtime: "inject"`），文档侧 `engines.md`、`commands.md` 按 0.18 补契约；信封、退出码与 13 个错误码未动；0.19 把 `verify --kind` 的未知值从静默过滤改为 `E_USAGE`（合法命令与信封不变） |
+| 测试 | **678 个，全绿**（`npm test`，50 个测试文件，约 10s；0.19 新增 1 条 `verify --kind` 未知值用例；0.18 新增/改写 RGSS native 与 doctor 用例，净增 7 条——旧的 pending 交付测试被替换；0.14–0.17 的累计增量见历史） |
 | 持续集成 | GitHub Actions：`npm test` 在 Node 22 / 24（**windows-latest**，WP1 已从 ubuntu 切换） |
 | 平台 | Windows 10/11 x64 为唯一支持与验收环境（0.10 明确，见 [platforms.md](../platforms.md)） |
 | 支持引擎 | RPG Maker **MZ 1.3.2–1.9.0**、**MV 1.6.1–1.6.2**；**Ren'Py 8.x 脚本**（`.rpy` 明文 + `.rpyc` 编译）；**RGSS（XP / VX / VX Ace）**从 0.18 起有 **inject 交付层**（`install --native`，原生注入器，不改游戏文件）；**Kirikiri（KAG / XP3）** 仍只到 L1–L3（识别 / 盘点 / 抽取 / 翻译 / 校验 / 导出），**没有交付层**（§6） |
@@ -341,6 +341,13 @@
 - [x] 测试：`rgss-adapter` 17→21、`rgss-cli` 13→16、`gui-e2e` 的 RGSS 走查重写、`engine-contract` 冻结 `runtime: "inject"`；合计 **677 个，全绿**（50 个文件，约 12s）。
 - [x] 明确不做：XP/VX（RGSS1/RGSS2）未测；注入器与 DLL 不签名；脚本字面量不翻；不改游戏文件、不写注册表、不装服务。
 
+### L 阶段（0.19.0，已完成）
+
+- [x] 修掉一个静默错误：`verify --kind` 之前把未知 kind 当作过滤条件，拼错一个名字会得到 `counts: {}` / `problems: []` / `outcome: ok`（`docs/commands.md` 曾如实写明这一行为）。现在 `commandVerify` 在调用 `verifyDictionary` 前用 `VERIFY_KINDS` 白名单校验，未知值报 `E_USAGE`、退出 2，消息列出未知值与全部合法值。
+- [x] 单一真源：合法 kind 列表从 `src/pipeline/verify.js` 的 `VERIFY_KINDS` 导出（`kana` / `echo` / `codes` / `slots` / `lines` / `width` / `no-text` / `trad` / `speaker` / `rejected`），`commandVerify` 只引用这一份；`--help` 与 `docs/commands.md` 同步注明未知名字会被拒绝。
+- [x] 测试：`test/cli.test.js` 新增一条（`verify --kind bogus` 的 JSON 信封 `E_USAGE` / 退出 2 / 消息断言）；合法 `--kind kana`、`--kind=echo` 与空 `--kind` 的既有行为不变。合计 **678 个，全绿**（50 个文件，约 10s）。
+- [x] 明确不做：不改变 `verifyDictionary` 库 API 的过滤语义（库调用者传未知 kind 仍只是过滤），本次只把 CLI 输入校验放在命令层。
+
 ## 4. 文件地图
 
 ```
@@ -408,7 +415,7 @@ native/build.mjs          原生组件构建（i686-pc-windows-gnullvm → nativ
 native/rgss-hook/         Rust cdylib：IAT 补 GetProcAddress、包装 RGSSGameMain、执行 bootstrap.rb
 native/injector/          Rust bin：CreateProcessW(CREATE_SUSPENDED) → CreateRemoteThread(LoadLibraryW)
 native/prebuilt/          预编译四件套（gitignore，CI/本地构建；随 npm 包发布）
-test/                     677 个测试（含 CLI 端到端、0.10 信封契约、配置/前置、引擎/启动契约、
+test/                     678 个测试（含 CLI 端到端、0.10 信封契约、配置/前置、引擎/启动契约、
                           五个引擎的适配器契约、Ren'Py 的 .rpy/.rpyc 抽取、RGSS 的
                           Marshal / 归档 / 数据文档抽取与 native 交付层、Kirikiri 的 XP3 / KS 抽取）
 docs/design.md            为什么走运行时钩子、文本面覆盖、转义码、设计约束、作为库用
@@ -1080,9 +1087,8 @@ RangeError），全量 657 绿。
    契约（新增 §13.2 Ren'Py）。实测见 §6。
 7. 可选：给 `translate` 的 glossary 加条数上限（按请求过滤后已经省了 90%+，
    但词表上万条时仍会让每请求的过滤变慢，届时值得加）。
-8. 可选（0.10.x）：`verify --kind` 目前不校验取值，写错名字静默过滤成 `counts: {}` /
-   `outcome: ok`（`docs/commands.md` 已如实写明）。要么补白名单校验报 `E_USAGE`，
-   要么维持"过滤而非校验"的语义；属于行为变更 + 加测试，不在 WP6 文档包里顺手改。
+8. ~~可选（0.10.x）：`verify --kind` 不校验取值~~ —— **0.19.0 已完成**：未知 kind 报 `E_USAGE` / 退出 2，
+   白名单单一真源是 `src/pipeline/verify.js` 的 `VERIFY_KINDS`；合法列表与空 `--kind` 行为不变。
 9. ~~给 `verify` 加 `--write-report <file>`，并把 `speaker` 的 `--names` 模板一起生成~~
    —— **0.7.0 已完成**（`--write-report` / `--write-names`，见第 3 节与第 6 节）。
 10. 可选：把运行时取证脚本（CDP 解冻 / readPixels 回读 / 冻结后原子渲染）整理成
@@ -1363,6 +1369,7 @@ node bin/yakusha.js install "<mz-game>" --native
   失败」，实际退出码一直是 0，因为测试只断言了 stdout 里的 `result : FAILED`。
   凡是文档里写出「会失败 / 会写盘 / 会退出」的句子，都该有一条断言；`verify --write-report` 的
   「失败时也写」同理，是专门为它加的一条 CLI 测试。
+- **静默过滤的参数会把拼写错误变成空报告**：`verify --kind bogus` 曾经返回 `counts: {}` / `outcome: ok`，发布脚本会把它当成「没有质量问题」；0.19 改成白名单校验（`E_USAGE` / 退出 2）。凡是「过滤」型选项，先问一句：值域写错时应该报错还是静默？涉及门禁的命令，默认应该是报错。
 - **备份 ≠ 撤销**：回滚一个文件前，先验证「除了我改的那部分，它还是当时的样子」。`uninstall` 的
   第一版无条件用备份覆盖，等于把「装好之后所有别的改动」当作不存在——这类 bug 在测试里
   看不出来，因为测试只走「装完立刻卸」这一条最干净的路。补的测试专门在中间插一次

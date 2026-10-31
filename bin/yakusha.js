@@ -68,7 +68,7 @@ const USAGE = [
   "  --overwrite         let --glossary replace entries that are already translated",
   "",
   "verify options:",
-  "  --kind <list>       only report these kinds, comma separated",
+  "  --kind <list>       only report these kinds, comma separated (unknown names are rejected)",
   "                      (kana, echo, codes, slots, lines, width, no-text, trad, speaker, rejected)",
   "  --max-length <cols> also report lines wider than n display columns",
   "  --limit <n>         how many problems to print (default 20)",

@@ -295,6 +295,22 @@ test("cli: verify --kind limits the report to one kind", () => {
   assert.deepEqual(echo.counts, { echo: 1 });
 });
 
+test("cli: verify rejects an unknown --kind instead of filtering it away", () => {
+  const game = tempGame();
+  assert.equal(run(["extract", game]).code, 0);
+  const result = run(["verify", game, "--kind", "bogus", "--json"]);
+  assert.equal(result.code, 2);
+  const body = JSON.parse(result.stdout);
+  assert.equal(body.ok, false);
+  assert.equal(body.outcome, "error");
+  assert.equal(body.error.code, "E_USAGE");
+  assert.match(body.error.message, /unknown verify kind: bogus/);
+  assert.match(
+    body.error.message,
+    /expected one of: kana, echo, codes, slots, lines, width, no-text, trad, speaker, rejected/
+  );
+});
+
 test("cli: verify needs a dictionary first", () => {
   const game = tempGame();
   const result = run(["verify", game]);

@@ -1,6 +1,6 @@
 # 命令参考
 
-本文是 yakusha 0.18.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出。
+本文是 yakusha 0.19.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出。
 
 **RGSS 在 0.18 起有了交付层。** `scan` / `extract` / `status` / `translate` / `verify` / `speaker` / `terms` / `export` / `import` 都能用；0.18 新增 `install --native`，把预编译的注入器与 hook DLL 装进 `yakusha/native/`，游戏启动时由注入器加载，译文从 `dictionary.txt` 读。`install` 不带 `--native` 仍报 `E_USAGE`（RGSS 没有插件交付层）。安装细节与限制见下文 [install 与 uninstall](#install-与-uninstall)。
 
@@ -72,7 +72,7 @@
 ### verify
 
 ```text
---kind <list>       only report these kinds, comma separated
+--kind <list>       only report these kinds, comma separated; unknown names are a usage error
                     (kana, echo, codes, slots, lines, width, no-text, trad, speaker, rejected)
 --max-length <cols> also report lines wider than n display columns
 --limit <n>         how many problems to print (default 20)
@@ -211,7 +211,7 @@
 ### --help 与 --version
 
 - `--help` / `-h`：永远 stdout 纯文本、退出 0，即使同时给了 `--json`；`scan -h` 也一样打整段帮助。连未知命令都投降：`nope --help` 打帮助、退出 0。
-- `--version`：永远 stdout 一行 `yakusha <version>`、退出 0，并且优先于一切——`--help --version` 只打 `yakusha 0.18.0`，`--json --version` 也不产出 JSON。
+- `--version`：永远 stdout 一行 `yakusha <version>`、退出 0，并且优先于一切——`--help --version` 只打 `yakusha 0.19.0`，`--json --version` 也不产出 JSON。
 - 无命令：文本模式把整段 USAGE 打到 stderr、退出 2；`--json` 时输出 `command: null` 的信封，`message` 是 `no command`。
 - 未知命令：stderr 两行 `error: unknown command: nope` 和 `run 'yakusha --help' for usage`，退出 2，不再打印整段 USAGE。
 
@@ -479,7 +479,7 @@ RGSS 与 Ren'Py 都走这同一段代码，没有引擎特判：实测 RGSS 的 
 | `speaker` | error / warn | `speaker name left in Japanese: <name>`、`speaker name left untranslated: <name>`、`speaker name rendered as ... , elsewhere ...` |
 | `rejected` | warn | 模型拒答或被校验挡下的条目 |
 
-`echo`、`codes`、`slots`、`speaker` 是阻断级（error），其余只算警告。`--kind` 用逗号分隔可限流，给一个不认识的名字不是错误——实测 `--kind bogus` 得到 `counts: {}`、`problems: []`、`outcome: ok`，静默过滤。
+`echo`、`codes`、`slots`、`speaker` 是阻断级（error），其余只算警告。`--kind` 用逗号分隔可限流，取值必须来自上表这 10 个名字；写错名字按用法错误处理，报 `E_USAGE`、退出 2，消息形如 `unknown verify kind: bogus (expected one of: kana, echo, codes, slots, lines, width, no-text, trad, speaker, rejected)`，不会再静默过滤成空报告。`--kind` 传空串等同于不限制。
 
 实测（mock 翻译后的夹具）：32 条已译文本上有 20 条 kana 警告；把一条译文改成与原文相同后变成 21 条、`counts: {"kana": 20, "echo": 1}`，`outcome` 变 `findings`、退出 1：
 
@@ -503,7 +503,7 @@ result    : FAILED, 1 error(s)
 - `trad` 只报原文里没有的繁体字，字表来自 OpenCC 的 TSCharacters（Apache-2.0），只收「一繁对一简且不同」的字，排除 乾 / 藉 / 於 / 瞭 / 徵 这类两边都合法的。
 - `speaker` 按三档判级：名字还是日文（error）、名字没翻（error）、同一名字在本作里出现多种写法（warn，只有 `speaker --include-drift` 会去改）；尖括号里的代码表达式（如 `<50*\v[65]>`）不会被误认成名字。
 - Ren'Py 的 `codes` / `slots` 走同一套判据，只是「控制码」换成了文本标签与变量插值：标签漏掉报 `escape codes differ: ["{i}","{/i}","[player_name]"] vs []`，插值漏掉报 `placeholders differ: ["[player_name]"] vs []`（实测把两者的译文标记删干净后，`counts` 是 `{"codes": 1, "kana": 1, "slots": 1}`，两个 error、退出 1）。`kana` 与 `trad` 在两种引擎上完全一样。
-- RGSS 的 `codes` 判的是反斜杠转义码。实测把一条带 `\C[6]` / `\C[0]` 的译文改成纯中文后，`codes` 报 1 个 error、退出 1，detail 是 `escape codes differ: ["\C[6]","\C[0]"] vs []`（`src/pipeline/verify.js:184-192` 的 `codes` 分支对所有引擎共用，没有 RGSS 专有的判据）。`kana` / `trad` / `echo` 等在 RGSS 上与 MZ 完全一致。
+- RGSS 的 `codes` 判的是反斜杠转义码。实测把一条带 `\C[6]` / `\C[0]` 的译文改成纯中文后，`codes` 报 1 个 error、退出 1，detail 是 `escape codes differ: ["\C[6]","\C[0]"] vs []`（`src/pipeline/verify.js:206-215` 的 `codes` 分支对所有引擎共用，没有 RGSS 专有的判据）。`kana` / `trad` / `echo` 等在 RGSS 上与 MZ 完全一致。
 - Kirikiri 的「控制码」是行内 KAG 标签（`[r]`、`[er]` 这类），`codes` 同样报 `escape codes differ: [...] vs []`；`slots` 只认 `%1`、`%2` 这种 `%<数字>` 占位符（`src/engines/krkr/profile.js:123`，KAG 的 `[emb exp=...]` 标签不进这个判据）；假名判据 `VERIFY_KANA` 在 `src/engines/krkr/profile.js:26`，其余 kind 与 MZ 一致。
 
 ### --write-report

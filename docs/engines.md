@@ -1,11 +1,11 @@
-# 引擎适配器契约（0.18 契约）
+# 引擎适配器契约（0.19 契约）
 
-> **状态：0.18 覆盖五个引擎——RPG Maker MZ、RPG Maker MV、Ren'Py、RGSS（XP / VX / VX Ace）、Kirikiri。**
+> **状态：0.19 覆盖五个引擎——RPG Maker MZ、RPG Maker MV、Ren'Py、RGSS（XP / VX / VX Ace）、Kirikiri。**
 > 0.14 交付 GUI 外壳，0.15 加 JSONL 导入，0.16 起 `scan` 载荷带引擎能力位（GUI 据此灰显按钮），
 > 0.17 给字典条目加可选的引擎与位置溯源（`engine` / `locator`，`FORMAT` 不变），
 > 0.18 给 RGSS 接上原生注入器交付层（`runtime: "inject"`）：`install --native` 把四个
 > 原生组件与 `dictionary.txt` 写进 `yakusha/native/`，`launch` 经 `yakusha_injector.exe`
-> 启动游戏；Kirikiri 的交付层仍未拍板（见 §7.8）。
+> 启动游戏；0.19 把 `verify --kind` 的未知值从静默过滤改为 `E_USAGE`（命令层校验，adapter 契约不变）；Kirikiri 的交付层仍未拍板（见 §7.8）。
 > 0.10 把 MZ 与 MV 包进统一的 adapter，**不搬文件、不重写算法**；0.11 用同一套
 > contract 接入 Ren'Py，作为第三个 adapter 挂在 registry 末位；0.12 接入 RGSS，排在
 > 第四位，只做到 L1–L3（detect / scan / extract），**没有交付层**；0.13 接入
@@ -688,7 +688,7 @@ uninstall : yakusha uninstall "<abs>"
   两个待拍板项（`src/engines/krkr/adapter.js:226-237` 的注释）。
 - **带 `--embed` 时先撞的是 CLI 那层通用校验**：没有字典报 `--embed needs a dictionary`，
   有字典但没译文报 `--embed found no translated entries`，都是 `E_NO_DICTIONARY` /
-  退出 2（`src/cli/runner.js:739-743`）；不带 `--embed` 时没有字典也先报 pending 那句。
+  退出 2（`src/cli/runner.js:749-752`）；不带 `--embed` 时没有字典也先报 pending 那句。
 - 测试钉住：`test/krkr-adapter.test.js:150`（install/uninstall 指向待拍板清单）、
   `test/krkr-cli.test.js:101` / :116 / :124（CLI 侧 install 与 uninstall 不写盘）、
   `test/engine-contract.test.js:412`（attach 共享历史措辞）。待拍板清单见
@@ -830,7 +830,7 @@ export { VERSION } from "./version.js";
   Ren'Py 时 bin 只多了一个 `adapter.dataUnit === "scripts"` 的分支（`scan` 与 `doctor`
   的行标）和一个 `runtime === "translation"` 的分支（`install` 的三行文本），
   没有出现 `if (engine === "renpy")`。0.12 接 RGSS 时只多了 `doctor` 的一个分支：
-  把 `own.delivery || own.translation || null` 交给诊断器（`src/cli/runner.js:1012-1016`），
+  把 `own.delivery || own.translation || null` 交给诊断器（`src/cli/runner.js:1021-1025`），
   让各引擎自己的交付状态走 `src/core/doctor.js` 的同一套分支（RGSS 装没装、
   Kirikiri 的 `pending` 都从这条路过）；同样没有出现 `if (engine === "rgss")`。0.13 接 Kirikiri 时 bin **什么都没加**：
   `dataUnit` 是 `data files`、`diagnostics.delivery` 走同一个分支，全库搜不到

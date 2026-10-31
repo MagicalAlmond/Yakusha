@@ -5,7 +5,8 @@
 > 0.13 新增 `import` 命令（载荷见 §7）；0.15 给 `import` 加了 `jsonl` 输入与 `--create`；
 > 0.16 给 `scan` 载荷追加了 `capabilities` 能力位对象（新增字段，脚本按 §1 忽略不认识的键）；
 > 0.17 给字典条目加了可选的 `engine` / `locator`；0.18 给 RGSS 加了原生注入器交付
-> （`install --native` / `uninstall` 的 `native` 子对象与 `runtime: "inject"`）。
+> （`install --native` / `uninstall` 的 `native` 子对象与 `runtime: "inject"`）；0.19 把
+> `verify --kind` 的未知值从静默过滤改为 `E_USAGE`（输入校验，信封与载荷不变）。
 > 这些都是只增不改：不新增保留键约束、不改字段类型、已有载荷键一个没动。
 > 本文冻结的形状自 0.10 起不再变化，实际输出以 [commands.md](commands.md) 为准。
 
@@ -333,6 +334,11 @@ pending decisions in docs/dev/DEVLOG.md` 都是新文案，脚本不应依赖 `m
 新增的只有 RGSS 的原生注入器交付：`install --native` 与 `uninstall` 的载荷各多一个 `native` 子对象
 （只在新路径出现）、`scan.capabilities.runtime` 多一个取值 `"inject"`，以及 `install --native` 专用的
 `E_USAGE` / `E_NO_DICTIONARY` / `E_IO` / `E_CONFIG` 文案。MZ/MV、Ren'Py 与 Kirikiri 的输出形状不变。
+
+**0.19 没有破坏性变更。** `schema` 仍是 `1`；14 个命令、13 个错误码一个没增没删；§7 的既有载荷键名一个没动。
+变化只在输入校验：`verify --kind` 的未知值从静默过滤改为 `E_USAGE` / 退出 2，错误消息形如
+`unknown verify kind: bogus (expected one of: kana, echo, codes, slots, lines, width, no-text, trad, speaker, rejected)`；
+合法的 `--kind` 列表与空 `--kind` 的输出不变。
 
 ## 9. 实现落点
 
