@@ -7,7 +7,7 @@
 > 0.17 给字典条目加了可选的 `engine` / `locator`；0.18 给 RGSS 加了原生注入器交付
 > （`install --native` / `uninstall` 的 `native` 子对象与 `runtime: "inject"`）；0.19 把
 > `verify --kind` 的未知值从静默过滤改为 `E_USAGE`（输入校验，信封与载荷不变）；0.20 只修
-> GUI 渲染层的扫描状态；0.21 让 `doctor`/`launch` 识别损坏的原生组件；0.22 让 `doctor` 报出安装后又被改过的原生字典；0.23 把同一检查推广到 Ren'Py 译文文件与 MZ/MV `--embed` 插件（都只是检查结论变化，载荷键与错误码不变）；0.24 只优化 translate 内部的术语表匹配，载荷键与错误码不变；0.25 修复字典被清空后 Ren'Py 译文文件未判过期（诊断结果变化，载荷键与错误码不变）。
+> GUI 渲染层的扫描状态；0.21 让 `doctor`/`launch` 识别损坏的原生组件；0.22 让 `doctor` 报出安装后又被改过的原生字典；0.23 把同一检查推广到 Ren'Py 译文文件与 MZ/MV `--embed` 插件（都只是检查结论变化，载荷键与错误码不变）；0.24 只优化 translate 内部的术语表匹配，载荷键与错误码不变；0.25 修复字典被清空后 Ren'Py 译文文件未判过期（诊断结果变化，载荷键与错误码不变）；0.26 只加固字典键的读写（`__proto__` 等原型名按普通条目处理），载荷键与错误码不变。
 > 这些都是只增不改：不新增保留键约束、不改字段类型、已有载荷键一个没动。
 > 本文冻结的形状自 0.10 起不再变化，实际输出以 [commands.md](commands.md) 为准。
 
@@ -347,9 +347,13 @@ pending decisions in docs/dev/DEVLOG.md` 都是新文案，脚本不应依赖 `m
 
 **0.22 没有契约变化。** 这一版只让 `doctor` 把安装后又改过的原生字典判成 `warn`（`install` / `runtime` 两行，`verdict: usable`、退出 0），并提示重装 `install --native`；信封、退出码、命令表、13 个错误码与所有载荷键都不变。新增的 `dictionaryStale` 只在 adapter 内部的 `delivery` 对象里。
 
+**0.23 没有契约变化。** 这一版把快照检查推广到 Ren'Py 的 `game/yakusha_translation.rpy` 与 MZ/MV 的 `--embed` 插件：`doctor` 同样给 `install` / `runtime` 两行 `warn`、`verdict: usable`、退出 0，提示重跑对应的 `install`。`translation.dictionaryStale` 与 `delivery.dictionaryStale` 都只在 adapter 内部，不是 JSON 载荷键；信封、退出码、命令表、13 个错误码与所有载荷键都不变。
+
 **0.24 没有契约变化。** 这一版只改 translate 内部的术语表匹配（Aho-Corasick 索引），命令、选项、载荷键、错误码与字典格式都没有动。
 
-**0.23 没有契约变化。** 这一版把快照检查推广到 Ren'Py 的 `game/yakusha_translation.rpy` 与 MZ/MV 的 `--embed` 插件：`doctor` 同样给 `install` / `runtime` 两行 `warn`、`verdict: usable`、退出 0，提示重跑对应的 `install`。`translation.dictionaryStale` 与 `delivery.dictionaryStale` 都只在 adapter 内部，不是 JSON 载荷键；信封、退出码、命令表、13 个错误码与所有载荷键都不变。
+**0.25 没有契约变化。** 这一版只修 Ren'Py 译文文件在字典被清空后的过期判断（`doctor` 的 install / runtime 由 `ok` 变 `warn`、`verdict` 仍 `usable`）；信封、退出码、命令表、13 个错误码与所有载荷键都不变。
+
+**0.26 没有契约变化。** 这一版只加固字典键的读写：`__proto__`、`constructor` 等原型名按普通条目存取，导入时不再丢失；`yakusha/1` 字典格式、信封、退出码、命令表与 13 个错误码都不变。
 
 ## 9. 实现落点
 

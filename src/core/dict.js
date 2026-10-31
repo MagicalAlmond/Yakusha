@@ -28,6 +28,25 @@ import fs from "node:fs";
 import path from "node:path";
 
 export const FORMAT = "yakusha/1";
+
+/**
+ * Define an entry without treating a key such as "__proto__" as the prototype
+ * setter. Object.defineProperty creates an ordinary own property even for
+ * names that exist on Object.prototype.
+ *
+ * @param {Record<string, unknown>} map
+ * @param {string} key
+ * @param {unknown} value
+ */
+function defineEntry(map, key, value) {
+  Object.defineProperty(map, key, {
+    value,
+    enumerable: true,
+    writable: true,
+    configurable: true,
+  });
+}
+
 export const DICT_DIR = "yakusha";
 export const DICT_FILE = "dictionary.json";
 
@@ -60,7 +79,7 @@ export function loadDictionary(file) {
   }
   const entries = {};
   for (const [key, value] of Object.entries(raw.entries)) {
-    if (typeof value === "string") entries[key] = { text: value, contexts: [] };
+    if (typeof value === "string") defineEntry(entries, key, { text: value, contexts: [] });
     else if (value && typeof value.text === "string") {
       const entry = { text: value.text, contexts: Array.isArray(value.contexts) ? value.contexts : [] };
       // Optional provenance (0.17). Malformed values are dropped rather than
@@ -73,7 +92,7 @@ export function loadDictionary(file) {
       // A previous run may have recorded why a translation was rejected; keep
       // it so `status` can report it without guessing.
       if (typeof value.error === "string" && value.error.length > 0) entry.error = value.error;
-      entries[key] = entry;
+      defineEntry(entries, key, entry);
     }
   }
   return {
@@ -103,12 +122,12 @@ export function saveDictionary(file, dict) {
  */
 export function note(dict, source, context) {
   if (typeof source !== "string" || source.length === 0) return;
-  const existing = dict.entries[source];
+  const existing = Object.hasOwn(dict.entries, source) ? dict.entries[source] : undefined;
   if (existing) {
     if (context && !existing.contexts.includes(context)) existing.contexts.push(context);
     return;
   }
-  dict.entries[source] = { text: "", contexts: context ? [context] : [] };
+  defineEntry(dict.entries, source, { text: "", contexts: context ? [context] : [] });
 }
 
 /**
@@ -126,11 +145,11 @@ export function note(dict, source, context) {
  */
 export function recordExtracted(entries, source, engine) {
   const locator = [...(source.locators || [])].sort();
-  const before = entries[source.text];
+  const before = Object.hasOwn(entries, source.text) ? entries[source.text] : undefined;
   if (!before) {
     const entry = { text: "", contexts: [...source.contexts].sort(), engine };
     if (locator.length > 0) entry.locator = locator;
-    entries[source.text] = entry;
+    defineEntry(entries, source.text, entry);
     return true;
   }
   for (const context of source.contexts) {
@@ -150,7 +169,7 @@ export function recordExtracted(entries, source, engine) {
 export function translatedOnly(dict) {
   const out = {};
   for (const [key, value] of Object.entries(dict.entries)) {
-    if (value && typeof value.text === "string" && value.text.length > 0) out[key] = value.text;
+    if (value && typeof value.text === "string" && value.text.length > 0) defineEntry(out, key, value.text);
   }
   return out;
 }

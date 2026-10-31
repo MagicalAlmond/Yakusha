@@ -9,7 +9,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { emptyDictionary, loadDictionary, recordExtracted, saveDictionary } from "../src/core/dict.js";
+import { emptyDictionary, loadDictionary, note, recordExtracted, saveDictionary, translatedOnly } from "../src/core/dict.js";
 
 const created = [];
 
@@ -95,4 +95,33 @@ test("emptyDictionary: starts at yakusha/1 with no entries", () => {
   assert.equal(dict.format, "yakusha/1");
   assert.equal(dict.game, null);
   assert.deepEqual(dict.entries, {});
+});
+
+test("load: a __proto__ key stays an ordinary entry, not the prototype", () => {
+  const file = tempFile(JSON.parse('{"__proto__":{"text":"译","contexts":["f:1"]},"constructor":{"text":"二","contexts":[]}}'));
+  const dict = loadDictionary(file);
+  assert.equal(Object.hasOwn(dict.entries, "__proto__"), true);
+  assert.deepEqual(dict.entries["__proto__"], { text: "译", contexts: ["f:1"] });
+  assert.equal(Object.hasOwn(dict.entries, "constructor"), true);
+  assert.equal(Object.getPrototypeOf(dict.entries), Object.prototype);
+  assert.equal(Object.prototype.text, undefined, "the load must not pollute Object.prototype");
+});
+
+test("note/translatedOnly: a __proto__ source is stored as a normal translation key", () => {
+  const dict = emptyDictionary();
+  note(dict, "__proto__", "f:1");
+  dict.entries["__proto__"].text = "译";
+  assert.equal(Object.hasOwn(dict.entries, "__proto__"), true);
+  const translated = translatedOnly(dict);
+  assert.equal(Object.hasOwn(translated, "__proto__"), true);
+  assert.equal(translated["__proto__"], "译");
+  assert.equal(Object.prototype.text, undefined);
+});
+
+test("recordExtracted: a __proto__ source creates an own dictionary entry", () => {
+  const entries = {};
+  assert.equal(recordExtracted(entries, { text: "__proto__", contexts: new Set(["f:1"]), locators: new Set() }, "mz"), true);
+  assert.equal(Object.hasOwn(entries, "__proto__"), true);
+  assert.deepEqual(entries["__proto__"], { text: "", contexts: ["f:1"], engine: "mz" });
+  assert.equal(Object.prototype.text, undefined);
 });

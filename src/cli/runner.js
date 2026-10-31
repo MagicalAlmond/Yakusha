@@ -951,12 +951,22 @@ async function commandImport(dir, flags, sink) {
     if (!Array.isArray(entry.locator) && Array.isArray(row.locator) && row.locator.length > 0) {
       entry.locator = row.locator.slice();
     }
-    entries[row.source] = entry;
+    Object.defineProperty(entries, row.source, {
+      value: entry,
+      enumerable: true,
+      writable: true,
+      configurable: true,
+    });
     applied += 1;
   }
   if (!dryRun && applied > 0) {
     for (const [source, entry] of Object.entries(entries)) {
-      dictionary.entries[source] = entry;
+      Object.defineProperty(dictionary.entries, source, {
+        value: entry,
+        enumerable: true,
+        writable: true,
+        configurable: true,
+      });
     }
     // reload through loadDictionary's shape so the write keeps every field
     // the loader would produce, then let saveDictionary stamp updatedAt.

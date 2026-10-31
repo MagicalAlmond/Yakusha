@@ -652,3 +652,16 @@ test("export: flat json stays a plain string map without provenance", () => {
   const exported = JSON.parse(fs.readFileSync(out, "utf8"));
   assert.deepEqual(exported.entries, { "アリア": "阿丽亚" });
 });
+
+test("import: a __proto__ source survives a JSON import", () => {
+  const game = tempGame();
+  writeDictionary(game, { base: { text: "", contexts: [] } });
+  const source = path.join(game, "yakusha", "proto.json");
+  fs.writeFileSync(source, JSON.stringify({ format: "yakusha/1", entries: JSON.parse('{"__proto__":"译"}') }), "utf8");
+  const result = run(["import", game, "--from", source, "--strategy", "overwrite", "--json"]);
+  assert.equal(result.code, 0, result.stderr);
+  const onDisk = JSON.parse(fs.readFileSync(path.join(game, "yakusha", "dictionary.json"), "utf8")).entries;
+  assert.equal(Object.hasOwn(onDisk, "__proto__"), true);
+  assert.equal(onDisk["__proto__"].text, "译");
+  assert.equal(Object.prototype.text, undefined);
+});

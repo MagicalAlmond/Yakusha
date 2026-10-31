@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.26.0] - 2026-10-27
+
+### Fixed
+
+- A dictionary key that names an object prototype method (`__proto__`, `constructor` and the like) is stored as an ordinary entry again: loading, writing and importing a dictionary no longer treats such a key as a prototype setter, so it survives a round trip and no longer changes every object in the process.
+- Importing a table or JSON file whose source text is one of those names no longer drops the row.
+
+### Unchanged
+
+- No breaking changes: the envelope, exit codes, command table, the 13 error codes and the `yakusha/1` dictionary format are unchanged; a dictionary written before this fix loads exactly as before.
 ## [0.25.0] - 2026-10-27
 
 ### Fixed
@@ -360,7 +370,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.25.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.26.0...HEAD
+[0.26.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.25.0...v0.26.0
 [0.25.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.24.0...v0.25.0
 [0.24.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.23.0...v0.24.0
 [0.23.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.22.0...v0.23.0
