@@ -541,6 +541,7 @@ TextGrammar = {
 | 0.21 | RGSS 原生组件完整性检查：`nativeStatus()` 按 `manifest.json` 复核组件与 `dictionary.txt`；`doctor` 把损坏安装判 `broken`，`launch` 启动前报 `E_IO`，重装可修复（**已交付**） | — | 688 pass / 51 个文件；新增 3 条 adapter 用例 |
 | 0.22 | RGSS 原生字典过期检测：`nativeStatus()` 比较当前项目字典与安装时的 `dictionary.txt`，`doctor` 对过期安装记 `install warn` / `runtime warn`，重装可更新（**已交付**） | — | 689 pass / 51 个文件；新增 1 条 adapter 用例 |
 | 0.23 | 所有快照式交付的字典过期检测：Ren'Py 的 `game/yakusha_translation.rpy` 与 MZ/MV 的 `--embed` 插件同样与当前字典比较，`doctor` 记 `install warn` / `runtime warn`，重装可更新（**已交付**） | — | 691 pass / 51 个文件；新增 2 条（Ren'Py adapter 1 条、doctor 1 条） |
+| 0.24 | 术语表匹配性能：`src/pipeline/glossary.js` 的 Aho-Corasick 索引每次运行建一次、每个请求复用（**已交付**） | — | 692 pass / 51 个文件；新增 1 条 glossary 索引用例；10,000 条词表 × 40 行 batch 约 7.0 ms → 0.10 ms/请求 |
 | 1.0 | 10 个引擎目标 + 能力矩阵 + 便携 exe | — | 每个引擎有 L4 证据；不达标的明确标 experimental |
 
 说明：

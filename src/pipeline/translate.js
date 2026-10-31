@@ -16,6 +16,7 @@
  */
 
 import { controlCodes, visibleText } from "../core/textkey.js";
+import { buildGlossaryIndex, matchGlossary } from "./glossary.js";
 import { wrapText } from "./wrap.js";
 
 /**
@@ -216,18 +217,13 @@ export function systemPrompt(options = {}) {
  *
  * @param {Record<string,string>} glossary
  * @param {PendingItem[]} items
+ * @param {import("./glossary.js").GlossaryIndex} [index] prebuilt for this glossary
  * @returns {Record<string,string>}
  */
-export function selectGlossary(glossary, items) {
-  const keys = Object.keys(glossary || {});
-  if (keys.length === 0) return {};
-  const out = {};
-  // Join once; an n*m scan of substrings is cheaper than m regexes per item.
-  const haystack = items.map((item) => item.key).join("\u0000");
-  for (const key of keys) {
-    if (haystack.includes(key)) out[key] = glossary[key];
-  }
-  return out;
+export function selectGlossary(glossary, items, index) {
+  const source = glossary || {};
+  if (index) return matchGlossary(index, source, items);
+  return matchGlossary(buildGlossaryIndex(source), source, items);
 }
 
 /**
@@ -442,9 +438,10 @@ export function validateTranslation(source, target, options = {}) {
  *
  * @param {PendingItem[]} batch
  * @param {TranslateOptions} options
+ * @param {import("./glossary.js").GlossaryIndex} glossaryIndex
  * @returns {Promise<{ accepted: Map<string,string>, rejected: Rejection[] }>}
  */
-async function runBatch(batch, options) {
+async function runBatch(batch, options, glossaryIndex) {
   const provider = options.provider;
   const accepted = new Map();
   /** @type {Map<string,Rejection>} only the last verdict per key is kept */
@@ -458,7 +455,7 @@ async function runBatch(batch, options) {
     const reply = await provider.complete({
       systemPrompt: systemPrompt({
         targetLang: options.targetLang,
-        glossary: selectGlossary(options.glossary, pending),
+        glossary: selectGlossary(options.glossary, pending, glossaryIndex),
         maxColumns: options.maxColumns,
         profile: options.profile,
       }),
@@ -579,6 +576,7 @@ export async function translateDictionary(dict, options) {
     remaining.push(item);
   }
 
+  const glossaryIndex = buildGlossaryIndex(glossary);
   const batches = buildBatches(remaining, { batchSize: options.batchSize, charBudget: options.charBudget });
   const rejected = [];
   let failed = 0;
@@ -599,7 +597,7 @@ export async function translateDictionary(dict, options) {
       cursor += 1;
       const batch = batches[index];
       try {
-        const result = await runBatch(batch, options);
+        const result = await runBatch(batch, options, glossaryIndex);
         for (const [key, value] of result.accepted) {
           const entry = dict.entries[key];
           if (entry) {

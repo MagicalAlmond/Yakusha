@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 import { emptyDictionary } from "../src/core/dict.js";
+import { buildGlossaryIndex } from "../src/pipeline/glossary.js";
 import { mockProvider } from "../src/pipeline/provider.js";
 import {
   selectPending,
@@ -91,6 +92,23 @@ test("translate: selectGlossary does not join the end of one line to the next", 
   // neither line actually contains.
   const items = [{ key: "ポー", contexts: [] }, { key: "ションを買う", contexts: [] }];
   assert.deepEqual(selectGlossary({ "ポーション": "药水" }, items), {});
+});
+
+test("translate: a prebuilt glossary index agrees with the plain scan", () => {
+  const glossary = { "a": "1", "ab": "2", "aba": "3", "b": "4", "": "empty", "あ": "5", "😀": "6" };
+  const batches = [
+    [{ key: "xabay", contexts: [] }],
+    [{ key: "aba", contexts: [] }, { key: "zzz", contexts: [] }],
+    [{ key: "", contexts: [] }],
+    [{ key: "あ😀", contexts: [] }],
+  ];
+  const index = buildGlossaryIndex(glossary);
+  for (const items of batches) {
+    assert.deepEqual(selectGlossary(glossary, items, index), selectGlossary(glossary, items));
+  }
+  // The same index serves every batch without rebuilding; key order is the
+  // glossary order, not the match order.
+  assert.deepEqual(Object.keys(selectGlossary(glossary, batches[0], index)), ["a", "ab", "aba", "b", ""]);
 });
 
 test("translate: a request only pays for the glossary rows it needs", async () => {

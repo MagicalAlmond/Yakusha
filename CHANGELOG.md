@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-10-27
+
+### Changed
+
+- Faster glossary filtering: the translate pipeline now builds an Aho-Corasick index once per run and reuses it for every request instead of scanning every glossary key against every batch. A 10,000-term glossary with a 40-line batch drops from about 7.0 ms to 0.10 ms per request after a one-time build of about 2.1 ms; the selected rows and their order are unchanged. The new `src/pipeline/glossary.js` module is internal and adds no command, option or payload key.
+
+### Unchanged
+
+- No breaking changes: the envelope, exit codes, command table, all 13 error codes, the dictionary format (`yakusha/1`) and every JSON payload key are unchanged.
+
 ## [0.23.0] - 2026-10-27
 
 ### Added
@@ -340,7 +350,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.23.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.24.0...HEAD
+[0.24.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.23.0...v0.24.0
 [0.23.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.22.0...v0.23.0
 [0.22.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.21.0...v0.22.0
 [0.21.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.20.0...v0.21.0
