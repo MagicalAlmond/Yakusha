@@ -142,7 +142,10 @@ hook 改的是 `kernel32!GetProcAddress` 的 IAT 槽，借此在 `RGSSGameMain` 
 随 npm 包分发。0.21 起 `doctor` 与 `launch` 会按 `manifest.json` 复核这六个文件：组件被删或
 被改时 `doctor` 报 `broken`、`launch` 在启动前报 `E_IO`，不会把坏安装当成没装。0.22 起
 `doctor` 还会比较当前项目字典与安装时生成的 `dictionary.txt`：安装后改过字典时 `install` 与
-`runtime` 记 `warn` 并提示重装，`verdict` 仍是 `usable`，不会悄悄沿用旧快照。
+`runtime` 记 `warn` 并提示重装，`verdict` 仍是 `usable`，不会悄悄沿用旧快照。0.23 把同一个
+「安装时快照」检查推广到 Ren'Py 的 `game/yakusha_translation.rpy` 与 MZ/MV 的
+`--embed` 插件：字典在装后被改过时，`doctor` 的 `install` / `runtime` 都记 `warn`，
+提示重跑对应的 `install`。
 
 ## 5. 文本通道：各档投递吃同一份数据
 
@@ -266,6 +269,7 @@ test/fixtures/           各引擎最小夹具（mini-mz、mini-mv、renpy-*、r
 | 0.20.0 | **已交付**：GUI 渲染层契约测试与扫描状态重置——`test/gui-renderer.test.js` 用 stub DOM 覆盖扫描成功/能力灰显/多项目提示/字典编辑/密钥输入 7 条；新扫描开始时清空上一引擎的能力位，失败扫描后不会再带 `--native` | 685 pass / 0 fail（51 个测试文件） |
 | 0.21.0 | **已交付**：RGSS 原生组件完整性检查——`nativeStatus()` 按 `manifest.json` 复核四个组件与 `dictionary.txt`；`doctor` 对损坏安装记 `install fail` / `runtime fail`、`verdict: broken`，`launch` 启动前报 `E_IO`，重装可修复 | 688 pass / 0 fail（新增 3 条 adapter 用例） |
 | 0.22.0 | **已交付**：RGSS 原生字典过期检测——`nativeStatus()` 比较当前项目字典与安装时生成的 `dictionary.txt`，`doctor` 对过期安装记 `install warn` / `runtime warn`、`verdict: usable`，重装可更新 | 689 pass / 0 fail（新增 1 条 adapter 用例） |
+| 0.23.0 | **已交付**：所有快照式交付的字典过期检测——Ren'Py 的 `game/yakusha_translation.rpy` 与 MZ/MV 的 `--embed` 插件同样与当前字典比较，`doctor` 记 `install warn` / `runtime warn`、`verdict: usable`，重装可更新 | 691 pass / 0 fail（新增 2 条：Ren'Py adapter 1 条、doctor 1 条） |
 | 1.0.0 | 10 个引擎 + 能力矩阵 + 便携 exe（图标、无控制台、最近游戏） | 双击 exe 可用 |
 
 ## 10. 风险

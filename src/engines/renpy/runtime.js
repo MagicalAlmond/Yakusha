@@ -416,8 +416,11 @@ export function uninstallTranslation(project) {
  * command calls, so it must describe damage rather than crash on it.
  *
  * @param {{ root: string, gameDir: string }} project
- * @param {{ language?: string }} [options] language reported when the file says nothing
- * @returns {{ path: string, exists: boolean, language: string, entries: number }}
+ * @param {{ language?: string, pairs?: Array<[string, string]|{ source: string, target: string }> }} [options]
+ *   language is reported when the file says nothing; when pairs are supplied the
+ *   status also rebuilds the file install would write now and reports
+ *   dictionaryStale when the bytes on disk differ
+ * @returns {{ path: string, exists: boolean, language: string, entries: number, dictionaryStale?: boolean }}
  */
 export function translationStatus(project, options = {}) {
   const target = translationPath(project);
@@ -442,5 +445,15 @@ export function translationStatus(project, options = {}) {
     language = activated[1];
   }
   const entries = (source.match(/^[ \t]*old "/gm) || []).length;
-  return { path: target, exists: true, language, entries };
+  const status = { path: target, exists: true, language, entries };
+  if (Array.isArray(options.pairs)) {
+    try {
+      status.dictionaryStale = source !== build(options.pairs, { language }).content;
+    } catch {
+      // A hand-edited language name that the generator refuses means the
+      // status cannot be compared; damage is reported elsewhere rather than
+      // being mislabelled as a stale dictionary.
+    }
+  }
+  return status;
 }

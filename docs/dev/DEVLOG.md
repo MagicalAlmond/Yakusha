@@ -1,7 +1,7 @@
 # 开发交接文档（DEVLOG）
 
 > 这份文档记录**阶段目标、已完成项、决策理由和下一步**，随开发进程更新。
-> 最后更新：2026-10-27（0.22.0 RGSS 原生字典过期检测在 `feat/0.22-native-stale`；0.21.0 RGSS 原生组件完整性检查在 `feat/0.21-native-integrity`；0.20.0 GUI 渲染层契约测试与扫描状态重置；0.19.0 `verify --kind` 严格校验：未知 kind 报 `E_USAGE`；0.18.0 RGSS 原生注入器交付层在 `feat/0.18-rgss-native`；0.17 字典溯源字段在 `feat/0.17-dictionary-provenance`；0.15 通用内容导入 v1 在 `feat/0.15-generic-import`；0.14.0 GUI 在 `feat/0.14-gui`；均未合入 `main`、未打 tag）。
+> 最后更新：2026-10-27（0.23.0 所有快照式交付的字典过期检测在 `feat/0.23-delivery-staleness`；0.22.0 RGSS 原生字典过期检测在 `feat/0.22-native-stale`；0.21.0 RGSS 原生组件完整性检查在 `feat/0.21-native-integrity`；0.20.0 GUI 渲染层契约测试与扫描状态重置；0.19.0 `verify --kind` 严格校验：未知 kind 报 `E_USAGE`；0.18.0 RGSS 原生注入器交付层在 `feat/0.18-rgss-native`；0.17 字典溯源字段在 `feat/0.17-dictionary-provenance`；0.15 通用内容导入 v1 在 `feat/0.15-generic-import`；0.14.0 GUI 在 `feat/0.14-gui`；均未合入 `main`、未打 tag）。
 > 0.9.0 项目改名 **Yakusha**，字典目录、插件文件、环境变量与备份后缀全部随之改名；
 > 仓库已发布到 https://github.com/MagicalAlmond/Yakusha（`main` 分支）。
 > 0.8.0 的 `doctor`、0.7.1 的 `uninstall` 漂移保护、0.7.0 的报告/模板见下）。
@@ -36,9 +36,9 @@
 
 | 项 | 状态 |
 | --- | --- |
-| 版本 | **0.22.0**（`package.json` 单一真源，`src/version.js` 读取它；插件模板的 `VERSION` 由安装器替换） |
-| 契约 | 0.10 的五篇设计稿（json-contract / config / engines / export-format / platforms）已冻结并全部实现；0.11 只有 `engines.md` 真正扩了内容（三个引擎、新增 §13.2 Ren'Py），`json-contract.md` 与 `platforms.md` 补了「0.11 复查后不变」的复核标注。0.12 继续扩 `engines.md`（四个引擎、新增 §13.3 RGSS 与 §7.7 的 pending 交付），`json-contract.md` 补 RGSS 的语义澄清（`E_NOT_IMPLEMENTED` 有了 CLI 入口、`install`/`uninstall`/`doctor` 的按引擎差异）；信封与字段类型仍未动，`platforms.md` / `config.md` / `export-format.md` 未动。0.13 扩 `engines.md`（五个引擎、新增 §13.4 Kirikiri），`export-format.md` 补 TSV/CSV 表格与 `import` 命令；JSON 信封（flat one-line object、退出码 0/1/2、13 个错误码）未动。0.17 给字典条目加可选 `engine` / `locator` 溯源字段（`FORMAT` 仍是 `yakusha/1`），rich JSON 导出与导入带、表格不带，信封与错误码未动。0.18 给 RGSS 增加原生注入器交付层（`install --native` / `uninstall` / `doctor` 的 delivery 检查 / `scan` 的 `runtime: "inject"`），文档侧 `engines.md`、`commands.md` 按 0.18 补契约；信封、退出码与 13 个错误码未动；0.19 把 `verify --kind` 的未知值从静默过滤改为 `E_USAGE`（合法命令与信封不变）；0.20 只修 GUI 渲染层状态；0.21 让 `doctor`/`launch` 识别损坏的原生组件；0.22 让 `doctor` 报出安装后又被改过的字典（检查结论变化，契约未变） |
-| 测试 | **689 个，全绿**（`npm test`，51 个测试文件，约 10s；0.22 新增 1 条字典过期用例；0.21 新增 3 条原生组件完整性用例；0.20 新增 7 条 GUI 渲染层 stub-DOM 契约测试；0.19 新增 1 条 `verify --kind` 未知值用例；0.18 新增/改写 RGSS native 与 doctor 用例，净增 7 条——旧的 pending 交付测试被替换；0.14–0.17 的累计增量见历史） |
+| 版本 | **0.23.0**（`package.json` 单一真源，`src/version.js` 读取它；插件模板的 `VERSION` 由安装器替换） |
+| 契约 | 0.10 的五篇设计稿（json-contract / config / engines / export-format / platforms）已冻结并全部实现；0.11 只有 `engines.md` 真正扩了内容（三个引擎、新增 §13.2 Ren'Py），`json-contract.md` 与 `platforms.md` 补了「0.11 复查后不变」的复核标注。0.12 继续扩 `engines.md`（四个引擎、新增 §13.3 RGSS 与 §7.7 的 pending 交付），`json-contract.md` 补 RGSS 的语义澄清（`E_NOT_IMPLEMENTED` 有了 CLI 入口、`install`/`uninstall`/`doctor` 的按引擎差异）；信封与字段类型仍未动，`platforms.md` / `config.md` / `export-format.md` 未动。0.13 扩 `engines.md`（五个引擎、新增 §13.4 Kirikiri），`export-format.md` 补 TSV/CSV 表格与 `import` 命令；JSON 信封（flat one-line object、退出码 0/1/2、13 个错误码）未动。0.17 给字典条目加可选 `engine` / `locator` 溯源字段（`FORMAT` 仍是 `yakusha/1`），rich JSON 导出与导入带、表格不带，信封与错误码未动。0.18 给 RGSS 增加原生注入器交付层（`install --native` / `uninstall` / `doctor` 的 delivery 检查 / `scan` 的 `runtime: "inject"`），文档侧 `engines.md`、`commands.md` 按 0.18 补契约；信封、退出码与 13 个错误码未动；0.19 把 `verify --kind` 的未知值从静默过滤改为 `E_USAGE`（合法命令与信封不变）；0.20 只修 GUI 渲染层状态；0.21 让 `doctor`/`launch` 识别损坏的原生组件；0.22 让 `doctor` 报出安装后又被改过的字典；0.23 把同一检查推广到 Ren'Py 译文文件与 MZ/MV 的 `--embed` 插件（都只是检查结论变化，契约未变） |
+| 测试 | **691 个，全绿**（`npm test`，51 个测试文件，约 11s；0.23 新增 2 条快照过期用例；0.22 新增 1 条字典过期用例；0.21 新增 3 条原生组件完整性用例；0.20 新增 7 条 GUI 渲染层 stub-DOM 契约测试；0.19 新增 1 条 `verify --kind` 未知值用例；0.18 新增/改写 RGSS native 与 doctor 用例，净增 7 条——旧的 pending 交付测试被替换；0.14–0.17 的累计增量见历史） |
 | 持续集成 | GitHub Actions：`npm test` 在 Node 22 / 24（**windows-latest**，WP1 已从 ubuntu 切换） |
 | 平台 | Windows 10/11 x64 为唯一支持与验收环境（0.10 明确，见 [platforms.md](../platforms.md)） |
 | 支持引擎 | RPG Maker **MZ 1.3.2–1.9.0**、**MV 1.6.1–1.6.2**；**Ren'Py 8.x 脚本**（`.rpy` 明文 + `.rpyc` 编译）；**RGSS（XP / VX / VX Ace）**从 0.18 起有 **inject 交付层**（`install --native`，原生注入器，不改游戏文件）；**Kirikiri（KAG / XP3）** 仍只到 L1–L3（识别 / 盘点 / 抽取 / 翻译 / 校验 / 导出），**没有交付层**（§6） |
@@ -368,6 +368,13 @@
 - [x] 原生层的字典快照不再静默过期：`nativeStatus()` 比较当前项目字典重建出来的 `dictionary.txt` 与安装时那份，返回新的 `dictionaryStale`（字典文件不存在时为 `false`，`buildDictionaryText` 仍是唯一生成器）。
 - [x] `doctor` 对过期安装记 `install warn`（`yakusha/native is out of date: the project dictionary has changed since install - run: yakusha install --native "<game>"`）与 `runtime warn`（注入器继续用安装时那份字典），没有别的警告时 payload 的 `verdict` 是 `usable`（文本模式打印 `usable with 2 warning(s)`）、退出 0；再跑一次 `install --native` 后恢复 `ready`。
 - [x] 测试：`test/rgss-adapter.test.js` 新增 1 条（装后改字典 → stale 为真、doctor warn；重装 → stale 为假、doctor ready）；合计 **689 个，全绿**（51 个测试文件，约 10s）。
+
+### P 阶段（0.23.0，已完成）
+
+- [x] Ren'Py 译文文件也按快照检查：`translationStatus(project, { pairs })` 在传入当前已译条目时多返回一个 `dictionaryStale`，用与 `installTranslation` 相同的 `build()` 重新生成内容与磁盘上的 `game/yakusha_translation.rpy` 比较；`adapter.diagnostics()` 从字典读已译条目传进去。
+- [x] MZ/MV 的 `--embed` 插件同样检查：`doctor` 从插件源码读 `EMBEDDED` 对象（`readEmbeddedTranslations`），与当前字典的已译条目逐对比较（`sameTranslations`）；不一致时 `install` 与 `runtime` 都记 `warn`，消息分别提示重跑 `install --embed` 与说明插件继续用安装时的译文。
+- [x] 通用 delivery 分支的 stale 文案按交付方式选重装命令（`install --native` / `install`），runtime 文案按 `delivery.mode === "inject"` 区分注入器与译文文件两种快照。
+- [x] 测试：`test/renpy-adapter.test.js` 新增 1 条（装后改字典 → `dictionaryStale` 为真、doctor 两行 warn、重装 ready）；`test/doctor.test.js` 新增 1 条（`--embed` 装后改字典 → doctor 两行 warn、重装 ok）；合计 **691 个，全绿**（51 个测试文件，约 11s）。
 
 ## 4. 文件地图
 

@@ -226,6 +226,11 @@ verdict   : usable with 2 warning(s)
 摘要，再按 engine → dictionary → progress →（有被拒条目时）rejected → sync → install →
 （装好之后）backup → runtime → verify 逐项检查，最后一行是 verdict。）
 
+0.23 起，`doctor` 还会检查“安装时写入的译文”是否已经跟字典脱节：MZ/MV 的 `--embed`
+插件、Ren'Py 的 `game/yakusha_translation.rpy`、RGSS 的 `yakusha/native/dictionary.txt`
+都是安装时快照，之后 `translate` / `import` / 手改字典不会自动更新；这时 `install` 与
+`runtime` 都会报 `warn` 并提示重跑对应的 `install`，`verdict` 仍是 `usable`、退出 0。
+
 Ren'Py 的首行与 `sync` 文案跟 RPG Maker 不同（没有 `plugins.js` 与备份两项检查）：
 
 ```

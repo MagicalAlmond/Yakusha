@@ -1,6 +1,6 @@
 # 命令参考
 
-本文是 yakusha 0.22.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出。
+本文是 yakusha 0.23.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出。
 
 **RGSS 在 0.18 起有了交付层。** `scan` / `extract` / `status` / `translate` / `verify` / `speaker` / `terms` / `export` / `import` 都能用；0.18 新增 `install --native`，把预编译的注入器与 hook DLL 装进 `yakusha/native/`，游戏启动时由注入器加载，译文从 `dictionary.txt` 读。`install` 不带 `--native` 仍报 `E_USAGE`（RGSS 没有插件交付层）。安装细节与限制见下文 [install 与 uninstall](#install-与-uninstall)。
 
@@ -211,7 +211,7 @@
 ### --help 与 --version
 
 - `--help` / `-h`：永远 stdout 纯文本、退出 0，即使同时给了 `--json`；`scan -h` 也一样打整段帮助。连未知命令都投降：`nope --help` 打帮助、退出 0。
-- `--version`：永远 stdout 一行 `yakusha <version>`、退出 0，并且优先于一切——`--help --version` 只打 `yakusha 0.22.0`，`--json --version` 也不产出 JSON。
+- `--version`：永远 stdout 一行 `yakusha <version>`、退出 0，并且优先于一切——`--help --version` 只打 `yakusha 0.23.0`，`--json --version` 也不产出 JSON。
 - 无命令：文本模式把整段 USAGE 打到 stderr、退出 2；`--json` 时输出 `command: null` 的信封，`message` 是 `no command`。
 - 未知命令：stderr 两行 `error: unknown command: nope` 和 `run 'yakusha --help' for usage`，退出 2，不再打印整段 USAGE。
 
@@ -681,6 +681,8 @@ verdict   : not installed yet - run: yakusha install <game>
 
 注意 `doctor` 的 `verify` 检查把 `verify` 的 error 记成 `warn` 而不是 `fail`（`<N> error, <M> warning(s) - some lines will stay Japanese, see: yakusha verify`），所以译文有阻断级问题也只会让 verdict 变 `usable`、退出 0。要拿发布闸门看 `verify` 自己的退出码。
 
+0.23 起，用 `--embed` 装过的插件也会被查快照：插件里的 `EMBEDDED` 块与当前字典不一致时，`install` 与 `runtime` 都记 `warn`，消息提示 `run: yakusha install --embed "<game>"`，`verdict` 仍是 `usable`、退出 0；重装后恢复 `ok`。
+
 Ren'Py 下首行括号里是 `(Ren'Py, N scripts)`（1 个脚本时写 `1 script`），检查项少两条（没有 `plugins.js` 也没有 `backup`），`sync` 文案是 `every dictionary key still appears in game/`。同一份夹具全绿时：
 
 ```text
@@ -695,6 +697,8 @@ verdict   : ready
 ```
 
 未安装时 install/runtime 两行都指向 `game/yakusha_translation.rpy`：`not installed - run: yakusha install <game>` 与 `the game reads game/yakusha_translation.rpy at startup once installed`，`verdict` 是 `not installed yet`。JSON 里 `install` 对象带 `pluginFile` / `pluginFilePresent` / `entryPresent` / `entryParameters` / `backup`，Ren'Py 下 `entryPresent` 与 `pluginFilePresent` 同值（文件存在就是注册），`entryParameters` 是 `{"language": "schinese"}`（语言从生成的翻译脚本里的 `translate <lang> strings:` 读回，不是假设的），`backup` 恒 `null`；`runtime` 对象的 `path` 是相对路径、`found` 是绝对路径。
+
+0.23 起 Ren'Py 的译文文件也按快照检查：当前字典重新生成的内容与 `game/yakusha_translation.rpy` 不一致时，`install` 与 `runtime` 都记 `warn`（消息带 `- run: yakusha install <game>`），`verdict` 仍是 `usable`、退出 0；重装后恢复 `ready`。
 
 **RGSS（XP / VX / VX Ace）**——检查项少两条（没有 `plugins.js` 也没有 `backup`），`sync` 文案是 `every dictionary key still appears in Data/`。0.18 起 `install` 与 `runtime` 走真实的交付检查，不再固定是 warn / info；0.21 起这项检查还会按 `manifest.json` 复核组件是否被删或被改，0.22 起还会报告安装之后又被修改过的字典。装好且字典全部翻完时：
 

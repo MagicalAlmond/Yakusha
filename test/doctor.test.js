@@ -97,6 +97,43 @@ test("diagnose passes every structural check on a healthy install", () => {
   assert.equal(result.ok, true);
 });
 
+test("diagnose reports embedded translations that went stale", () => {
+  const project = openProject(sandbox());
+  const dictionary = dictionaryFor(project);
+  for (const [key, entry] of Object.entries(dictionary.entries)) entry.text = "T:" + key;
+  const embed = Object.fromEntries(Object.entries(dictionary.entries).map(([key, entry]) => [key, entry.text]));
+  const dictionaryFile = path.join(project.root, "yakusha", "dictionary.json");
+  saveDictionary(dictionaryFile, dictionary);
+  installPlugin(project, { embed });
+
+  const installed = diagnose(project, { dictionary, dictionaryFile });
+  assert.equal(levels(installed).install, "ok");
+  assert.equal(levels(installed).runtime, "ok");
+
+  const changed = JSON.parse(fs.readFileSync(dictionaryFile, "utf8"));
+  const first = Object.keys(changed.entries)[0];
+  changed.entries[first].text = "T:changed";
+  fs.writeFileSync(dictionaryFile, JSON.stringify(changed, null, 2) + "\n", "utf8");
+  const edited = JSON.parse(fs.readFileSync(dictionaryFile, "utf8"));
+
+  const stale = diagnose(project, { dictionary: edited, dictionaryFile });
+  assert.equal(stale.ok, true);
+  assert.equal(stale.verdict, "usable");
+  assert.equal(levels(stale).install, "warn");
+  assert.equal(levels(stale).runtime, "warn");
+  const installCheck = stale.checks.find((check) => check.id === "install");
+  assert.match(installCheck.message, /is out of date: the project dictionary has changed since install/);
+  assert.match(installCheck.message, /install --embed/);
+  const runtimeCheck = stale.checks.find((check) => check.id === "runtime");
+  assert.match(runtimeCheck.message, /keeps using the translations compiled at install time/);
+
+  const repairedEmbed = Object.fromEntries(Object.entries(edited.entries).map(([key, entry]) => [key, entry.text]));
+  installPlugin(project, { embed: repairedEmbed });
+  const repaired = diagnose(project, { dictionary: edited, dictionaryFile });
+  assert.equal(levels(repaired).install, "ok");
+  assert.equal(levels(repaired).runtime, "ok");
+});
+
 test("diagnose reports a game update that dropped the plugins.js entry", () => {
   const project = openProject(sandbox());
   const dictionary = dictionaryFor(project);

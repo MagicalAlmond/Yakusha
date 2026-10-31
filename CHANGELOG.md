@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-10-27
+
+### Added
+
+- Added stale-snapshot detection to the other delivery modes: `doctor` now compares the Ren'Py `game/yakusha_translation.rpy` file and the MZ/MV plugin `EMBEDDED` block against the current project dictionary. A dictionary edited after install is reported as `install: warn` and `runtime: warn` with `verdict: usable` (exit 0), the message points at `install` / `install --embed`, and reinstalling refreshes the snapshot. The new `dictionaryStale` flag stays inside the adapter `delivery` object and is not a JSON payload key.
+
+### Unchanged
+
+- No breaking changes: the envelope, exit codes, command table, all 13 error codes and the dictionary format (`yakusha/1`) are unchanged. Only `doctor` gains warnings for already-installed snapshots.
+
 ## [0.22.0] - 2026-10-27
 
 ### Added
@@ -330,7 +340,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.22.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.23.0...HEAD
+[0.23.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.22.0...v0.23.0
 [0.22.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.21.0...v0.22.0
 [0.21.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.20.0...v0.21.0
 [0.20.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.19.0...v0.20.0

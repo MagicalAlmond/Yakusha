@@ -287,10 +287,24 @@ export const adapter = {
       if (extracted === null) extracted = extractRenpyProject(project.root);
       return extracted;
     };
+    // When a dictionary exists, hand the translated pairs to translationStatus
+    // so it can also answer "would install write the same bytes today?". A
+    // missing or unreadable dictionary leaves the plain status alone; doctor
+    // already reports that as its own failure.
+    let pairs;
+    try {
+      const file = dictionaryPath(project.root);
+      if (fs.existsSync(file)) {
+        const translated = translatedOnly(loadDictionary(file));
+        if (Object.keys(translated).length > 0) pairs = Object.entries(translated);
+      }
+    } catch {
+      // leave pairs undefined
+    }
     return {
       extract,
       dataFiles: extract().scripts.rpy + extract().scripts.rpyc,
-      translation: translationStatus(project),
+      translation: translationStatus(project, pairs ? { pairs } : {}),
       sourceLabel: "game/",
     };
   },

@@ -21,7 +21,7 @@ import path from "node:path";
 import { extractProject } from "./extract.js";
 import { backupStatus, installedEntry, isInstalled } from "./install.js";
 import { parsePluginsJs } from "./pluginsfile.js";
-import { stats as dictStats } from "./dict.js";
+import { stats as dictStats, translatedOnly } from "./dict.js";
 import { listDataFiles } from "./mzproject.js";
 import { verifyDictionary } from "../pipeline/verify.js";
 
@@ -32,25 +32,50 @@ export const DEFAULT_DICT_PATH = "yakusha/dictionary.json";
  */
 
 /**
- * Count the translations compiled into the plugin by `install --embed`.
+ * Read the translations compiled into the plugin by `install --embed`.
  *
  * The embedded blob is a JSON object literal emitted by renderPlugin, so it is
  * parsed rather than pattern-matched: a truncated file must read as "not
- * embedded" instead of a wrong count.
+ * embedded" instead of a wrong map.
+ *
+ * @param {string} source installed plugin file contents
+ * @returns {Record<string, string>|null}
+ */
+export function readEmbeddedTranslations(source) {
+  const match = /const EMBEDDED = (null|\{[^\n]*\});/.exec(source);
+  if (!match || match[1] === "null") return null;
+  try {
+    const parsed = JSON.parse(match[1]);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Count the translations compiled into the plugin by `install --embed`.
  *
  * @param {string} source installed plugin file contents
  * @returns {{ embedded: boolean, entries: number }}
  */
 export function detectEmbeddedTranslations(source) {
-  const match = /const EMBEDDED = (null|\{[^\n]*\});/.exec(source);
-  if (!match || match[1] === "null") return { embedded: false, entries: 0 };
-  try {
-    const parsed = JSON.parse(match[1]);
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return { embedded: false, entries: 0 };
-    return { embedded: true, entries: Object.keys(parsed).length };
-  } catch {
-    return { embedded: false, entries: 0 };
-  }
+  const parsed = readEmbeddedTranslations(source);
+  return parsed === null ? { embedded: false, entries: 0 } : { embedded: true, entries: Object.keys(parsed).length };
+}
+
+/**
+ * Whether two source-to-target maps hold exactly the same pairs.
+ *
+ * @param {Record<string, string>} left
+ * @param {Record<string, string>} right
+ * @returns {boolean}
+ */
+function sameTranslations(left, right) {
+  const leftKeys = Object.keys(left);
+  const rightKeys = Object.keys(right);
+  if (leftKeys.length !== rightKeys.length) return false;
+  return leftKeys.every((key) => Object.hasOwn(right, key) && left[key] === right[key]);
 }
 
 /**
@@ -202,6 +227,7 @@ export function diagnose(project, options = {}) {
     const relPath = deliveryPath && project.root ? path.relative(project.root, deliveryPath).split(path.sep).join("/") : deliveryPath;
     const damaged = present && delivery.intact === false;
     const stale = present && !damaged && delivery.dictionaryStale === true;
+    const reinstall = delivery.mode === "inject" ? "yakusha install --native \"<game>\"" : "yakusha install <game>";
     installCheck = damaged
       ? add(
           "install",
@@ -209,7 +235,7 @@ export function diagnose(project, options = {}) {
           relPath + " is damaged" + (delivery.problems && delivery.problems.length ? ": " + delivery.problems.join(", ") : "") + " - run: yakusha install --native \"<game>\""
         )
       : stale
-      ? add("install", "warn", relPath + " is out of date: the project dictionary has changed since install - run: yakusha install --native \"<game>\"")
+      ? add("install", "warn", relPath + " is out of date: the project dictionary has changed since install - run: " + reinstall)
       : present
       ? add("install", "ok", relPath + " (written by install)")
       : add("install", "info", delivery.mode === "inject"
@@ -217,7 +243,13 @@ export function diagnose(project, options = {}) {
           : "not installed - run: yakusha install <game>");
     if (present && !damaged && stale) {
       runtime = { embedded: false, entries: delivery.entries || 0, path: relPath, found: deliveryPath };
-      add("runtime", "warn", "the injector keeps using the dictionary from install time until it is reinstalled");
+      add(
+        "runtime",
+        "warn",
+        delivery.mode === "inject"
+          ? "the injector keeps using the dictionary from install time until it is reinstalled"
+          : "the game keeps using the translation file written at install time until it is reinstalled"
+      );
     } else if (present && !damaged) {
       const language = delivery.language || null;
       runtime = { embedded: false, entries: delivery.entries || 0, path: relPath, found: deliveryPath };
@@ -246,11 +278,21 @@ export function diagnose(project, options = {}) {
   } else {
     const installed = isInstalled(project);
     const entry = pluginsOk ? installedEntry(project) : null;
-    const embed = installed.installed ? detectEmbeddedTranslations(fs.readFileSync(installed.pluginPath, "utf8")) : { embedded: false, entries: 0 };
+    const pluginSource = installed.installed ? fs.readFileSync(installed.pluginPath, "utf8") : "";
+    const embed = detectEmbeddedTranslations(pluginSource);
+    const embedded = installed.installed ? readEmbeddedTranslations(pluginSource) : null;
+    const translated = dictionary ? translatedOnly(dictionary) : null;
+    const embedOutdated = embedded !== null && translated !== null && !sameTranslations(embedded, translated);
     if (!pluginsOk) {
       installCheck = add("install", "info", "skipped: js/plugins.js is damaged");
     } else if (!installed.installed && !entry) {
       installCheck = add("install", "info", "not installed - run: yakusha install <game>");
+    } else if (installed.installed && entry && embedOutdated) {
+      installCheck = add(
+        "install",
+        "warn",
+        "js/plugins/" + path.basename(installed.pluginPath) + " is out of date: the project dictionary has changed since install - run: yakusha install --embed \"<game>\""
+      );
     } else if (installed.installed && entry) {
       installCheck = add("install", "ok", "js/plugins/" + path.basename(installed.pluginPath) + " registered in js/plugins.js");
     } else if (installed.installed) {
@@ -275,7 +317,11 @@ export function diagnose(project, options = {}) {
     const dictPath = String((entry && entry.parameters && entry.parameters.dictionaryPath) || DEFAULT_DICT_PATH);
     if (embed.embedded) {
       runtime = { embedded: true, entries: embed.entries, path: dictPath, found: null };
-      add("runtime", "ok", "translations compiled into the plugin (" + embed.entries + " entries)");
+      if (embedOutdated) {
+        add("runtime", "warn", "the plugin keeps using the translations compiled at install time until it is reinstalled");
+      } else {
+        add("runtime", "ok", "translations compiled into the plugin (" + embed.entries + " entries)");
+      }
     } else if (!installed.installed) {
       runtime = { embedded: false, entries: 0, path: dictPath, found: null };
       add("runtime", "info", "the game reads " + dictPath + " at load time once installed");

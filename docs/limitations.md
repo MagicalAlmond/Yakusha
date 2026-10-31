@@ -16,6 +16,15 @@
   不在当前版本内。0.12 注册的 RGSS 在 0.18 补上了注入交付层（`install --native`），
   0.13 注册的 Kirikiri 仍只到 L1–L3（识别 / 盘点 / 提取 / 翻译 / 校验 / 导出），没有交付层。
 
+## 交付快照
+
+- MZ/MV 的 `--embed` 插件、Ren'Py 的 `game/yakusha_translation.rpy` 与 RGSS 的
+  `yakusha/native/dictionary.txt` 都是安装时的快照：之后 `translate`、`import` 或
+  手工改字典都不会自动更新它们。0.23 起 `doctor` 会把这种不一致报成 `warn`
+  （`install` / `runtime` 两行），但不会自动修复；改完字典要重跑对应的
+  `install`（MZ/MV 用 `install --embed`，Ren'Py 用 `install`，RGSS 用
+  `install --native`）才会生效。
+
 ## Ren'Py
 
 - 只投 `schinese` 一种语言（命令行没有选语言的入口）。
