@@ -27,6 +27,7 @@ import {
   removePlugin,
 } from "./pluginsfile.js";
 import { VERSION } from "../version.js";
+import { copyFileAtomic, writeFileAtomic } from "./atomic.js";
 import { assertInsideRoot } from "./paths.js";
 
 export const PLUGIN_NAME = "YAKUSHA_Translator";
@@ -141,7 +142,7 @@ export function installPlugin(project, options = {}) {
   let createdBackup = false;
   let staleBackup = false;
   if (!fs.existsSync(backupPath)) {
-    fs.copyFileSync(project.pluginsFile, backupPath);
+    copyFileAtomic(project.pluginsFile, backupPath);
     createdBackup = true;
   } else {
     // The backup only describes the file it was taken from. If the game
@@ -162,10 +163,10 @@ export function installPlugin(project, options = {}) {
       ...(options.parameters || {}),
     },
   });
-  fs.writeFileSync(project.pluginsFile, serialisePluginsJs(plugins, layout), "utf8");
+  writeFileAtomic(project.pluginsFile, serialisePluginsJs(plugins, layout));
 
   fs.mkdirSync(project.pluginDir, { recursive: true });
-  fs.writeFileSync(pluginPath, renderPlugin({ embed: options.embed || null }), "utf8");
+  writeFileAtomic(pluginPath, renderPlugin({ embed: options.embed || null }));
 
   return { pluginPath, registered: true, backupPath: createdBackup ? backupPath : null, createdBackup, staleBackup, state };
 }
@@ -199,7 +200,7 @@ export function uninstallPlugin(project) {
   const layout = pluginsJsLayout(current);
   const plugins = parsePluginsJs(current).plugins;
   if (removePlugin(plugins, PLUGIN_NAME)) {
-    fs.writeFileSync(project.pluginsFile, serialisePluginsJs(plugins, layout), "utf8");
+    writeFileAtomic(project.pluginsFile, serialisePluginsJs(plugins, layout));
     removed = true;
   }
 
@@ -212,7 +213,7 @@ export function uninstallPlugin(project) {
     if (drifted) {
       keptBackup = backupPath;
     } else {
-      fs.copyFileSync(backupPath, project.pluginsFile);
+      copyFileAtomic(backupPath, project.pluginsFile);
       fs.rmSync(backupPath);
       restored = true;
     }

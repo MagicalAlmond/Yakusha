@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.32.0] - 2026-10-27
+
+### Changed
+
+- Every remaining file the tool writes while running a command now uses the same atomic write: the plugin install state (`js/plugins.js` and its backup), `verify --write-report`, `speaker --write-names` and `terms --write` write a same-directory temporary file and rename it into place, and the RGSS archive writer uses the new binary variant. A crash or a failed write leaves the previous file intact, and an unusable output path now fails with `E_IO` such as `cannot write report file: <file>` instead of an internal error.
+
+### Unchanged
+
+- No contract change: the envelope, exit codes, command table, the 13 error codes, every payload key and the `yakusha/1` dictionary format stay the same.
+
 ## [0.31.0] - 2026-10-27
 
 ### Fixed
@@ -429,7 +439,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.31.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.32.0...HEAD
+[0.32.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.31.0...v0.32.0
 [0.31.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.30.0...v0.31.0
 [0.30.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.29.0...v0.30.0
 [0.29.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.28.0...v0.29.0

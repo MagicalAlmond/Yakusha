@@ -20,6 +20,7 @@ import process from "node:process";
 
 import * as dict from "../core/dict.js";
 import { stats as dictStats, translatedOnly } from "../core/dict.js";
+import { writeFileAtomic } from "../core/atomic.js";
 import { diagnose } from "../core/doctor.js";
 import { detectProject } from "../engines/registry.js";
 import { createProvider } from "../pipeline/provider.js";
@@ -76,6 +77,22 @@ function numberFlag(flags, name, fallback) {
   if (raw === undefined || raw === true) return fallback;
   const value = Number(raw);
   return Number.isFinite(value) ? value : fallback;
+}
+
+/**
+ * Write a user-facing text output without leaving a half-written file behind.
+ *
+ * @param {string} file target path
+ * @param {string} text complete contents
+ * @param {string} what short noun for the error message
+ */
+function writeOutputFile(file, text, what) {
+  try {
+    writeFileAtomic(file, text);
+  } catch (error) {
+    const code = error && error.code ? error.code : "write failed";
+    throw new CliError("E_IO", "cannot write " + what + ": " + file + " (" + code + ")");
+  }
 }
 
 /**
@@ -258,8 +275,7 @@ async function commandVerify(dir, flags, sink) {
   // needs the findings of a failed run most of all.
   const reportFile = typeof flags["write-report"] === "string" ? path.resolve(flags["write-report"]) : null;
   if (reportFile) {
-    fs.mkdirSync(path.dirname(reportFile), { recursive: true });
-    fs.writeFileSync(
+    writeOutputFile(
       reportFile,
       buildReport(result, {
         game: project.gameTitle,
@@ -267,7 +283,8 @@ async function commandVerify(dir, flags, sink) {
         root: project.root,
         maxColumns,
         dictionary: data,
-      })
+      }),
+      "report file"
     );
   }
   sink.out("entries   : " + result.total + " (" + result.translated + " translated, " + result.pending + " pending)");
@@ -373,8 +390,7 @@ async function commandSpeaker(dir, flags, sink) {
   if (namesFile) {
     const template = { entries: {} };
     for (const entry of missing) template.entries[entry.name] = "";
-    fs.mkdirSync(path.dirname(namesFile), { recursive: true });
-    fs.writeFileSync(namesFile, JSON.stringify(template, null, 2) + "\n");
+    writeOutputFile(namesFile, JSON.stringify(template, null, 2) + "\n", "names file");
   }
   const saved = result.entries > 0 && !dryRun;
   if (saved) dict.saveDictionary(file, data);
@@ -458,8 +474,7 @@ async function commandTerms(dir, flags, sink) {
   // glossary into the dictionary is not what this command touches.
   const save = written !== null && flags["dry-run"] !== true;
   if (save) {
-    fs.mkdirSync(path.dirname(written), { recursive: true });
-    fs.writeFileSync(written, JSON.stringify(glossary, null, 2) + "\n");
+    writeOutputFile(written, JSON.stringify(glossary, null, 2) + "\n", "glossary file");
   }
 
   sink.out("names     : " + result.names + " mined from " + result.nameEntries + " name entries");

@@ -23,6 +23,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { writeBytesAtomic } from "../../core/atomic.js";
+
 /** Raised for bytes that are not an RGSS archive this module can read. */
 export class ArchiveError extends Error {
   constructor(message) {
@@ -558,7 +560,7 @@ export function writeArchive(file, archive) {
     }
   }
   const buffer = Buffer.concat(parts);
-  fs.writeFileSync(file, buffer);
+  writeBytesAtomic(file, buffer);
   return { path: file, version, entries: entries.length, bytes: buffer.length };
 }
 

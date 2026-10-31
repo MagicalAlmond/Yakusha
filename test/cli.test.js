@@ -351,6 +351,18 @@ test("cli: verify --write-report prints the path and creates parent folders", ()
   assert.match(fs.readFileSync(report, "utf8"), /\*\*OK\*\*/);
 });
 
+test("cli: verify --write-report reports an unusable path as E_IO", () => {
+  const game = tempGame();
+  assert.equal(run(["extract", game]).code, 0);
+  const blocker = path.join(game, "blocked");
+  fs.writeFileSync(blocker, "not a directory\n", "utf8");
+  const result = run(["verify", game, "--write-report", path.join(blocker, "report.md"), "--json"]);
+  assert.equal(result.code, 2);
+  const body = JSON.parse(result.stdout);
+  assert.equal(body.error.code, "E_IO");
+  assert.match(body.error.message, /cannot write report file/);
+});
+
 /**
  * Build a dictionary that has something to mine: a name entry plus dialogue
  * lines that mention it. The CLI fixture is too small to mine anything on its

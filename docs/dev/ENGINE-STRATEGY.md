@@ -549,6 +549,7 @@ TextGrammar = {
 | 0.29 | XOR 探测按首字节筛选候选 key（**已交付**） | — | 712 pass / 52 个文件；新增 3 条 |
 | 0.30 | 字典与 GUI 凭据写盘改为同目录临时文件 + rename 的原子写（**已交付**） | — | 716 pass / 53 个文件；新增 4 条（atomic 3、dictionary 1） |
 | 0.31 | RGSS 原生安装/卸载的路径包含检查与原子复制（**已交付**） | — | 722 pass / 54 个文件；新增 6 条（paths 3、atomic 1、rgss adapter 2） |
+| 0.32 | 安装状态文件与 report/names/glossary 输出的原子写（**已交付**） | — | 724 pass / 54 个文件；新增 2 条（atomic 1、cli 1） |
 | 1.0 | 10 个引擎目标 + 能力矩阵 + 便携 exe | — | 每个引擎有 L4 证据；不达标的明确标 experimental |
 
 说明：

@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { copyFileAtomic, writeFileAtomic } from "../src/core/atomic.js";
+import { copyFileAtomic, writeBytesAtomic, writeFileAtomic } from "../src/core/atomic.js";
 
 const created = [];
 
@@ -41,6 +41,17 @@ test("atomic write leaves the original intact when the target path is unusable",
   assert.throws(() => writeFileAtomic(path.join(blocker, "value.txt"), "new\n"));
   assert.equal(fs.readFileSync(blocker, "utf8"), "original\n");
   assert.deepEqual(fs.readdirSync(dir), ["blocked"]);
+});
+
+test("atomic byte write replaces a binary file exactly", () => {
+  const dir = tempDir();
+  const file = path.join(dir, "archive.bin");
+  const before = Buffer.from([0, 1, 2, 255]);
+  const after = Buffer.from([9, 8, 7, 0, 200]);
+  fs.writeFileSync(file, before);
+  writeBytesAtomic(file, after);
+  assert.deepEqual(fs.readFileSync(file), after);
+  assert.deepEqual(fs.readdirSync(dir), ["archive.bin"]);
 });
 
 test("atomic copy replaces one hard link without touching its twin", () => {

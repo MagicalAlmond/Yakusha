@@ -45,6 +45,30 @@ export function writeFileAtomic(file, text) {
 }
 
 /**
+ * Replace a binary file through the same temporary-name-and-rename dance.
+ *
+ * @param {string} file target path
+ * @param {Buffer|Uint8Array} bytes complete contents
+ * @returns {void}
+ */
+export function writeBytesAtomic(file, bytes) {
+  const dir = path.dirname(file);
+  fs.mkdirSync(dir, { recursive: true });
+  const temp = temporaryPath(file);
+  try {
+    fs.writeFileSync(temp, bytes, { flag: "wx" });
+    fs.renameSync(temp, file);
+  } catch (error) {
+    try {
+      fs.unlinkSync(temp);
+    } catch {
+      // The temporary file may not exist; the original must stay untouched.
+    }
+    throw error;
+  }
+}
+
+/**
  * Copy a file into place without writing through a pre-existing hard link or
  * symbol link at the destination. Renaming a fresh copy over the target
  * replaces the directory entry instead of truncating whatever it pointed at.
