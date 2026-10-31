@@ -189,6 +189,10 @@ export const adapter = {
     debuggable: false,
   }),
 
+  // RGSS reports a family number, not a dotted version: 1 = XP, 2 = VX,
+  // 3 = VX Ace. Only VX Ace has a real acceptance run so far (0.18).
+  versions: { kind: "values", values: ["1", "2", "3"], tested: ["3"] },
+
   detect(startDir) {
     // The project that contains the directory the user pointed at wins over
     // anything found below it: they named one game, not a folder of games.

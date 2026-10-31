@@ -57,7 +57,7 @@ RGSS（XP / VX / VX Ace）是本项目接的第四种引擎。它没有可以挂
 换掉文字要么把这些文档写回去，要么在运行时把译文喂进游戏进程。
 
 交付层路线于 2026-10-27 拍板走**原生注入器 + hook DLL**，0.18 实现，`capabilities.runtime`
-从 `null` 变成 `"inject"`（`src/engines/rgss/adapter.js:179-189`）。选它而不是纯 JS 写回，
+从 `null` 变成 `"inject"`（`src/engines/rgss/adapter.js:180-190`）。选它而不是纯 JS 写回，
 是因为它不改盘：游戏自身文件一个字节不动，卸载删掉注入器目录即还原；写回路线则要重打
 归档，备份、游戏更新与还原的责任都落在游戏文件上，所以纯 JS 写回只保留为历史备选。
 
@@ -93,13 +93,13 @@ RGSS（XP / VX / VX Ace）是本项目接的第四种引擎。它没有可以挂
 ## Kirikiri 为什么没有交付层
 
 Kirikiri（KAG）是第五种引擎，也是目前唯一只做到 L1–L3 的：`capabilities.runtime` 是 `null`
-（`src/engines/krkr/adapter.js:189-199`）。它没有插件目录、没有 `js/plugins.js`，也不像
+（`src/engines/krkr/adapter.js:189-200`）。它没有插件目录、没有 `js/plugins.js`，也不像
 Ren'Py 那样自带一个可以放翻译资源的目录（`src/engines/krkr/adapter.js:1-15`）。文本烧在
 `.xp3` 归档里的 `.ks` / `.tjs` 脚本中，换掉文字等于**把归档写回去**。
 
 把归档写回去这条路本身还有一道墙：发行版常用加密变体。krkr2 引入逐文件密钥，krkrz
 引入 cxdec 解密，两者都需要游戏自己的密钥数据；本项目**刻意不碰**这些加密变体，写回
-路线在支持它们之前不成立（`src/engines/krkr/adapter.js:226-237`）。另一条路线是原生注入器
+路线在支持它们之前不成立（`src/engines/krkr/adapter.js:229-237`）。另一条路线是原生注入器
 + hook DLL（RGSS 已拍板走这条），Kirikiri 自己的两条路线都还没有拍板，所以交付层记成
 **待拍板**（[dev/DEVLOG.md](dev/DEVLOG.md) 的待拍板清单），
 `install` / `uninstall` 报指向决策记录的 `E_NOT_IMPLEMENTED`（`install is not implemented for
@@ -265,7 +265,7 @@ Kirikiri 又换了一族：KAG 的控制码是**方括号标签**，不是反斜
   `launch` 先经过 `yakusha_injector.exe`，没装则照旧直接启动 `Game.exe`。
 - **Kirikiri 也只到 L1–L3**：`capabilities.runtime` 是 `null`，`install` /
   `uninstall` 抛指向决策记录的 `E_NOT_IMPLEMENTED`。写回 `.xp3` 还多一道墙——发行版常用的
-  krkr2 / krkrz 加密变体刻意不碰（`src/engines/krkr/adapter.js:226-237`），所以 0.13 同样
+  krkr2 / krkrz 加密变体刻意不碰（`src/engines/krkr/adapter.js:229-237`），所以 0.13 同样
   **不往游戏里写回任何一个字节**，交付路线定了才有下一步。
 - **字典 key = 原文**：不做语言检测、不改写原文，hash 之类的方案会让译文无法人工校对。
 - **校验在写之前**：宁可留原文，也不留一条会显示成乱码的译文。

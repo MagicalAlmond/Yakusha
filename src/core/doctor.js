@@ -24,6 +24,7 @@ import { parsePluginsJs } from "./pluginsfile.js";
 import { stats as dictStats, translatedOnly } from "./dict.js";
 import { listDataFiles } from "./mzproject.js";
 import { verifyDictionary } from "../pipeline/verify.js";
+import { checkVersion } from "./versions.js";
 
 export const DEFAULT_DICT_PATH = "yakusha/dictionary.json";
 
@@ -107,6 +108,7 @@ export function runtimeLookup(root, dictionaryPath) {
  *   extract?: () => object,
  *   dataFiles?: number,
  *   sourceLabel?: string,
+ *   versions?: {kind?: string, min?: string, max?: string, values?: string[], tested?: string[], reason?: string}|null,
  *   delivery?: { path?: string|null, exists?: boolean, language?: string|null, entries?: number,
  *     mode?: string, pending?: boolean, message?: string }|null,
  * }} [options]
@@ -127,6 +129,8 @@ export function diagnose(project, options = {}) {
   // pre-profile wording for direct library callers.
   const engineLabel = options.engineLabel || "RPG Maker " + project.engine.toUpperCase();
   add("engine", "ok", engineLabel + (project.version ? " " + project.version : ""));
+  const versionCheck = options.versions ? checkVersion(project.version, options.versions) : null;
+  if (versionCheck) add("version", versionCheck.level, versionCheck.message);
 
   // Engines without a plugin registry (Ren'Py) leave pluginsFile null: there is
   // nothing to parse and no check to report, not a failure.

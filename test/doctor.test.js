@@ -78,6 +78,18 @@ test("diagnose fails when the dictionary is missing", () => {
   assert.deepEqual(result.checks.map((c) => c.id).slice(0, 5), ["engine", "dictionary", "install", "runtime"]);
 });
 
+test("diagnose reports a version outside the engine matrix", () => {
+  const project = openProject(sandbox());
+  const versions = { kind: "range", min: "1.3.2", max: "1.9.0", tested: ["1.3.2", "1.9.0"] };
+  const outside = diagnose({ ...project, version: "9.9.9" }, { versions });
+  assert.equal(levels(outside).version, "warn");
+  assert.match(outside.checks.find((check) => check.id === "version").message, /outside the supported range/);
+
+  const unknown = diagnose({ ...project, version: null }, { versions });
+  assert.equal(levels(unknown).version, "info");
+  assert.match(unknown.checks.find((check) => check.id === "version").message, /could not be determined/);
+});
+
 test("diagnose passes every structural check on a healthy install", () => {
   const project = openProject(sandbox());
   const dictionary = dictionaryFor(project);

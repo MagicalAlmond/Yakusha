@@ -1025,6 +1025,7 @@ async function commandDoctor(dir, flags, sink) {
     maxColumns: numberFlag(flags, "max-length", 0),
     engineLabel: adapter.name,
     profile: adapter.profile,
+    versions: adapter.versions || null,
     extract: own.extract,
     dataFiles: own.dataFiles,
     sourceLabel: own.sourceLabel,

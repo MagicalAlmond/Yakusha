@@ -1,11 +1,11 @@
-# 引擎适配器契约（0.26 契约）
+# 引擎适配器契约（0.28 契约）
 
-> **状态：0.26 覆盖五个引擎——RPG Maker MZ、RPG Maker MV、Ren'Py、RGSS（XP / VX / VX Ace）、Kirikiri。**
+> **状态：0.28 覆盖五个引擎——RPG Maker MZ、RPG Maker MV、Ren'Py、RGSS（XP / VX / VX Ace）、Kirikiri。**
 > 0.14 交付 GUI 外壳，0.15 加 JSONL 导入，0.16 起 `scan` 载荷带引擎能力位（GUI 据此灰显按钮），
 > 0.17 给字典条目加可选的引擎与位置溯源（`engine` / `locator`，`FORMAT` 不变），
 > 0.18 给 RGSS 接上原生注入器交付层（`runtime: "inject"`）：`install --native` 把四个
 > 原生组件与 `dictionary.txt` 写进 `yakusha/native/`，`launch` 经 `yakusha_injector.exe`
-> 启动游戏；0.19 把 `verify --kind` 的未知值从静默过滤改为 `E_USAGE`（命令层校验，adapter 契约不变）；0.20 只有 GUI 渲染层契约测试与扫描状态重置，adapter 契约不变；0.21 让 `doctor` 与 `launch` 识别被删除或被改动的原生组件；0.22 让 `doctor` 报出安装之后又被修改过的字典；0.23 把这个检查推广到所有快照式交付（Ren'Py 的译文文件与 MZ/MV 的 `--embed` 插件），adapter 契约不变；0.24 只优化 translate 内部的术语表匹配（Aho-Corasick 索引），0.25 修 Ren'Py 译文文件在字典被清空后的过期判断，0.26 只加固字典键的读写（`__proto__` 等原型名按普通条目处理），0.27 只加固 Kirikiri XP3 读取器对损坏/恶意归档的尺寸检查（adapter 契约不变），adapter 契约不变；0.25 修复字典被清空后 Ren'Py 译文文件未判过期（诊断结果变化，adapter 契约不变）；Kirikiri 的交付层仍未拍板（见 §7.8）。
+> 启动游戏；0.19 把 `verify --kind` 的未知值从静默过滤改为 `E_USAGE`（命令层校验，adapter 契约不变）；0.20 只有 GUI 渲染层契约测试与扫描状态重置，adapter 契约不变；0.21 让 `doctor` 与 `launch` 识别被删除或被改动的原生组件；0.22 让 `doctor` 报出安装之后又被修改过的字典；0.23 把这个检查推广到所有快照式交付（Ren'Py 的译文文件与 MZ/MV 的 `--embed` 插件），adapter 契约不变；0.24 只优化 translate 内部的术语表匹配（Aho-Corasick 索引），0.25 修 Ren'Py 译文文件在字典被清空后的过期判断，0.26 只加固字典键的读写（`__proto__` 等原型名按普通条目处理），0.27 只加固 Kirikiri XP3 读取器对损坏/恶意归档的尺寸检查（adapter 契约不变），0.28 给每个 adapter 加 `versions` 版本矩阵，`doctor` 只在版本读不到、未实测或超出区间时多一条 `version` 检查（adapter 契约不变）；Kirikiri 的交付层仍未拍板（见 §7.8）。
 > 0.10 把 MZ 与 MV 包进统一的 adapter，**不搬文件、不重写算法**；0.11 用同一套
 > contract 接入 Ren'Py，作为第三个 adapter 挂在 registry 末位；0.12 接入 RGSS，排在
 > 第四位，只做到 L1–L3（detect / scan / extract），**没有交付层**；0.13 接入
@@ -128,6 +128,11 @@ export default {
   launch(project, options) { ... },      // {pid, exe, root}
   attach(project, options) { ... },      // 0.10 起只抛出 E_NOT_IMPLEMENTED
 
+  // 引擎版本矩阵；doctor 只报异常（读不到 / 未实测 / 超出区间），
+  // 覆盖范围内的版本不额外占一行。kind 为 "range" 或 "values"，
+  // 没有版本概念的引擎写 "none" 并给出 reason。
+  versions: { kind: "range", min: "1.3.2", max: "1.9.0", tested: ["1.3.2", "1.9.0"] },
+
   // 引擎专属规则；pipeline 不硬编码 MZ 的转义码
   rules: { controlCodes: true, maxColumns: 0 },
 };
@@ -176,7 +181,7 @@ Ren'Py 的 adapter 用同一个形状，但多两个字段、少一半 project �
   走原有分支。
 
 RGSS 同样用这个形状，带着 `dataUnit: "data files"` 与一个 `diagnostics()`
-（`src/engines/rgss/adapter.js:307-338`）：
+（`src/engines/rgss/adapter.js:311-343`）：
 
 ```js
 {
@@ -207,7 +212,7 @@ RGSS 同样用这个形状，带着 `dataUnit: "data files"` 与一个 `diagnost
   `"1"` / `"2"` / `"3"`（不是 MZ 那样的 `"1.7.0"`），读不到就是 `null`。
 
 Kirikiri（0.13，第五位）也用这个形状，带着 `dataUnit: "data files"` 与一个
-`diagnostics()`（`src/engines/krkr/adapter.js:277-296`）：
+`diagnostics()`（`src/engines/krkr/adapter.js:280-299`）：
 
 ```js
 {
@@ -222,7 +227,7 @@ Kirikiri（0.13，第五位）也用这个形状，带着 `dataUnit: "data files
 ```
 
 - `runtime: null` 是**诚实取值**：交付意味着把归档写回去（重打包
-  XP3），0.13 没做这一层（`src/engines/krkr/adapter.js:226-237` 的注释明说）。
+  XP3），0.13 没做这一层（`src/engines/krkr/adapter.js:229-237` 的注释明说）。
 - `diagnostics()` 的 `sourceLabel` 是 `"xp3 archives"`，`delivery` 是
   `{pending: true, message: "Kirikiri has no delivery layer yet, so nothing is written back into the game"}`。
 - `gameTitle` / `version` 恒为 `null`：标题与版本住在加密或可选的配置文件里，
@@ -324,8 +329,8 @@ adapter 只负责给 `code` + `message`；CLI 负责把它塞进错误信封（`
 | `attach` | false | false | false | false | false | 从 0.10 起就没有实现 |
 | `liveReload` | false | false | false | false | false | RM 插件有 `window.__YAKUSHA.reload()`，但没有文件监听；Ren'Py 每次启动重读翻译文件；RGSS 只在启动时读一次 `dictionary.txt`；Kirikiri 没有可重读的文件 |
 
-RGSS 与 Kirikiri 两列的值由 `src/engines/rgss/adapter.js:180-189` 与
-`src/engines/krkr/adapter.js:189-199` 固定，并在
+RGSS 与 Kirikiri 两列的值由 `src/engines/rgss/adapter.js:180-190` 与
+`src/engines/krkr/adapter.js:189-200` 固定，并在
 `test/engine-contract.test.js:71-94` 里对五个引擎逐个断言
 （`ALL_ENGINES = ["mz","mv","renpy","rgss","krkr"]`、
 `RUNTIME_TIERS = { mz:"plugin", mv:"plugin", renpy:"translation", rgss:"inject", krkr:null }`）。
@@ -349,12 +354,26 @@ RGSS 与 Kirikiri 两列的值由 `src/engines/rgss/adapter.js:180-189` 与
     `debug` 仍是预留枚举。
 - `debuggable`：**引擎本身**是否支持 CDP。MZ 为 true，是实测结论；不代表工具能用。
 - `attach`：**工具是否实现** attach。从 0.10 起所有引擎都为 false，RGSS 与 Kirikiri 也一样
-  （`src/engines/rgss/adapter.js:278-279`、`src/engines/krkr/adapter.js:253-255` 都抛共享的
+  （`src/engines/rgss/adapter.js:282-283`、`src/engines/krkr/adapter.js:256-257` 都抛共享的
   `notImplemented("attach")`）；GUI 只有它为 true 才显示“调试注入”。
 
 MV 的 `debuggable:false` 有实测依据：2019/2020 年的 nw.js 版本传
 `--remote-debugging-port` 不监听；MZ 1.7.0 可以监听并执行 `Runtime.evaluate`。
 未来若发现某个 MV 版本可调试，应改成“按版本判断”，而不是全局 true。
+
+### 5.1 引擎版本矩阵与 `doctor`
+
+每个 adapter 用 `versions` 声明自己认识的版本；`doctor` 把检测到的 `project.version` 与它比较，只在异常时追加一条 `version` 检查（正常版本不占一行）：
+
+| 引擎 | `versions` | 判定 |
+| --- | --- | --- |
+| RPG Maker MZ | `{kind:"range", min:"1.3.2", max:"1.9.0"}` | 区间外 `warn`；读不到或不认识 `info` |
+| RPG Maker MV | `{kind:"range", min:"1.6.1", max:"1.6.2"}` | 同上 |
+| Ren'Py | `{kind:"none"}` | 项目里的 `config.version` 是游戏自己的版本，不是 Ren'Py 运行时版本，没有可比较的矩阵 |
+| RGSS（XP/VX/VX Ace） | `{kind:"values", values:["1","2","3"], tested:["3"]}` | 值不在列表 `warn`；在列表但未实测（1/2）`info` |
+| Kirikiri | `{kind:"none"}` | XP3 归档不记录引擎版本，没有可比较的矩阵 |
+
+`versions` 是 adapter 的只读数据字段，不是 `capabilities` 的一部分，也不进 `scan` 载荷；GUI 和文档只把它当说明性元数据。版本比较是数字逐段比较（`1.7` 等于 `1.7.0`），`v1.7.0` 这类带前缀的字符串按“不认识”处理并记 `info`，不猜。
 
 ## 6. MZ / MV 的差异
 
@@ -706,7 +725,7 @@ uninstall : yakusha uninstall "<abs>"
   （`uninstall` 换个动词），退出 2（`src/engines/krkr/adapter.js:178-183` 的 `pending()`，
   `installRuntime` / `uninstallRuntime` 在 :238-240 / :245-247 调它）。
 - **不写任何文件**。交付层缺位意味着写回就得重打包 XP3 归档，0.13 没做，也留下
-  两个待拍板项（`src/engines/krkr/adapter.js:226-237` 的注释）。
+  两个待拍板项（`src/engines/krkr/adapter.js:229-237` 的注释）。
 - **带 `--embed` 时先撞的是 CLI 那层通用校验**：没有字典报 `--embed needs a dictionary`，
   有字典但没译文报 `--embed found no translated entries`，都是 `E_NO_DICTIONARY` /
   退出 2（`src/cli/runner.js:749-752`）；不带 `--embed` 时没有字典也先报 pending 那句。
@@ -792,7 +811,7 @@ attach(project, options) {
 - **没有** `yakusha attach` 命令；GUI 也不会显示入口（`capabilities.attach:false`）。
   五个引擎共用这一个桩：Ren'Py 也没有调试注入，`debuggable` 同样是 `false`；RGSS 与
   Kirikiri 的 `attach` 调的是同一个 `notImplemented("attach")`
-  （`src/engines/rgss/adapter.js:278-279`、`src/engines/krkr/adapter.js:253-255`）。
+  （`src/engines/rgss/adapter.js:282-283`、`src/engines/krkr/adapter.js:256-257`）。
 - 未来实现时，返回值固定为 `{status, detach(), on("exit", cb)}`；
   失败必须能回退到“不带注入启动”，不能把游戏弄成打不开。
 - MZ 的 `debuggable:true` 是为未来留的证据，不是“现在能用”的承诺：
@@ -851,7 +870,7 @@ export { VERSION } from "./version.js";
   Ren'Py 时 bin 只多了一个 `adapter.dataUnit === "scripts"` 的分支（`scan` 与 `doctor`
   的行标）和一个 `runtime === "translation"` 的分支（`install` 的三行文本），
   没有出现 `if (engine === "renpy")`。0.12 接 RGSS 时只多了 `doctor` 的一个分支：
-  把 `own.delivery || own.translation || null` 交给诊断器（`src/cli/runner.js:1021-1025`），
+  把 `own.delivery || own.translation || null` 交给诊断器（`src/cli/runner.js:1036`），
   让各引擎自己的交付状态走 `src/core/doctor.js` 的同一套分支（RGSS 装没装、
   Kirikiri 的 `pending` 都从这条路过）；同样没有出现 `if (engine === "rgss")`。0.13 接 Kirikiri 时 bin **什么都没加**：
   `dataUnit` 是 `data files`、`diagnostics.delivery` 走同一个分支，全库搜不到

@@ -1,6 +1,6 @@
 # 命令参考
 
-本文是 yakusha 0.26.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出。
+本文是 yakusha 0.28.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出。
 
 **RGSS 在 0.18 起有了交付层。** `scan` / `extract` / `status` / `translate` / `verify` / `speaker` / `terms` / `export` / `import` 都能用；0.18 新增 `install --native`，把预编译的注入器与 hook DLL 装进 `yakusha/native/`，游戏启动时由注入器加载，译文从 `dictionary.txt` 读。`install` 不带 `--native` 仍报 `E_USAGE`（RGSS 没有插件交付层）。安装细节与限制见下文 [install 与 uninstall](#install-与-uninstall)。
 
@@ -211,7 +211,7 @@
 ### --help 与 --version
 
 - `--help` / `-h`：永远 stdout 纯文本、退出 0，即使同时给了 `--json`；`scan -h` 也一样打整段帮助。连未知命令都投降：`nope --help` 打帮助、退出 0。
-- `--version`：永远 stdout 一行 `yakusha <version>`、退出 0，并且优先于一切——`--help --version` 只打 `yakusha 0.26.0`，`--json --version` 也不产出 JSON。
+- `--version`：永远 stdout 一行 `yakusha <version>`、退出 0，并且优先于一切——`--help --version` 只打 `yakusha 0.28.0`，`--json --version` 也不产出 JSON。
 - 无命令：文本模式把整段 USAGE 打到 stderr、退出 2；`--json` 时输出 `command: null` 的信封，`message` 是 `no command`。
 - 未知命令：stderr 两行 `error: unknown command: nope` 和 `run 'yakusha --help' for usage`，退出 2，不再打印整段 USAGE。
 
@@ -363,11 +363,11 @@ encodings : rvdata2 7
   ...
 ```
 
-- 第 4 行仍叫 `data files`（`adapter.dataUnit`，`src/engines/rgss/adapter.js:272`），数的是**读过的 Marshal 文档数**（`result.documents`），不是磁盘上的文件数——打包版一块 `.rgss3a` 里能读出 394 个文档。
+- 第 4 行仍叫 `data files`（`adapter.dataUnit`，`src/engines/rgss/adapter.js:294`），数的是**读过的 Marshal 文档数**（`result.documents`），不是磁盘上的文件数——打包版一块 `.rgss3a` 里能读出 394 个文档。
 - `engineVersion` 是 `"1"` / `"2"` / `"3"` 或 `null`（字符串，不是 `"1.7.0"` 那种点分版本）；文本模式拼在引擎名后面，写成 `engine    : rgss 3`。判定按这个顺序（`src/engines/rgss/project.js:309` 的 `detectVersion`）：归档扩展名（`.rgss3a` → 3 / `.rgss2a` → 2 / `.rgssad` → 1）→ `Game.ini` 的 `Library=`（`RGSS300` / `RGSS301` → 3，`RGSS20x` → 2，`RGSS10x` → 1）→ `Scripts=` 的扩展名 → `Data/` 里的文件扩展名 → `null`。归档排第一，因为打包游戏没有数据文件可看。
 - `gameTitle` 取自 `Game.ini` 的 `Title=`；`Game.ini` 按 UTF-8 → Shift_JIS → GBK → latin1 的顺序解码（编辑器按系统区域写这个文件）。
 - `encodings` 分两种：磁盘版按扩展名计数（`{"rvdata2": 7}`，`.rxdata` / `.rvdata` / `.rvdata2` 各自计数），打包版是 `{"marshal": N}`——归档里的文档没有磁盘扩展名可比，只能按容器格式计。
-- `perFile` 的键是数据文件名（`System.rvdata2`），不是路径；`undecodable` 是字符串数组，元素形如 `"<文件名>: <解码错误>"`（`src/engines/rgss/adapter.js:118`）。
+- `perFile` 的键是数据文件名（`System.rvdata2`），不是路径；`undecodable` 是字符串数组，元素形如 `"<文件名>: <解码错误>"`（`src/engines/rgss/adapter.js:120`）。
 - 从 `<root>/Data` 子目录调用同样能定位项目根；项目根向上找最多 3 层、向下找最多 3 层。
 
 RGSS 项目认三种文件之一：根目录的 `Game.ini`（大小写不敏感）、`*.rgssad` / `*.rgss2a` / `*.rgss3a` 归档，或 `Data/` 目录下的 `.rxdata` / `.rvdata` / `.rvdata2`。抽取范围（收哪些事件指令、哪些数据库字段）见 [engines.md](engines.md) §13 文本抽取契约。
@@ -387,7 +387,7 @@ encodings : xp3 1
 ```
 
 - `.xp3` 归档在游戏根目录或 `data/` 下都能识别；`engineVersion` 与 `gameTitle` 恒为 `null`（0.13 不解析任何加密或可选的配置文件），文本模式第 1 行是占位符 `(untitled)`、第 4 行 `engine    : krkr` 不带版本后缀。
-- 第 4 行仍叫 `data files`（`adapter.dataUnit`，`src/engines/krkr/adapter.js:265`），数值是 `dataFiles` 键，数的是**打开的 `.xp3` 归档数**（`result.documents`）——打包游戏没有松散文件可数，归档清单是唯一诚实的数字。
+- 第 4 行仍叫 `data files`（`adapter.dataUnit`，`src/engines/krkr/adapter.js:268`），数值是 `dataFiles` 键，数的是**打开的 `.xp3` 归档数**（`result.documents`）——打包游戏没有松散文件可数，归档清单是唯一诚实的数字。
 - `encodings` 是归档格式计数 `{"xp3": N}`，0.13 只有这一个键。
 - 文本从 `.ks` 脚本按行抽：注释行（行首 `;`）、标签行（行首 `*`）与纯标签行跳过，行内 KAG 标签（`[r]` 这类）剥掉后存纯文本；`.tjs` 是编程语言，只计数不读内容。编码先按 UTF-8 严格解码、失败回退 Shift_JIS，仍解不开的记进 `undecodable`。
 - `perFile` 的键是归档内路径（`scene1.ks`），context 是 `<归档内文件名>:<行号>`（`scene1.ks:2`）；`undecodable` 是字符串数组，元素形如 `"scenario.xp3:scene1.ks: U+FFFD …"`（`<归档名>:<文件名>: <错误>`，`src/engines/krkr/adapter.js:113`）。
@@ -679,7 +679,7 @@ game      : テストゲーム (RPG Maker MZ 1.7.0, 7 data files)
 verdict   : not installed yet - run: yakusha install <game>
 ```
 
-每行是 `id` / `level` / 消息三列，`level` 取 `ok` / `info` / `warn` / `fail`。判定很直接：任何 `fail` → `broken`（`outcome` 转 `findings`、退出 1）；install 检查还是 `info` → `not-installed`（退出 0）；有 `warn` → `usable`；否则 `ready`。载荷：`verdict` / `checks[]` / `failure` / `game` / `dictionary` / `sync` / `install` / `runtime` / `verify`。
+每行是 `id` / `level` / 消息三列，`level` 取 `ok` / `info` / `warn` / `fail`。0.28 起，引擎版本与 adapter 的 `versions` 矩阵不符时多一条 `version` 检查：区间外记 `warn`、版本读不到或未实测记 `info`；覆盖范围内的版本不加这一行，所以正常输出与以前一样。判定很直接：任何 `fail` → `broken`（`outcome` 转 `findings`、退出 1）；install 检查还是 `info` → `not-installed`（退出 0）；有 `warn` → `usable`；否则 `ready`。载荷：`verdict` / `checks[]` / `failure` / `game` / `dictionary` / `sync` / `install` / `runtime` / `verify`。
 
 注意 `doctor` 的 `verify` 检查把 `verify` 的 error 记成 `warn` 而不是 `fail`（`<N> error, <M> warning(s) - some lines will stay Japanese, see: yakusha verify`），所以译文有阻断级问题也只会让 verdict 变 `usable`、退出 0。要拿发布闸门看 `verify` 自己的退出码。
 
@@ -740,7 +740,7 @@ verdict   : usable with 2 warning(s)
 ```
 
 - 首行括号里是 `(Kirikiri, 1 data files)`——引擎名不带版本（`engineVersion` 恒 `null`），数字是打开的归档数；首行的标题是 `(untitled)`，因为 0.13 不从归档里解析游戏标题。
-- `sync` 的文案是 `every dictionary key still appears in xp3 archives`。`install` / `runtime` 的判定走 `src/core/doctor.js:183` 的 `delivery.pending` 分支，两行的消息在 `src/engines/krkr/adapter.js:277-296` 的 `diagnostics` 里声明。
+- `sync` 的文案是 `every dictionary key still appears in xp3 archives`。`install` / `runtime` 的判定走 `src/core/doctor.js:212` 的 `delivery.pending` 分支，两行的消息在 `src/engines/krkr/adapter.js:280-299` 的 `diagnostics` 里声明。
 - 翻完全部条目后 `progress` 行消失，`verdict` 是 `usable with 1 warning(s)`、退出 0——没有交付层，`install` 那条 warn 永远在，`ready` 在这个引擎上不可达。
 - 没有字典时与其它没有交付层的引擎一致：`dictionary fail no dictionary at <abs> - run: yakusha extract <game>`，`verdict` 是 `broken`、退出 1。
 - `install` 载荷子键全 `null` / `false`，`runtime` 恒为 `{embedded: false, entries: 0, path: null, found: null}`。

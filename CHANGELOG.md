@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.28.0] - 2026-10-27
+
+### Added
+
+- `doctor` now compares the engine version it detected with the matrix each adapter declares under `versions`: a version outside the supported range is a `warn`, an unreadable version is an `info`, and a supported but untested RGSS family is an `info`. A version inside the matrix adds no line, so ordinary runs keep their existing output. The matrix lives on the adapter and is documented in `docs/engines.md` section 5.1.
+
+### Unchanged
+
+- No contract change: `checks` keeps its `{id, level, message, samples?}` shape and the new `version` id is additive; the envelope, exit codes, command table, the 13 error codes and every payload key stay the same.
+
 ## [0.27.0] - 2026-10-27
 
 ### Fixed
@@ -19,6 +29,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Unchanged
 
 - No contract change: the envelope, exit codes, command table, the 13 error codes and every payload key stay the same; a normal archive reads exactly as before.
+
 ## [0.26.0] - 2026-10-27
 
 ### Fixed
@@ -383,7 +394,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.27.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.28.0...HEAD
+[0.28.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.27.0...v0.28.0
 [0.27.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.26.0...v0.27.0
 [0.26.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.25.0...v0.26.0
 [0.25.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.24.0...v0.25.0

@@ -195,9 +195,9 @@ KiriKiri、Naninovel、NScripter、LiveMaker、SRPG Studio 等仍是缺口。
 | `src/core/textkey.js` | MZ 转义码 tokenizer | Ren'Py/KRKR/Wolf 的文本语法完全不同 |
 | `src/pipeline/translate.js:142` | system prompt 明写 “RPG Maker MZ ... Japanese” | 新引擎的提示词/控制符说明要改 pipeline |
 | `src/pipeline/verify.js` | 假名、RM 控制符、`%1`、说话人规则 | 新引擎需要自己的校验规则，不能全塞进 verify |
-| `src/core/doctor.js:85` | 输出 “RPG Maker ...” | 新引擎的诊断项不同 |
+| `src/core/doctor.js:130` | 输出 “RPG Maker ...” | 新引擎的诊断项不同 |
 | `src/plugin/YAKUSHA_Translator.js:526` | 运行时只包 `DataManager` | 新引擎需要新的运行时载体 |
-| `src/engines/mz/adapter.js:61` | 声明 `rules:{controlCodes,maxColumns}` | 该字段目前没有被 core/pipeline/CLI 读取，声明了也不生效 |
+| `src/engines/mz/adapter.js:66` | 声明 `rules:{controlCodes,maxColumns}` | 该字段目前没有被 core/pipeline/CLI 读取，声明了也不生效 |
 | `bin/yakusha.js` | 只有 scan/extract/install/uninstall/launch 走 adapter；status/verify/speaker/terms/translate/doctor/export 直接调 core | 新引擎即使有 adapter，这些命令也绕过它 |
 
 最后一条尤其关键：`cmdStatus`（`bin/yakusha.js:166`）、`cmdVerify`（179）、
@@ -545,6 +545,7 @@ TextGrammar = {
 | 0.25 | Ren'Py 译文文件快照检查的边界：装后把字典所有译文清空也判过期，`doctor` 的 install / runtime 记 `warn`、`verdict: usable`（**已交付**） | — | 693 pass / 51 个文件；新增 1 条 adapter 用例 |
 | 0.26 | 字典键安全：`__proto__`、`constructor` 等原型名按普通条目读写，加载 / 写入 / 导入都不再把它当成原型设置器（**已交付**） | — | 697 pass / 51 个文件；新增 4 条（dict 3、export 1） |
 | 0.27 | XP3 读取器加固：索引流与单条目读取设 64 MiB 上限，索引/段必须落在归档文件内（**已交付**） | — | 700 pass / 51 个文件；新增 3 条 malformed-archive 用例 |
+| 0.28 | 引擎版本矩阵：五个 adapter 声明 `versions`，`doctor` 只对异常版本追加 `version` 检查（**已交付**） | — | 709 pass / 52 个文件；新增 9 条（versions 8、doctor 1） |
 | 1.0 | 10 个引擎目标 + 能力矩阵 + 便携 exe | — | 每个引擎有 L4 证据；不达标的明确标 experimental |
 
 说明：

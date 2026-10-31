@@ -198,6 +198,9 @@ export const adapter = {
     debuggable: false,
   }),
 
+  // XP3 archives carry no engine version field, so there is nothing to compare.
+  versions: { kind: "none", reason: "Kirikiri archives do not record an engine version" },
+
   detect(startDir) {
     // The project that contains the directory the user pointed at wins over
     // anything found below it: they named one game, not a folder of games.

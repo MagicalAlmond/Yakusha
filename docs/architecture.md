@@ -274,6 +274,7 @@ test/fixtures/           各引擎最小夹具（mini-mz、mini-mv、renpy-*、r
 | 0.25.0 | **已交付**：Ren'Py 译文文件快照检查的边界修复——装后把字典所有译文清空（重新生成的文件不带任何条目）原先不会触发过期判断，现在 `translation.dictionaryStale` 为真、`doctor` 的 install / runtime 记 `warn`、`verdict: usable` | 693 pass / 0 fail（新增 1 条 adapter 用例） |
 | 0.26.0 | **已交付**：字典键安全加固——`__proto__`、`constructor` 等原型名按普通条目读写（`Object.defineProperty` + `Object.hasOwn` 守卫），加载、写入与导入都不再把它当成原型设置器 | 697 pass / 0 fail（新增 4 条：dict 3 条、export 1 条） |
 | 0.27.0 | **已交付**：XP3 读取器加固——索引流与单条目读取设 64 MiB 上限、索引/段尺寸必须落在归档文件内，损坏或恶意归档报 `E_IO` / `E_UNSUPPORTED` 并进 `undecodable`，不再抛出 `RangeError` 或耗尽内存 | 700 pass / 0 fail（新增 3 条 malformed-archive 用例） |
+| 0.28.0 | **已交付**：引擎版本矩阵——五个 adapter 声明 `versions`，`doctor` 对读不到、未实测或超出区间的版本追加一条 `version` 检查（`info` / `warn`），覆盖范围内的版本不额外占一行 | 709 pass / 0 fail（新增 9 条：versions 8 条、doctor 1 条） |
 | 1.0.0 | 10 个引擎 + 能力矩阵 + 便携 exe（图标、无控制台、最近游戏） | 双击 exe 可用 |
 
 ## 10. 风险

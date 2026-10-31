@@ -165,6 +165,11 @@ export const adapter = {
     debuggable: false,
   }),
 
+  // Ren'Py does not record its runtime version in the project: config.version
+  // is the game's own version, not the interpreter's. There is no matrix to
+  // compare, and doctor must not pretend the game version is one.
+  versions: { kind: "none", reason: "Ren'Py does not record its runtime version in the project" },
+
   detect(startDir) {
     // The project that contains the directory the user pointed at wins over
     // anything found below it: they named one game, not a folder of games.

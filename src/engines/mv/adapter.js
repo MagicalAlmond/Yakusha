@@ -31,6 +31,9 @@ export const adapter = {
     debuggable: false,
   }),
 
+  // See docs/engines.md section 5.1: the tested MV releases are the 1.6.x line.
+  versions: { kind: "range", min: "1.6.1", max: "1.6.2", tested: ["1.6.1", "1.6.2"] },
+
   detect(startDir) {
     return detectFor("mv", startDir);
   },

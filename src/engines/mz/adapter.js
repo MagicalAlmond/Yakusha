@@ -31,6 +31,10 @@ export const adapter = {
     debuggable: true,
   }),
 
+  // The tested range from docs/engines.md section 5.1. doctor warns only when a
+  // game falls outside it; a covered version needs no extra line.
+  versions: { kind: "range", min: "1.3.2", max: "1.9.0", tested: ["1.3.2", "1.9.0"] },
+
   detect(startDir) {
     return detectFor("mz", startDir);
   },

@@ -7,7 +7,7 @@
 > 0.17 给字典条目加了可选的 `engine` / `locator`；0.18 给 RGSS 加了原生注入器交付
 > （`install --native` / `uninstall` 的 `native` 子对象与 `runtime: "inject"`）；0.19 把
 > `verify --kind` 的未知值从静默过滤改为 `E_USAGE`（输入校验，信封与载荷不变）；0.20 只修
-> GUI 渲染层的扫描状态；0.21 让 `doctor`/`launch` 识别损坏的原生组件；0.22 让 `doctor` 报出安装后又被改过的原生字典；0.23 把同一检查推广到 Ren'Py 译文文件与 MZ/MV `--embed` 插件（都只是检查结论变化，载荷键与错误码不变）；0.24 只优化 translate 内部的术语表匹配，载荷键与错误码不变；0.25 修复字典被清空后 Ren'Py 译文文件未判过期（诊断结果变化，载荷键与错误码不变）；0.26 只加固字典键的读写（`__proto__` 等原型名按普通条目处理）；0.27 只加固 XP3 读取器对损坏归档的尺寸检查，载荷键与错误码不变。
+> GUI 渲染层的扫描状态；0.21 让 `doctor`/`launch` 识别损坏的原生组件；0.22 让 `doctor` 报出安装后又被改过的原生字典；0.23 把同一检查推广到 Ren'Py 译文文件与 MZ/MV `--embed` 插件（都只是检查结论变化，载荷键与错误码不变）；0.24 只优化 translate 内部的术语表匹配，载荷键与错误码不变；0.25 修复字典被清空后 Ren'Py 译文文件未判过期（诊断结果变化，载荷键与错误码不变）；0.26 只加固字典键的读写（`__proto__` 等原型名按普通条目处理）；0.27 只加固 XP3 读取器对损坏归档的尺寸检查，载荷键与错误码不变；0.28 给 `doctor` 的 `checks` 增加可选的 `version` 项（版本矩阵异常时才出现），`checks` 的形状与所有载荷键不变。
 > 这些都是只增不改：不新增保留键约束、不改字段类型、已有载荷键一个没动。
 > 本文冻结的形状自 0.10 起不再变化，实际输出以 [commands.md](commands.md) 为准。
 
@@ -248,7 +248,7 @@
 | `scan.dataFiles` | `data/` 下的 `.json` 数据文件数 | `game/` 下的脚本数（`.rpy` 或 `.rpyc`；同 stem 的 `.rpy` 优先） | 读过的 Marshal 文档数（`result.documents`）；打包版一块 `.rgss3a` 里读出多个文档，所以不等于磁盘文件数 | 打开的 `.xp3` 归档数（`result.documents`），不是磁盘文件数 |
 | `scan.engineVersion` | MZ/MV 的引擎版本 | `game/options.rpy` 里 `define config.version` 的值，没有就是 `null` | 字符串 `"1"` / `"2"` / `"3"` 或 `null`，判定顺序见 [commands.md](commands.md) 的 scan 一节（`src/engines/rgss/project.js:309` 的 `detectVersion`） | 恒 `null`（不解析加密或可选的配置文件） |
 | `scan.encodings` | `{"json": N}` | `{"rpy": N, "rpyc": N}`，脚本格式计数 | 磁盘版按扩展名 `{"rvdata2": N}`（`.rxdata` / `.rvdata` 各自计数）；打包版 `{"marshal": N}` | `{"xp3": N}`，0.13 只有这一个键 |
-| `scan.undecodable` | 字符串数组，元素是文件名 | 字符串数组，元素是 `"<相对路径>: <解码错误>"` | 字符串数组，元素是 `"<文件名>: <解码错误>"`（`src/engines/rgss/adapter.js:118`） | 字符串数组，元素是 `"<归档名>:<文件名>: <错误>"`（`src/engines/krkr/adapter.js:113`） |
+| `scan.undecodable` | 字符串数组，元素是文件名 | 字符串数组，元素是 `"<相对路径>: <解码错误>"` | 字符串数组，元素是 `"<文件名>: <解码错误>"`（`src/engines/rgss/adapter.js:120`） | 字符串数组，元素是 `"<归档名>:<文件名>: <错误>"`（`src/engines/krkr/adapter.js:113`） |
 | `scan.perFile` / 字典 `contexts` | `Items.json:description` | `game/script.rpy:12`（`.rpyc` 无行号时只有路径） | `Map001.rvdata2:401`（事件指令号）、`Actors.rvdata2:name`、`System.rvdata2:terms.params` | `scene1.ks:2`（归档内路径加 1 起始行号） |
 | 字典条目的 `engine` / `locator`（0.17） | `mz` / `mv`；`Items.json#/3/description`、`CommonEvents.json#/1/list/1/parameters/0` | `renpy`；`game/script.rpy:12`（与 context 同形） | `rgss`；`Map001.rvdata2#/@events/1/@pages/0/@list/1/@parameters/0`、`Actors.rvdata2#/1/@name` | `krkr`；`scene1.ks:2`（与 context 同形） |
 | `install.pluginPath` | `js/plugins/YAKUSHA_Translator.js` 绝对路径 | `game/yakusha_translation.rpy` 绝对路径 | `<game>/yakusha/native` 绝对路径（`--native`） | 无载荷：命令失败 `E_NOT_IMPLEMENTED` / 2 |
@@ -266,7 +266,7 @@
 
 `engine` / `locator` 是 0.17 加进字典条目的可选字段：`engine` 是引擎 id，`locator` 是精确定位数组（`<文件>#<JSON Pointer>`，行式引擎为 `file:line`）。旧字典没有它们照常读；`export` / `import --format json` 会原样带上，TSV / CSV 表格不带。
 
-Kirikiri 的 `doctor` 走 `src/core/doctor.js:183` 的 `delivery.pending` 分支（它的 `capabilities.runtime` 是 `null`）：
+Kirikiri 的 `doctor` 走 `src/core/doctor.js:212` 的 `delivery.pending` 分支（它的 `capabilities.runtime` 是 `null`）：
 `install` 检查固定是 `warn`、`runtime` 检查固定是 `info`，所以 `verdict` 只可能是 `usable`
 或 `broken`，不会是 `not-installed`，也不会是 `ready`。RGSS 从 0.18 起走真实的 delivery 检查：
 装前 `install` / `runtime` 都是 `info`、`verdict` 是 `not-installed`；装后两行都变 `ok`，没有其它 warning 时 `verdict` 是 `ready`。
@@ -356,6 +356,8 @@ pending decisions in docs/dev/DEVLOG.md` 都是新文案，脚本不应依赖 `m
 **0.26 没有契约变化。** 这一版只加固字典键的读写：`__proto__`、`constructor` 等原型名按普通条目存取，导入时不再丢失；`yakusha/1` 字典格式、信封、退出码、命令表与 13 个错误码都不变。
 
 **0.27 没有契约变化。** 这一版只让 XP3 读取器拒绝尺寸不合法的索引与条目（`E_IO` / `E_UNSUPPORTED`，仍落在 `undecodable` 里）；信封、退出码、命令表、13 个错误码与所有载荷键都不变。
+
+**0.28 没有契约变化。** 这一版只给 `doctor` 的 `checks` 增加可选的 `version` 项（引擎版本读不到、未实测或超出 adapter 的 `versions` 矩阵时才出现）；`checks` 仍是 `{id, level, message, samples?}`，信封、退出码、命令表、13 个错误码与所有载荷键都不变。
 
 ## 9. 实现落点
 
