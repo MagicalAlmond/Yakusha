@@ -1063,7 +1063,7 @@ RangeError），全量 657 绿。
 12. `translate` 按**请求内字面出现**过滤术语表（实测每请求只剩 3–4 条、693 字降到 47 字），
     所以词表变大几乎不增加单请求开销。代价是**上下文相关的术语**（只在某个场景出现的词）
     不会出现在别的场景的请求里——词表表达的是"这个词固定这么翻"，这通常是想表达的语义。
-    词表上万条时过滤本身会变慢，届时再考虑加 cap。
+    0.24 起术语表匹配改走 Aho-Corasick 索引（每次运行建一次、各请求复用），上万条词表的过滤本身不再是瓶颈，所以没有加条数上限。
 13. `terms` 的 `--drift-only` + `--overwrite` 会**重写已有译文**。这是唯一一处
     工具会主动改动已经翻好的内容，务必先看一眼 `--dry-run` 的输出。
 14. `verify` 的 `trad` 只做**单字符**层面的判断，不判断词组用法（`干`/`乾` 这类两语
@@ -1122,8 +1122,9 @@ RangeError），全量 657 绿。
    交付 Ren'Py（translation 档），`CHANGELOG.md` 与 `docs/gui.md` 已补，`docs/limitations.md`
    补了 `.rpyc` 反编译边界与 translation-file 投递的卸载语义，`docs/engines.md` 扩成三引擎
    契约（新增 §13.2 Ren'Py）。实测见 §6。
-7. 可选：给 `translate` 的 glossary 加条数上限（按请求过滤后已经省了 90%+，
-   但词表上万条时仍会让每请求的过滤变慢，届时值得加）。
+7. ~~可选：给 `translate` 的 glossary 加条数上限~~ —— **0.24.0 以索引解决，未加上限**：
+   术语表匹配改成 Aho-Corasick 索引（`src/pipeline/glossary.js`），10,000 条词表配 40 行 batch
+   从约 7.0 ms/请求降到约 0.10 ms/请求（构建约 2.1 ms），不再需要按条数截断。
 8. ~~可选（0.10.x）：`verify --kind` 不校验取值~~ —— **0.19.0 已完成**：未知 kind 报 `E_USAGE` / 退出 2，
    白名单单一真源是 `src/pipeline/verify.js` 的 `VERIFY_KINDS`；合法列表与空 `--kind` 行为不变。
 9. ~~给 `verify` 加 `--write-report <file>`，并把 `speaker` 的 `--names` 模板一起生成~~
