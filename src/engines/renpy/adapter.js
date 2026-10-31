@@ -295,8 +295,10 @@ export const adapter = {
     try {
       const file = dictionaryPath(project.root);
       if (fs.existsSync(file)) {
-        const translated = translatedOnly(loadDictionary(file));
-        if (Object.keys(translated).length > 0) pairs = Object.entries(translated);
+        // Keep an empty list as a real snapshot: if every target was cleared
+        // after install, the file on disk no longer matches what install
+        // would write today, and doctor should say so.
+        pairs = Object.entries(translatedOnly(loadDictionary(file)));
       }
     } catch {
       // leave pairs undefined

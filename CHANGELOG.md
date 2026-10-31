@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.25.0] - 2026-10-27
+
+### Fixed
+
+- Ren'Py snapshot checks now notice a dictionary whose targets were all cleared after install: the regenerated translation file carries no entries, so `doctor` reports the installed `game/yakusha_translation.rpy` as out of date and asks for a reinstall instead of silently keeping the old translations.
+
+### Unchanged
+
+- No breaking changes: the envelope, exit codes, command table, all 13 error codes, the dictionary format (`yakusha/1`) and every JSON payload key are unchanged.
+
 ## [0.24.0] - 2026-10-27
 
 ### Changed
@@ -350,7 +360,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.24.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.25.0...HEAD
+[0.25.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.24.0...v0.25.0
 [0.24.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.23.0...v0.24.0
 [0.23.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.22.0...v0.23.0
 [0.22.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.21.0...v0.22.0

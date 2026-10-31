@@ -1,11 +1,11 @@
-# 引擎适配器契约（0.24 契约）
+# 引擎适配器契约（0.25 契约）
 
-> **状态：0.24 覆盖五个引擎——RPG Maker MZ、RPG Maker MV、Ren'Py、RGSS（XP / VX / VX Ace）、Kirikiri。**
+> **状态：0.25 覆盖五个引擎——RPG Maker MZ、RPG Maker MV、Ren'Py、RGSS（XP / VX / VX Ace）、Kirikiri。**
 > 0.14 交付 GUI 外壳，0.15 加 JSONL 导入，0.16 起 `scan` 载荷带引擎能力位（GUI 据此灰显按钮），
 > 0.17 给字典条目加可选的引擎与位置溯源（`engine` / `locator`，`FORMAT` 不变），
 > 0.18 给 RGSS 接上原生注入器交付层（`runtime: "inject"`）：`install --native` 把四个
 > 原生组件与 `dictionary.txt` 写进 `yakusha/native/`，`launch` 经 `yakusha_injector.exe`
-> 启动游戏；0.19 把 `verify --kind` 的未知值从静默过滤改为 `E_USAGE`（命令层校验，adapter 契约不变）；0.20 只有 GUI 渲染层契约测试与扫描状态重置，adapter 契约不变；0.21 让 `doctor` 与 `launch` 识别被删除或被改动的原生组件；0.22 让 `doctor` 报出安装之后又被修改过的字典；0.23 把这个检查推广到所有快照式交付（Ren'Py 的译文文件与 MZ/MV 的 `--embed` 插件），adapter 契约不变；0.24 只优化 translate 内部的术语表匹配（Aho-Corasick 索引），adapter 契约不变；Kirikiri 的交付层仍未拍板（见 §7.8）。
+> 启动游戏；0.19 把 `verify --kind` 的未知值从静默过滤改为 `E_USAGE`（命令层校验，adapter 契约不变）；0.20 只有 GUI 渲染层契约测试与扫描状态重置，adapter 契约不变；0.21 让 `doctor` 与 `launch` 识别被删除或被改动的原生组件；0.22 让 `doctor` 报出安装之后又被修改过的字典；0.23 把这个检查推广到所有快照式交付（Ren'Py 的译文文件与 MZ/MV 的 `--embed` 插件），adapter 契约不变；0.24 只优化 translate 内部的术语表匹配（Aho-Corasick 索引），adapter 契约不变；0.25 修复字典被清空后 Ren'Py 译文文件未判过期（诊断结果变化，adapter 契约不变）；Kirikiri 的交付层仍未拍板（见 §7.8）。
 > 0.10 把 MZ 与 MV 包进统一的 adapter，**不搬文件、不重写算法**；0.11 用同一套
 > contract 接入 Ren'Py，作为第三个 adapter 挂在 registry 末位；0.12 接入 RGSS，排在
 > 第四位，只做到 L1–L3（detect / scan / extract），**没有交付层**；0.13 接入
@@ -531,8 +531,9 @@ translate schinese strings:
 - **译文文件是快照**：0.23 起 `doctor` 会用当前字典重新生成一遍内容并与
   `game/yakusha_translation.rpy` 比较；安装后改过字典（`translate` / `import` /
   手工编辑）时 `install` 与 `runtime` 都记 `warn`，提示重跑 `install`，
-  `verdict` 仍是 `usable`、退出 0。`dictionaryStale` 只在 adapter 的
-  `translation` 状态里，不是 JSON 载荷键。
+  `verdict` 仍是 `usable`、退出 0。0.25 起即使字典里的译文被全部清空（重新生成
+  的译文文件不带任何 `old`/`new` 条目），也会判成过期。`dictionaryStale` 只在
+  adapter 的 `translation` 状态里，不是 JSON 载荷键。
 - **载荷仍是那 6 个键**：`pluginPath`（生成的 `.rpy` 绝对路径）、
   `registered`（恒 `true`，文件存在即注册）、`state`（`added` / `unchanged`），
   `backupPath` / `createdBackup` / `staleBackup` 恒为 `null` / `false`。
@@ -948,7 +949,7 @@ RPG Maker 专属（`engine-contract.test.js`，因为依赖 `data/` 与 `js/plug
 - launch：发现规则用纯函数测（0 个 / 1 个 / 多个 / `--exe` 非法 / 项目外路径）；
   spawn 用注入的假实现断言参数与 env，**不真的启动游戏**（`test/launch.test.js`）。
 
-Ren'Py 专属（`test/renpy-adapter.test.js`，15 条）：
+Ren'Py 专属（`test/renpy-adapter.test.js`，16 条）：
 
 - 在 registry 里排第三、带自己的 profile、`runtime` 为 `translation`、
   `dataUnit` 为 `scripts`、有 `diagnostics`（`test/renpy-adapter.test.js:81` 的
@@ -964,6 +965,9 @@ Ren'Py 专属（`test/renpy-adapter.test.js`，15 条）：
 - 0.23：装后改字典 → `translation.dictionaryStale` 为真、doctor 的 install 与 runtime
   都记 `warn`、`verdict` 为 `usable`；重装后恢复 `ready`
   （`doctor: a dictionary edited after install makes the translation file stale`）。
+- 0.25：装后把字典所有 `text` 清空 → 生成内容与磁盘不一致，`dictionaryStale` 仍为真、
+  doctor 的 install 与 runtime 都记 `warn`、`verdict` 为 `usable`
+  （`doctor: a dictionary emptied after install still makes the translation file stale`）。
 
 RGSS 专属（`test/rgss-adapter.test.js` 25 条 + `test/rgss-cli.test.js` 16 条；其中原生注入器
 相关的是 adapter 侧 9 条、doctor 3 条、CLI 侧 6 条）：

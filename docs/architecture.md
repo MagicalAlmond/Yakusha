@@ -271,6 +271,7 @@ test/fixtures/           各引擎最小夹具（mini-mz、mini-mv、renpy-*、r
 | 0.22.0 | **已交付**：RGSS 原生字典过期检测——`nativeStatus()` 比较当前项目字典与安装时生成的 `dictionary.txt`，`doctor` 对过期安装记 `install warn` / `runtime warn`、`verdict: usable`，重装可更新 | 689 pass / 0 fail（新增 1 条 adapter 用例） |
 | 0.23.0 | **已交付**：所有快照式交付的字典过期检测——Ren'Py 的 `game/yakusha_translation.rpy` 与 MZ/MV 的 `--embed` 插件同样与当前字典比较，`doctor` 记 `install warn` / `runtime warn`、`verdict: usable`，重装可更新 | 691 pass / 0 fail（新增 2 条：Ren'Py adapter 1 条、doctor 1 条） |
 | 0.24.0 | **已交付**：术语表匹配性能——`src/pipeline/glossary.js` 的 Aho-Corasick 索引每次运行建一次、每个请求复用；10,000 条词表 × 40 行 batch 从约 7.0 ms/请求降到约 0.10 ms/请求（构建约 2.1 ms），选中行与顺序不变 | 692 pass / 0 fail（新增 1 条 glossary 索引用例） |
+| 0.25.0 | **已交付**：Ren'Py 译文文件快照检查的边界修复——装后把字典所有译文清空（重新生成的文件不带任何条目）原先不会触发过期判断，现在 `translation.dictionaryStale` 为真、`doctor` 的 install / runtime 记 `warn`、`verdict: usable` | 693 pass / 0 fail（新增 1 条 adapter 用例） |
 | 1.0.0 | 10 个引擎 + 能力矩阵 + 便携 exe（图标、无控制台、最近游戏） | 双击 exe 可用 |
 
 ## 10. 风险

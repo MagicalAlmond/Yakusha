@@ -448,3 +448,33 @@ test("doctor: a dictionary edited after install makes the translation file stale
   assert.equal(repairedLevels.install, "ok");
   assert.equal(repairedLevels.runtime, "ok");
 });
+test("doctor: a dictionary emptied after install still makes the translation file stale", () => {
+  const { project, adapter } = projectFor("rpy");
+  translateAll(project, adapter);
+  adapter.installRuntime(project);
+  assert.equal(adapter.diagnostics(project).translation.dictionaryStale, false);
+
+  const file = dictionaryPath(project.root);
+  const dictionary = loadDictionary(file);
+  for (const entry of Object.values(dictionary.entries)) entry.text = "";
+  saveDictionary(file, dictionary);
+
+  const own = adapter.diagnostics(project);
+  assert.equal(own.translation.dictionaryStale, true);
+  const result = diagnose(project, {
+    dictionary: loadDictionary(file),
+    dictionaryFile: file,
+    maxColumns: 0,
+    engineLabel: adapter.name,
+    profile: adapter.profile,
+    extract: own.extract,
+    dataFiles: own.dataFiles,
+    sourceLabel: own.sourceLabel,
+    delivery: own.translation,
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.verdict, "usable");
+  const levels = Object.fromEntries(result.checks.map((check) => [check.id, check.level]));
+  assert.equal(levels.install, "warn");
+  assert.equal(levels.runtime, "warn");
+});
