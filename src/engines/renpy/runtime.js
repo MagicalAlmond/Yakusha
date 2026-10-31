@@ -36,6 +36,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { assertInsideRoot } from "../../core/paths.js";
+
 /** The one file yakusha writes, directly inside the game directory. */
 export const TRANSLATION_FILE = "yakusha_translation.rpy";
 
@@ -277,46 +279,6 @@ function build(pairs, options = {}) {
  */
 export function renderTranslationFile(pairs, options = {}) {
   return build(pairs, options).content;
-}
-
-/**
- * Refuse to write or delete outside the project root.
- *
- * The same contract core/install.js enforces for the RPG Maker plugin: the
- * target may not exist yet, so resolve the nearest existing ancestor through
- * realpath (which catches a symlink pointing out of the tree) and append the
- * missing segments. Every path that ends up outside the root, including the
- * root's parent, is rejected before anything touches the disk.
- *
- * @param {{ root: string }} project
- * @param {string} target
- * @returns {void}
- * @throws {Error} E_IO when the resolved target escapes the root
- */
-function assertInsideRoot(project, target) {
-  let root;
-  try {
-    root = fs.realpathSync(project.root);
-  } catch (error) {
-    throw coded("E_IO", "cannot resolve the project root " + project.root + " (" + ((error && error.code) || "realpath failed") + ")");
-  }
-  const absolute = path.resolve(target);
-  /** @type {string[]} */
-  const missing = [];
-  let probe = absolute;
-  while (!fs.existsSync(probe)) {
-    const parent = path.dirname(probe);
-    if (parent === probe) break;
-    missing.unshift(path.basename(probe));
-    probe = parent;
-  }
-  const base = fs.realpathSync(probe);
-  const resolved = path.join(base, ...missing);
-  const relative = path.relative(root, resolved);
-  const escapes = relative === ".." || relative.startsWith(".." + path.sep) || path.isAbsolute(relative);
-  if (escapes) {
-    throw coded("E_IO", "refusing to write outside the project root: " + target);
-  }
 }
 
 /**

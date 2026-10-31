@@ -6,6 +6,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.31.0] - 2026-10-27
+
+### Fixed
+
+- `install --native` and `uninstall` now keep every native path inside the game root. If `<game>/yakusha/native` or any component target is a symbolic link or junction that resolves elsewhere, the command fails with `E_IO` (`refusing to write outside the project root: <target>`) and writes or deletes nothing. Components are copied through a same-directory temporary file and renamed into place, and `dictionary.txt` / `manifest.json` use the same atomic write, so a pre-existing hard link or symbolic link at the destination cannot be used to overwrite another file.
+
+### Changed
+
+- The path containment check is now one shared helper, `src/core/paths.js`, used by plugin install, Ren'Py translation-file install and the RGSS native layer instead of three separate copies.
+
+### Unchanged
+
+- No contract change: the envelope, exit codes, command table, the 13 error codes, every payload key and the `yakusha/1` dictionary format stay the same.
+
+## [0.30.0] - 2026-10-27
+
+### Changed
+
+- `yakusha/dictionary.json` and the GUI credential envelope are now written to a same-directory temporary file and renamed into place, so an interrupted save leaves the previous file intact instead of a half-written one. This is the same guarantee the config and export writers already had.
+
+### Unchanged
+
+- No contract change: the envelope, exit codes, command table, the 13 error codes, every payload key and the `yakusha/1` dictionary format stay the same.
+
 ## [0.29.0] - 2026-10-27
 
 ### Changed
@@ -405,7 +429,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.29.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.31.0...HEAD
+[0.31.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.30.0...v0.31.0
+[0.30.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.29.0...v0.30.0
 [0.29.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.28.0...v0.29.0
 [0.28.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.27.0...v0.28.0
 [0.27.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.26.0...v0.27.0

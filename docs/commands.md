@@ -1,6 +1,6 @@
 # 命令参考
 
-本文是 yakusha 0.30.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出。
+本文是 yakusha 0.31.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出。
 
 **RGSS 在 0.18 起有了交付层。** `scan` / `extract` / `status` / `translate` / `verify` / `speaker` / `terms` / `export` / `import` 都能用；0.18 新增 `install --native`，把预编译的注入器与 hook DLL 装进 `yakusha/native/`，游戏启动时由注入器加载，译文从 `dictionary.txt` 读。`install` 不带 `--native` 仍报 `E_USAGE`（RGSS 没有插件交付层）。安装细节与限制见下文 [install 与 uninstall](#install-与-uninstall)。
 
@@ -211,7 +211,7 @@
 ### --help 与 --version
 
 - `--help` / `-h`：永远 stdout 纯文本、退出 0，即使同时给了 `--json`；`scan -h` 也一样打整段帮助。连未知命令都投降：`nope --help` 打帮助、退出 0。
-- `--version`：永远 stdout 一行 `yakusha <version>`、退出 0，并且优先于一切——`--help --version` 只打 `yakusha 0.30.0`，`--json --version` 也不产出 JSON。
+- `--version`：永远 stdout 一行 `yakusha <version>`、退出 0，并且优先于一切——`--help --version` 只打 `yakusha 0.31.0`，`--json --version` 也不产出 JSON。
 - 无命令：文本模式把整段 USAGE 打到 stderr、退出 2；`--json` 时输出 `command: null` 的信封，`message` 是 `no command`。
 - 未知命令：stderr 两行 `error: unknown command: nope` 和 `run 'yakusha --help' for usage`，退出 2，不再打印整段 USAGE。
 
@@ -649,6 +649,7 @@ uninstall : yakusha uninstall "<abs>"
 - 组件来自随 npm 包发布的 `native/prebuilt/`，CLI 在复制前按 `manifest.json` 逐项校验文件存在性与 SHA-256。缺组件报 `E_IO` `native component is missing: <names> (<dir>)`；hash 不符报 `E_IO` `native component failed its integrity check: <names> (<dir>)`；manifest 缺失或不可读报 `E_CONFIG` `native component manifest is missing or unreadable: <file>`。`dictionary.txt` 每条已译条目一行 `base64(source)\tbase64(target)`，按 source 排序、空译文跳过、UTF-8 标准 base64 带 padding。
 - `--native` 需要字典：没有字典报 `E_NO_DICTIONARY` `install --native needs a dictionary, run: yakusha extract "<abs>"`。字典可以有 0 条译文——`native.dictionaryEntries: 0` 也照装。
 - `uninstall` 递归删掉 `yakusha/native/`（只删带我们 `manifest.json` 的目录，否则 `E_CONFIG` 拒绝），文本输出 `native components removed`；没装过时输出 `the native components are not installed`，都是 `ok`、退出 0。载荷 5 个通用键（`restored` / `backupPath` / `keptBackup` 恒 `false` / `null` / `null`）外加 `native: {dir, removed}`。
+- 0.31 起安装与卸载先做路径包含检查：`yakusha/native` 目录或任何一个目标组件文件如果是符号链接/junction 并解析到项目外，直接报 `E_IO` `refusing to write outside the project root: <target>`，**不写也不删**；组件复制与 `dictionary.txt` / `manifest.json` 的写入都走同目录临时文件 + rename，不会穿透目标处已有的硬链接或符号链接。
 - 运行原理：`yakusha_injector.exe` 以 `CREATE_SUSPENDED` 启动 `Game.exe`，把 hook DLL 路径写进目标进程后 `CreateRemoteThread(LoadLibraryW)`，加载后 resume；hook DLL 补 IAT 的 `kernel32!GetProcAddress`，拦住 `RGSSEval` / `RGSSGameMain`，先跑 `bootstrap.rb` 再调真正的 `RGSSGameMain`。`bootstrap.rb` 把 `dictionary.txt` 读成 Ruby hash，包 `Kernel#load_data` 递归替换字符串（含 Array / Hash / 实例变量，深度上限 64），再加通用 `Vocab` 兜底。日志写在 `<game>/yakusha/native/rgss-hook.log`。
 - 限制：只支持 32 位 Windows（RGSS 运行时本身只有 32 位）；只在带 `RGSS300.dll` 的 VX Ace 上实测过，XP（RGSS1）与 VX（RGSS2）未测，`RGSS301` 只知道同族。注入器与 hook DLL 未签名，补 IAT 的行为可能被杀毒软件误报。已被可执行保护器打包的游戏不在支持范围。只翻 Ruby 对象可达的字符串（外加 `Vocab`），脚本里的字面量不翻。
 

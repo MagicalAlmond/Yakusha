@@ -27,6 +27,7 @@ import {
   removePlugin,
 } from "./pluginsfile.js";
 import { VERSION } from "../version.js";
+import { assertInsideRoot } from "./paths.js";
 
 export const PLUGIN_NAME = "YAKUSHA_Translator";
 export const PLUGIN_FILE = "YAKUSHA_Translator.js";
@@ -34,41 +35,6 @@ export const BACKUP_SUFFIX = ".yakusha-backup";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const TEMPLATE = path.join(HERE, "..", "plugin", PLUGIN_FILE);
-
-/**
- * Refuse to write or delete outside the project root.
- *
- * The target may not exist yet (the plugin directory is often created by the
- * install), so resolve the nearest existing ancestor and append the missing
- * segments. A symlink that points outside is caught because realpath resolves
- * the ancestor first.
- *
- * @param {import("./mzproject.js").Project} project
- * @param {string} target
- * @throws {Error} E_IO when the resolved target escapes the root
- */
-function assertInsideRoot(project, target) {
-  const root = fs.realpathSync(project.root);
-  const absolute = path.resolve(target);
-  const missing = [];
-  let probe = absolute;
-  while (!fs.existsSync(probe)) {
-    const parent = path.dirname(probe);
-    if (parent === probe) break;
-    missing.unshift(path.basename(probe));
-    probe = parent;
-  }
-  const base = fs.realpathSync(probe);
-  const resolved = path.join(base, ...missing);
-  const relative = path.relative(root, resolved);
-  const escapes =
-    relative === ".." || relative.startsWith(".." + path.sep) || path.isAbsolute(relative);
-  if (escapes) {
-    const error = new Error("refusing to write outside the project root: " + target);
-    error.code = "E_IO";
-    throw error;
-  }
-}
 
 /**
  * @typedef {{ pluginPath: string, registered: boolean, backupPath: string|null, createdBackup: boolean, staleBackup: boolean, state: "added"|"enabled"|"unchanged" }} InstallResult

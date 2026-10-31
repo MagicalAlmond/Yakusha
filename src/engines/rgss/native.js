@@ -35,7 +35,9 @@ import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
+import { copyFileAtomic, writeFileAtomic } from "../../core/atomic.js";
 import { dictionaryPath, loadDictionary } from "../../core/dict.js";
+import { assertInsideRoot } from "../../core/paths.js";
 import { childEnvironment, isWindows, selectExecutable } from "../launch.js";
 
 /** Where install puts the native components, relative to the game root. */
@@ -168,6 +170,25 @@ export function verifyAssets(dir) {
  */
 export function nativeStatus(project) {
   const dir = nativeDir(project);
+  let unsafe = null;
+  try {
+    assertInsideRoot(project, dir);
+  } catch (error) {
+    unsafe = error && error.message ? error.message : "the native directory is outside the project root";
+  }
+  if (unsafe) {
+    return {
+      dir,
+      installed: fs.existsSync(dir),
+      intact: false,
+      files: [],
+      missing: [],
+      mismatched: [],
+      manifestError: unsafe,
+      dictionaryEntries: 0,
+      dictionaryStale: false,
+    };
+  }
   const manifestFile = path.join(dir, MANIFEST_FILE);
   const installed = fs.existsSync(manifestFile);
   const missing = [];
@@ -302,6 +323,10 @@ export function installNative(project, options = {}) {
   }
   const built = buildDictionaryText(dictionary);
   const dir = nativeDir(project);
+  assertInsideRoot(project, dir);
+  assertInsideRoot(project, path.join(dir, DICTIONARY_FILE));
+  assertInsideRoot(project, path.join(dir, MANIFEST_FILE));
+  for (const name of COMPONENT_FILES) assertInsideRoot(project, path.join(dir, name));
   const files = COMPONENT_FILES.slice();
   const existed = fs.existsSync(dir);
 
@@ -311,10 +336,10 @@ export function installNative(project, options = {}) {
 
   fs.mkdirSync(dir, { recursive: true });
   for (const name of COMPONENT_FILES) {
-    fs.copyFileSync(path.join(assetsDir, name), path.join(dir, name));
+    copyFileAtomic(path.join(assetsDir, name), path.join(dir, name));
   }
-  fs.writeFileSync(path.join(dir, DICTIONARY_FILE), built.text, "utf8");
-  fs.writeFileSync(path.join(dir, MANIFEST_FILE), JSON.stringify(assets.manifest, null, 2) + "\n", "utf8");
+  writeFileAtomic(path.join(dir, DICTIONARY_FILE), built.text);
+  writeFileAtomic(path.join(dir, MANIFEST_FILE), JSON.stringify(assets.manifest, null, 2) + "\n");
   return { dir, files, dictionaryEntries: built.entries, dryRun: false, created: !existed };
 }
 
@@ -331,6 +356,8 @@ export function installNative(project, options = {}) {
 export function uninstallNative(project) {
   const dir = nativeDir(project);
   if (!fs.existsSync(dir)) return { dir, removed: false };
+  assertInsideRoot(project, dir);
+  assertInsideRoot(project, path.join(dir, MANIFEST_FILE));
   readManifest(dir);
   fs.rmSync(dir, { recursive: true, force: true });
   return { dir, removed: true };

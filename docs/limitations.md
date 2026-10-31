@@ -51,6 +51,7 @@
   再跑一次 `install --native`。`dictionary.txt` 是安装时的快照：0.22 起 `doctor` 会把安装后
   又改过的字典报成 `warn`（`install` / `runtime` 两行），但同样不会自动更新，改完字典必须
   重跑 `install --native` 才会生效。
+- 0.31 起安装/卸载先检查 `yakusha/native` 与每个目标文件的 realpath，指向项目外的符号链接/junction 直接 `E_IO` 拒绝；组件复制与 `dictionary.txt` / `manifest.json` 写入走临时文件 + rename，不会穿透已有硬链接/符号链接写外部文件。
 - 只提取玩家可读的位置：事件指令 401 / 405 / 102 / 101 与数据库字段 320。
   Ruby 脚本（codeobj）不碰。
 - 归档（`.rgssad` / `.rgss2a` / `.rgss3a`）与散装 `Data/` 目录只读一边，不合并。

@@ -342,6 +342,51 @@ test("uninstall: removes the native directory only when the manifest is ours", (
   assert.equal(fs.existsSync(path.join(root, "yakusha", "native", "stray.txt")), true);
 });
 
+test("install: a native directory that is a junction outside the project is refused", (t) => {
+  const { root, project, adapter } = projectFor();
+  translateAll(project, adapter);
+  const outside = path.join(sandbox(), "outside");
+  fs.mkdirSync(outside);
+  try {
+    fs.symlinkSync(outside, path.join(root, "yakusha", "native"), "junction");
+  } catch (error) {
+    t.skip("directory junctions are not available here: " + (error && error.code));
+    return;
+  }
+  const assets = nativeAssets();
+  assert.throws(
+    () => adapter.installRuntime(project, { native: true, assetsDir: assets.dir }),
+    (error) => {
+      assert.equal(error.code, "E_IO");
+      assert.match(error.message, /^refusing to write outside the project root: /);
+      return true;
+    }
+  );
+  assert.deepEqual(fs.readdirSync(outside), []);
+});
+
+test("uninstall: a native directory that is a junction outside the project is refused", (t) => {
+  const { root, project, adapter } = projectFor();
+  translateAll(project, adapter);
+  const outside = path.join(sandbox(), "outside");
+  fs.mkdirSync(outside);
+  fs.writeFileSync(path.join(outside, "manifest.json"), JSON.stringify({ schema: 1, files: {} }), "utf8");
+  try {
+    fs.symlinkSync(outside, path.join(root, "yakusha", "native"), "junction");
+  } catch (error) {
+    t.skip("directory junctions are not available here: " + (error && error.code));
+    return;
+  }
+  assert.throws(
+    () => adapter.uninstallRuntime(project),
+    (error) => {
+      assert.equal(error.code, "E_IO");
+      assert.match(error.message, /^refusing to write outside the project root: /);
+      return true;
+    }
+  );
+  assert.equal(fs.existsSync(path.join(outside, "manifest.json")), true);
+});
 test("attach: RGSS has no debug injection, and says so in the shared wording", () => {
   assert.throws(
     () => getAdapter("rgss").attach(),

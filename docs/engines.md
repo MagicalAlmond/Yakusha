@@ -1,11 +1,11 @@
-# 引擎适配器契约（0.30 契约）
+# 引擎适配器契约（0.31 契约）
 
-> **状态：0.30 覆盖五个引擎——RPG Maker MZ、RPG Maker MV、Ren'Py、RGSS（XP / VX / VX Ace）、Kirikiri。**
+> **状态：0.31 覆盖五个引擎——RPG Maker MZ、RPG Maker MV、Ren'Py、RGSS（XP / VX / VX Ace）、Kirikiri。**
 > 0.14 交付 GUI 外壳，0.15 加 JSONL 导入，0.16 起 `scan` 载荷带引擎能力位（GUI 据此灰显按钮），
 > 0.17 给字典条目加可选的引擎与位置溯源（`engine` / `locator`，`FORMAT` 不变），
 > 0.18 给 RGSS 接上原生注入器交付层（`runtime: "inject"`）：`install --native` 把四个
 > 原生组件与 `dictionary.txt` 写进 `yakusha/native/`，`launch` 经 `yakusha_injector.exe`
-> 启动游戏；0.19 把 `verify --kind` 的未知值从静默过滤改为 `E_USAGE`（命令层校验，adapter 契约不变）；0.20 只有 GUI 渲染层契约测试与扫描状态重置，adapter 契约不变；0.21 让 `doctor` 与 `launch` 识别被删除或被改动的原生组件；0.22 让 `doctor` 报出安装之后又被修改过的字典；0.23 把这个检查推广到所有快照式交付（Ren'Py 的译文文件与 MZ/MV 的 `--embed` 插件），adapter 契约不变；0.24 只优化 translate 内部的术语表匹配（Aho-Corasick 索引），0.25 修 Ren'Py 译文文件在字典被清空后的过期判断，0.26 只加固字典键的读写（`__proto__` 等原型名按普通条目处理），0.27 只加固 Kirikiri XP3 读取器对损坏/恶意归档的尺寸检查（adapter 契约不变），0.28 给每个 adapter 加 `versions` 版本矩阵，`doctor` 只在版本读不到、未实测或超出区间时多一条 `version` 检查（adapter 契约不变）；0.29 只优化 `data/` 的 XOR 解码探测（按首字节筛选候选 key，20 MB 损坏文件从约 15.7 s 降到约 0.65 s，adapter 契约不变）；0.30 只把字典与 GUI 凭据的写盘改为同目录临时文件加 rename，adapter 契约不变；Kirikiri 的交付层仍未拍板（见 §7.8）。
+> 启动游戏；0.19 把 `verify --kind` 的未知值从静默过滤改为 `E_USAGE`（命令层校验，adapter 契约不变）；0.20 只有 GUI 渲染层契约测试与扫描状态重置，adapter 契约不变；0.21 让 `doctor` 与 `launch` 识别被删除或被改动的原生组件；0.22 让 `doctor` 报出安装之后又被修改过的字典；0.23 把这个检查推广到所有快照式交付（Ren'Py 的译文文件与 MZ/MV 的 `--embed` 插件），adapter 契约不变；0.24 只优化 translate 内部的术语表匹配（Aho-Corasick 索引），0.25 修 Ren'Py 译文文件在字典被清空后的过期判断，0.26 只加固字典键的读写（`__proto__` 等原型名按普通条目处理），0.27 只加固 Kirikiri XP3 读取器对损坏/恶意归档的尺寸检查（adapter 契约不变），0.28 给每个 adapter 加 `versions` 版本矩阵，`doctor` 只在版本读不到、未实测或超出区间时多一条 `version` 检查（adapter 契约不变）；0.29 只优化 `data/` 的 XOR 解码探测（按首字节筛选候选 key，20 MB 损坏文件从约 15.7 s 降到约 0.65 s，adapter 契约不变）；0.30 只把字典与 GUI 凭据的写盘改为同目录临时文件加 rename，adapter 契约不变；0.31 给原生安装/卸载加路径包含检查与原子复制，adapter 契约不变；Kirikiri 的交付层仍未拍板（见 §7.8）。
 > 0.10 把 MZ 与 MV 包进统一的 adapter，**不搬文件、不重写算法**；0.11 用同一套
 > contract 接入 Ren'Py，作为第三个 adapter 挂在 registry 末位；0.12 接入 RGSS，排在
 > 第四位，只做到 L1–L3（detect / scan / extract），**没有交付层**；0.13 接入
@@ -655,6 +655,8 @@ uninstall : yakusha uninstall "<abs>"
 
 `<dir>` 是组件来源目录（默认是包里的 `native/prebuilt/`，可用 `YAKUSHA_NATIVE_ASSETS`
 指向别处——这正是测试用的方式）。
+
+**路径安全（0.31）。** 安装和卸载在写盘或删除之前，先对 `<game>/yakusha/native` 与每一个目标组件做一次 realpath 包含检查：只要其中任何一个通过符号链接/junction 解析到项目根之外，命令就以 `E_IO` 失败并给出 `refusing to write outside the project root: <target>`，既不写也不删。组件复制与 `dictionary.txt` / `manifest.json` 的写入都使用同目录临时文件 + rename，因此目标位置预先存在的硬链接或符号链接也不会被用来覆盖项目外的文件。
 
 **卸载。** `yakusha uninstall <game-dir>` 递归删除 `<game>/yakusha/native/`，文本模式打
 `native components removed`（不存在时打 `the native components are not installed`，
