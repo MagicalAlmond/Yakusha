@@ -1,7 +1,7 @@
 # 开发交接文档（DEVLOG）
 
 > 这份文档记录**阶段目标、已完成项、决策理由和下一步**，随开发进程更新。
-> 最后更新：2026-10-27（0.18.0 RGSS 原生注入器交付层：`install --native`，工作树未提交；0.17 字典溯源字段在 `feat/0.17-dictionary-provenance`；0.15 通用内容导入 v1 在 `feat/0.15-generic-import`；0.14.0 GUI 在 `feat/0.14-gui`；均未合入 `main`、未打 tag）。
+> 最后更新：2026-10-27（0.18.0 RGSS 原生注入器交付层：`install --native`，已提交于 `feat/0.18-rgss-native`；0.17 字典溯源字段在 `feat/0.17-dictionary-provenance`；0.15 通用内容导入 v1 在 `feat/0.15-generic-import`；0.14.0 GUI 在 `feat/0.14-gui`；均未合入 `main`、未打 tag）。
 > 0.9.0 项目改名 **Yakusha**，字典目录、插件文件、环境变量与备份后缀全部随之改名；
 > 仓库已发布到 https://github.com/MagicalAlmond/Yakusha（`main` 分支）。
 > 0.8.0 的 `doctor`、0.7.1 的 `uninstall` 漂移保护、0.7.0 的报告/模板见下）。

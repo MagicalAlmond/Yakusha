@@ -535,7 +535,7 @@ TextGrammar = {
 | 0.15 | 通用内容导入 v1（JSONL 输入 + `import --create`，**已交付**，`feat/0.15-generic-import`，即 0.11 顺延项）；原计划「KRKR inject + Wolf/SRPG spike」**未做**（等 §8.1 #10 路线拍板） | 能力矩阵/兼容性数据 | 原生组件复用同一套分发与签名流程（顺延） |
 | 0.16 | GUI 能力灰显：`scan` 载荷新增 `capabilities`，GUI 按能力位禁用按钮并写明原因（**已交付**，`feat/0.16-gui-capabilities`）；`test/gui-e2e.test.js` 按调用缝走通三条交付档，gui.md 验收未验范围收窄到 Electron 窗口交互。版内修正：Kirikiri XP3 读取器适配真机归档（双布局索引头、变换头干净报错）与 `.ks` UTF-16 BOM 解码（DEVLOG §6 的 0.16 段） | — | 无窗口环境下的全部可验项已验（信封逐键对拍 + handler 缝 E2E）；真机窗口走查顺延 |
 | 0.17 | 字典 v2 溯源字段：条目可选 `engine`（来源引擎）与 `locator`（精确位置，**已交付**，`feat/0.17-dictionary-provenance`） | — | 670 pass；旧字典照读；TSV/CSV 仍三列 |
-| 0.18 | RGSS inject 交付层：`install --native`（原生注入器 + hook DLL + 生成的 dictionary.txt）、`uninstall` 递归删 native 目录、`doctor` 的 delivery 检查、`scan` 的 `runtime: "inject"`（**已交付**，工作树未提交） | GUI 对 RGSS 自动带 `--native`；native/ 两个 Rust crate + build.mjs + prebuilt 进 npm 包 | 677 pass / 50 文件；合成项目上干跑/安装/卸载/JSON 载荷走通；实机只在单款 VX Ace（RGSS300.dll）走查 |
+| 0.18 | RGSS inject 交付层：`install --native`（原生注入器 + hook DLL + 生成的 dictionary.txt）、`uninstall` 递归删 native 目录、`doctor` 的 delivery 检查、`scan` 的 `runtime: "inject"`（**已交付**） | GUI 对 RGSS 自动带 `--native`；native/ 两个 Rust crate + build.mjs + prebuilt 进 npm 包 | 677 pass / 50 文件；合成项目上干跑/安装/卸载/JSON 载荷走通；实机只在单款 VX Ace（RGSS300.dll）走查 |
 | 1.0 | 10 个引擎目标 + 能力矩阵 + 便携 exe | — | 每个引擎有 L4 证据；不达标的明确标 experimental |
 
 说明：
