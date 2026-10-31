@@ -1,6 +1,6 @@
-# 译文导出格式（0.13；0.15 增补 JSONL 导入；0.17 增补来源字段）
+# 译文导出格式（0.13；0.15 增补 JSONL 导入；0.17 增补来源字段；0.34 增补 JSONL 导出）
 
-> **状态：0.10 实现 JSON（WP4）；0.13 补上 TSV / CSV 表格与 `import` 命令。**
+> **状态：0.10 实现 JSON（WP4）；0.13 补上 TSV / CSV 表格与 `import` 命令；0.34 补上 JSONL 导出。**
 > 本文冻结的是**格式契约**，不是排期；排期权威版本见
 > [dev/ENGINE-STRATEGY.md](dev/ENGINE-STRATEGY.md) §6.3。
 > 实现与测试见 `src/cli/export.js`、`src/cli/table.js`、`test/export.test.js`、
@@ -10,23 +10,23 @@
 > 各引擎的字典 key 都是原文——MZ/MV 是 JSON 字段串，RGSS 是 Ruby Marshal 文档里的
 > 原文字符串（`src/engines/rgss/marshal.js:344-357`），Kirikiri 是 `.ks` 的行文本
 > （`src/engines/krkr/extract.js:119-122`）——所以导出的 key 就是原文，可以跨引擎合并。
-> 0.17 给字典条目加了两个**可选**溯源字段 `engine` / `locator`，rich JSON 导出会原样带上；
-> 表格（TSV / CSV）仍是三列、不带 provenance（见 §8.2）。
+> 0.17 给字典条目加了两个**可选**溯源字段 `engine` / `locator`，rich JSON 导出与 0.34 的
+> JSONL 导出会原样带上；表格（TSV / CSV）仍是三列、不带 provenance（见 §8.2）。
 
 ## 1. 命令
 
 ```
-yakusha export <game-dir> --out <file> [--format json|tsv|csv] [--flat] [--force] [--json]
+yakusha export <game-dir> --out <file> [--format json|tsv|csv|jsonl] [--flat] [--force] [--json]
 ```
 
 - `--out` **必填**。没有默认文件名，也不写 stdout；`--out -` 被拒绝（`E_USAGE`）。
   导出是“落一份可交付的文件”，不是管道过滤器。
-- `--format`：`json`（默认）、`tsv`、`csv`。其它值返回 `E_USAGE`
-  （`export supports --format json, tsv or csv, not <name>`，`src/cli/runner.js:842`）。
+- `--format`：`json`（默认）、`tsv`、`csv`、`jsonl`。其它值返回 `E_USAGE`
+  （`export supports --format json, tsv, csv or jsonl, not <name>`，`src/cli/runner.js:866`）。
   `tsv` / `csv` 的形状与读写规则在 §8。
 - `--flat`：条目值从对象 `{text, contexts}` 改成字符串 `text`。只对 JSON 生效：
-  `--format tsv|csv` 加它报 `E_USAGE`（`--flat applies to --format json only`，
-  `src/cli/runner.js:845`），表格本身已经是两列的“扁平”形状。
+  `--format tsv|csv|jsonl` 加它报 `E_USAGE`（`--flat applies to --format json only`，
+  `src/cli/runner.js:869`），表格本身已经是两列的“扁平”形状。
 - `--force`：允许覆盖已存在的目标文件。没有它时目标存在 → `E_EXISTS`。
 - 命令不修改游戏、字典或插件；只写 `--out` 指向的那一个文件。
 
@@ -156,8 +156,8 @@ yakusha export <game-dir> --out <file> [--format json|tsv|csv] [--flat] [--force
   假设它存在。
 - 导出不是备份：它只含已翻译条目，丢了未翻条目的 `contexts` 与 `error`。
   要备份就复制 `yakusha/dictionary.json`。
-- 0.17 起 rich 导出还复制 `engine` / `locator`（条目里有就带）；JSON 导入会把这两个字段写回字典，
-  表格三列没有它们。
+- 0.17 起 rich 导出还复制 `engine` / `locator`（条目里有就带）；JSON 与 0.34 起的 JSONL
+  导入会把这两个字段写回字典，表格三列没有它们。
 - 导出文件可以被外部工具消费（字幕、校对表、CAT）。外部工具改过的文件**不承诺**无损
   导入；本项目只对自己导出的表格保证 round-trip：`export --format tsv` → `import --from`
   → 再 `export`，字节一致（见 §8 与 `test/export.test.js`）。
@@ -174,39 +174,39 @@ yakusha export <game-dir> --out <file> [--format json|tsv|csv] [--flat] [--force
 ### 8.1 命令
 
 ```
-yakusha import <game-dir> --from <file> [--format tsv|csv|json] [--strategy only-empty|overwrite] [--dry-run] [--json]
+yakusha import <game-dir> --from <file> [--format tsv|csv|json|jsonl] [--strategy only-empty|overwrite] [--dry-run] [--json]
 ```
 
 - `--from` 必填，且必须是文件路径：传 `-` 报 `E_USAGE`
-  （`import --from must be a file path, not -`，`src/cli/runner.js:882`）。不提供 stdin 入口。
+  （`import --from must be a file path, not -`，`src/cli/runner.js:910`）。不提供 stdin 入口。
 - `--format` 省略时按扩展名推断（`.tsv` / `.csv` / `.json`），推断不出报 `E_USAGE`
   （0.13 定的这句在 0.15 扩成 `import --format must be tsv, csv, json or jsonl (or a .tsv/.csv/.json/.jsonl file), not <name>`，
-  `src/cli/runner.js:899`）。
+  `src/cli/runner.js:927`）。
 - `--strategy` 只有 `only-empty`（默认）与 `overwrite` 两档；其它值报 `E_USAGE`
-  （`--strategy must be only-empty or overwrite, not <name>`，`src/cli/runner.js:889`）。
+  （`--strategy must be only-empty or overwrite, not <name>`，`src/cli/runner.js:917`）。
 - `--dry-run`：走完全流程但不写字典。
 
 ### 8.2 表格形状
 
 - 表头固定一行三列：`source`、`target`、`contexts`（TSV 用制表符分隔，CSV 用逗号，
-  `src/cli/table.js:20-24`）。
-- 表格**不携带 provenance**：0.17 的 `engine` / `locator` 只存在字典与 JSON 导出里，TSV / CSV 仍是三列；
-  从表格 `import` 不会写这两个字段，也不会清掉字典里已有的。
+  `src/cli/table.js:24-30`）。
+- 表格**不携带 provenance**：0.17 的 `engine` / `locator` 只存在字典、JSON 导出与 JSONL 导出里，
+  TSV / CSV 仍是三列；从表格 `import` 不会写这两个字段，也不会清掉字典里已有的。
 - 每个已翻译条目一行；行顺序与 §3 相同（字典 key 的 UTF-16 码点序，
-  `src/cli/table.js:38-50`）。
-- **UTF-8 BOM**：写出时永远带（`src/cli/table.js:26,98-109`），让 Excel 直接识别 UTF-8；
+  `src/cli/table.js:42-54`）。
+- **UTF-8 BOM**：写出时永远带（`src/cli/table.js:30,121-132`），让 Excel 直接识别 UTF-8；
   读取时容忍无 BOM（读取端宽容，写出端严格）。
 - **行结束符 CRLF**：写出每行以 `\r\n` 结束；读取端同样容忍纯 `\n`。
-- **引用规则**（RFC 4180 风格，`src/cli/table.js:63-71`）：单元格含分隔符、双引号、
+- **引用规则**（RFC 4180 风格，`src/cli/table.js:86-94`）：单元格含分隔符、双引号、
   CR、LF，或以空格开头/结尾时整体加双引号；单元格内的 `"` 翻倍成 `""`。CSV 的逗号、
   TSV 的制表符都按各自的分隔符判断。
 - **contexts 列**：多个 context 用 `, ` 连接；只要任一 context 含 `, `、或连接结果以
-  `[` 开头，整格改写成 JSON 数组字符串（`src/cli/table.js:83-89`）。导入端先尝试按
-  JSON 数组解析，失败再按 `, ` 拆分（`src/cli/table.js:265-276`）。
+  `[` 开头，整格改写成 JSON 数组字符串（`src/cli/table.js:106-112`）。导入端先尝试按
+  JSON 数组解析，失败再按 `, ` 拆分（`src/cli/table.js:308-319`）。
 
 ### 8.3 读取端的容错
 
-解析（`src/cli/table.js:123-146`）按行宽容处理：允许无 BOM、允许 `\n` 行尾、允许缺失
+解析（`src/cli/table.js:166-189`）按行宽容处理：允许无 BOM、允许 `\n` 行尾、允许缺失
 末尾换行；末尾连续空记录被忽略。两类错误不宽容：
 
 - 首行不是表头：`E_DICTIONARY`，
@@ -214,11 +214,11 @@ yakusha import <game-dir> --from <file> [--format tsv|csv|json] [--strategy only
 - 某行不是 3 个单元格：`E_DICTIONARY`，`table row N has K cells, expected 3`（N 从 1
   数起，表头是第 0 行）。
 
-文件不存在报 `E_IO`：`cannot read <abs>: the file does not exist`（`src/cli/runner.js:907`）。
+文件不存在报 `E_IO`：`cannot read <abs>: the file does not exist`（`src/cli/runner.js:935`）。
 
 ### 8.4 导入语义
 
-导入只改字典，不碰游戏（`src/cli/runner.js:879-972`）：
+导入只改字典，不碰游戏（`src/cli/runner.js:907-1011`）：
 
 - `target` 为空的行跳过——表格允许“只导出原文留空译文”的校对流程；
 - 字典里已有非空译文且 `--strategy only-empty`（默认）：跳过，**永不覆盖**；
@@ -230,7 +230,7 @@ yakusha import <game-dir> --from <file> [--format tsv|csv|json] [--strategy only
 
 ### 8.5 信封载荷
 
-`--json` 时 `import` 返回 8 个键（`src/cli/runner.js:972`）：
+`--json` 时 `import` 返回 8 个键（`src/cli/runner.js:1010`）：
 
 ```json
 {
@@ -254,13 +254,13 @@ yakusha import <game-dir> --from <file> [--format tsv|csv|json] [--strategy only
 （`test/export.test.js`）。这只对“本项目导出、未被外部工具改写”的表格成立；§8.2 的
 引用规则保证含逗号、引号、换行的 context 也能无损往返。
 
-## 9. 通用内容导入：JSONL（0.15）
+## 9. JSONL：导入与导出（0.15 / 0.34）
 
 外部工具把任意引擎/任意来源的文本写成 JSONL（ENGINE-STRATEGY §6.2 拍板的文件型
 对接形状），`yakusha import --from content.jsonl [--create]` 把它并进字典。这不等于
-"支持某引擎"——导入的内容没有 fixture、没有真实游戏验收；其来源标记（provenance）
-要等字典 v2 字段（DEVLOG §8.1 #5）拍板后才有可能，现在导入的条目与本地抽取的条目
-在格式上不可区分。
+"支持某引擎"——导入的内容没有 fixture、没有真实游戏验收。导入的条目与本地抽取的
+条目在格式上可以区分：0.17 起字典有条目级 provenance（`engine` / `locator`），
+0.34 起 JSONL 也能携带它（见 9.1 与 9.3）。
 
 ### 9.1 文件形状
 
@@ -276,7 +276,10 @@ CRLF 行尾：
   `table line 1 needs a non-empty source/key and target/text`。
 - `target|text`：译文，规则同上。
 - `contexts`（字符串数组）或 `locator`（单个字符串）：写进该条目的 contexts；
-  都缺就是空数组。多余字段被忽略。
+  都缺就是空数组。其它未知字段被忽略。
+- `engine`（字符串）与 `locator`（字符串数组）是 0.17 的条目级 provenance；
+  0.34 起 JSONL 导入会把它们写进字典。`locator` 是单个字符串时按上一条处理
+  （0.15 的旧语义，一个 context），不会当成 provenance。
 - 坏 JSON 报 `E_DICTIONARY`：`table line 2 is not valid JSON`（行号从 1 起）。
 
 ### 9.2 `--create`
@@ -286,6 +289,14 @@ stderr 打一行 `created an empty dictionary: <abs>`；表坏了不会留下半
 建字典）。没有 `--create`，缺字典仍是 `E_NO_DICTIONARY`，消息末尾是
 `(pass --create to start one from this import)`。合并语义（strategy、跳过规则、
 contexts 优先级）与 §8.4 完全相同。
+
+### 9.3 导出（0.34）
+
+`yakusha export --out content.jsonl --format jsonl` 写出与 9.1 相同的行形状：一行一个
+JSON 对象，UTF-8 无 BOM、LF 行尾，键顺序固定 `source`、`target`、`contexts`，有
+provenance 时再跟 `engine`、`locator`。只导出非空 `text` 的条目，键按 UTF-16 顺序，
+空字典导出零字节文件。导出再 `import` 回来，文本、contexts 与 provenance 都一致；
+TSV / CSV 仍是三列、不带 provenance。
 
 ## 10. 验收清单
 
@@ -303,3 +314,5 @@ contexts 优先级）与 §8.4 完全相同。
   译文行跳过；`--dry-run` 不写文件；信封 8 键齐全。
 - [x] 表头错误与列数错误分别报 `E_DICTIONARY` 原文；`--from -` 与未知 `--format`
   / `--strategy` 报 `E_USAGE`。
+- [x] JSONL 导出无 BOM、一行一个对象、跳过空译文；导出 → 导入恢复
+  `engine` / `locator`，旧式单字符串 `locator` 仍写进 contexts。

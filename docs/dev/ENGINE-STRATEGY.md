@@ -551,6 +551,7 @@ TextGrammar = {
 | 0.31 | RGSS 原生安装/卸载的路径包含检查与原子复制（**已交付**） | — | 722 pass / 54 个文件；新增 6 条（paths 3、atomic 1、rgss adapter 2） |
 | 0.32 | 安装状态文件与 report/names/glossary 输出的原子写（**已交付**） | — | 724 pass / 54 个文件；新增 2 条（atomic 1、cli 1） |
 | 0.33 | `verify --write-report` 增加 SARIF 2.1.0 输出（`--report-format sarif`），供 CI code scanning（**已交付**） | — | 729 pass / 54 个文件；新增 5 条（report 2、cli 3） |
+| 0.34 | `export --format jsonl` 输出 JSON Lines，并带回 `engine` / `locator` provenance；JSONL 导入接受这两个字段（**已交付**） | — | 730 pass / 54 个文件；新增 1 条（export jsonl） |
 | 1.0 | 10 个引擎目标 + 能力矩阵 + 便携 exe | — | 每个引擎有 L4 证据；不达标的明确标 experimental |
 
 说明：

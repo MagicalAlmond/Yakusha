@@ -7,7 +7,7 @@
 > 0.17 给字典条目加了可选的 `engine` / `locator`；0.18 给 RGSS 加了原生注入器交付
 > （`install --native` / `uninstall` 的 `native` 子对象与 `runtime: "inject"`）；0.19 把
 > `verify --kind` 的未知值从静默过滤改为 `E_USAGE`（输入校验，信封与载荷不变）；0.20 只修
-> GUI 渲染层的扫描状态；0.21 让 `doctor`/`launch` 识别损坏的原生组件；0.22 让 `doctor` 报出安装后又被改过的原生字典；0.23 把同一检查推广到 Ren'Py 译文文件与 MZ/MV `--embed` 插件（都只是检查结论变化，载荷键与错误码不变）；0.24 只优化 translate 内部的术语表匹配，载荷键与错误码不变；0.25 修复字典被清空后 Ren'Py 译文文件未判过期（诊断结果变化，载荷键与错误码不变）；0.26 只加固字典键的读写（`__proto__` 等原型名按普通条目处理）；0.27 只加固 XP3 读取器对损坏归档的尺寸检查，载荷键与错误码不变；0.28 给 `doctor` 的 `checks` 增加可选的 `version` 项（版本矩阵异常时才出现），`checks` 的形状与所有载荷键不变；0.29 只优化 `data/` 的 XOR 探测，所有载荷键与错误码不变；0.30 只把字典与 GUI 凭据写盘改为同目录临时文件加 rename，所有载荷键与错误码不变；0.31 只给 RGSS 原生安装/卸载加路径包含检查与原子复制，所有载荷键与错误码不变；0.32 只把安装状态文件与 report/names/glossary 输出改为原子写，所有载荷键与错误码不变；0.33 给 `verify --write-report` 增加可选 `--report-format sarif` 与配套的 `reportFormat` 载荷键，其余不变。
+> GUI 渲染层的扫描状态；0.21 让 `doctor`/`launch` 识别损坏的原生组件；0.22 让 `doctor` 报出安装后又被改过的原生字典；0.23 把同一检查推广到 Ren'Py 译文文件与 MZ/MV `--embed` 插件（都只是检查结论变化，载荷键与错误码不变）；0.24 只优化 translate 内部的术语表匹配，载荷键与错误码不变；0.25 修复字典被清空后 Ren'Py 译文文件未判过期（诊断结果变化，载荷键与错误码不变）；0.26 只加固字典键的读写（`__proto__` 等原型名按普通条目处理）；0.27 只加固 XP3 读取器对损坏归档的尺寸检查，载荷键与错误码不变；0.28 给 `doctor` 的 `checks` 增加可选的 `version` 项（版本矩阵异常时才出现），`checks` 的形状与所有载荷键不变；0.29 只优化 `data/` 的 XOR 探测，所有载荷键与错误码不变；0.30 只把字典与 GUI 凭据写盘改为同目录临时文件加 rename，所有载荷键与错误码不变；0.31 只给 RGSS 原生安装/卸载加路径包含检查与原子复制，所有载荷键与错误码不变；0.32 只把安装状态文件与 report/names/glossary 输出改为原子写，所有载荷键与错误码不变；0.33 给 `verify --write-report` 增加可选 `--report-format sarif` 与配套的 `reportFormat` 载荷键；0.34 给 `export` 增加 `jsonl` 输出格式（只是 `format` 的取值增加，载荷键与错误码不变）。
 > 这些都是只增不改：不新增保留键约束、不改字段类型、已有载荷键一个没动。
 > 本文冻结的形状自 0.10 起不再变化，实际输出以 [commands.md](commands.md) 为准。
 
@@ -224,7 +224,7 @@
 | `uninstall` | ok | `removed, restored, backupPath, drifted, keptBackup`（RGSS 另有 `native`） | 漂移时不还原；Ren'Py 下 `restored` 恒 `false`、`backupPath` 与 `keptBackup` 恒 `null`；RGSS 卸载原生组件，载荷 5 键加 `native: {dir, removed}`；Kirikiri 上仍是 `E_NOT_IMPLEMENTED` / 2，没有载荷 |
 | `doctor` | ok / findings | `verdict, checks, failure, game{title, engine, engineVersion, root, dataFiles}, dictionary, sync, install, runtime, verify` | `broken` → findings / 1；`game.version` 改名 `game.engineVersion`；Ren'Py 与 RGSS 下 `checks` 少 `plugins.js` 与 `backup` 两项，`install` / `runtime` 子对象见 §7.1 |
 | `config` | ok | `action, ...` | 子命令字段见 [config.md](config.md) |
-| `export` | ok | `out, format, flat, entries, bytes` | 0.13 起 `format` 可为 `json` / `tsv` / `csv`（载荷里是实际格式名）；字段见 [export-format.md](export-format.md) |
+| `export` | ok | `out, format, flat, entries, bytes` | 0.13 起 `format` 可为 `json` / `tsv` / `csv`，0.34 起还可为 `jsonl`（载荷里是实际格式名）；字段见 [export-format.md](export-format.md) |
 | `import` | ok | `file, format, strategy, dryRun, read, applied, skipped, entries` | 0.13 新增；0.15 起 `format` 还可以是 `jsonl`、并支持 `--create`（缺字典时先建空字典；载荷键集不变）；`entries` 是本次实际写入的对象；语义见 [commands.md](commands.md) 的 import 一节 |
 | `launch` | ok | `root, exe, pid` | 只 spawn，不接管 |
 

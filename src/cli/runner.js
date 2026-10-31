@@ -50,7 +50,9 @@ import {
   parseTable,
   parseJsonl,
   serialiseTable,
+  serialiseJsonl,
   buildTableRows,
+  buildJsonlRows,
 } from "./table.js";
 
 /** A sink that drops every line: the GUI calls commands silently. */
@@ -860,8 +862,8 @@ async function commandExport(dir, flags, sink) {
   if (!rawOut) throw new CliError("E_USAGE", "export needs --out <file>");
   if (rawOut === "-") throw new CliError("E_USAGE", "export --out must be a file path, not -");
   const formatName = typeof flags.format === "string" ? flags.format.toLowerCase() : "json";
-  if (formatName !== "json" && formatName !== "tsv" && formatName !== "csv") {
-    throw new CliError("E_USAGE", "export supports --format json, tsv or csv, not " + formatName);
+  if (formatName !== "json" && formatName !== "tsv" && formatName !== "csv" && formatName !== "jsonl") {
+    throw new CliError("E_USAGE", "export supports --format json, tsv, csv or jsonl, not " + formatName);
   }
   if (formatName !== "json" && flags.flat === true) {
     throw new CliError("E_USAGE", "--flat applies to --format json only");
@@ -877,6 +879,10 @@ async function commandExport(dir, flags, sink) {
     const document = buildExport(data, { flat });
     text = serialiseExport(document);
     entries = Object.keys(document.entries).length;
+  } else if (formatName === "jsonl") {
+    const rows = buildJsonlRows(data);
+    text = serialiseJsonl(rows);
+    entries = rows.length;
   } else {
     const rows = buildTableRows(data);
     text = serialiseTable(rows, formatName);

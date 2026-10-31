@@ -252,6 +252,7 @@ test("export: bad arguments are E_USAGE", () => {
     ["export", game, "--out", "-", "--json"],
     ["export", game, "--out", out, "--format", "tsv", "--flat", "--json"],
     ["export", game, "--out", out, "--format", "csv", "--flat", "--json"],
+    ["export", game, "--out", out, "--format", "jsonl", "--flat", "--json"],
     ["export", game, "--out", out, "--format", "xml", "--json"],
     ["export", game, "--out", out, "extra", "--json"],
     ["export", game, "--out", out, "--bogus", "--json"],
@@ -638,6 +639,43 @@ test("export: rich json carries engine and locator, and import restores them", (
   writeDictionary(game, { "アリア": { text: "", contexts: ["Map001.json:401"] } });
   const result = run(["import", game, "--from", out, "--json"]);
   assert.equal(result.code, 0, result.stderr);
+  const onDisk = JSON.parse(fs.readFileSync(path.join(game, "yakusha", "dictionary.json"), "utf8"));
+  assert.deepEqual(onDisk.entries["アリア"], entry);
+});
+
+test("export: jsonl carries provenance and imports it back", () => {
+  const game = tempGame();
+  const entry = {
+    text: "阿丽亚",
+    contexts: ["Map001.json:401"],
+    engine: "mz",
+    locator: ["Map001.json#/events/1/pages/0/list/0/parameters/0"],
+  };
+  writeDictionary(game, {
+    "アリア": { ...entry },
+    "ポーション": { text: "", contexts: [] },
+  });
+  const out = path.join(game, "yakusha", "provenance.jsonl");
+  const result = run(["export", game, "--out", out, "--format", "jsonl", "--json"]);
+  assert.equal(result.code, 0, result.stderr);
+  assert.equal(envelope(result).format, "jsonl");
+  assert.equal(envelope(result).entries, 1);
+  const text = fs.readFileSync(out, "utf8");
+  assert.notEqual(text.charCodeAt(0), 0xfeff);
+  assert.ok(text.endsWith("\n"));
+  const lines = text.trimEnd().split("\n");
+  assert.equal(lines.length, 1);
+  assert.deepEqual(JSON.parse(lines[0]), {
+    source: "アリア",
+    target: "阿丽亚",
+    contexts: ["Map001.json:401"],
+    engine: "mz",
+    locator: ["Map001.json#/events/1/pages/0/list/0/parameters/0"],
+  });
+  // Clear the translation and drop the provenance, then import the file back.
+  writeDictionary(game, { "アリア": { text: "", contexts: ["Map001.json:401"] } });
+  const back = run(["import", game, "--from", out, "--json"]);
+  assert.equal(back.code, 0, back.stderr);
   const onDisk = JSON.parse(fs.readFileSync(path.join(game, "yakusha", "dictionary.json"), "utf8"));
   assert.deepEqual(onDisk.entries["アリア"], entry);
 });

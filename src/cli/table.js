@@ -1,7 +1,7 @@
 /**
- * Table exports: TSV and CSV projections of the translated dictionary.
+ * Table and JSON Lines exports of the translated dictionary.
  *
- * Both formats share one shape: a three column header row
+ * TSV and CSV share one shape: a three column header row
  * ("source", "target", "contexts") followed by one row per translated
  * entry, in the same UTF-16 key order as the JSON export. contexts is a
  * list joined with ", ". Only translated entries are exported, exactly
@@ -11,6 +11,10 @@
  * Encoding is UTF-8 with a BOM so Excel opens either format correctly,
  * and rows end with CRLF (RFC 4180). The reader accepts LF and no BOM
  * too, so files edited by hand or by other tools round trip as well.
+ *
+ * JSON Lines (0.34) is one object per line and carries the optional
+ * engine / locator provenance, so it round trips the whole entry rather
+ * than just its text and contexts.
  *
  * @module cli/table
  */
@@ -26,7 +30,7 @@ export const CSV_SEPARATOR = ",";
 export const UTF8_BOM = "\uFEFF";
 
 /**
- * @typedef {{ source: string, target: string, contexts: string[] }} TableRow
+ * @typedef {{ source: string, target: string, contexts: string[], engine?: string, locator?: string[] }} TableRow
  */
 
 /**
@@ -45,6 +49,25 @@ export function buildTableRows(dictionary) {
       target: entry.text,
       contexts: Array.isArray(entry.contexts) ? entry.contexts.slice() : [],
     });
+  }
+  return rows;
+}
+
+/**
+ * Collect the translated entries as JSON Lines rows. Unlike the table rows
+ * this keeps the optional provenance (engine and locator) added in 0.17,
+ * so an export followed by an import round trips the dictionary metadata
+ * as well as the text.
+ *
+ * @param {import("../core/dict.js").Dictionary} dictionary
+ * @returns {TableRow[]}
+ */
+export function buildJsonlRows(dictionary) {
+  const rows = buildTableRows(dictionary);
+  for (const row of rows) {
+    const entry = dictionary.entries[row.source];
+    if (typeof entry.engine === "string" && entry.engine.length > 0) row.engine = entry.engine;
+    if (Array.isArray(entry.locator) && entry.locator.length > 0) row.locator = entry.locator.slice();
   }
   return rows;
 }
@@ -106,6 +129,26 @@ export function serialiseTable(rows, format) {
     ].join(separator));
   }
   return UTF8_BOM + lines.join("\r\n") + "\r\n";
+}
+
+/**
+ * Serialise rows as JSON Lines: one JSON object per line, UTF-8, no BOM,
+ * LF endings. Provenance keys are written only when the row has them, so
+ * a dictionary without provenance produces the same three keys as the
+ * 0.15 import shape.
+ *
+ * @param {TableRow[]} rows
+ * @returns {string}
+ */
+export function serialiseJsonl(rows) {
+  const lines = [];
+  for (const row of rows) {
+    const object = { source: row.source, target: row.target, contexts: row.contexts };
+    if (typeof row.engine === "string" && row.engine.length > 0) object.engine = row.engine;
+    if (Array.isArray(row.locator) && row.locator.length > 0) object.locator = row.locator;
+    lines.push(JSON.stringify(object));
+  }
+  return lines.length === 0 ? "" : lines.join("\n") + "\n";
 }
 
 /**
@@ -283,13 +326,15 @@ function splitContexts(cell) {
  * Accepted per line (the first present wins for each field):
  *   source | key   — the dictionary key (required, non-empty string)
  *   target | text  — the translation (required, non-empty string)
- *   contexts | locator — where the string came from: an array of strings,
- *     or one string (a single context). A missing locator means no context.
+ *   contexts       — where the string came from: an array of strings, or
+ *     one string (a single context). A missing contexts means no context.
+ *   locator        — an array of strings is the 0.17 provenance locator;
+ *     a single string stays the 0.15 shorthand for one context.
+ *   engine         — the 0.17 provenance engine id.
  *
  * This is the file shape external tools write (ENGINE-STRATEGY.md §6.2:
  * JSON/JSONL with key, text, locator). The rows then go through the same
- * merge rules as any other `import` — the dictionary format does not grow
- * new fields.
+ * merge rules as any other `import`.
  *
  * @param {string} text file contents
  * @returns {TableRow[]}
@@ -326,7 +371,13 @@ export function parseJsonl(text) {
     } else if (typeof object.contexts === "string" && object.contexts.length > 0) {
       contexts = [object.contexts];
     }
-    rows.push({ source, target, contexts });
+    const row = { source, target, contexts };
+    if (typeof object.engine === "string" && object.engine.length > 0) row.engine = object.engine;
+    if (Array.isArray(object.locator)) {
+      const locator = object.locator.filter((value) => typeof value === "string" && value.length > 0);
+      if (locator.length > 0) row.locator = locator;
+    }
+    rows.push(row);
   }
   return rows;
 }

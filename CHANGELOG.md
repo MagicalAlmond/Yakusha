@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.34.0] - 2026-10-27
+
+### Added
+
+- `export --format jsonl` writes the translations as JSON Lines: one JSON object per line (`source`, `target`, `contexts`, and the optional `engine` / `locator` provenance), UTF-8 without a BOM, LF endings, in UTF-16 key order. It is the counterpart of the 0.15 JSONL import.
+- JSONL import now accepts the 0.17 provenance fields: `engine` (string) and `locator` (array of strings) are written to a dictionary entry that has none. A single-string `locator` keeps its 0.15 meaning (one context).
+
+### Unchanged
+
+- No breaking contract change: `format` gains one value, every payload key, the envelope, exit codes, the command table, the 13 error codes and the `yakusha/1` dictionary format stay the same. TSV / CSV exports remain three columns without provenance.
+
 ## [0.33.0] - 2026-10-27
 
 ### Added
@@ -449,7 +460,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.33.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.34.0...HEAD
+[0.34.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.33.0...v0.34.0
 [0.33.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.32.0...v0.33.0
 [0.32.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.31.0...v0.32.0
 [0.31.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.30.0...v0.31.0

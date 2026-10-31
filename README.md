@@ -267,16 +267,18 @@ game 摘要行显示 `(untitled)`，verdict 同样停在上限 `usable`。
 ### 可选：export 导出译文
 
 译文要备份、做校对或交给别人时，导出一份 JSON 快照（不是字典备份），或者导出成
-TSV / CSV 表格交给电子表格与外部工具：
+TSV / CSV 表格交给电子表格与外部工具，也可以导出 JSONL 喂给别的脚本：
 
 ```bash
 node bin/yakusha.js export "/games/MyGame" --out yakusha-export.json
 node bin/yakusha.js export "/games/MyGame" --format tsv --out yakusha-export.tsv
+node bin/yakusha.js export "/games/MyGame" --format jsonl --out yakusha-export.jsonl
 ```
 
-`--format` 取 `json`（默认）/ `tsv` / `csv`；表格以 UTF-8 BOM 开头、CRLF 换行，
-表头固定为 `source` / `target` / `contexts` 三列，引号规则遵循 RFC 4180。`--flat`
-只对 JSON 快照有效。
+`--format` 取 `json`（默认）/ `tsv` / `csv` / `jsonl`；表格以 UTF-8 BOM 开头、CRLF
+换行，表头固定为 `source` / `target` / `contexts` 三列，引号规则遵循 RFC 4180；
+JSONL 一行一个对象、无 BOM、LF 换行，并带上条目的 `engine` / `locator` 溯源字段。
+`--flat` 只对 JSON 快照有效。
 
 ### 可选：import 回灌表格
 
@@ -286,12 +288,13 @@ node bin/yakusha.js export "/games/MyGame" --format tsv --out yakusha-export.tsv
 node bin/yakusha.js import "/games/MyGame" --from yakusha-export.tsv
 ```
 
-`--from` 指向 `export` 产出的 TSV / CSV 表格或 JSON 快照，格式默认按扩展名识别。
+`--from` 指向 `export` 产出的 TSV / CSV 表格、JSON 快照或 JSONL，格式默认按扩展名识别。
 空译文的行跳过；默认 `--strategy only-empty` 只填还没有译文的条目，`overwrite` 才会覆盖；
 `--dry-run` 全程只算不写。export 成表、import 回来、再 export 一次，得到的文件字节相同。
 
 外部工具也可以把任意来源的文本写成 JSONL（每行 `{source|key, target|text, locator}`）
-直接灌进字典；项目还没有字典时加 `--create` 就地建一个：
+直接灌进字典；`engine` 与数组形式的 `locator` 会作为 0.17 的溯源字段写进条目。
+项目还没有字典时加 `--create` 就地建一个：
 
 ```bash
 node bin/yakusha.js import "/games/MyGame" --from external.jsonl --create
@@ -343,7 +346,7 @@ speaker、terms 与 `config list`。API key 可以显式勾选"记住"（Windows
 | `install` | 装进游戏：MZ/MV 装插件，Ren'Py 写 `game/yakusha_translation.rpy`，RGSS 用 `--native` 装注入器；Kirikiri 报 `E_NOT_IMPLEMENTED` |
 | `uninstall` | 卸载并还原：删插件与注册行、删那个翻译文件，或删 `yakusha/native/`；Kirikiri 未实现 |
 | `doctor` | 查安装产物、备份（Ren'Py 无）、字典是否还与这版游戏对得上；Kirikiri 只报「没有交付层」 |
-| `export` | 把已翻译条目导出成 JSON 快照，或 TSV / CSV 表格 |
+| `export` | 把已翻译条目导出成 JSON 快照，或 TSV / CSV / JSONL |
 | `import` | 把导出的表格或快照回灌进字典；JSONL + `--create` 接外部内容 |
 | `config` | 读写用户级配置（`provider` / `model` / `baseUrl`，不存密钥） |
 | `launch` | 启动项目根的游戏 exe（仅 Windows） |
@@ -444,7 +447,7 @@ docs/                     设计说明、命令参考、契约、实测记录、
 | [docs/json-contract.md](docs/json-contract.md) | `--json` 信封、错误码、退出码、严格参数解析、破坏性变更（0.10 冻结；后续版本只加字段与命令，信封不变） |
 | [docs/engines.md](docs/engines.md) | adapter 契约、能力矩阵、各引擎的安装/卸载、launch；attach 桩 |
 | [docs/config.md](docs/config.md) | 0.10 实现：用户级配置、密钥优先级与威胁模型（不落盘） |
-| [docs/export-format.md](docs/export-format.md) | 0.10 实现：JSON 导出格式、排序、原子写与覆盖规则；0.13 起另有 TSV / CSV 表格与 import 回灌；0.15 起另有 JSONL 通用内容导入 |
+| [docs/export-format.md](docs/export-format.md) | 0.10 实现：JSON 导出格式、排序、原子写与覆盖规则；0.13 起另有 TSV / CSV 表格与 import 回灌；0.15 起另有 JSONL 通用内容导入；0.34 起 JSONL 也可导出并带 provenance |
 | [docs/platforms.md](docs/platforms.md) | 平台支持矩阵与决策记录（Windows-only 的原因与重评条件） |
 | [docs/design.md](docs/design.md) | 为什么走运行时钩子、文本面覆盖、转义码、设计约束、作为库用 |
 | [docs/games.md](docs/games.md) | 匿名记录的实测游戏（RPG Maker 15 款、Ren'Py SDK 自带项目、一款 RGSS3 商业游戏）、全量翻译数据、官中游戏的处理方式 |

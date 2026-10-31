@@ -109,7 +109,7 @@
 
 ```text
 --out <file>        target file (required; never stdout)
---format <name>     json (default), tsv or csv
+--format <name>     json (default), tsv, csv or jsonl
 --flat              write source -> text instead of {text, contexts} (json only)
 --force             overwrite an existing target
 ```
@@ -784,9 +784,9 @@ game      : Example Game (RPG Maker MZ 1.7.0, 51 data files)
 verdict   : usable with 2 warning(s)
 ```
 
-## export：JSON / TSV / CSV 快照
+## export：JSON / TSV / CSV / JSONL 快照
 
-`export` 把已译条目投影成一个文件，给外部工具或审校用；它只写 `--out` 指定的那一个文件，永远不写 stdout。`--format json`（默认）与 `--format tsv` / `--format csv` 都在 0.13 实现了。0.10–0.12 只有 JSON，当时文档写的「TSV / CSV 不在范围内」已由本版兑现。
+`export` 把已译条目投影成一个文件，给外部工具或审校用；它只写 `--out` 指定的那一个文件，永远不写 stdout。`--format json`（默认）与 `--format tsv` / `--format csv` 在 0.13 实现；`--format jsonl` 在 0.34 补齐，与 0.15 的 JSONL 导入对称。0.10–0.12 只有 JSON，当时文档写的「TSV / CSV 不在范围内」已由 0.13 兑现。
 
 ```text
 exported 32 entries to <abs> (4159 B)
@@ -811,17 +811,18 @@ exported 32 entries to <abs> (4159 B)
 ```
 
 - `--out` 必填、没有默认文件名；`--out -` 被拒：`error: export --out must be a file path, not -`。
-- `--format` 接 `json`（默认）、`tsv`、`csv`；给了别的值报 `E_USAGE`：`export supports --format json, tsv or csv, not xls`。TSV / CSV 的表格形状、编码与引用规则见 [export-format.md](export-format.md) §8（UTF-8 带 BOM、表头 `source` / `target` / `contexts`、CRLF 行尾、RFC 4180 引用）。
+- `--format` 接 `json`（默认）、`tsv`、`csv`、`jsonl`；给了别的值报 `E_USAGE`：`export supports --format json, tsv, csv or jsonl, not xls`。TSV / CSV 的表格形状、编码与引用规则见 [export-format.md](export-format.md) §8（UTF-8 带 BOM、表头 `source` / `target` / `contexts`、CRLF 行尾、RFC 4180 引用）；JSONL 一行一个对象、UTF-8 无 BOM、LF 行尾，形状见 [export-format.md](export-format.md) §9.3。
 - `--force` 才允许覆盖已有文件；没有它报 `E_EXISTS`：`refusing to overwrite <path> (pass --force)`。目标是项目字典本身时，即使 `--force` 也拒绝：`refusing to overwrite the project dictionary at <path> (export is a projection, not a backup)`。
 - 目标是游戏目录内但不在 `yakusha/` 下时 stderr 警告：`warning: export target is inside the game directory but outside yakusha/: <path>`。
-- 空字典也能导出：`exported 0 entries to <abs> (120 B)`，载荷 `entries: 0`。载荷：`out` / `format`（实际格式名）/ `flat` / `entries`（条数，不是对象）/ `bytes`（实际写入的 UTF-8 字节数）。TSV / CSV 时 `--flat` 无意义，给了报 `E_USAGE`：`--flat applies to --format json only`。
+- 空字典也能导出：`exported 0 entries to <abs> (120 B)`，载荷 `entries: 0`。载荷：`out` / `format`（实际格式名）/ `flat` / `entries`（条数，不是对象）/ `bytes`（实际写入的 UTF-8 字节数）。TSV / CSV / JSONL 时 `--flat` 无意义，给了报 `E_USAGE`：`--flat applies to --format json only`。
 - 序列化细节（键排序、不导出 `error`、`updatedAt` 原样复制）见 [export-format.md](export-format.md)。
-- 0.17 起条目里的 `engine` / `locator` 会原样进 rich JSON；`--flat` 与 TSV / CSV 都不带，
-  表格永远是三列 `source` / `target` / `contexts`。
+- 0.17 起条目里的 `engine` / `locator` 会原样进 rich JSON；0.34 起 JSONL 也带这两个字段，
+  导出再导入可恢复 provenance。`--flat` 与 TSV / CSV 都不带，表格永远是三列
+  `source` / `target` / `contexts`。
 
 ## import：从导出文件回填字典
 
-`import` 是 `export` 的逆操作的一半：读一个此前导出的 TSV / CSV / JSON 文件，把 `target` 写回字典。0.13 新增；0.15 增加了 JSONL 输入与 `--create`（通用内容导入 v1）。逐行规则：
+`import` 是 `export` 的逆操作的一半：读一个此前导出的 TSV / CSV / JSON / JSONL 文件，把 `target` 写回字典。0.13 新增；0.15 增加了 JSONL 输入与 `--create`（通用内容导入 v1）；0.34 起 JSONL 还能带回 `engine` / `locator`。逐行规则：
 
 - `--from` 必填，缺了报 `E_USAGE`：`import needs --from <file>`；`-` 被拒：`import --from must be a file path, not -`（与 `export --out` 一样，永远不走 stdin/stdout 管道）。
 - `--format` 缺省按 `--from` 的扩展名猜（`.tsv` / `.csv` / `.json` / `.jsonl`，大小写不敏感）；猜不出报 `E_USAGE`：`import --format must be tsv, csv, json or jsonl (or a .tsv/.csv/.json/.jsonl file), not xyz`（没有扩展名时显示 `(missing)`）。
@@ -829,7 +830,7 @@ exported 32 entries to <abs> (4159 B)
 - 文件不存在报 `E_IO`：`cannot read <abs>: the file does not exist`（home 缩写成 `~`）。
 - 表格文件必须有表头行 `source<分隔符>target<分隔符>contexts`，不符报 `E_DICTIONARY`：`table file must start with the header row source target contexts`（消息里显示实际的分隔符：TSV 用 tab、CSV 用逗号）；某行格数不是 3 报 `E_DICTIONARY`：`table row 1 has 2 cells, expected 3`（行号含表头、从 1 起）。JSON 文件则要求有 `entries` 对象，每个条目是字符串或 `{text, contexts}`。
 - 跳过规则按行处理：`target` 为空 → 跳过；`only-empty` 下字典已有非空译文 → 跳过；字典当前值与 `target` 相同 → 跳过（两种策略都算）。`contexts` 的合并顺序：字典里已有非空 contexts 优先，否则用表格行的 `contexts`，否则为空数组。
-- provenance（0.17）：JSON 导入时，字典里没有 `engine` 就用行里的 `engine`；字典里没有 `locator` 且行里有就写入。表格三列没有 provenance，既不写也不清掉字典里已有的 `engine` / `locator`。
+- provenance（0.17）：JSON 导入时，字典里没有 `engine` 就用行里的 `engine`；字典里没有 `locator` 且行里有就写入。JSONL 从 0.34 起同样支持：`engine` 是字符串，`locator` 是字符串数组；JSONL 里 `locator` 是单个字符串时仍是 0.15 的旧语义（一个 context），不是 provenance。表格三列没有 provenance，既不写也不清掉字典里已有的 `engine` / `locator`。
 - `--create`（0.15）：项目还没有字典时，先用 `emptyDictionary(gameTitle)` 建一个再合并（stderr 提示 `created an empty dictionary: <abs>`）；没有 `--create` 时行为与 0.13 相同（`E_NO_DICTIONARY`，消息末尾追加 `(pass --create to start one from this import)`）。解析先于建字典：表坏了不会留下半成品空字典。
 - `--dry-run` 完整执行匹配与校验但不写盘；`applied` 为 0 时也不写（不碰 `updatedAt`）。
 - 载荷 8 键平铺：`file` / `format`（实际格式名）/ `strategy` / `dryRun` / `read`（读到的行数，含表头与跳过行）/ `applied` / `skipped` / `entries`（本次实际写入的对象）。
