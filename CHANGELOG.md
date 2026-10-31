@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.27.0] - 2026-10-27
+
+### Fixed
+
+- A corrupt or hostile XP3 archive can no longer ask the Kirikiri reader for an unbounded allocation: an index stream that claims more bytes than the archive holds, an index or entry that would decompress past 64 MiB, and a segment that points outside the file are now reported as `E_IO` / `E_UNSUPPORTED` and land in `undecodable`, instead of throwing a `RangeError` or exhausting memory.
+
+### Added
+
+- Three regression tests for those malformed-archive paths (`test/krkr-xp3.test.js`), built from synthetic bytes only.
+
+### Unchanged
+
+- No contract change: the envelope, exit codes, command table, the 13 error codes and every payload key stay the same; a normal archive reads exactly as before.
 ## [0.26.0] - 2026-10-27
 
 ### Fixed
@@ -370,7 +383,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.26.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.27.0...HEAD
+[0.27.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.26.0...v0.27.0
 [0.26.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.25.0...v0.26.0
 [0.25.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.24.0...v0.25.0
 [0.24.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.23.0...v0.24.0

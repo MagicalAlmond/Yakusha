@@ -6,8 +6,8 @@
  *
  * - 40-byte header: 8-byte magic "XP3\r\n \n\x1a", a fixed u64 version mark
  *   at 8, two u32 flags at 16/20, a u64 at 24, and the u64 index offset at 32.
-   size, then the compressed index stream.
- *   size, then the compressed index stream.
+ *   The index container puts a 1-byte mode and an 8-byte compressed size in
+ *   front of the compressed index stream.
  * - The index body starts with the "File" magic followed by one entry per
  *   game file: u32 tag + u64 payload size, then `info`, `segm` and `adlr`
  *   sub-blocks.
@@ -30,6 +30,14 @@ const MAGIC = Buffer.from("XP3\r\n \n\x1a", "latin1");
 
 /** Default cap on entries per archive; real games stay far below this. */
 const MAX_ENTRIES = 100000;
+
+/**
+ * Caps for attacker-controlled sizes. A real XP3 index stays in the low
+ * megabytes and a scenario script far below this; the caps only stop a
+ * corrupt or hostile archive from asking for an unbounded allocation.
+ */
+const MAX_INDEX_BYTES = 64 << 20;
+const MAX_ENTRY_BYTES = 64 << 20;
 
 /**
  * Hand-rolled adler-32: Node exposes adler32 only through zlib streams.
@@ -183,35 +191,54 @@ function readIndexContainer(handle, indexOffset, archiveName) {
       && looksLikeZlib(head[17], head[18])) {
     streamAt = 17;
   }
-  const compressed = Buffer.alloc(Number(compSize));
+  if (!Number.isSafeInteger(compSize) || compSize <= 0 || compSize > fsSync.fstatSync(handle).size - indexOffset - streamAt) {
+    throw ioError(archiveName + ": the XP3 index stream is larger than the archive");
+  }
+  if (compSize > MAX_INDEX_BYTES) {
+    throw unsupportedError(archiveName + ": the XP3 index is larger than " + MAX_INDEX_BYTES + " bytes");
+  }
+  const compressed = Buffer.alloc(compSize);
   const read = fsSync.readSync(handle, compressed, 0, compressed.length, indexOffset + streamAt);
   if (read < compSize) throw ioError(archiveName + ": truncated XP3 index stream");
   if (mode === 0) return compressed;
   try {
-    return inflateSync(compressed);
+    return inflateSync(compressed, { maxOutputLength: MAX_INDEX_BYTES });
   } catch (error) {
     throw ioError(archiveName + ": the XP3 index stream does not decompress (" + error.message + ")");
   }
 }
 function readFileAt(handle, entry, archiveName) {
   const chunks = [];
+  const fileSize = fsSync.fstatSync(handle).size;
+  let total = 0;
   for (const segment of entry.segments) {
-    const buffer = Buffer.alloc(Number(segment.comp));
+    if (!Number.isSafeInteger(segment.start) || !Number.isSafeInteger(segment.comp) || segment.start < 0
+        || segment.comp < 0 || segment.start + segment.comp > fileSize) {
+      throw ioError(archiveName + ": a segment of " + JSON.stringify(entry.name) + " points outside the archive");
+    }
+    if (segment.comp > MAX_ENTRY_BYTES) {
+      throw unsupportedError(archiveName + ": entry " + JSON.stringify(entry.name) + " is larger than " + MAX_ENTRY_BYTES + " bytes");
+    }
+    const buffer = Buffer.alloc(segment.comp);
     if (segment.comp > 0) {
-      const bytesRead = fsSync.readSync(handle, buffer, 0, buffer.length, Number(segment.start));
+      const bytesRead = fsSync.readSync(handle, buffer, 0, buffer.length, segment.start);
       if (bytesRead < segment.comp) {
         throw ioError(archiveName + ": truncated data for " + JSON.stringify(entry.name));
       }
     }
+    let chunk = buffer;
     if (segment.mode === 1) {
       try {
-        chunks.push(inflateSync(buffer));
+        chunk = inflateSync(buffer, { maxOutputLength: MAX_ENTRY_BYTES - total });
       } catch (error) {
         throw ioError(archiveName + ": segment of " + JSON.stringify(entry.name) + " does not decompress (" + error.message + ")");
       }
-    } else {
-      chunks.push(buffer);
     }
+    total += chunk.length;
+    if (total > MAX_ENTRY_BYTES) {
+      throw unsupportedError(archiveName + ": entry " + JSON.stringify(entry.name) + " is larger than " + MAX_ENTRY_BYTES + " bytes");
+    }
+    chunks.push(chunk);
   }
   return Buffer.concat(chunks);
 }

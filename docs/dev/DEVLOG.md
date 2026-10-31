@@ -1,7 +1,7 @@
 # 开发交接文档（DEVLOG）
 
 > 这份文档记录**阶段目标、已完成项、决策理由和下一步**，随开发进程更新。
-> 最后更新：2026-10-27（0.26.0 字典键安全在 `feat/0.26-dictionary-keys`；0.25.0 Ren'Py 清空字典快照修复在 `feat/0.25-renpy-empty-stale`；0.24.0 术语表 Aho-Corasick 索引在 `feat/0.24-glossary-index`；0.23.0 所有快照式交付的字典过期检测在 `feat/0.23-delivery-staleness`；0.22.0 RGSS 原生字典过期检测在 `feat/0.22-native-stale`；0.21.0 RGSS 原生组件完整性检查在 `feat/0.21-native-integrity`；0.20.0 GUI 渲染层契约测试与扫描状态重置；0.19.0 `verify --kind` 严格校验：未知 kind 报 `E_USAGE`；0.18.0 RGSS 原生注入器交付层在 `feat/0.18-rgss-native`；0.17 字典溯源字段在 `feat/0.17-dictionary-provenance`；0.15 通用内容导入 v1 在 `feat/0.15-generic-import`；0.14.0 GUI 在 `feat/0.14-gui`；均未合入 `main`、未打 tag）。
+> 最后更新：2026-10-27（0.27.0 XP3 读取器加固在 `feat/0.27-xp3-hardening`；0.26.0 字典键安全在 `feat/0.26-dictionary-keys`；0.25.0 Ren'Py 清空字典快照修复在 `feat/0.25-renpy-empty-stale`；0.24.0 术语表 Aho-Corasick 索引在 `feat/0.24-glossary-index`；0.23.0 所有快照式交付的字典过期检测在 `feat/0.23-delivery-staleness`；0.22.0 RGSS 原生字典过期检测在 `feat/0.22-native-stale`；0.21.0 RGSS 原生组件完整性检查在 `feat/0.21-native-integrity`；0.20.0 GUI 渲染层契约测试与扫描状态重置；0.19.0 `verify --kind` 严格校验：未知 kind 报 `E_USAGE`；0.18.0 RGSS 原生注入器交付层在 `feat/0.18-rgss-native`；0.17 字典溯源字段在 `feat/0.17-dictionary-provenance`；0.15 通用内容导入 v1 在 `feat/0.15-generic-import`；0.14.0 GUI 在 `feat/0.14-gui`；均未合入 `main`、未打 tag）。
 > 0.9.0 项目改名 **Yakusha**，字典目录、插件文件、环境变量与备份后缀全部随之改名；
 > 仓库已发布到 https://github.com/MagicalAlmond/Yakusha（`main` 分支）。
 > 0.8.0 的 `doctor`、0.7.1 的 `uninstall` 漂移保护、0.7.0 的报告/模板见下）。
@@ -36,9 +36,9 @@
 
 | 项 | 状态 |
 | --- | --- |
-| 版本 | **0.26.0**（`package.json` 单一真源，`src/version.js` 读取它；插件模板的 `VERSION` 由安装器替换） |
-| 契约 | 0.10 的五篇设计稿（json-contract / config / engines / export-format / platforms）已冻结并全部实现；0.11 只有 `engines.md` 真正扩了内容（三个引擎、新增 §13.2 Ren'Py），`json-contract.md` 与 `platforms.md` 补了「0.11 复查后不变」的复核标注。0.12 继续扩 `engines.md`（四个引擎、新增 §13.3 RGSS 与 §7.7 的 pending 交付），`json-contract.md` 补 RGSS 的语义澄清（`E_NOT_IMPLEMENTED` 有了 CLI 入口、`install`/`uninstall`/`doctor` 的按引擎差异）；信封与字段类型仍未动，`platforms.md` / `config.md` / `export-format.md` 未动。0.13 扩 `engines.md`（五个引擎、新增 §13.4 Kirikiri），`export-format.md` 补 TSV/CSV 表格与 `import` 命令；JSON 信封（flat one-line object、退出码 0/1/2、13 个错误码）未动。0.17 给字典条目加可选 `engine` / `locator` 溯源字段（`FORMAT` 仍是 `yakusha/1`），rich JSON 导出与导入带、表格不带，信封与错误码未动。0.18 给 RGSS 增加原生注入器交付层（`install --native` / `uninstall` / `doctor` 的 delivery 检查 / `scan` 的 `runtime: "inject"`），文档侧 `engines.md`、`commands.md` 按 0.18 补契约；信封、退出码与 13 个错误码未动；0.19 把 `verify --kind` 的未知值从静默过滤改为 `E_USAGE`（合法命令与信封不变）；0.20 只修 GUI 渲染层状态；0.21 让 `doctor`/`launch` 识别损坏的原生组件；0.22 让 `doctor` 报出安装后又被改过的字典；0.23 把同一检查推广到 Ren'Py 译文文件与 MZ/MV 的 `--embed` 插件（都只是检查结论变化，契约未变）；0.24 只优化 translate 内部的术语表匹配（Aho-Corasick 索引），契约未变；0.25 修复字典被清空后 Ren'Py 译文文件未判过期（诊断结果变化，契约未变）；0.26 只加固字典键的读写（`__proto__` 等原型名按普通条目处理），契约未变 |
-| 测试 | **697 个，全绿**（`npm test`，51 个测试文件，约 11s；0.26 新增 4 条字典键安全用例；0.25 新增 1 条 Ren'Py 清空字典过期用例；0.24 新增 1 条 glossary 索引用例；0.23 新增 2 条快照过期用例；0.22 新增 1 条字典过期用例；0.21 新增 3 条原生组件完整性用例；0.20 新增 7 条 GUI 渲染层 stub-DOM 契约测试；0.19 新增 1 条 `verify --kind` 未知值用例；0.18 新增/改写 RGSS native 与 doctor 用例，净增 7 条——旧的 pending 交付测试被替换；0.14–0.17 的累计增量见历史） |
+| 版本 | **0.27.0**（`package.json` 单一真源，`src/version.js` 读取它；插件模板的 `VERSION` 由安装器替换） |
+| 契约 | 0.10 的五篇设计稿（json-contract / config / engines / export-format / platforms）已冻结并全部实现；0.11 只有 `engines.md` 真正扩了内容（三个引擎、新增 §13.2 Ren'Py），`json-contract.md` 与 `platforms.md` 补了「0.11 复查后不变」的复核标注。0.12 继续扩 `engines.md`（四个引擎、新增 §13.3 RGSS 与 §7.7 的 pending 交付），`json-contract.md` 补 RGSS 的语义澄清（`E_NOT_IMPLEMENTED` 有了 CLI 入口、`install`/`uninstall`/`doctor` 的按引擎差异）；信封与字段类型仍未动，`platforms.md` / `config.md` / `export-format.md` 未动。0.13 扩 `engines.md`（五个引擎、新增 §13.4 Kirikiri），`export-format.md` 补 TSV/CSV 表格与 `import` 命令；JSON 信封（flat one-line object、退出码 0/1/2、13 个错误码）未动。0.17 给字典条目加可选 `engine` / `locator` 溯源字段（`FORMAT` 仍是 `yakusha/1`），rich JSON 导出与导入带、表格不带，信封与错误码未动。0.18 给 RGSS 增加原生注入器交付层（`install --native` / `uninstall` / `doctor` 的 delivery 检查 / `scan` 的 `runtime: "inject"`），文档侧 `engines.md`、`commands.md` 按 0.18 补契约；信封、退出码与 13 个错误码未动；0.19 把 `verify --kind` 的未知值从静默过滤改为 `E_USAGE`（合法命令与信封不变）；0.20 只修 GUI 渲染层状态；0.21 让 `doctor`/`launch` 识别损坏的原生组件；0.22 让 `doctor` 报出安装后又被改过的字典；0.23 把同一检查推广到 Ren'Py 译文文件与 MZ/MV 的 `--embed` 插件（都只是检查结论变化，契约未变）；0.24 只优化 translate 内部的术语表匹配（Aho-Corasick 索引），契约未变；0.25 修复字典被清空后 Ren'Py 译文文件未判过期（诊断结果变化，契约未变）；0.26 只加固字典键的读写（`__proto__` 等原型名按普通条目处理）；0.27 只加固 Kirikiri XP3 读取器对损坏归档的尺寸检查，契约未变 |
+| 测试 | **700 个，全绿**（`npm test`，51 个测试文件，约 11s；0.27 新增 3 条 XP3 损坏归档用例；0.26 新增 4 条字典键安全用例；0.25 新增 1 条 Ren'Py 清空字典过期用例；0.24 新增 1 条 glossary 索引用例；0.23 新增 2 条快照过期用例；0.22 新增 1 条字典过期用例；0.21 新增 3 条原生组件完整性用例；0.20 新增 7 条 GUI 渲染层 stub-DOM 契约测试；0.19 新增 1 条 `verify --kind` 未知值用例；0.18 新增/改写 RGSS native 与 doctor 用例，净增 7 条——旧的 pending 交付测试被替换；0.14–0.17 的累计增量见历史） |
 | 持续集成 | GitHub Actions：`npm test` 在 Node 22 / 24（**windows-latest**，WP1 已从 ubuntu 切换） |
 | 平台 | Windows 10/11 x64 为唯一支持与验收环境（0.10 明确，见 [platforms.md](../platforms.md)） |
 | 支持引擎 | RPG Maker **MZ 1.3.2–1.9.0**、**MV 1.6.1–1.6.2**；**Ren'Py 8.x 脚本**（`.rpy` 明文 + `.rpyc` 编译）；**RGSS（XP / VX / VX Ace）**从 0.18 起有 **inject 交付层**（`install --native`，原生注入器，不改游戏文件）；**Kirikiri（KAG / XP3）** 仍只到 L1–L3（识别 / 盘点 / 抽取 / 翻译 / 校验 / 导出），**没有交付层**（§6） |
@@ -395,6 +395,13 @@
 - [x] 测试：`test/dict.test.js` 新增 3 条（加载 `__proto__` / `constructor` 后仍是 own 属性且 `Object.prototype` 未被污染；`note` 与 `translatedOnly` 正常存取；`recordExtracted` 创建 own entry），`test/export.test.js` 新增 1 条（import `__proto__` 的 JSON 往返）；合计 **697 个，全绿**（51 个测试文件，约 11s）。
 - [x] 判定：这是质量门禁第 6 条（字典键安全）的落地，不改变 `yakusha/1` 格式与任何载荷键；旧字典照常加载。
 
+### T 阶段（0.27.0，已完成）
+
+- [x] `src/engines/krkr/xp3.js` 的尺寸检查：索引容器先核对 `compSize` 是安全整数、大于 0 且不超过归档剩余字节；索引与单条目解压都设 64 MiB 上限（`MAX_INDEX_BYTES` / `MAX_ENTRY_BYTES`，`inflateSync` 的 `maxOutputLength`），段的位置与长度必须是安全整数、非负且落在归档文件内。
+- [x] 失败一律收敛成带错误码的异常（`E_IO` 损坏 / `E_UNSUPPORTED` 合法但过大），Kirikiri 抽取把它们记进 `undecodable` 继续，不再出现 `RangeError` 或为恶意长度分配无界内存。
+- [x] 测试：`test/krkr-xp3.test.js` 新增 3 条（索引流声称超过归档大小、索引解压超过 64 MiB、段指向归档外），全部用合成字节；该文件 7→10 条，全套 **700 个，全绿**（51 个测试文件，约 11s）。
+- [x] 判定：这是质量门禁第 6 条（恶意归档 / 超大文件）的落地；正常归档的读取结果不变，adapter 与 JSON 契约不动。
+
 ## 4. 文件地图
 
 ```
@@ -464,7 +471,7 @@ native/build.mjs          原生组件构建（i686-pc-windows-gnullvm → nativ
 native/rgss-hook/         Rust cdylib：IAT 补 GetProcAddress、包装 RGSSGameMain、执行 bootstrap.rb
 native/injector/          Rust bin：CreateProcessW(CREATE_SUSPENDED) → CreateRemoteThread(LoadLibraryW)
 native/prebuilt/          预编译四件套（gitignore，CI/本地构建；随 npm 包发布）
-test/                     697 个测试（含 CLI 端到端、0.10 信封契约、配置/前置、引擎/启动契约、
+test/                     700 个测试（含 CLI 端到端、0.10 信封契约、配置/前置、引擎/启动契约、
                           五个引擎的适配器契约、Ren'Py 的 .rpy/.rpyc 抽取、RGSS 的
                           Marshal / 归档 / 数据文档抽取与 native 交付层、Kirikiri 的 XP3 / KS 抽取）
 docs/design.md            为什么走运行时钩子、文本面覆盖、转义码、设计约束、作为库用

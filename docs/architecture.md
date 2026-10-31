@@ -273,6 +273,7 @@ test/fixtures/           各引擎最小夹具（mini-mz、mini-mv、renpy-*、r
 | 0.24.0 | **已交付**：术语表匹配性能——`src/pipeline/glossary.js` 的 Aho-Corasick 索引每次运行建一次、每个请求复用；10,000 条词表 × 40 行 batch 从约 7.0 ms/请求降到约 0.10 ms/请求（构建约 2.1 ms），选中行与顺序不变 | 692 pass / 0 fail（新增 1 条 glossary 索引用例） |
 | 0.25.0 | **已交付**：Ren'Py 译文文件快照检查的边界修复——装后把字典所有译文清空（重新生成的文件不带任何条目）原先不会触发过期判断，现在 `translation.dictionaryStale` 为真、`doctor` 的 install / runtime 记 `warn`、`verdict: usable` | 693 pass / 0 fail（新增 1 条 adapter 用例） |
 | 0.26.0 | **已交付**：字典键安全加固——`__proto__`、`constructor` 等原型名按普通条目读写（`Object.defineProperty` + `Object.hasOwn` 守卫），加载、写入与导入都不再把它当成原型设置器 | 697 pass / 0 fail（新增 4 条：dict 3 条、export 1 条） |
+| 0.27.0 | **已交付**：XP3 读取器加固——索引流与单条目读取设 64 MiB 上限、索引/段尺寸必须落在归档文件内，损坏或恶意归档报 `E_IO` / `E_UNSUPPORTED` 并进 `undecodable`，不再抛出 `RangeError` 或耗尽内存 | 700 pass / 0 fail（新增 3 条 malformed-archive 用例） |
 | 1.0.0 | 10 个引擎 + 能力矩阵 + 便携 exe（图标、无控制台、最近游戏） | 双击 exe 可用 |
 
 ## 10. 风险

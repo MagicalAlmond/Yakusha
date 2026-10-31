@@ -42,7 +42,7 @@ function manualXp3(files) {
       const start = cursor + storedTotal;
       dataChunks.push(segment.stored);
       storedTotal += segment.stored.length;
-      segmentRecords.push(Buffer.concat([u32(segment.mode), u64(start), u64(0), u64(segment.stored.length)]));
+      segmentRecords.push(Buffer.concat([u32(segment.mode), u64(start), u64(0), u64(segment.declaredComp ?? segment.stored.length)]));
     }
     void cursor;
     const nameBuffer = Buffer.from(file.name, "utf16le");
@@ -179,6 +179,68 @@ test("an index offset outside the file is E_UNSUPPORTED, not a crash", () => {
     (error) => {
       assert.equal(error.code, "E_UNSUPPORTED");
       assert.match(error.message, /index offset points outside the archive/);
+      return true;
+    }
+  );
+});
+
+test("an index stream that claims more bytes than the archive is E_IO, not a crash", () => {
+  const file = path.join(tempDir(), "oversize-index.xp3");
+  const buffer = Buffer.from(buildXp3([{ name: "a.ks", data: KS }]));
+  const indexOffset = Number(buffer.readBigUInt64LE(32));
+  buffer.writeBigUInt64LE(BigInt(buffer.length) * 2n, indexOffset + 1);
+  fs.writeFileSync(file, buffer);
+  assert.throws(
+    () => openXp3(file),
+    (error) => {
+      assert.equal(error.code, "E_IO");
+      assert.match(error.message, /index stream is larger than the archive/);
+      return true;
+    }
+  );
+});
+
+test("an index stream that inflates past the cap is E_IO, not an allocation", () => {
+  // A tiny zlib stream can expand to gigabytes. The reader caps the index at
+  // 64 MiB and reports a corrupt archive instead of allocating the output.
+  const file = path.join(tempDir(), "index-bomb.xp3");
+  const compressed = zlib.deflateSync(Buffer.alloc((64 << 20) + 1));
+  const head = Buffer.alloc(40);
+  Buffer.from("XP3\r\n \n\x1a", "latin1").copy(head, 0);
+  head.writeBigUInt64LE(0x0117678bn, 8);
+  head.writeUInt32LE(0x01000000, 16);
+  head.writeUInt32LE(0x80000000, 20);
+  head.writeBigUInt64LE(40n, 32);
+  const size = Buffer.alloc(8);
+  size.writeBigUInt64LE(BigInt(compressed.length), 0);
+  const container = Buffer.concat([Buffer.from([1]), size, compressed]);
+  fs.writeFileSync(file, Buffer.concat([head, container]));
+  assert.throws(
+    () => openXp3(file),
+    (error) => {
+      assert.equal(error.code, "E_IO");
+      assert.match(error.message, /index stream does not decompress/);
+      return true;
+    }
+  );
+});
+
+test("a segment that points outside the archive is E_IO when read", () => {
+  const file = path.join(tempDir(), "bad-segment.xp3");
+  const stored = Buffer.from("short", "utf8");
+  fs.writeFileSync(file, manualXp3([
+    {
+      name: "bad.ks",
+      segments: [{ mode: 0, stored, declaredComp: 4096 }],
+      whole: stored,
+    },
+  ]));
+  const entry = openXp3(file).entry("bad.ks");
+  assert.throws(
+    () => entry.read(),
+    (error) => {
+      assert.equal(error.code, "E_IO");
+      assert.match(error.message, /points outside the archive/);
       return true;
     }
   );

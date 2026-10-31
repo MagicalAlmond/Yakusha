@@ -544,6 +544,7 @@ TextGrammar = {
 | 0.24 | 术语表匹配性能：`src/pipeline/glossary.js` 的 Aho-Corasick 索引每次运行建一次、每个请求复用（**已交付**） | — | 692 pass / 51 个文件；新增 1 条 glossary 索引用例；10,000 条词表 × 40 行 batch 约 7.0 ms → 0.10 ms/请求 |
 | 0.25 | Ren'Py 译文文件快照检查的边界：装后把字典所有译文清空也判过期，`doctor` 的 install / runtime 记 `warn`、`verdict: usable`（**已交付**） | — | 693 pass / 51 个文件；新增 1 条 adapter 用例 |
 | 0.26 | 字典键安全：`__proto__`、`constructor` 等原型名按普通条目读写，加载 / 写入 / 导入都不再把它当成原型设置器（**已交付**） | — | 697 pass / 51 个文件；新增 4 条（dict 3、export 1） |
+| 0.27 | XP3 读取器加固：索引流与单条目读取设 64 MiB 上限，索引/段必须落在归档文件内（**已交付**） | — | 700 pass / 51 个文件；新增 3 条 malformed-archive 用例 |
 | 1.0 | 10 个引擎目标 + 能力矩阵 + 便携 exe | — | 每个引擎有 L4 证据；不达标的明确标 experimental |
 
 说明：

@@ -65,6 +65,8 @@
   `.ks` 写回 XP3 归档，路线未拍板（见 `docs/dev/DEVLOG.md` 待拍板表）。
 - 只读标准 XP3 索引；被外部工具改过索引的归档（Hxv4 形态）报
   `E_UNSUPPORTED`，不猜测、不重建索引。
+- 损坏或恶意归档有尺寸上限：索引流与单个条目最多解到 64 MiB，索引或段的位置必须
+  落在归档文件内；越界的归档记进 `undecodable`，不会为它分配无界内存。
 - 加密变体（krkr2 per-file keys、krkrz cxdec）不解析，条目直接进 `undecodable`。
 - `.tjs` 脚本只计数不读内容，可翻译文本只收 `.ks`。
 - 编码按 BOM 识别 UTF-16LE/BE，再按 UTF-8 严格解码、Shift_JIS 兜底；解不出的行记进 `undecodable` 继续，不中断。
