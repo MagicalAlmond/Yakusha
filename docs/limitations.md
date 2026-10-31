@@ -89,8 +89,9 @@
   走同一信封，没有第二种机器可读出口。
 - 0.13 起有译文导入：`import` 配合 `export --format tsv / csv` 做表格往返
   （表头 `source` / `target` / `contexts`，UTF-8 BOM + CRLF，round-trip 字节相同）；
-  0.15 起还接受 JSONL 与 `--create`，0.17 起条目可带 `engine` / `locator` 溯源字段
-  （`FORMAT` 仍是 `yakusha/1`）。字典 v2 的其余字段仍未拍板，见 `docs/dev/DEVLOG.md`。
+  0.15 起还接受 JSONL 与 `--create`，0.17 起条目可带 `engine` / `locator` 溯源字段，
+  0.34 起 `export --format jsonl` 也能写出这两个字段（`FORMAT` 仍是 `yakusha/1`）。
+  字典 v2 的其余字段仍未拍板，见 `docs/dev/DEVLOG.md`。
 - GUI 最小外壳 0.14 已交付（Electron，safeStorage 存 key，能力位驱动按钮灰显）；
   完整字典编辑界面等仍未做，见 `docs/gui.md`。
 - 只在 Windows 10/11 x64 上支持与验收；Linux、macOS、WSL、Wine、Proton 不作为

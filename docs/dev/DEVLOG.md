@@ -451,6 +451,7 @@
 - [x] 测试：`test/export.test.js` 新增 1 条 JSONL 导出 + provenance 往返；`--format jsonl --flat` 进 `E_USAGE` 用例；全套 **730 个，全绿**（54 个测试文件，约 12s）。
 - [x] 文档：`docs/export-format.md` §9 改为「JSONL：导入与导出（0.15 / 0.34）」并新增 §9.3，修掉 §9 开头「provenance 要等字典 v2 拍板」的陈旧句；`docs/commands.md` / `docs/json-contract.md` 同步。
 - [x] 设计：JSONL 是 `export` 的第四种格式，不新增命令；TSV / CSV 保持三列，provenance 只进 rich JSON 与 JSONL。
+- [x] 版内修正：把 `docs/export-format.md` 里 17 处随代码插入而偏移的 file:line 重锚（runner/table 两文件），并把 `docs/commands.md` 的版本戳与命令表补到 0.34、`docs/limitations.md` 的导入段落补上 JSONL 导出。
 
 ## 4. 文件地图
 

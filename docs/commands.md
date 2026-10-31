@@ -1,6 +1,6 @@
 # 命令参考
 
-本文是 yakusha 0.33.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出；0.33 给 `verify` 增加了 SARIF 报告输出（`--report-format sarif`），其余命令不变。
+本文是 yakusha 0.34.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出；0.33 给 `verify` 增加了 SARIF 报告输出（`--report-format sarif`）；0.34 给 `export` 增加 JSONL 输出（`--format jsonl`），其余命令不变。
 
 **RGSS 在 0.18 起有了交付层。** `scan` / `extract` / `status` / `translate` / `verify` / `speaker` / `terms` / `export` / `import` 都能用；0.18 新增 `install --native`，把预编译的注入器与 hook DLL 装进 `yakusha/native/`，游戏启动时由注入器加载，译文从 `dictionary.txt` 读。`install` 不带 `--native` 仍报 `E_USAGE`（RGSS 没有插件交付层）。安装细节与限制见下文 [install 与 uninstall](#install-与-uninstall)。
 
@@ -24,8 +24,8 @@
 | `install` | 装运行时：MZ/MV 写插件，Ren'Py 生成翻译脚本，RGSS 用 `--native` 装原生注入器，Kirikiri 尚未实现（报 `E_NOT_IMPLEMENTED`） |
 | `uninstall` | 卸掉上一条装的东西 |
 | `doctor` | 对着当前版本体检安装、备份与字典 |
-| `export` | 把已翻译条目导出成 JSON / TSV / CSV 快照 |
-| `import` | 用此前导出的文件回填字典（TSV / CSV / JSON） |
+| `export` | 把已翻译条目导出成 JSON / TSV / CSV / JSONL 快照 |
+| `import` | 用此前导出的文件回填字典（TSV / CSV / JSON / JSONL） |
 | `launch` | 启动游戏可执行文件（仅 Windows） |
 | `config` | 读写用户级配置（不接游戏目录） |
 
@@ -212,7 +212,7 @@
 ### --help 与 --version
 
 - `--help` / `-h`：永远 stdout 纯文本、退出 0，即使同时给了 `--json`；`scan -h` 也一样打整段帮助。连未知命令都投降：`nope --help` 打帮助、退出 0。
-- `--version`：永远 stdout 一行 `yakusha <version>`、退出 0，并且优先于一切——`--help --version` 只打 `yakusha 0.33.0`，`--json --version` 也不产出 JSON。
+- `--version`：永远 stdout 一行 `yakusha <version>`、退出 0，并且优先于一切——`--help --version` 只打 `yakusha 0.34.0`，`--json --version` 也不产出 JSON。
 - 无命令：文本模式把整段 USAGE 打到 stderr、退出 2；`--json` 时输出 `command: null` 的信封，`message` 是 `no command`。
 - 未知命令：stderr 两行 `error: unknown command: nope` 和 `run 'yakusha --help' for usage`，退出 2，不再打印整段 USAGE。
 
@@ -817,7 +817,7 @@ exported 32 entries to <abs> (4159 B)
 - 空字典也能导出：`exported 0 entries to <abs> (120 B)`，载荷 `entries: 0`。载荷：`out` / `format`（实际格式名）/ `flat` / `entries`（条数，不是对象）/ `bytes`（实际写入的 UTF-8 字节数）。TSV / CSV / JSONL 时 `--flat` 无意义，给了报 `E_USAGE`：`--flat applies to --format json only`。
 - 序列化细节（键排序、不导出 `error`、`updatedAt` 原样复制）见 [export-format.md](export-format.md)。
 - 0.17 起条目里的 `engine` / `locator` 会原样进 rich JSON；0.34 起 JSONL 也带这两个字段，
-  导出再导入可恢复 provenance。`--flat` 与 TSV / CSV 都不带，表格永远是三列
+  导出再导入可恢复 provenance。`--flat` 只影响 JSON；TSV / CSV 表格永远是三列
   `source` / `target` / `contexts`。
 
 ## import：从导出文件回填字典
