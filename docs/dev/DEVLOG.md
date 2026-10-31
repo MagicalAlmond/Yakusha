@@ -1,7 +1,7 @@
 # 开发交接文档（DEVLOG）
 
 > 这份文档记录**阶段目标、已完成项、决策理由和下一步**，随开发进程更新。
-> 最后更新：2026-10-27（0.28.0 引擎版本矩阵在 `feat/0.28-version-matrix`；0.27.0 XP3 读取器加固在 `feat/0.27-xp3-hardening`；0.26.0 字典键安全在 `feat/0.26-dictionary-keys`；0.25.0 Ren'Py 清空字典快照修复在 `feat/0.25-renpy-empty-stale`；0.24.0 术语表 Aho-Corasick 索引在 `feat/0.24-glossary-index`；0.23.0 所有快照式交付的字典过期检测在 `feat/0.23-delivery-staleness`；0.22.0 RGSS 原生字典过期检测在 `feat/0.22-native-stale`；0.21.0 RGSS 原生组件完整性检查在 `feat/0.21-native-integrity`；0.20.0 GUI 渲染层契约测试与扫描状态重置；0.19.0 `verify --kind` 严格校验：未知 kind 报 `E_USAGE`；0.18.0 RGSS 原生注入器交付层在 `feat/0.18-rgss-native`；0.17 字典溯源字段在 `feat/0.17-dictionary-provenance`；0.15 通用内容导入 v1 在 `feat/0.15-generic-import`；0.14.0 GUI 在 `feat/0.14-gui`；均未合入 `main`、未打 tag）。
+> 最后更新：2026-10-27（0.29.0 XOR 探测加固在 `feat/0.29-xor-probe`；0.28.0 引擎版本矩阵在 `feat/0.28-version-matrix`；0.27.0 XP3 读取器加固在 `feat/0.27-xp3-hardening`；0.26.0 字典键安全在 `feat/0.26-dictionary-keys`；0.25.0 Ren'Py 清空字典快照修复在 `feat/0.25-renpy-empty-stale`；0.24.0 术语表 Aho-Corasick 索引在 `feat/0.24-glossary-index`；0.23.0 所有快照式交付的字典过期检测在 `feat/0.23-delivery-staleness`；0.22.0 RGSS 原生字典过期检测在 `feat/0.22-native-stale`；0.21.0 RGSS 原生组件完整性检查在 `feat/0.21-native-integrity`；0.20.0 GUI 渲染层契约测试与扫描状态重置；0.19.0 `verify --kind` 严格校验：未知 kind 报 `E_USAGE`；0.18.0 RGSS 原生注入器交付层在 `feat/0.18-rgss-native`；0.17 字典溯源字段在 `feat/0.17-dictionary-provenance`；0.15 通用内容导入 v1 在 `feat/0.15-generic-import`；0.14.0 GUI 在 `feat/0.14-gui`；均未合入 `main`、未打 tag）。
 > 0.9.0 项目改名 **Yakusha**，字典目录、插件文件、环境变量与备份后缀全部随之改名；
 > 仓库已发布到 https://github.com/MagicalAlmond/Yakusha（`main` 分支）。
 > 0.8.0 的 `doctor`、0.7.1 的 `uninstall` 漂移保护、0.7.0 的报告/模板见下）。
@@ -36,9 +36,9 @@
 
 | 项 | 状态 |
 | --- | --- |
-| 版本 | **0.28.0**（`package.json` 单一真源，`src/version.js` 读取它；插件模板的 `VERSION` 由安装器替换） |
-| 契约 | 0.10 的五篇设计稿（json-contract / config / engines / export-format / platforms）已冻结并全部实现；0.11 只有 `engines.md` 真正扩了内容（三个引擎、新增 §13.2 Ren'Py），`json-contract.md` 与 `platforms.md` 补了「0.11 复查后不变」的复核标注。0.12 继续扩 `engines.md`（四个引擎、新增 §13.3 RGSS 与 §7.7 的 pending 交付），`json-contract.md` 补 RGSS 的语义澄清（`E_NOT_IMPLEMENTED` 有了 CLI 入口、`install`/`uninstall`/`doctor` 的按引擎差异）；信封与字段类型仍未动，`platforms.md` / `config.md` / `export-format.md` 未动。0.13 扩 `engines.md`（五个引擎、新增 §13.4 Kirikiri），`export-format.md` 补 TSV/CSV 表格与 `import` 命令；JSON 信封（flat one-line object、退出码 0/1/2、13 个错误码）未动。0.17 给字典条目加可选 `engine` / `locator` 溯源字段（`FORMAT` 仍是 `yakusha/1`），rich JSON 导出与导入带、表格不带，信封与错误码未动。0.18 给 RGSS 增加原生注入器交付层（`install --native` / `uninstall` / `doctor` 的 delivery 检查 / `scan` 的 `runtime: "inject"`），文档侧 `engines.md`、`commands.md` 按 0.18 补契约；信封、退出码与 13 个错误码未动；0.19 把 `verify --kind` 的未知值从静默过滤改为 `E_USAGE`（合法命令与信封不变）；0.20 只修 GUI 渲染层状态；0.21 让 `doctor`/`launch` 识别损坏的原生组件；0.22 让 `doctor` 报出安装后又被改过的字典；0.23 把同一检查推广到 Ren'Py 译文文件与 MZ/MV 的 `--embed` 插件（都只是检查结论变化，契约未变）；0.24 只优化 translate 内部的术语表匹配（Aho-Corasick 索引），契约未变；0.25 修复字典被清空后 Ren'Py 译文文件未判过期（诊断结果变化，契约未变）；0.26 只加固字典键的读写（`__proto__` 等原型名按普通条目处理）；0.27 只加固 Kirikiri XP3 读取器对损坏归档的尺寸检查，契约未变；0.28 给每个 adapter 加 `versions` 版本矩阵，`doctor` 只在版本读不到、未实测或超出区间时多一条 `version` 检查（载荷键与错误码不变） |
-| 测试 | **709 个，全绿**（`npm test`，52 个测试文件，约 11s；0.28 新增 9 条（versions 8、doctor 1）；0.27 新增 3 条 XP3 损坏归档用例；0.26 新增 4 条字典键安全用例；0.25 新增 1 条 Ren'Py 清空字典过期用例；0.24 新增 1 条 glossary 索引用例；0.23 新增 2 条快照过期用例；0.22 新增 1 条字典过期用例；0.21 新增 3 条原生组件完整性用例；0.20 新增 7 条 GUI 渲染层 stub-DOM 契约测试；0.19 新增 1 条 `verify --kind` 未知值用例；0.18 新增/改写 RGSS native 与 doctor 用例，净增 7 条——旧的 pending 交付测试被替换；0.14–0.17 的累计增量见历史） |
+| 版本 | **0.29.0**（`package.json` 单一真源，`src/version.js` 读取它；插件模板的 `VERSION` 由安装器替换） |
+| 契约 | 0.10 的五篇设计稿（json-contract / config / engines / export-format / platforms）已冻结并全部实现；0.11 只有 `engines.md` 真正扩了内容（三个引擎、新增 §13.2 Ren'Py），`json-contract.md` 与 `platforms.md` 补了「0.11 复查后不变」的复核标注。0.12 继续扩 `engines.md`（四个引擎、新增 §13.3 RGSS 与 §7.7 的 pending 交付），`json-contract.md` 补 RGSS 的语义澄清（`E_NOT_IMPLEMENTED` 有了 CLI 入口、`install`/`uninstall`/`doctor` 的按引擎差异）；信封与字段类型仍未动，`platforms.md` / `config.md` / `export-format.md` 未动。0.13 扩 `engines.md`（五个引擎、新增 §13.4 Kirikiri），`export-format.md` 补 TSV/CSV 表格与 `import` 命令；JSON 信封（flat one-line object、退出码 0/1/2、13 个错误码）未动。0.17 给字典条目加可选 `engine` / `locator` 溯源字段（`FORMAT` 仍是 `yakusha/1`），rich JSON 导出与导入带、表格不带，信封与错误码未动。0.18 给 RGSS 增加原生注入器交付层（`install --native` / `uninstall` / `doctor` 的 delivery 检查 / `scan` 的 `runtime: "inject"`），文档侧 `engines.md`、`commands.md` 按 0.18 补契约；信封、退出码与 13 个错误码未动；0.19 把 `verify --kind` 的未知值从静默过滤改为 `E_USAGE`（合法命令与信封不变）；0.20 只修 GUI 渲染层状态；0.21 让 `doctor`/`launch` 识别损坏的原生组件；0.22 让 `doctor` 报出安装后又被改过的字典；0.23 把同一检查推广到 Ren'Py 译文文件与 MZ/MV 的 `--embed` 插件（都只是检查结论变化，契约未变）；0.24 只优化 translate 内部的术语表匹配（Aho-Corasick 索引），契约未变；0.25 修复字典被清空后 Ren'Py 译文文件未判过期（诊断结果变化，契约未变）；0.26 只加固字典键的读写（`__proto__` 等原型名按普通条目处理）；0.27 只加固 Kirikiri XP3 读取器对损坏归档的尺寸检查，契约未变；0.28 给每个 adapter 加 `versions` 版本矩阵，`doctor` 只在版本读不到、未实测或超出区间时多一条 `version` 检查（载荷键与错误码不变）；0.29 只优化 `data/` 的 XOR 探测（候选 key 按首字节筛选），契约不变 |
+| 测试 | **712 个，全绿**（`npm test`，52 个测试文件，约 12s；0.29 新增 3 条 XOR 候选用例；0.28 新增 9 条（versions 8、doctor 1）；0.27 新增 3 条 XP3 损坏归档用例；0.26 新增 4 条字典键安全用例；0.25 新增 1 条 Ren'Py 清空字典过期用例；0.24 新增 1 条 glossary 索引用例；0.23 新增 2 条快照过期用例；0.22 新增 1 条字典过期用例；0.21 新增 3 条原生组件完整性用例；0.20 新增 7 条 GUI 渲染层 stub-DOM 契约测试；0.19 新增 1 条 `verify --kind` 未知值用例；0.18 新增/改写 RGSS native 与 doctor 用例，净增 7 条——旧的 pending 交付测试被替换；0.14–0.17 的累计增量见历史） |
 | 持续集成 | GitHub Actions：`npm test` 在 Node 22 / 24（**windows-latest**，WP1 已从 ubuntu 切换） |
 | 平台 | Windows 10/11 x64 为唯一支持与验收环境（0.10 明确，见 [platforms.md](../platforms.md)） |
 | 支持引擎 | RPG Maker **MZ 1.3.2–1.9.0**、**MV 1.6.1–1.6.2**；**Ren'Py 8.x 脚本**（`.rpy` 明文 + `.rpyc` 编译）；**RGSS（XP / VX / VX Ace）**从 0.18 起有 **inject 交付层**（`install --native`，原生注入器，不改游戏文件）；**Kirikiri（KAG / XP3）** 仍只到 L1–L3（识别 / 盘点 / 抽取 / 翻译 / 校验 / 导出），**没有交付层**（§6） |
@@ -409,6 +409,13 @@
 - [x] `src/core/doctor.js` 在 `engine` 检查之后按 `options.versions` 追加一条 `version` 检查（只有异常才出现），`src/cli/runner.js` 的 `commandDoctor` 传 `adapter.versions || null`；`checks` 形状与所有载荷键不变。
 - [x] 测试：新增 `test/versions.test.js` 8 条（解析/比较/区间边界/values 矩阵/none/描述文本/五 adapter 的 kind），`test/doctor.test.js` 新增 1 条（9.9.9 → warn、null → info）；全套 **709 个，全绿**（52 个测试文件，约 11s）。
 
+### V 阶段（0.29.0，已完成）
+
+- [x] `src/core/datafile.js` 的 XOR 探测不再盲试 256 个单字节 key：新增 `xorKeyCandidates`，按首字节筛出最多 8 个可能产生 `[` / `{` / 空白 / BOM 开头的 key；`attemptXor` 只对候选 key 做整缓冲解码。
+- [x] 等价性：`attemptPlain` 本来就会拒绝其他首字节的缓冲；合法明文、XOR、BOM、空白开头的文件解码结果不变，`undecodable` 报告不变。
+- [x] 性能：20 MB 不可解码 `data/*.json` 的 `scan --json` 从约 15.7 s 降到约 0.65 s（本机 Node 24.14.0，单次实跑）；50,129 条文本的合成 MZ 项目（100 张地图 × 500 行，106 个 data 文件）`scan --json` 约 353 ms、`extract --json` 约 393 ms。
+- [x] 测试：`test/datafile.test.js` 新增 3 条（候选 key 的合法首字节与数量上限、XOR+前导空白、XOR+BOM），全套 **712 个，全绿**（52 个测试文件，约 12s）。
+
 ## 4. 文件地图
 
 ```
@@ -585,6 +592,12 @@ docs/platforms.md         平台支持矩阵与决策记录（Windows-only 的�
 | mv 1.6.2 | 453 | 26,240 | 81,017 | MV-F |
 
 合计 **259,165 unique / 475,001 total**。
+
+### 0.29 的 XOR 探测与 5 万条性能基线
+
+- 20 MB 不可解码 `data/*.json`（首字节不是 JSON 开头）：0.29 之前 `scan --json` 要盲试 256 个 XOR key，约 **15.7 s**；按首字节筛选后约 **0.65 s**，`undecodable` 仍是同一个文件名。
+- 合成 MZ 项目（100 张地图 × 500 行、106 个 data 文件、50,129 条文本）：`scan --json` 约 **353 ms**、`extract --json` 约 **393 ms**（Node 24.14.0，本机单次实跑；生成脚本只在仓库外临时使用）。
+- 结论：质量门禁第 7 条（5 万条文本的 scan/extract 性能预算）在本机通过；这两个数字是单机基线，不是跨机器承诺。
 
 ### 全量翻译完成度
 

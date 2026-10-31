@@ -1,11 +1,11 @@
-# 引擎适配器契约（0.28 契约）
+# 引擎适配器契约（0.29 契约）
 
-> **状态：0.28 覆盖五个引擎——RPG Maker MZ、RPG Maker MV、Ren'Py、RGSS（XP / VX / VX Ace）、Kirikiri。**
+> **状态：0.29 覆盖五个引擎——RPG Maker MZ、RPG Maker MV、Ren'Py、RGSS（XP / VX / VX Ace）、Kirikiri。**
 > 0.14 交付 GUI 外壳，0.15 加 JSONL 导入，0.16 起 `scan` 载荷带引擎能力位（GUI 据此灰显按钮），
 > 0.17 给字典条目加可选的引擎与位置溯源（`engine` / `locator`，`FORMAT` 不变），
 > 0.18 给 RGSS 接上原生注入器交付层（`runtime: "inject"`）：`install --native` 把四个
 > 原生组件与 `dictionary.txt` 写进 `yakusha/native/`，`launch` 经 `yakusha_injector.exe`
-> 启动游戏；0.19 把 `verify --kind` 的未知值从静默过滤改为 `E_USAGE`（命令层校验，adapter 契约不变）；0.20 只有 GUI 渲染层契约测试与扫描状态重置，adapter 契约不变；0.21 让 `doctor` 与 `launch` 识别被删除或被改动的原生组件；0.22 让 `doctor` 报出安装之后又被修改过的字典；0.23 把这个检查推广到所有快照式交付（Ren'Py 的译文文件与 MZ/MV 的 `--embed` 插件），adapter 契约不变；0.24 只优化 translate 内部的术语表匹配（Aho-Corasick 索引），0.25 修 Ren'Py 译文文件在字典被清空后的过期判断，0.26 只加固字典键的读写（`__proto__` 等原型名按普通条目处理），0.27 只加固 Kirikiri XP3 读取器对损坏/恶意归档的尺寸检查（adapter 契约不变），0.28 给每个 adapter 加 `versions` 版本矩阵，`doctor` 只在版本读不到、未实测或超出区间时多一条 `version` 检查（adapter 契约不变）；Kirikiri 的交付层仍未拍板（见 §7.8）。
+> 启动游戏；0.19 把 `verify --kind` 的未知值从静默过滤改为 `E_USAGE`（命令层校验，adapter 契约不变）；0.20 只有 GUI 渲染层契约测试与扫描状态重置，adapter 契约不变；0.21 让 `doctor` 与 `launch` 识别被删除或被改动的原生组件；0.22 让 `doctor` 报出安装之后又被修改过的字典；0.23 把这个检查推广到所有快照式交付（Ren'Py 的译文文件与 MZ/MV 的 `--embed` 插件），adapter 契约不变；0.24 只优化 translate 内部的术语表匹配（Aho-Corasick 索引），0.25 修 Ren'Py 译文文件在字典被清空后的过期判断，0.26 只加固字典键的读写（`__proto__` 等原型名按普通条目处理），0.27 只加固 Kirikiri XP3 读取器对损坏/恶意归档的尺寸检查（adapter 契约不变），0.28 给每个 adapter 加 `versions` 版本矩阵，`doctor` 只在版本读不到、未实测或超出区间时多一条 `version` 检查（adapter 契约不变）；0.29 只优化 `data/` 的 XOR 解码探测（按首字节筛选候选 key，20 MB 损坏文件从约 15.7 s 降到约 0.65 s，adapter 契约不变）；Kirikiri 的交付层仍未拍板（见 §7.8）。
 > 0.10 把 MZ 与 MV 包进统一的 adapter，**不搬文件、不重写算法**；0.11 用同一套
 > contract 接入 Ren'Py，作为第三个 adapter 挂在 registry 末位；0.12 接入 RGSS，排在
 > 第四位，只做到 L1–L3（detect / scan / extract），**没有交付层**；0.13 接入
@@ -1092,7 +1092,7 @@ CLI 侧（`test/rgss-cli.test.js`，16 条）走真实的 `bin/yakusha.js`：sca
 
 - 数据源只来自 `data/*.json`（按文件名排序）。不读 `js/plugins/*.js`、
   不读图片、不读 `www/data`（除非它就是项目的 `data/`）。
-- 明文直接 `JSON.parse`；失败时按单字节 XOR 穷举 256 个 key；0 字节 / 空白占位算
+- 明文直接 `JSON.parse`；失败时按单字节 XOR 试候选 key（先按首字节筛出最多 8 个可能产生 `[` / `{` / 空白 / BOM 的 key，不再盲试 256 个）；0 字节 / 空白占位算
   `empty`，不算 `undecodable`。
 - 字段表与指令表来自 `src/core/fields.js`（唯一真源）；adapter 不得复制一份。
 - context 形如 `<文件名>:<code>` 或 `<文件名>:<字段>`，与现有 `extract.js` 一致。

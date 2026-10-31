@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.29.0] - 2026-10-27
+
+### Changed
+
+- A corrupt or hostile `data/*.json` file no longer makes `scan` / `extract` try all 256 single-byte XOR keys: candidate keys are now filtered by the first decoded byte, so only the handful of keys that can actually produce a JSON document are tried. A 20 MB unreadable data file drops from about 15.7 s to about 0.65 s; valid plain and XOR-encoded files decode exactly as before, and the `undecodable` report is unchanged.
+
+### Unchanged
+
+- No contract change: the envelope, exit codes, command table, the 13 error codes and every payload key stay the same; the dictionary format (`yakusha/1`) is unchanged.
+
 ## [0.28.0] - 2026-10-27
 
 ### Added
@@ -40,6 +50,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Unchanged
 
 - No breaking changes: the envelope, exit codes, command table, the 13 error codes and the `yakusha/1` dictionary format are unchanged; a dictionary written before this fix loads exactly as before.
+
 ## [0.25.0] - 2026-10-27
 
 ### Fixed
@@ -394,7 +405,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.28.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.29.0...HEAD
+[0.29.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.28.0...v0.29.0
 [0.28.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.27.0...v0.28.0
 [0.27.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.26.0...v0.27.0
 [0.26.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.25.0...v0.26.0

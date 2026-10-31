@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { decodeBuffer } from "../src/core/datafile.js";
+import { decodeBuffer, xorKeyCandidates } from "../src/core/datafile.js";
 
 const enc = (text, key) => {
   const buf = Buffer.from(text, "utf8");
@@ -58,4 +58,25 @@ test("a whitespace only file counts as empty too", () => {
   const r = decodeBuffer(Buffer.from("\r\n  \t\r\n", "utf8"));
   assert.equal(r.encoding, "empty");
   assert.equal(r.error, undefined);
+});
+
+test("the XOR probe only tries keys that can start a document", () => {
+  const allowed = new Set([0x5b, 0x7b, 0x20, 0x09, 0x0a, 0x0d, 0xef]);
+  for (let first = 0; first < 256; first += 1) {
+    const keys = xorKeyCandidates(first);
+    assert.ok(keys.length <= 8, "first byte " + first + " produced " + keys.length + " candidates");
+    for (const key of keys) assert.ok(allowed.has(first ^ key), "candidate " + key + " cannot start a document");
+  }
+});
+
+test("XOR recovery still works when the encoded file starts with whitespace", () => {
+  const r = decodeBuffer(enc(' \n["a","b"]', 0x37));
+  assert.equal(r.encoding, "xor");
+  assert.deepEqual(r.data, ["a", "b"]);
+});
+
+test("XOR recovery still works when the encoded file starts with a BOM", () => {
+  const r = decodeBuffer(enc("\uFEFF[\"a\"]", 0x37));
+  assert.equal(r.encoding, "xor");
+  assert.deepEqual(r.data, ["a"]);
 });

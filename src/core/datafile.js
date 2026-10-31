@@ -83,20 +83,42 @@ function attemptPlain(buffer) {
   }
 }
 
-function attemptXor(buffer) {
-  // A single byte key that leaves a leading `[` or `{` is the only kind of
-  // obfuscation we can recover without game specific code, so try those first.
-  const first = buffer[0];
+// Bytes that can legally start a document after the XOR decode: `[`, `{`,
+// leading whitespace, or the first byte of a UTF-8 BOM. Any other first byte
+// makes attemptPlain() return null immediately, so those keys are not worth a
+// full buffer pass.
+const XOR_START_BYTES = new Set([0x5b, 0x7b, 0x20, 0x09, 0x0a, 0x0d, 0xef]);
+
+/**
+ * Enumerate the XOR keys worth trying for a buffer.
+ *
+ * This used to return all 256 keys, which meant a corrupt 20 MB data file cost
+ * 256 full-buffer XOR passes before scan gave up. Filtering by the first decoded
+ * byte is equivalent (attemptPlain rejects every other prefix) and keeps the
+ * probe bounded to at most a handful of passes.
+ *
+ * Exported for the datafile tests; not part of the public API.
+ *
+ * @param {number} first first byte of the encoded buffer
+ * @returns {number[]}
+ */
+export function xorKeyCandidates(first) {
   const candidates = [];
   for (const wanted of [0x5b, 0x7b]) {
     const key = first ^ wanted;
     if (!candidates.includes(key)) candidates.push(key);
   }
-  // Then the rest, in case the file starts with whitespace.
+  // Then the rest, in case the file starts with whitespace or a BOM.
   for (let key = 0; key < 256; key += 1) {
-    if (!candidates.includes(key)) candidates.push(key);
+    if (candidates.includes(key)) continue;
+    if (!XOR_START_BYTES.has(first ^ key)) continue;
+    candidates.push(key);
   }
+  return candidates;
+}
 
+function attemptXor(buffer) {
+  const candidates = xorKeyCandidates(buffer[0]);
   for (const key of candidates) {
     const decoded = new Uint8Array(buffer.length);
     for (let i = 0; i < buffer.length; i += 1) decoded[i] = buffer[i] ^ key;
