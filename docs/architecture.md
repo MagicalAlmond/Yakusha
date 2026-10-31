@@ -282,6 +282,7 @@ test/fixtures/           各引擎最小夹具（mini-mz、mini-mv、renpy-*、r
 | 0.32.0 | **已交付**：安装状态文件（`js/plugins.js` 与备份）以及 `verify --write-report` / `speaker --write-names` / `terms --write` 的输出文件改用同一套原子写；`writeBytesAtomic` 也用于 RGSS 归档写入，输出路径不可用时统一报 `E_IO` | 724 pass / 0 fail（新增 2 条：atomic 1、cli 1） |
 | 0.33.0 | **已交付**：`verify --write-report` 增加 `--report-format sarif`，写出 SARIF 2.1.0（规则 id、逻辑位置、稳定指纹），供 CI code scanning 消费；默认仍是 markdown | 729 pass / 0 fail（新增 5 条：report 2、cli 3） |
 | 0.34.0 | **已交付**：`export --format jsonl` 输出 JSON Lines（一行一个对象、无 BOM、LF），并带回 0.17 的 `engine` / `locator` provenance；JSONL 导入接受这两个字段，导出再导入可完整往返 | 730 pass / 0 fail（新增 1 条 export jsonl） |
+| 0.35.0 | **已交付**：`verify --fail-on error\|warning` 把发布闸门的判定阈值显式化；默认 `error` 保持原行为，`warning` 时警告也退出 1，SARIF 的 `executionSuccessful` 同步 | 733 pass / 0 fail（新增 3 条：cli 2、report 1） |
 | 1.0.0 | 10 个引擎 + 能力矩阵 + 便携 exe（图标、无控制台、最近游戏） | 双击 exe 可用 |
 
 ## 10. 风险

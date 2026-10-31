@@ -283,10 +283,14 @@ async function commandVerify(dir, flags, sink) {
   if (flags["report-format"] !== undefined && !reportFile) {
     throw new CliError("E_USAGE", "verify --report-format requires --write-report");
   }
+  const failOn = typeof flags["fail-on"] === "string" ? flags["fail-on"] : "error";
+  if (failOn !== "error" && failOn !== "warning") {
+    throw new CliError("E_USAGE", "verify --fail-on must be error or warning, not " + failOn);
+  }
   if (reportFile) {
     const text =
       reportFormat === "sarif"
-        ? buildSarif(result, { game: project.gameTitle, file, maxColumns })
+        ? buildSarif(result, { game: project.gameTitle, file, maxColumns, failOn })
         : buildReport(result, {
             game: project.gameTitle,
             file,
@@ -334,9 +338,17 @@ async function commandVerify(dir, flags, sink) {
       sink.out("  ... " + (result.problems.length - shown) + " more, raise --limit or pass --json");
     }
   }
-  sink.out(result.errors > 0 ? "result    : FAILED, " + result.errors + " error(s)" : "result    : OK with " + result.warnings + " warning(s)");
+  const failing = failOn === "warning" ? result.errors + result.warnings > 0 : result.errors > 0;
+  if (failing) {
+    sink.out(
+      "result    : FAILED, " +
+        (result.errors > 0 ? result.errors + " error(s)" : result.warnings + " warning(s) (--fail-on warning)")
+    );
+  } else {
+    sink.out("result    : OK with " + result.warnings + " warning(s)");
+  }
   return {
-    outcome: result.errors > 0 ? "findings" : "ok",
+    outcome: failing ? "findings" : "ok",
     payload: {
       file,
       maxColumns,

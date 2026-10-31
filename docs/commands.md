@@ -1,6 +1,6 @@
 # 命令参考
 
-本文是 yakusha 0.34.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出；0.33 给 `verify` 增加了 SARIF 报告输出（`--report-format sarif`）；0.34 给 `export` 增加 JSONL 输出（`--format jsonl`），其余命令不变。
+本文是 yakusha 0.35.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出；0.33 给 `verify` 增加了 SARIF 报告输出（`--report-format sarif`）；0.34 给 `export` 增加 JSONL 输出（`--format jsonl`），0.35 给 `verify` 增加 `--fail-on warning`（warning 也算发布失败），其余命令不变。
 
 **RGSS 在 0.18 起有了交付层。** `scan` / `extract` / `status` / `translate` / `verify` / `speaker` / `terms` / `export` / `import` 都能用；0.18 新增 `install --native`，把预编译的注入器与 hook DLL 装进 `yakusha/native/`，游戏启动时由注入器加载，译文从 `dictionary.txt` 读。`install` 不带 `--native` 仍报 `E_USAGE`（RGSS 没有插件交付层）。安装细节与限制见下文 [install 与 uninstall](#install-与-uninstall)。
 
@@ -78,6 +78,7 @@
 --limit <n>         how many problems to print (default 20)
 --write-report <f>  write every finding as a report
 --report-format <f> report format: markdown (default) or sarif
+--fail-on <level>   exit 1 on findings of this level: error (default) or warning
 ```
 
 ### speaker
@@ -164,7 +165,7 @@
 | `outcome` | 退出码 | 谁能产生 |
 | --- | --- | --- |
 | `ok` | 0 | 全部命令 |
-| `findings` | 1 | 只有检查类命令：`verify` 报了 error 级问题，或 `doctor` 的 verdict 是 `broken` |
+| `findings` | 1 | 只有检查类命令：`verify` 报了达到 `--fail-on` 阈值的问题（默认 error 级），或 `doctor` 的 verdict 是 `broken` |
 | `error` | 2 | 全部命令 |
 
 规则和细节：
@@ -212,7 +213,7 @@
 ### --help 与 --version
 
 - `--help` / `-h`：永远 stdout 纯文本、退出 0，即使同时给了 `--json`；`scan -h` 也一样打整段帮助。连未知命令都投降：`nope --help` 打帮助、退出 0。
-- `--version`：永远 stdout 一行 `yakusha <version>`、退出 0，并且优先于一切——`--help --version` 只打 `yakusha 0.34.0`，`--json --version` 也不产出 JSON。
+- `--version`：永远 stdout 一行 `yakusha <version>`、退出 0，并且优先于一切——`--help --version` 只打 `yakusha 0.35.0`，`--json --version` 也不产出 JSON。
 - 无命令：文本模式把整段 USAGE 打到 stderr、退出 2；`--json` 时输出 `command: null` 的信封，`message` 是 `no command`。
 - 未知命令：stderr 两行 `error: unknown command: nope` 和 `run 'yakusha --help' for usage`，退出 2，不再打印整段 USAGE。
 
@@ -480,7 +481,7 @@ RGSS 与 Ren'Py 都走这同一段代码，没有引擎特判：实测 RGSS 的 
 | `speaker` | error / warn | `speaker name left in Japanese: <name>`、`speaker name left untranslated: <name>`、`speaker name rendered as ... , elsewhere ...` |
 | `rejected` | warn | 模型拒答或被校验挡下的条目 |
 
-`echo`、`codes`、`slots`、`speaker` 是阻断级（error），其余只算警告。`--kind` 用逗号分隔可限流，取值必须来自上表这 10 个名字；写错名字按用法错误处理，报 `E_USAGE`、退出 2，消息形如 `unknown verify kind: bogus (expected one of: kana, echo, codes, slots, lines, width, no-text, trad, speaker, rejected)`，不会再静默过滤成空报告。`--kind` 传空串等同于不限制。
+`echo`、`codes`、`slots`、`speaker` 是阻断级（error），其余只算警告。`--kind` 用逗号分隔可限流，取值必须来自上表这 10 个名字；写错名字按用法错误处理，报 `E_USAGE`、退出 2，消息形如 `unknown verify kind: bogus (expected one of: kana, echo, codes, slots, lines, width, no-text, trad, speaker, rejected)`，不会再静默过滤成空报告。`--kind` 传空串等同于不限制。默认只有 error 级问题让命令失败；`--fail-on warning` 让 warning 也算失败，见下一节。
 
 实测（mock 翻译后的夹具）：32 条已译文本上有 20 条 kana 警告；把一条译文改成与原文相同后变成 21 条、`counts: {"kana": 20, "echo": 1}`，`outcome` 变 `findings`、退出 1：
 
@@ -506,6 +507,22 @@ result    : FAILED, 1 error(s)
 - Ren'Py 的 `codes` / `slots` 走同一套判据，只是「控制码」换成了文本标签与变量插值：标签漏掉报 `escape codes differ: ["{i}","{/i}","[player_name]"] vs []`，插值漏掉报 `placeholders differ: ["[player_name]"] vs []`（实测把两者的译文标记删干净后，`counts` 是 `{"codes": 1, "kana": 1, "slots": 1}`，两个 error、退出 1）。`kana` 与 `trad` 在两种引擎上完全一样。
 - RGSS 的 `codes` 判的是反斜杠转义码。实测把一条带 `\C[6]` / `\C[0]` 的译文改成纯中文后，`codes` 报 1 个 error、退出 1，detail 是 `escape codes differ: ["\C[6]","\C[0]"] vs []`（`src/pipeline/verify.js:206-215` 的 `codes` 分支对所有引擎共用，没有 RGSS 专有的判据）。`kana` / `trad` / `echo` 等在 RGSS 上与 MZ 完全一致。
 - Kirikiri 的「控制码」是行内 KAG 标签（`[r]`、`[er]` 这类），`codes` 同样报 `escape codes differ: [...] vs []`；`slots` 只认 `%1`、`%2` 这种 `%<数字>` 占位符（`src/engines/krkr/profile.js:123`，KAG 的 `[emb exp=...]` 标签不进这个判据）；假名判据 `VERIFY_KANA` 在 `src/engines/krkr/profile.js:26`，其余 kind 与 MZ 一致。
+
+### --fail-on
+
+`--fail-on` 决定哪些发现让 `verify` 失败：默认 `error`（只有阻断级问题让 `outcome` 变 `findings`、退出 1），`warning` 则连警告一起算。取其他值报 `E_USAGE`、退出 2，消息形如 `verify --fail-on must be error or warning, not warn`。它不改变载荷键，也不改变 `problems` 的内容；只影响 `outcome`、退出码和文本末行。
+
+```text
+$ yakusha verify /games/MyGame --fail-on warning
+entries   : 32 (32 translated, 0 pending)
+problems  : 20 (kana 20)
+  [warn] kana "アリア"
+        Japanese kana left in the translation
+  ... 19 more, raise --limit or pass --json
+result    : FAILED, 20 warning(s) (--fail-on warning)
+```
+
+CI 里常见的两档用法：日常检查用默认值（风格问题不挡发布），发布闸门用 `--fail-on warning`（任何残留假名、超宽行都要先处理）。SARIF 的 `invocations[0].executionSuccessful` 也按这个阈值算，见下一节的 SARIF 说明。
 
 ### --write-report
 
@@ -540,7 +557,7 @@ _kana the player will see; onomatopoeia often keeps one on purpose_
 `--report-format sarif` 写 SARIF 2.1.0（CI 的 code scanning 能直接吃），顶层是 `$schema`、`version: "2.1.0"` 与一个 `runs[0]`：
 
 - `tool.driver`：`name: "yakusha"`、`version`（取自 `package.json`）与 `rules[]`，每个 kind 一条 `yakusha/verify/<kind>`，`defaultConfiguration.level` 按阻断级映射成 `error` / `warning`。
-- `invocations[0]`：`executionSuccessful` 在 `errors === 0` 时为 `true`；`properties` 带 `game` / `dictionary` / `generatedAt` / `maxColumns` / `total` / `translated` / `pending` / `rejected` / `errors` / `warnings`。
+- `invocations[0]`：`executionSuccessful` 按 `--fail-on` 阈值计算（默认 `errors === 0`，`--fail-on warning` 时还要 `warnings === 0`）；`properties` 带 `game` / `dictionary` / `generatedAt` / `maxColumns` / `failOn` / `total` / `translated` / `pending` / `rejected` / `errors` / `warnings`。
 - `results[]`：每个 problem 一条，`ruleId` 与 `ruleIndex` 指向上面的规则，`level` 用 problem 的 severity；`message.text` 是 `kind: detail`；有字典文件时 `locations[0]` 带 `physicalLocation.artifactLocation.uri`（`file:///` 形式）与 `logicalLocations[0]`（原文键）；`partialFingerprints["yakusha/v1"]` 是 `kind + NUL + key` 的 SHA-256 前 32 位十六进制，`properties` 带 `kind` / `key` / `target` /（可选）`name`。没有行号可指，因为字典键不对应源码行。
 
 0 条发现时 `results` 与 `rules` 都是空数组，SARIF 仍然合法。
@@ -693,7 +710,7 @@ verdict   : not installed yet - run: yakusha install <game>
 
 每行是 `id` / `level` / 消息三列，`level` 取 `ok` / `info` / `warn` / `fail`。0.28 起，引擎版本与 adapter 的 `versions` 矩阵不符时多一条 `version` 检查：区间外记 `warn`、版本读不到或未实测记 `info`；覆盖范围内的版本不加这一行，所以正常输出与以前一样。判定很直接：任何 `fail` → `broken`（`outcome` 转 `findings`、退出 1）；install 检查还是 `info` → `not-installed`（退出 0）；有 `warn` → `usable`；否则 `ready`。载荷：`verdict` / `checks[]` / `failure` / `game` / `dictionary` / `sync` / `install` / `runtime` / `verify`。
 
-注意 `doctor` 的 `verify` 检查把 `verify` 的 error 记成 `warn` 而不是 `fail`（`<N> error, <M> warning(s) - some lines will stay Japanese, see: yakusha verify`），所以译文有阻断级问题也只会让 verdict 变 `usable`、退出 0。要拿发布闸门看 `verify` 自己的退出码。
+注意 `doctor` 的 `verify` 检查把 `verify` 的 error 记成 `warn` 而不是 `fail`（`<N> error, <M> warning(s) - some lines will stay Japanese, see: yakusha verify`），所以译文有阻断级问题也只会让 verdict 变 `usable`、退出 0。要拿发布闸门看 `verify` 自己的退出码（必要时加 `--fail-on warning`；`doctor` 不读这个选项）。
 
 0.23 起，用 `--embed` 装过的插件也会被查快照：插件里的 `EMBEDDED` 块与当前字典不一致时，`install` 与 `runtime` 都记 `warn`，消息提示 `run: yakusha install --embed "<game>"`，`verdict` 仍是 `usable`、退出 0；重装后恢复 `ok`。
 

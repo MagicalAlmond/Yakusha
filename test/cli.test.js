@@ -268,6 +268,41 @@ test("cli: verify exits 0 when every finding is a warning", () => {
   assert.match(result.stdout, /OK with \d+ warning/);
 });
 
+test("cli: verify --fail-on warning fails a run that only has warnings", () => {
+  const game = tempGame();
+  assert.equal(run(["extract", game]).code, 0);
+  const file = path.join(game, "yakusha", "dictionary.json");
+  const dict = JSON.parse(fs.readFileSync(file, "utf8"));
+  dict.entries["ポーション"].text = "药水";
+  dict.entries["はい"].text = "是ッ";
+  fs.writeFileSync(file, JSON.stringify(dict, null, 2) + "\n", "utf8");
+
+  const relaxed = run(["verify", game, "--fail-on", "error", "--json"]);
+  assert.equal(relaxed.code, 0, relaxed.stderr);
+  assert.equal(JSON.parse(relaxed.stdout).ok, true);
+
+  const strict = run(["verify", game, "--fail-on", "warning", "--json"]);
+  assert.equal(strict.code, 1, strict.stdout + strict.stderr);
+  const summary = JSON.parse(strict.stdout);
+  assert.equal(summary.ok, false);
+  assert.equal(summary.errors, 0);
+  assert.ok(summary.warnings > 0);
+
+  const text = run(["verify", game, "--fail-on", "warning"]);
+  assert.equal(text.code, 1, text.stdout + text.stderr);
+  assert.match(text.stdout, /FAILED, \d+ warning\(s\) \(--fail-on warning\)/);
+});
+
+test("cli: verify rejects an unknown --fail-on level", () => {
+  const game = tempGame();
+  assert.equal(run(["extract", game]).code, 0);
+  const result = run(["verify", game, "--fail-on", "warn", "--json"]);
+  assert.equal(result.code, 2, result.stderr);
+  const body = JSON.parse(result.stdout);
+  assert.equal(body.error.code, "E_USAGE");
+  assert.match(body.error.message, /verify --fail-on must be error or warning, not warn/);
+});
+
 test("cli: verify on a dictionary with no translations is clean", () => {
   const game = tempGame();
   assert.equal(run(["extract", game]).code, 0);

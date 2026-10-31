@@ -207,7 +207,8 @@ node bin/yakusha.js verify "/games/MyGame"
 字典会被逐条体检，只读不写。`error` 让命令失败退出（`echo`、转义码、占位符、说话人名），
 `warn` 只提示（残留假名、超宽行、繁体字、被拒条目）。`--write-report report.md` 把全部
 问题写成一份可贴进 issue 的 markdown；加 `--report-format sarif` 则写 SARIF 2.1.0，供 CI 的
-code scanning 消费。
+code scanning 消费。默认只有 `error` 让命令失败；发布闸门可以加 `--fail-on warning`，让残留
+假名、超宽行这类警告也退出 1。
 
 游戏更新后中文没了，先跑 `doctor` 分清是安装产物丢了、备份对不上，还是字典与这版游戏
 脱节（RPG Maker 与 RGSS 看 `data/`，Ren'Py 看 `game/`，Kirikiri 看归档内的条目）：
@@ -368,7 +369,7 @@ speaker、terms 与 `config list`。API key 可以显式勾选"记住"（Windows
 
 `outcome` 取 `ok` / `findings` / `error`，`ok` 恒等于 `outcome === "ok"`，
 `error` 只在 `outcome: "error"` 时非空。退出码统一三档：**0** 成功、**1** 有发现
-（只有 `verify` 的 error 级问题与 `doctor` 的 broken 判定）、**2** 错误（含用法错误与
+（`verify` 达到 `--fail-on` 阈值的问题（默认 error 级）与 `doctor` 的 broken 判定）、**2** 错误（含用法错误与
 未知命令）。错误对象形如 `{"code": "E_USAGE", "message": "..."}`，共 13 个错误码，
 message 保证是单行、不含堆栈与密钥。`YAKUSHA_DEBUG=1` 时堆栈只进 stderr。
 

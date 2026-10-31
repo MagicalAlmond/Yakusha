@@ -146,6 +146,20 @@ test("report: SARIF names the tool, the rules and every finding", () => {
   assert.equal(run.invocations[0].properties.errors, 1);
 });
 
+test("report: SARIF records a warning-only run as failed under --fail-on warning", () => {
+  const result = verifyResult([
+    { kind: "kana", severity: "warn", key: "はい", target: "是ッ", detail: "Japanese kana left in the translation" },
+  ]);
+  const relaxed = JSON.parse(buildSarif(result, { game: "test game" }));
+  assert.equal(relaxed.runs[0].invocations[0].executionSuccessful, true);
+  assert.equal(relaxed.runs[0].invocations[0].properties.failOn, "error");
+
+  const strict = JSON.parse(buildSarif(result, { game: "test game", failOn: "warning" }));
+  assert.equal(strict.runs[0].invocations[0].executionSuccessful, false);
+  assert.equal(strict.runs[0].invocations[0].properties.failOn, "warning");
+  assert.equal(strict.runs[0].results[0].level, "warning");
+});
+
 test("report: SARIF is still valid with no findings", () => {
   const document = JSON.parse(buildSarif(verifyResult([]), { game: "clean" }));
   assert.equal(document.version, "2.1.0");

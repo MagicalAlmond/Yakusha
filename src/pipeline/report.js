@@ -149,6 +149,8 @@ export function buildSarif(result, options = {}) {
       ...(problem.name === undefined ? {} : { name: problem.name }),
     },
   }));
+  const failOn = options.failOn === "warning" ? "warning" : "error";
+  const failing = failOn === "warning" ? result.errors + result.warnings > 0 : result.errors > 0;
   const document = {
     $schema: "https://json.schemastore.org/sarif-2.1.0.json",
     version: "2.1.0",
@@ -165,12 +167,13 @@ export function buildSarif(result, options = {}) {
         },
         invocations: [
           {
-            executionSuccessful: result.errors === 0,
+            executionSuccessful: !failing,
             properties: {
               game: options.game || null,
               dictionary: options.file || null,
               generatedAt: at,
               maxColumns: options.maxColumns || 0,
+              failOn,
               total: result.total,
               translated: result.translated,
               pending: result.pending,

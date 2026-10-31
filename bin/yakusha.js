@@ -74,6 +74,7 @@ const USAGE = [
   "  --limit <n>         how many problems to print (default 20)",
   "  --write-report <f>  write every finding as a report",
   "  --report-format <f> report format: markdown (default) or sarif",
+  "  --fail-on <level>   exit 1 on findings of this level: error (default) or warning",
   "",
   "speaker options:",
   "  --include-drift     also replace a Chinese rendering that differs from the",
