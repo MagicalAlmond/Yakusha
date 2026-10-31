@@ -362,6 +362,48 @@ test("cli: verify --write-report reports an unusable path as E_IO", () => {
   assert.equal(body.error.code, "E_IO");
   assert.match(body.error.message, /cannot write report file/);
 });
+test("cli: verify --report-format sarif writes a SARIF 2.1.0 document", () => {
+  const game = tempGame();
+  assert.equal(run(["extract", game]).code, 0);
+  const file = path.join(game, "yakusha", "dictionary.json");
+  const dict = JSON.parse(fs.readFileSync(file, "utf8"));
+  const echoed = Object.keys(dict.entries).find((key) => /[\u3041-\u3096\u30a1-\u30fa]/.test(key));
+  assert.equal(typeof echoed, "string");
+  dict.entries[echoed].text = echoed;
+  fs.writeFileSync(file, JSON.stringify(dict, null, 2) + "\n", "utf8");
+
+  const report = path.join(game, "yakusha", "verify-report.sarif");
+  const result = run(["verify", game, "--write-report", report, "--report-format", "sarif", "--json"]);
+  assert.equal(result.code, 1, result.stderr);
+  const body = JSON.parse(result.stdout);
+  assert.equal(body.reportFormat, "sarif");
+  assert.equal(path.resolve(body.report), path.resolve(report));
+  const document = JSON.parse(fs.readFileSync(report, "utf8"));
+  assert.equal(document.version, "2.1.0");
+  assert.equal(document.runs[0].tool.driver.name, "yakusha");
+  assert.ok(document.runs[0].results.some((entry) => entry.ruleId === "yakusha/verify/echo"));
+});
+
+test("cli: verify rejects an unknown --report-format", () => {
+  const game = tempGame();
+  assert.equal(run(["extract", game]).code, 0);
+  const result = run(["verify", game, "--write-report", path.join(game, "x.txt"), "--report-format", "json", "--json"]);
+  assert.equal(result.code, 2);
+  const body = JSON.parse(result.stdout);
+  assert.equal(body.error.code, "E_USAGE");
+  assert.match(body.error.message, /verify --report-format must be markdown or sarif, not json/);
+});
+
+test("cli: verify --report-format requires --write-report", () => {
+  const game = tempGame();
+  assert.equal(run(["extract", game]).code, 0);
+  const result = run(["verify", game, "--report-format", "sarif", "--json"]);
+  assert.equal(result.code, 2);
+  const body = JSON.parse(result.stdout);
+  assert.equal(body.error.code, "E_USAGE");
+  assert.match(body.error.message, /verify --report-format requires --write-report/);
+});
+
 
 /**
  * Build a dictionary that has something to mine: a name entry plus dialogue

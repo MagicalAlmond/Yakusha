@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.33.0] - 2026-10-27
+
+### Added
+
+- `verify --write-report <file> --report-format sarif` writes a SARIF 2.1.0 document for CI code scanning. Each finding becomes a result with a stable `yakusha/verify/<kind>` rule id, the dictionary file as its artifact, the source text as a logical location, and a `yakusha/v1` fingerprint so repeated runs can be matched as the same finding. Markdown remains the default report format.
+
+### Unchanged
+
+- No breaking contract change: `--report-format` is a new option, `reportFormat` appears only next to `report` when `--write-report` is used, and the envelope, exit codes, command table, the 13 error codes and the `yakusha/1` dictionary format stay the same.
+
 ## [0.32.0] - 2026-10-27
 
 ### Changed
@@ -439,7 +449,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.32.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.33.0...HEAD
+[0.33.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.32.0...v0.33.0
 [0.32.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.31.0...v0.32.0
 [0.31.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.30.0...v0.31.0
 [0.30.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.29.0...v0.30.0

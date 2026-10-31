@@ -10,7 +10,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { buildReport, codeSpan, namesNeedingInput } from "../src/pipeline/report.js";
+import { buildReport, buildSarif, codeSpan, namesNeedingInput } from "../src/pipeline/report.js";
 import { verifyDictionary } from "../src/pipeline/verify.js";
 
 /** @param {Record<string, {text?: string}>} entries */
@@ -110,4 +110,46 @@ test("report: a name the dictionary renders elsewhere is not asked for", () => {
   // speaker can copy 日向 here, so no human input is needed.
   assert.deepEqual(namesNeedingInput(result, data), []);
   assert.doesNotMatch(buildReport(result, { dictionary: data }), /## speaker names/);
+});
+
+test("report: SARIF names the tool, the rules and every finding", () => {
+  const result = verifyResult([
+    { kind: "echo", severity: "error", key: "こんにちは", target: "こんにちは", detail: "target is identical to a Japanese source" },
+    { kind: "kana", severity: "warn", key: "はい", target: "是ッ", detail: "Japanese kana left in the translation" },
+  ]);
+  const text = buildSarif(result, {
+    game: "test game",
+    file: "D:/games/x/yakusha/dictionary.json",
+    maxColumns: 30,
+    generatedAt: "2026-01-02T03:04:05.000Z",
+  });
+  const document = JSON.parse(text);
+  assert.equal(document.version, "2.1.0");
+  assert.equal(document.runs.length, 1);
+  const run = document.runs[0];
+  assert.equal(run.tool.driver.name, "yakusha");
+  assert.equal(run.tool.driver.rules.length, 2);
+  // The blocking kind comes first, same order as the markdown report.
+  assert.equal(run.tool.driver.rules[0].id, "yakusha/verify/echo");
+  assert.equal(run.tool.driver.rules[0].defaultConfiguration.level, "error");
+  assert.equal(run.tool.driver.rules[1].id, "yakusha/verify/kana");
+  assert.equal(run.tool.driver.rules[1].defaultConfiguration.level, "warning");
+  assert.equal(run.results.length, 2);
+  assert.equal(run.results[0].ruleId, "yakusha/verify/echo");
+  assert.equal(run.results[0].level, "error");
+  assert.match(run.results[0].message.text, /identical to a Japanese source/);
+  assert.equal(run.results[0].locations[0].physicalLocation.artifactLocation.uri, "file:///D:/games/x/yakusha/dictionary.json");
+  assert.equal(run.results[0].locations[0].logicalLocations[0].fullyQualifiedName, "こんにちは");
+  assert.equal(run.results[0].partialFingerprints["yakusha/v1"].length, 32);
+  assert.equal(run.results[1].level, "warning");
+  assert.equal(run.invocations[0].executionSuccessful, false);
+  assert.equal(run.invocations[0].properties.errors, 1);
+});
+
+test("report: SARIF is still valid with no findings", () => {
+  const document = JSON.parse(buildSarif(verifyResult([]), { game: "clean" }));
+  assert.equal(document.version, "2.1.0");
+  assert.deepEqual(document.runs[0].results, []);
+  assert.deepEqual(document.runs[0].tool.driver.rules, []);
+  assert.equal(document.runs[0].invocations[0].executionSuccessful, true);
 });

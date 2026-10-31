@@ -14,6 +14,10 @@
  * @module pipeline/report
  */
 
+import { createHash } from "node:crypto";
+import { pathToFileURL } from "node:url";
+
+import { VERSION } from "../version.js";
 import { buildSpeakerIndex, houseOf } from "./speaker.js";
 
 /** Kana, i.e. evidence that a name was still Japanese. */
@@ -87,6 +91,100 @@ export function namesNeedingInput(result, dictionary) {
     counts.set(problem.name, (counts.get(problem.name) || 0) + 1);
   }
   return [...counts.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
+}
+
+/**
+ * SARIF 2.1.0 rendering of a verify result.
+ *
+ * SARIF is what CI systems consume: GitHub code scanning, Azure DevOps and
+ * most static-analysis dashboards can ingest one file and attach every finding
+ * to a path and a stable rule. The verify findings have no line number (a
+ * dictionary key can appear anywhere), so each result is anchored to the
+ * dictionary file and carries the key and translation as logical locations and
+ * properties. Fingerprints use kind + key, which stays stable when the same
+ * finding is reported again after an unrelated edit.
+ *
+ * @param {import("./verify.js").VerifyResult} result
+ * @param {ReportOptions} [options]
+ * @returns {string}
+ */
+export function buildSarif(result, options = {}) {
+  const at = options.generatedAt || new Date().toISOString();
+  const kinds = Object.keys(result.counts).sort((a, b) => {
+    const sev = Number(BLOCKING.has(b)) - Number(BLOCKING.has(a));
+    if (sev !== 0) return sev;
+    return result.counts[b] - result.counts[a] || (a < b ? -1 : 1);
+  });
+  const ruleId = (kind) => "yakusha/verify/" + kind;
+  const rules = kinds.map((kind) => ({
+    id: ruleId(kind),
+    name: kind,
+    shortDescription: { text: KIND_HINTS[kind] || kind },
+    defaultConfiguration: { level: BLOCKING.has(kind) ? "error" : "warning" },
+    properties: { kind },
+  }));
+  const fileUri = options.file ? pathToFileURL(options.file).href : undefined;
+  const results = result.problems.map((problem) => ({
+    ruleId: ruleId(problem.kind),
+    ruleIndex: kinds.indexOf(problem.kind),
+    level: problem.severity === "error" ? "error" : "warning",
+    message: { text: problem.kind + ": " + (problem.detail || "verify finding") },
+    ...(fileUri
+      ? {
+          locations: [
+            {
+              physicalLocation: { artifactLocation: { uri: fileUri } },
+              logicalLocations: [{ name: problem.key, fullyQualifiedName: problem.key, kind: "member" }],
+            },
+          ],
+        }
+      : {}),
+    partialFingerprints: {
+      "yakusha/v1": createHash("sha256").update(problem.kind + "\u0000" + problem.key).digest("hex").slice(0, 32),
+    },
+    properties: {
+      kind: problem.kind,
+      key: problem.key,
+      ...(problem.target === undefined ? {} : { target: problem.target }),
+      ...(problem.name === undefined ? {} : { name: problem.name }),
+    },
+  }));
+  const document = {
+    $schema: "https://json.schemastore.org/sarif-2.1.0.json",
+    version: "2.1.0",
+    runs: [
+      {
+        tool: {
+          driver: {
+            name: "yakusha",
+            fullName: "Yakusha",
+            version: VERSION,
+            informationUri: "https://github.com/MagicalAlmond/Yakusha",
+            rules,
+          },
+        },
+        invocations: [
+          {
+            executionSuccessful: result.errors === 0,
+            properties: {
+              game: options.game || null,
+              dictionary: options.file || null,
+              generatedAt: at,
+              maxColumns: options.maxColumns || 0,
+              total: result.total,
+              translated: result.translated,
+              pending: result.pending,
+              rejected: result.rejected,
+              errors: result.errors,
+              warnings: result.warnings,
+            },
+          },
+        ],
+        results,
+      },
+    ],
+  };
+  return JSON.stringify(document, null, 2) + "\n";
 }
 
 /**

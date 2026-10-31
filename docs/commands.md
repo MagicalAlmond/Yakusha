@@ -1,6 +1,6 @@
 # 命令参考
 
-本文是 yakusha 0.32.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出。
+本文是 yakusha 0.33.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出；0.33 给 `verify` 增加了 SARIF 报告输出（`--report-format sarif`），其余命令不变。
 
 **RGSS 在 0.18 起有了交付层。** `scan` / `extract` / `status` / `translate` / `verify` / `speaker` / `terms` / `export` / `import` 都能用；0.18 新增 `install --native`，把预编译的注入器与 hook DLL 装进 `yakusha/native/`，游戏启动时由注入器加载，译文从 `dictionary.txt` 读。`install` 不带 `--native` 仍报 `E_USAGE`（RGSS 没有插件交付层）。安装细节与限制见下文 [install 与 uninstall](#install-与-uninstall)。
 
@@ -76,7 +76,8 @@
                     (kana, echo, codes, slots, lines, width, no-text, trad, speaker, rejected)
 --max-length <cols> also report lines wider than n display columns
 --limit <n>         how many problems to print (default 20)
---write-report <f>  write every finding as a markdown report
+--write-report <f>  write every finding as a report
+--report-format <f> report format: markdown (default) or sarif
 ```
 
 ### speaker
@@ -211,7 +212,7 @@
 ### --help 与 --version
 
 - `--help` / `-h`：永远 stdout 纯文本、退出 0，即使同时给了 `--json`；`scan -h` 也一样打整段帮助。连未知命令都投降：`nope --help` 打帮助、退出 0。
-- `--version`：永远 stdout 一行 `yakusha <version>`、退出 0，并且优先于一切——`--help --version` 只打 `yakusha 0.32.0`，`--json --version` 也不产出 JSON。
+- `--version`：永远 stdout 一行 `yakusha <version>`、退出 0，并且优先于一切——`--help --version` 只打 `yakusha 0.33.0`，`--json --version` 也不产出 JSON。
 - 无命令：文本模式把整段 USAGE 打到 stderr、退出 2；`--json` 时输出 `command: null` 的信封，`message` 是 `no command`。
 - 未知命令：stderr 两行 `error: unknown command: nope` 和 `run 'yakusha --help' for usage`，退出 2，不再打印整段 USAGE。
 
@@ -494,7 +495,7 @@ problems  : 21 (echo 1, kana 20)
 result    : FAILED, 1 error(s)
 ```
 
-列表按字典键顺序输出、kind 交错（同一键能同时中 kana 和 echo，两条会挨着；不是按 kind 分组，只有 `--write-report` 生成的 markdown 才按 kind 分组），每条下一行缩进 8 空格写 detail，`--limit`（默认 20）截断后补一行提示。全绿时末行是 `result    : OK with 20 warning(s)`、退出 0；0 条已译时只有两行 `entries` 和 `problems  : none`。载荷：`file` / `maxColumns` / `total` / `translated` / `pending` / `errors` / `warnings` / `rejected` / `counts` / `problems[]`，每个 problem 是 `{kind, severity, key, target, detail}`。
+列表按字典键顺序输出、kind 交错（同一键能同时中 kana 和 echo，两条会挨着；不是按 kind 分组，只有 `--write-report` 生成的 markdown 才按 kind 分组），每条下一行缩进 8 空格写 detail，`--limit`（默认 20）截断后补一行提示。全绿时末行是 `result    : OK with 20 warning(s)`、退出 0；0 条已译时只有两行 `entries` 和 `problems  : none`。载荷：`file` / `maxColumns` / `total` / `translated` / `pending` / `errors` / `warnings` / `rejected` / `counts` / `problems[]`，每个 problem 是 `{kind, severity, key, target, detail}`；`--write-report` 时额外有 `report`（绝对路径）与 `reportFormat`（`markdown` / `sarif`）。
 
 ### 判据的边界
 
@@ -508,7 +509,7 @@ result    : FAILED, 1 error(s)
 
 ### --write-report
 
-`--write-report <file>` 把全部发现写成一份 markdown，载荷多一个 `report` 字段，文本模式多一行 `report    : <abs>`。报告真实结构：
+`--write-report <file>` 把全部发现写成一份报告，默认是 markdown；载荷多 `report`（绝对路径）与 `reportFormat`（`markdown` / `sarif`），文本模式多一行 `report    : <abs>`（SARIF 时末尾带 ` (sarif)`）。`--report-format` 只能取 `markdown` 或 `sarif`，只能和 `--write-report` 一起用，否则报 `E_USAGE`、退出 2。markdown 报告真实结构：
 
 ```text
 # yakusha verify report
@@ -533,6 +534,16 @@ _kana the player will see; onomatopoeia often keeps one on purpose_
 ```
 
 0 条发现时正文是 `**OK** - no findings at all.`。报告里换行显示成 `⏎`（U+23CE），这样一条多行台词在一行里看得完。
+
+#### SARIF 报告
+
+`--report-format sarif` 写 SARIF 2.1.0（CI 的 code scanning 能直接吃），顶层是 `$schema`、`version: "2.1.0"` 与一个 `runs[0]`：
+
+- `tool.driver`：`name: "yakusha"`、`version`（取自 `package.json`）与 `rules[]`，每个 kind 一条 `yakusha/verify/<kind>`，`defaultConfiguration.level` 按阻断级映射成 `error` / `warning`。
+- `invocations[0]`：`executionSuccessful` 在 `errors === 0` 时为 `true`；`properties` 带 `game` / `dictionary` / `generatedAt` / `maxColumns` / `total` / `translated` / `pending` / `rejected` / `errors` / `warnings`。
+- `results[]`：每个 problem 一条，`ruleId` 与 `ruleIndex` 指向上面的规则，`level` 用 problem 的 severity；`message.text` 是 `kind: detail`；有字典文件时 `locations[0]` 带 `physicalLocation.artifactLocation.uri`（`file:///` 形式）与 `logicalLocations[0]`（原文键）；`partialFingerprints["yakusha/v1"]` 是 `kind + NUL + key` 的 SHA-256 前 32 位十六进制，`properties` 带 `kind` / `key` / `target` /（可选）`name`。没有行号可指，因为字典键不对应源码行。
+
+0 条发现时 `results` 与 `rules` 都是空数组，SARIF 仍然合法。
 
 ## speaker：行内说话人名字
 

@@ -64,6 +64,7 @@ const VALUE = [
   "target-lang",
   "kind",
   "write-report",
+  "report-format",
   "names",
   "write-names",
   "status",
@@ -113,7 +114,7 @@ const COMMAND_OPTIONS = {
     "overwrite",
     "allow-code-drift",
   ],
-  verify: ["kind", "max-length", "limit", "write-report"],
+  verify: ["kind", "max-length", "limit", "write-report", "report-format"],
   speaker: ["include-drift", "names", "write-names", "dry-run", "limit"],
   terms: ["status", "min-holders", "min-support", "drift-only", "max-terms", "limit", "write", "dry-run"],
 };

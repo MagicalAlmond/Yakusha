@@ -26,7 +26,7 @@ import { detectProject } from "../engines/registry.js";
 import { createProvider } from "../pipeline/provider.js";
 import { translateDictionary } from "../pipeline/translate.js";
 import { VERIFY_KINDS, verifyDictionary } from "../pipeline/verify.js";
-import { buildReport, namesNeedingInput } from "../pipeline/report.js";
+import { buildReport, buildSarif, namesNeedingInput } from "../pipeline/report.js";
 import { repairSpeakerNames } from "../pipeline/speaker.js";
 import { mineTerms, toGlossary } from "../pipeline/terms.js";
 import {
@@ -274,22 +274,29 @@ async function commandVerify(dir, flags, sink) {
   // ("verify && install"). The report still goes to the out channel: a caller
   // needs the findings of a failed run most of all.
   const reportFile = typeof flags["write-report"] === "string" ? path.resolve(flags["write-report"]) : null;
+  const reportFormat = typeof flags["report-format"] === "string" ? flags["report-format"] : "markdown";
+  if (reportFormat !== "markdown" && reportFormat !== "sarif") {
+    throw new CliError("E_USAGE", "verify --report-format must be markdown or sarif, not " + reportFormat);
+  }
+  if (flags["report-format"] !== undefined && !reportFile) {
+    throw new CliError("E_USAGE", "verify --report-format requires --write-report");
+  }
   if (reportFile) {
-    writeOutputFile(
-      reportFile,
-      buildReport(result, {
-        game: project.gameTitle,
-        file,
-        root: project.root,
-        maxColumns,
-        dictionary: data,
-      }),
-      "report file"
-    );
+    const text =
+      reportFormat === "sarif"
+        ? buildSarif(result, { game: project.gameTitle, file, maxColumns })
+        : buildReport(result, {
+            game: project.gameTitle,
+            file,
+            root: project.root,
+            maxColumns,
+            dictionary: data,
+          });
+    writeOutputFile(reportFile, text, "report file");
   }
   sink.out("entries   : " + result.total + " (" + result.translated + " translated, " + result.pending + " pending)");
   if (result.rejected > 0) sink.out("rejected  : " + result.rejected + " (see the error field of those entries)");
-  if (reportFile) sink.out("report    : " + reportFile);
+  if (reportFile) sink.out("report    : " + reportFile + (reportFormat === "sarif" ? " (sarif)" : ""));
   if (result.problems.length === 0) {
     sink.out("problems  : none");
     return {
@@ -297,7 +304,7 @@ async function commandVerify(dir, flags, sink) {
       payload: {
         file,
         maxColumns,
-        ...(reportFile ? { report: reportFile } : {}),
+        ...(reportFile ? { report: reportFile, reportFormat } : {}),
         total: result.total,
         translated: result.translated,
         pending: result.pending,
@@ -333,7 +340,7 @@ async function commandVerify(dir, flags, sink) {
       maxColumns,
       // docs/json-contract.md: report is the path to a written file, so it
       // only exists when --write-report asked for one.
-      ...(reportFile ? { report: reportFile } : {}),
+      ...(reportFile ? { report: reportFile, reportFormat } : {}),
       total: result.total,
       translated: result.translated,
       pending: result.pending,

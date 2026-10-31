@@ -206,7 +206,8 @@ node bin/yakusha.js verify "/games/MyGame"
 
 字典会被逐条体检，只读不写。`error` 让命令失败退出（`echo`、转义码、占位符、说话人名），
 `warn` 只提示（残留假名、超宽行、繁体字、被拒条目）。`--write-report report.md` 把全部
-问题写成一份可贴进 issue 的 markdown。
+问题写成一份可贴进 issue 的 markdown；加 `--report-format sarif` 则写 SARIF 2.1.0，供 CI 的
+code scanning 消费。
 
 游戏更新后中文没了，先跑 `doctor` 分清是安装产物丢了、备份对不上，还是字典与这版游戏
 脱节（RPG Maker 与 RGSS 看 `data/`，Ren'Py 看 `game/`，Kirikiri 看归档内的条目）：

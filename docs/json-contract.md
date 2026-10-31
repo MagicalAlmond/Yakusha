@@ -7,7 +7,7 @@
 > 0.17 给字典条目加了可选的 `engine` / `locator`；0.18 给 RGSS 加了原生注入器交付
 > （`install --native` / `uninstall` 的 `native` 子对象与 `runtime: "inject"`）；0.19 把
 > `verify --kind` 的未知值从静默过滤改为 `E_USAGE`（输入校验，信封与载荷不变）；0.20 只修
-> GUI 渲染层的扫描状态；0.21 让 `doctor`/`launch` 识别损坏的原生组件；0.22 让 `doctor` 报出安装后又被改过的原生字典；0.23 把同一检查推广到 Ren'Py 译文文件与 MZ/MV `--embed` 插件（都只是检查结论变化，载荷键与错误码不变）；0.24 只优化 translate 内部的术语表匹配，载荷键与错误码不变；0.25 修复字典被清空后 Ren'Py 译文文件未判过期（诊断结果变化，载荷键与错误码不变）；0.26 只加固字典键的读写（`__proto__` 等原型名按普通条目处理）；0.27 只加固 XP3 读取器对损坏归档的尺寸检查，载荷键与错误码不变；0.28 给 `doctor` 的 `checks` 增加可选的 `version` 项（版本矩阵异常时才出现），`checks` 的形状与所有载荷键不变；0.29 只优化 `data/` 的 XOR 探测，所有载荷键与错误码不变；0.30 只把字典与 GUI 凭据写盘改为同目录临时文件加 rename，所有载荷键与错误码不变；0.31 只给 RGSS 原生安装/卸载加路径包含检查与原子复制，所有载荷键与错误码不变；0.32 只把安装状态文件与 report/names/glossary 输出改为原子写，所有载荷键与错误码不变。
+> GUI 渲染层的扫描状态；0.21 让 `doctor`/`launch` 识别损坏的原生组件；0.22 让 `doctor` 报出安装后又被改过的原生字典；0.23 把同一检查推广到 Ren'Py 译文文件与 MZ/MV `--embed` 插件（都只是检查结论变化，载荷键与错误码不变）；0.24 只优化 translate 内部的术语表匹配，载荷键与错误码不变；0.25 修复字典被清空后 Ren'Py 译文文件未判过期（诊断结果变化，载荷键与错误码不变）；0.26 只加固字典键的读写（`__proto__` 等原型名按普通条目处理）；0.27 只加固 XP3 读取器对损坏归档的尺寸检查，载荷键与错误码不变；0.28 给 `doctor` 的 `checks` 增加可选的 `version` 项（版本矩阵异常时才出现），`checks` 的形状与所有载荷键不变；0.29 只优化 `data/` 的 XOR 探测，所有载荷键与错误码不变；0.30 只把字典与 GUI 凭据写盘改为同目录临时文件加 rename，所有载荷键与错误码不变；0.31 只给 RGSS 原生安装/卸载加路径包含检查与原子复制，所有载荷键与错误码不变；0.32 只把安装状态文件与 report/names/glossary 输出改为原子写，所有载荷键与错误码不变；0.33 给 `verify --write-report` 增加可选 `--report-format sarif` 与配套的 `reportFormat` 载荷键，其余不变。
 > 这些都是只增不改：不新增保留键约束、不改字段类型、已有载荷键一个没动。
 > 本文冻结的形状自 0.10 起不再变化，实际输出以 [commands.md](commands.md) 为准。
 
@@ -217,7 +217,7 @@
 | `extract` | ok | `file, added, total, translated, pending` | 只增不删已有条目 |
 | `status` | ok | `file, total, translated, pending, withError` | `withError > 0` 仍是 ok |
 | `translate` | ok | `file, provider, elapsedMs, total, translated, overwritten, rejected, failedBatches, rewrapped, cancelled, progress` | `rejected > 0` 仍是 ok；`cancelled` 是协作式取消标记（CLI 恒 `false`，GUI 的取消按钮走同一接口，翻译中的请求自然结束、已翻条目保留）；`--dry-run` 时载荷为 `dryRun, provider, total, translated, rejected`，不写文件 |
-| `verify` | ok / findings | `file, maxColumns, report, total, translated, pending, errors, warnings, counts, problems` | `errors > 0` → findings / 1；只有 warning → ok / 0；`report` 仅在 `--write-report` 时出现 |
+| `verify` | ok / findings | `file, maxColumns, report, reportFormat, total, translated, pending, errors, warnings, counts, problems` | `errors > 0` → findings / 1；只有 warning → ok / 0；`report` 与 `reportFormat` 仅在 `--write-report` 时出现（格式为 `markdown` 或 `sarif`） |
 | `speaker` | ok | `file, includeDrift, dryRun, supplied, saved, entries, tags, names, namesFile, namesNeeded, errorsBefore, errorsAfter, warningsBefore, warningsAfter` | 修复类命令，残留 error 仍是 ok |
 | `terms` | ok | `file, names, nameEntries, skipped, holdersMin, supportMin, mined, listed, drift, missing, glossary, written, terms` | `--write` 只是建议 |
 | `install` | ok | `pluginPath, registered, backupPath, createdBackup, staleBackup, state`（RGSS `--native` 另有可选的 `native`） | 幂等；`--embed` 额外写插件内嵌字典；Ren'Py 下仍是这 6 键，含义见 §7.1；RGSS 的 `--native` 在这 6 键之外多一个 `native` 子对象（`{dir, files, dictionaryEntries, dryRun}`），不带 `--native` 的 RGSS `install` 报 `E_USAGE`；Kirikiri 上命令直接失败（`E_NOT_IMPLEMENTED` / 2），没有任何载荷 |
@@ -366,6 +366,8 @@ pending decisions in docs/dev/DEVLOG.md` 都是新文案，脚本不应依赖 `m
 **0.31 没有契约变化。** 这一版只给 RGSS 的原生安装/卸载加路径包含检查与原子复制（项目外的符号链接/junction 报 `E_IO`）；命令、选项、载荷键、错误码与字典格式都没有动。
 
 **0.32 没有契约变化。** 这一版只把 `js/plugins.js` 及其备份、`verify --write-report`、`speaker --write-names`、`terms --write` 的输出改为同目录临时文件加 rename 的原子写；命令、选项、载荷键、错误码与字典格式都没有动。
+
+**0.33 是只增不改的扩展。** `verify` 新增可选 `--report-format markdown|sarif`；`--write-report` 的载荷多一个 `reportFormat` 键（与 `report` 同时出现）。信封、退出码、命令表、13 个错误码、其余载荷键与 `yakusha/1` 字典格式都不变；不传 `--report-format` 时输出与 0.32 完全一致。
 
 ## 9. 实现落点
 
