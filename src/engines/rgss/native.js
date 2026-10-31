@@ -164,7 +164,7 @@ export function verifyAssets(dir) {
  * would start without translation, or crash while loading the hook.
  *
  * @param {{ root: string }} project
- * @returns {{ dir: string, installed: boolean, intact: boolean, files: string[], missing: string[], mismatched: string[], manifestError: string | null, dictionaryEntries: number }}
+ * @returns {{ dir: string, installed: boolean, intact: boolean, files: string[], missing: string[], mismatched: string[], manifestError: string | null, dictionaryEntries: number, dictionaryStale: boolean }}
  */
 export function nativeStatus(project) {
   const dir = nativeDir(project);
@@ -187,6 +187,14 @@ export function nativeStatus(project) {
   }
   const dictionary = path.join(dir, DICTIONARY_FILE);
   if (installed && !fs.existsSync(dictionary)) missing.push(DICTIONARY_FILE);
+  let dictionaryStale = false;
+  if (installed) {
+    const current = currentDictionaryText(project);
+    if (current !== null) {
+      const installedText = fs.existsSync(dictionary) ? fs.readFileSync(dictionary, "utf8") : "";
+      dictionaryStale = installedText !== current;
+    }
+  }
   const files = COMPONENT_FILES.filter((name) => fs.existsSync(path.join(dir, name)));
   const intact = installed && manifestError === null && missing.length === 0 && mismatched.length === 0;
   return {
@@ -198,7 +206,27 @@ export function nativeStatus(project) {
     mismatched,
     manifestError,
     dictionaryEntries: countDictionaryLines(dictionary),
+    dictionaryStale,
   };
+}
+
+/**
+ * The dictionary.txt body the current project dictionary would produce, or
+ * null when there is no readable dictionary at all. A missing dictionary is
+ * already reported by doctor's dictionary check; this helper only answers the
+ * "is the installed native copy current?" question.
+ *
+ * @param {{ root: string }} project
+ * @returns {string | null}
+ */
+function currentDictionaryText(project) {
+  try {
+    const file = dictionaryPath(project.root);
+    if (!fs.existsSync(file)) return null;
+    return buildDictionaryText(loadDictionary(file)).text;
+  } catch {
+    return null;
+  }
 }
 
 /**

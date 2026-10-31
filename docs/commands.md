@@ -1,6 +1,6 @@
 # 命令参考
 
-本文是 yakusha 0.21.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出。
+本文是 yakusha 0.22.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出。
 
 **RGSS 在 0.18 起有了交付层。** `scan` / `extract` / `status` / `translate` / `verify` / `speaker` / `terms` / `export` / `import` 都能用；0.18 新增 `install --native`，把预编译的注入器与 hook DLL 装进 `yakusha/native/`，游戏启动时由注入器加载，译文从 `dictionary.txt` 读。`install` 不带 `--native` 仍报 `E_USAGE`（RGSS 没有插件交付层）。安装细节与限制见下文 [install 与 uninstall](#install-与-uninstall)。
 
@@ -211,7 +211,7 @@
 ### --help 与 --version
 
 - `--help` / `-h`：永远 stdout 纯文本、退出 0，即使同时给了 `--json`；`scan -h` 也一样打整段帮助。连未知命令都投降：`nope --help` 打帮助、退出 0。
-- `--version`：永远 stdout 一行 `yakusha <version>`、退出 0，并且优先于一切——`--help --version` 只打 `yakusha 0.21.0`，`--json --version` 也不产出 JSON。
+- `--version`：永远 stdout 一行 `yakusha <version>`、退出 0，并且优先于一切——`--help --version` 只打 `yakusha 0.22.0`，`--json --version` 也不产出 JSON。
 - 无命令：文本模式把整段 USAGE 打到 stderr、退出 2；`--json` 时输出 `command: null` 的信封，`message` 是 `no command`。
 - 未知命令：stderr 两行 `error: unknown command: nope` 和 `run 'yakusha --help' for usage`，退出 2，不再打印整段 USAGE。
 
@@ -696,7 +696,7 @@ verdict   : ready
 
 未安装时 install/runtime 两行都指向 `game/yakusha_translation.rpy`：`not installed - run: yakusha install <game>` 与 `the game reads game/yakusha_translation.rpy at startup once installed`，`verdict` 是 `not installed yet`。JSON 里 `install` 对象带 `pluginFile` / `pluginFilePresent` / `entryPresent` / `entryParameters` / `backup`，Ren'Py 下 `entryPresent` 与 `pluginFilePresent` 同值（文件存在就是注册），`entryParameters` 是 `{"language": "schinese"}`（语言从生成的翻译脚本里的 `translate <lang> strings:` 读回，不是假设的），`backup` 恒 `null`；`runtime` 对象的 `path` 是相对路径、`found` 是绝对路径。
 
-**RGSS（XP / VX / VX Ace）**——检查项少两条（没有 `plugins.js` 也没有 `backup`），`sync` 文案是 `every dictionary key still appears in Data/`。0.18 起 `install` 与 `runtime` 走真实的交付检查，不再固定是 warn / info；0.21 起这项检查还会按 `manifest.json` 复核组件是否被删或被改。装好且字典全部翻完时：
+**RGSS（XP / VX / VX Ace）**——检查项少两条（没有 `plugins.js` 也没有 `backup`），`sync` 文案是 `every dictionary key still appears in Data/`。0.18 起 `install` 与 `runtime` 走真实的交付检查，不再固定是 warn / info；0.21 起这项检查还会按 `manifest.json` 复核组件是否被删或被改，0.22 起还会报告安装之后又被修改过的字典。装好且字典全部翻完时：
 
 ```text
 game      : Synthetic Quest (RGSS 3, 7 data files)
@@ -713,6 +713,7 @@ verdict   : ready
 - `install` 的文案是 `<relPath> (written by install)`、`runtime` 是 `<relPath> (<n> strings)`，RGSS 的 `relPath` 恒为 `yakusha/native`。没装过时这两行变成 `install info not installed - run: yakusha install --native "<game>"` 与 `runtime info the injector loads yakusha/native when the game starts`，`verdict` 是 `not installed yet`，退出 0。装了但字典里还有空条目时多一行 `progress warn N entries are still empty - run: yakusha translate <game>`，`verdict` 是 `usable with 1 warning(s)`。
 - JSON 的 `install` 对象仍是 5 个子键：`pluginFile` 恒为 `<game>/yakusha/native` 的绝对路径，`pluginFilePresent` 与 `entryPresent` 同值（`manifest.json` 存在就算装过），`entryParameters` 与 `backup` 恒 `null`；`runtime` 是 `{embedded: false, entries: N, path: "yakusha/native", found: <abs>}`（未装时 `found: null`、`entries: 0`）。
 - **组件被删或被改**：`delivery.exists` 仍为真（manifest 还在），但 `delivery.intact` 为假、`delivery.problems` 列出问题（如 `libunwind.dll is missing`、`yakusha_rgss_hook.dll has changed`）。此时 `install` 检查是 `fail`，消息形如 `yakusha/native is damaged: libunwind.dll is missing - run: yakusha install --native "<game>"`，`runtime` 同时 `fail`，`verdict` 是 `broken`、退出 1；再跑一次 `install --native` 可修复。`launch` 也会在启动前拒绝，报 `E_IO` `the native components are damaged: ...`。
+- **字典在装后被改过**：0.22 起 `delivery.dictionaryStale` 为真（当前项目字典重建出来的 `dictionary.txt` 与安装时那份不同，`translate` / `import` / 手工改字典都会触发）。`install` 检查是 `warn`，消息形如 `yakusha/native is out of date: the project dictionary has changed since install - run: yakusha install --native "<game>"`，`runtime` 同时 `warn`（注入器继续用安装时那份字典）；没有别的警告时 `verdict` 是 `usable`（文本模式打印 `usable with 2 warning(s)`）、退出 0，重跑 `install --native` 后恢复 `ready`。
 - 没有字典或字典坏时 `dictionary` 是 `fail`，`verdict` 是 `broken - <同一条 fail 消息>`、`outcome` 转 `findings`、退出 1；这时 `sync` / `verify` 不出现（载荷里是 `null`）。
 
 **Kirikiri** 下 doctor 的形状与 0.15 时一样没有交付层：检查项同样少两条（没有 `plugins.js` 也没有 `backup`），`install` 恒 `warn`、`runtime` 恒 `info`，`verdict` 只可能是 `usable` 或 `broken`。实测（合成夹具，1 个归档、3 条串、翻了 1 条）：

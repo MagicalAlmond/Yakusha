@@ -7,7 +7,7 @@
 > 0.17 给字典条目加了可选的 `engine` / `locator`；0.18 给 RGSS 加了原生注入器交付
 > （`install --native` / `uninstall` 的 `native` 子对象与 `runtime: "inject"`）；0.19 把
 > `verify --kind` 的未知值从静默过滤改为 `E_USAGE`（输入校验，信封与载荷不变）；0.20 只修
-> GUI 渲染层的扫描状态；0.21 让 `doctor`/`launch` 识别损坏的原生组件（检查结论变化，载荷键与错误码不变）。
+> GUI 渲染层的扫描状态；0.21 让 `doctor`/`launch` 识别损坏的原生组件；0.22 让 `doctor` 报出安装后又被改过的原生字典（检查结论变化，载荷键与错误码不变）。
 > 这些都是只增不改：不新增保留键约束、不改字段类型、已有载荷键一个没动。
 > 本文冻结的形状自 0.10 起不再变化，实际输出以 [commands.md](commands.md) 为准。
 
@@ -344,6 +344,8 @@ pending decisions in docs/dev/DEVLOG.md` 都是新文案，脚本不应依赖 `m
 **0.20 没有契约变化。** 这一版只修 GUI 渲染层的扫描状态并补它的 stub-DOM 契约测试；信封、退出码、命令表、错误码与所有载荷键都不变。
 
 **0.21 没有契约变化。** 这一版只让 `doctor` 把被删/被改的原生组件判成 `fail`（`verdict: broken`、退出 1），并让 `launch` 在启动前拒绝坏安装（`E_IO`）；信封、退出码、命令表、13 个错误码与所有载荷键都不变。`delivery` 是 adapter 内部给 `doctor` 的输入，不是 JSON 载荷。
+
+**0.22 没有契约变化。** 这一版只让 `doctor` 把安装后又改过的原生字典判成 `warn`（`install` / `runtime` 两行，`verdict: usable`、退出 0），并提示重装 `install --native`；信封、退出码、命令表、13 个错误码与所有载荷键都不变。新增的 `dictionaryStale` 只在 adapter 内部的 `delivery` 对象里。
 
 ## 9. 实现落点
 

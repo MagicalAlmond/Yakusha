@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-10-27
+
+### Added
+
+- Added stale-dictionary detection for an installed RGSS native layer: `nativeStatus()` now rebuilds `dictionary.txt` from the current project dictionary and compares it with the copy written by `install --native`. `doctor` reports a dictionary edited after install as `install: warn` and `runtime: warn` with `verdict: usable` (exit 0), explains that the injector keeps using the install-time snapshot, and running `install --native` again refreshes it.
+
+### Unchanged
+
+- No breaking changes: the envelope, exit codes, command table, all 13 error codes and the dictionary format (`yakusha/1`) are unchanged. `dictionaryStale` is an internal `delivery` field for `doctor`, not a JSON payload key.
+
 ## [0.21.0] - 2026-10-27
 
 ### Added
@@ -320,7 +330,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.21.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.22.0...HEAD
+[0.22.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.21.0...v0.22.0
 [0.21.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.20.0...v0.21.0
 [0.20.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.18.0...v0.19.0

@@ -1,11 +1,11 @@
-# 引擎适配器契约（0.21 契约）
+# 引擎适配器契约（0.22 契约）
 
-> **状态：0.21 覆盖五个引擎——RPG Maker MZ、RPG Maker MV、Ren'Py、RGSS（XP / VX / VX Ace）、Kirikiri。**
+> **状态：0.22 覆盖五个引擎——RPG Maker MZ、RPG Maker MV、Ren'Py、RGSS（XP / VX / VX Ace）、Kirikiri。**
 > 0.14 交付 GUI 外壳，0.15 加 JSONL 导入，0.16 起 `scan` 载荷带引擎能力位（GUI 据此灰显按钮），
 > 0.17 给字典条目加可选的引擎与位置溯源（`engine` / `locator`，`FORMAT` 不变），
 > 0.18 给 RGSS 接上原生注入器交付层（`runtime: "inject"`）：`install --native` 把四个
 > 原生组件与 `dictionary.txt` 写进 `yakusha/native/`，`launch` 经 `yakusha_injector.exe`
-> 启动游戏；0.19 把 `verify --kind` 的未知值从静默过滤改为 `E_USAGE`（命令层校验，adapter 契约不变）；0.20 只有 GUI 渲染层契约测试与扫描状态重置，adapter 契约不变；0.21 让 `doctor` 与 `launch` 识别被删除或被改动的原生组件，adapter 契约不变；Kirikiri 的交付层仍未拍板（见 §7.8）。
+> 启动游戏；0.19 把 `verify --kind` 的未知值从静默过滤改为 `E_USAGE`（命令层校验，adapter 契约不变）；0.20 只有 GUI 渲染层契约测试与扫描状态重置，adapter 契约不变；0.21 让 `doctor` 与 `launch` 识别被删除或被改动的原生组件；0.22 让 `doctor` 报出安装之后又被修改过的字典，adapter 契约不变；Kirikiri 的交付层仍未拍板（见 §7.8）。
 > 0.10 把 MZ 与 MV 包进统一的 adapter，**不搬文件、不重写算法**；0.11 用同一套
 > contract 接入 Ren'Py，作为第三个 adapter 挂在 registry 末位；0.12 接入 RGSS，排在
 > 第四位，只做到 L1–L3（detect / scan / extract），**没有交付层**；0.13 接入
@@ -196,11 +196,11 @@ RGSS 同样用这个形状，带着 `dataUnit: "data files"` 与一个 `diagnost
   （`src/engines/adapter.js:53-64`），RGSS 现在显式覆盖成 `"inject"`。
 - `diagnostics()` 返回 `{extract, dataFiles, delivery, sourceLabel}`，其中
   `sourceLabel` 是 `"Data/"`，`delivery` 是
-  `{path, exists, mode: "inject", language: null, entries, intact, problems}`：
+  `{path, exists, mode: "inject", language: null, entries, intact, problems, dictionaryStale}`：
   `path` 是 `<game>/yakusha/native`，`exists` 只看 `manifest.json` 在不在（它是我方安装过的凭证；
   组件齐全与否由 `intact` 回答），`intact` 表示 manifest 可读、四个组件与 `dictionary.txt` 都在且
   哈希与 manifest 一致，`problems` 是给人看的问题列表（`<name> is missing` / `<name> has changed` /
-  manifest 错误原文），`entries` 是 `dictionary.txt` 的行数，`language` 对 RGSS 恒为 `null`。
+  manifest 错误原文），`entries` 是 `dictionary.txt` 的行数，`language` 对 RGSS 恒为 `null`，`dictionaryStale` 表示安装之后项目字典又被改过（当前字典重建出来的 `dictionary.txt` 与安装时那份不一致；字典不存在时为 `false`）。
   `doctor` 直接用它报 `install` / `runtime` 两行（见 §7.7 末段）：`exists` 为真但 `intact` 为假时
   报 `fail` 并给出修复命令。
 - `pluginDir` / `pluginsFile` / `indexPath` 全为 `null`，`version` 是字符串
@@ -649,7 +649,9 @@ uninstall : yakusha uninstall "<abs>"
 `the injector loads yakusha/native when the game starts`（退出 0）。
 装之后 `install` 是 ok（`yakusha/native (written by install)`）、`runtime` 是 ok
 （`yakusha/native (<n> strings)`），没有别的警告时结论 `ready`。JSON 里
-`delivery` 就是 §3 那个 `{path, exists, mode: "inject", language: null, entries, intact, problems}`。
+`delivery` 就是 §3 那个 `{path, exists, mode: "inject", language: null, entries, intact, problems, dictionaryStale}`。
+
+**字典在装后被改过。** 0.22 起 `doctor` 还会比较当前项目字典与安装时生成的 `dictionary.txt`：`delivery.dictionaryStale` 为真时 `install` 记 `warn`，消息形如 `yakusha/native is out of date: the project dictionary has changed since install - run: yakusha install --native "<game>"`，`runtime` 同时记 `warn`（注入器会继续用安装时那份字典，直到重装），没有别的警告时 `verdict` 是 `usable`（文本模式打印 `usable with 2 warning(s)`）、退出 0；再跑一次 `install --native` 后恢复 `ready`。
 
 **组件被删或被改。** `doctor` 不再把 `manifest.json` 的存在当成“装好了”：它按 manifest 重新校验
 四个组件与 `dictionary.txt`。缺文件或哈希不符时 `install` 检查是 `fail`，消息形如
@@ -952,8 +954,8 @@ Ren'Py 专属（`test/renpy-adapter.test.js`，14 条）：
 - uninstall 只删那一个文件；install + uninstall 前后游戏脚本逐字节不变。
 - doctor 把交付的文件当成 install 与 runtime 两项来检查。
 
-RGSS 专属（`test/rgss-adapter.test.js` 24 条 + `test/rgss-cli.test.js` 16 条；其中原生注入器
-相关的是 adapter 侧 9 条、doctor 2 条、CLI 侧 6 条）：
+RGSS 专属（`test/rgss-adapter.test.js` 25 条 + `test/rgss-cli.test.js` 16 条；其中原生注入器
+相关的是 adapter 侧 9 条、doctor 3 条、CLI 侧 6 条）：
 
 - registry 里排第四、带自己的 profile、`runtime` 为 `inject`、`dataUnit` 为 `data files`、
   有 `diagnostics`（`test/rgss-adapter.test.js:67` 的 `the registry ships RGSS fourth, with its

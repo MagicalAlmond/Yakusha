@@ -201,18 +201,24 @@ export function diagnose(project, options = {}) {
     const present = Boolean(delivery.exists);
     const relPath = deliveryPath && project.root ? path.relative(project.root, deliveryPath).split(path.sep).join("/") : deliveryPath;
     const damaged = present && delivery.intact === false;
+    const stale = present && !damaged && delivery.dictionaryStale === true;
     installCheck = damaged
       ? add(
           "install",
           "fail",
           relPath + " is damaged" + (delivery.problems && delivery.problems.length ? ": " + delivery.problems.join(", ") : "") + " - run: yakusha install --native \"<game>\""
         )
+      : stale
+      ? add("install", "warn", relPath + " is out of date: the project dictionary has changed since install - run: yakusha install --native \"<game>\"")
       : present
       ? add("install", "ok", relPath + " (written by install)")
       : add("install", "info", delivery.mode === "inject"
           ? "not installed - run: yakusha install --native \"<game>\""
           : "not installed - run: yakusha install <game>");
-    if (present && !damaged) {
+    if (present && !damaged && stale) {
+      runtime = { embedded: false, entries: delivery.entries || 0, path: relPath, found: deliveryPath };
+      add("runtime", "warn", "the injector keeps using the dictionary from install time until it is reinstalled");
+    } else if (present && !damaged) {
       const language = delivery.language || null;
       runtime = { embedded: false, entries: delivery.entries || 0, path: relPath, found: deliveryPath };
       add(

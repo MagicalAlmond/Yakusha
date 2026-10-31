@@ -302,7 +302,7 @@ export const adapter = {
    * user never saw.
    *
    * @param {{ root: string }} project
-   * @returns {{ extract: () => object, dataFiles: number, delivery: { path: string, exists: boolean, mode: string, language: null, entries: number, intact: boolean, problems: string[] }, sourceLabel: string }}
+   * @returns {{ extract: () => object, dataFiles: number, delivery: { path: string, exists: boolean, mode: string, language: null, entries: number, intact: boolean, dictionaryStale: boolean, problems: string[] }, sourceLabel: string }}
    */
   diagnostics(project) {
     let extracted = null;
@@ -330,6 +330,7 @@ export const adapter = {
           language: null,
           entries: state.dictionaryEntries,
           intact: state.intact,
+          dictionaryStale: state.dictionaryStale,
           problems,
         };
       })(),

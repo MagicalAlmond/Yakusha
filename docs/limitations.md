@@ -39,7 +39,9 @@
 - 原生组件随 npm 包分发（`native/prebuilt/`），不从网络下载；`uninstall` 只删带我们
   `manifest.json` 的目录，其它内容一律不动。0.21 起 `doctor` 与 `launch` 会按 `manifest.json`
   复核组件是否被删或被改（坏安装报 `broken` / `E_IO`），但**不会自动修复**——修复手段仍是
-  再跑一次 `install --native`。
+  再跑一次 `install --native`。`dictionary.txt` 是安装时的快照：0.22 起 `doctor` 会把安装后
+  又改过的字典报成 `warn`（`install` / `runtime` 两行），但同样不会自动更新，改完字典必须
+  重跑 `install --native` 才会生效。
 - 只提取玩家可读的位置：事件指令 401 / 405 / 102 / 101 与数据库字段 320。
   Ruby 脚本（codeobj）不碰。
 - 归档（`.rgssad` / `.rgss2a` / `.rgss3a`）与散装 `Data/` 目录只读一边，不合并。

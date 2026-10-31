@@ -407,6 +407,36 @@ test("doctor: after install the native layer is the delivery the game uses", () 
   assert.match(result.checks.find((check) => check.id === "runtime").message, /29 strings/);
 });
 
+test("doctor: a dictionary edited after install is reported as stale", () => {
+  const { project, adapter } = projectFor();
+  translateAll(project, adapter);
+  const assets = nativeAssets();
+  adapter.installRuntime(project, { native: true, assetsDir: assets.dir });
+  assert.equal(adapter.diagnostics(project).delivery.dictionaryStale, false);
+
+  // Editing the project dictionary does not touch the installed dictionary.txt.
+  const file = dictionaryPath(project.root);
+  const dictionary = loadDictionary(file);
+  const key = Object.keys(dictionary.entries)[0];
+  dictionary.entries[key].text = "T:changed";
+  saveDictionary(file, dictionary);
+
+  const delivery = adapter.diagnostics(project).delivery;
+  assert.equal(delivery.dictionaryStale, true);
+  const result = diagnoseOwn(project, adapter);
+  assert.equal(result.ok, true);
+  assert.equal(result.verdict, "usable");
+  const installCheck = result.checks.find((check) => check.id === "install");
+  assert.equal(installCheck.level, "warn");
+  assert.match(installCheck.message, /is out of date: the project dictionary has changed/);
+  assert.match(installCheck.message, /- run: yakusha install --native "<game>"$/);
+  assert.equal(result.checks.find((check) => check.id === "runtime").level, "warn");
+
+  // Reinstalling rewrites dictionary.txt and clears the warning.
+  adapter.installRuntime(project, { native: true, assetsDir: assets.dir });
+  assert.equal(adapter.diagnostics(project).delivery.dictionaryStale, false);
+  assert.equal(diagnoseOwn(project, adapter).verdict, "ready");
+});
 test("native status: a deleted component is visible before the game is launched", () => {
   const { root, project, adapter } = projectFor();
   translateAll(project, adapter);
