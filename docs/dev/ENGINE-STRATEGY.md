@@ -547,6 +547,7 @@ TextGrammar = {
 | 0.27 | XP3 读取器加固：索引流与单条目读取设 64 MiB 上限，索引/段必须落在归档文件内（**已交付**） | — | 700 pass / 51 个文件；新增 3 条 malformed-archive 用例 |
 | 0.28 | 引擎版本矩阵：五个 adapter 声明 `versions`，`doctor` 只对异常版本追加 `version` 检查（**已交付**） | — | 709 pass / 52 个文件；新增 9 条（versions 8、doctor 1） |
 | 0.29 | XOR 探测按首字节筛选候选 key（**已交付**） | — | 712 pass / 52 个文件；新增 3 条 |
+| 0.30 | 字典与 GUI 凭据写盘改为同目录临时文件 + rename 的原子写（**已交付**） | — | 716 pass / 53 个文件；新增 4 条（atomic 3、dictionary 1） |
 | 1.0 | 10 个引擎目标 + 能力矩阵 + 便携 exe | — | 每个引擎有 L4 证据；不达标的明确标 experimental |
 
 说明：

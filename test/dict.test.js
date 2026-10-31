@@ -125,3 +125,12 @@ test("recordExtracted: a __proto__ source creates an own dictionary entry", () =
   assert.deepEqual(entries["__proto__"], { text: "", contexts: ["f:1"], engine: "mz" });
   assert.equal(Object.prototype.text, undefined);
 });
+
+test("save: the dictionary is replaced without leaving a temporary file", () => {
+  const file = tempFile({ a: { text: "", contexts: [] } });
+  const dict = loadDictionary(file);
+  dict.entries.a.text = "译";
+  saveDictionary(file, dict);
+  assert.deepEqual(fs.readdirSync(path.dirname(file)), ["dictionary.json"]);
+  assert.equal(loadDictionary(file).entries.a.text, "译");
+});

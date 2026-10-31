@@ -27,6 +27,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { writeFileAtomic } from "./atomic.js";
+
 export const FORMAT = "yakusha/1";
 
 /**
@@ -108,9 +110,8 @@ export function loadDictionary(file) {
  * @param {Dictionary} dict
  */
 export function saveDictionary(file, dict) {
-  fs.mkdirSync(path.dirname(file), { recursive: true });
   dict.updatedAt = new Date().toISOString();
-  fs.writeFileSync(file, JSON.stringify(dict, null, 2) + "\n", "utf8");
+  writeFileAtomic(file, JSON.stringify(dict, null, 2) + "\n");
 }
 
 /**

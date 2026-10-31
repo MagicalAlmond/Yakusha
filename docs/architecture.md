@@ -165,6 +165,7 @@ hook 改的是 `kernel32!GetProcAddress` 的 IAT 槽，借此在 `RGSSGameMain` 
 手写的字典可以用扁平形式 `"原文": "译文"`（工具会当成没有 `contexts`），但工具写出的永远是上一种。
 `engine` / `locator` 是 0.17 新增的可选溯源字段（`FORMAT` 仍是 `yakusha/1`）：前者记条目来自哪个引擎，
 后者记原文在数据文件里的精确位置；0.17 之前写出的字典没有它们，照常读。
+0.30 起，工具写 `yakusha/dictionary.json` 时先写同目录的临时文件再 rename 覆盖目标，进程中断最多留下一个可删的临时文件，原字典仍是完整的上一版。
 
 三种投递方式，按引擎能力选：
 
@@ -276,6 +277,7 @@ test/fixtures/           各引擎最小夹具（mini-mz、mini-mv、renpy-*、r
 | 0.27.0 | **已交付**：XP3 读取器加固——索引流与单条目读取设 64 MiB 上限、索引/段尺寸必须落在归档文件内，损坏或恶意归档报 `E_IO` / `E_UNSUPPORTED` 并进 `undecodable`，不再抛出 `RangeError` 或耗尽内存 | 700 pass / 0 fail（新增 3 条 malformed-archive 用例） |
 | 0.28.0 | **已交付**：引擎版本矩阵——五个 adapter 声明 `versions`，`doctor` 对读不到、未实测或超出区间的版本追加一条 `version` 检查（`info` / `warn`），覆盖范围内的版本不额外占一行 | 709 pass / 0 fail（新增 9 条：versions 8 条、doctor 1 条） |
 | 0.29.0 | **已交付**：`data/` 的 XOR 探测按首字节筛选候选 key（不再盲试 256 个）；20 MB 损坏数据文件的 `scan` 从约 15.7 s 降到约 0.65 s | 712 pass / 0 fail（新增 3 条 XOR 候选用例） |
+| 0.30.0 | **已交付**：`yakusha/dictionary.json` 与 GUI 凭据信封改为同目录临时文件加 rename 的原子写，进程中断不会再留下半个文件 | 716 pass / 0 fail（新增 4 条：atomic 3、dictionary 1） |
 | 1.0.0 | 10 个引擎 + 能力矩阵 + 便携 exe（图标、无控制台、最近游戏） | 双击 exe 可用 |
 
 ## 10. 风险

@@ -4,7 +4,9 @@
 // the runner as a flag. The CLI never reads this file (docs/config.md §8).
 
 import { join } from "node:path";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { readFileSync, rmSync } from "node:fs";
+
+import { writeFileAtomic } from "../src/core/atomic.js";
 
 /** The credentials envelope lives next to the config file's default home. */
 export function credentialsFile(configDir) {
@@ -17,9 +19,8 @@ export function credentialsFile(configDir) {
 export function saveApiKey(file, key, safeStorage) {
   if (!safeStorage.isEncryptionAvailable || safeStorage.isEncryptionAvailable()) {
     const blob = safeStorage.encryptString(key);
-    mkdirSync(file.slice(0, Math.max(file.lastIndexOf("/"), file.lastIndexOf("\\"))), { recursive: true });
     const envelope = { schema: 1, cipher: "safeStorage", data: blob.toString("base64") };
-    writeFileSync(file, JSON.stringify(envelope, null, 2) + "\n");
+    writeFileAtomic(file, JSON.stringify(envelope, null, 2) + "\n");
     return { saved: true };
   }
   // No OS-level encryption: refuse instead of writing plaintext.
