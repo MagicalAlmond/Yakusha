@@ -506,7 +506,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.37.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.38.0...HEAD
+[0.38.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.37.0...v0.38.0
 [0.37.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.36.0...v0.37.0
 [0.36.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.35.0...v0.36.0
 [0.35.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.34.0...v0.35.0
