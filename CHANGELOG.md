@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.56.0] - 2026-10-27
+
+### Added
+
+- The renderer contract tests now cover the drag & drop path, the directory picker, cancel forwarding and the progress/warning wiring (seven new cases in `test/gui-renderer.test.js`, on the stub DOM, no Electron window). Dropping a folder scans it through `pathForFile`, a drop without files is ignored, a canceled picker scans nothing, and progress from a stale run id cannot overwrite the live bar.
+
+### Unchanged
+
+- No product code changed: the renderer, the preload bridge, the handler seam and every envelope stay identical.
+
 ## [0.55.0] - 2026-10-27
 
 ### Fixed
@@ -676,7 +686,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.55.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.56.0...HEAD
+[0.56.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.55.0...v0.56.0
 [0.55.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.54.0...v0.55.0
 [0.54.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.53.0...v0.54.0
 [0.53.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.52.0...v0.53.0

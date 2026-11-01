@@ -30,7 +30,12 @@ class FakeElement {
     this.style = {};
     this.children = [];
     this.listeners = new Map();
-    this.classList = { add() {}, remove() {} };
+    this.classList = {
+      _set: new Set(),
+      add(name) { this._set.add(name); },
+      remove(name) { this._set.delete(name); },
+      has(name) { return this._set.has(name); },
+    };
     this._innerHTML = "";
   }
   addEventListener(type, fn) {
@@ -68,8 +73,14 @@ function makeDom() {
       throw new Error("unsupported selector: " + selector);
     },
     createElement(tag) { return new FakeElement(tag); },
-    addEventListener() {},
+    addEventListener(type, fn) {
+      if (!docListeners.has(type)) docListeners.set(type, []);
+      docListeners.get(type).push(fn);
+    },
   };
+  const docListeners = new Map();
+  const progressFns = [];
+  const warningFns = [];
   const runCalls = [];
   const envelopes = [];
   const window = {
@@ -81,8 +92,8 @@ function makeDom() {
       },
       hasApiKey: async () => false,
       cancel: () => {},
-      onProgress: () => {},
-      onWarning: () => {},
+      onProgress: (fn) => { progressFns.push(fn); },
+      onWarning: (fn) => { warningFns.push(fn); },
       saveApiKey: async () => ({ saved: true }),
       clearApiKey: async () => ({}),
       loadDictionary: async () => ({ ok: true, entries: [], translated: 0, pendingCount: 0 }),
@@ -96,7 +107,7 @@ function makeDom() {
     Number, Boolean, Error, RegExp, setTimeout, clearTimeout,
   });
   vm.runInContext(fs.readFileSync(RENDERER, "utf8"), context, { filename: "renderer.js" });
-  return { elements, actions, runCalls, envelopes, document, window };
+  return { elements, actions, runCalls, envelopes, document, window, docListeners, progressFns, warningFns };
 }
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
@@ -231,4 +242,109 @@ test("every id the renderer looks up exists in the page", () => {
   for (const id of ids) {
     assert.match(html, new RegExp('id="' + id + '"'), "index.html is missing #" + id);
   }
+});
+
+test("a folder dropped on the window scans it through pathForFile", async () => {
+  const dom = makeDom();
+  const dropped = { name: "game" };
+  const seen = [];
+  dom.window.yakusha.pathForFile = (file) => { seen.push(file); return "D:/games/dropped"; };
+  dom.envelopes.push({
+    ok: true, outcome: "ok", engine: "mv", root: "D:/games/dropped", gameTitle: "Dropped",
+    capabilities: { runtime: "plugin", launch: true },
+  });
+  for (const fn of dom.docListeners.get("drop") || []) {
+    await fn({ preventDefault() {}, dataTransfer: { files: [dropped] } });
+  }
+  await flush();
+  assert.deepEqual(seen, [dropped]);
+  const call = dom.runCalls.at(-1);
+  assert.equal(call[0], "scan");
+  assert.deepEqual([...call[1]], ["D:/games/dropped"]);
+  assert.equal(dom.elements.get("project-line").textContent, "D:/games/dropped — Dropped");
+});
+
+test("a drop without files is ignored", async () => {
+  const dom = makeDom();
+  for (const fn of dom.docListeners.get("drop") || []) {
+    await fn({ preventDefault() {}, dataTransfer: { files: [] } });
+    await fn({ preventDefault() {} });
+  }
+  await flush();
+  assert.equal(dom.runCalls.length, 0);
+  assert.equal(dom.document.body.classList.has("dragging"), false);
+});
+
+test("dragover and dragleave toggle the dragging hint", async () => {
+  const dom = makeDom();
+  for (const fn of dom.docListeners.get("dragover") || []) await fn({ preventDefault() {} });
+  assert.equal(dom.document.body.classList.has("dragging"), true);
+  for (const fn of dom.docListeners.get("dragleave") || []) await fn({});
+  assert.equal(dom.document.body.classList.has("dragging"), false);
+});
+
+test("the picker scans the chosen directory and a canceled picker does nothing", async () => {
+  const dom = makeDom();
+  dom.window.yakusha.pickDirectory = async () => "C:/games/picked";
+  dom.envelopes.push({
+    ok: true, outcome: "ok", engine: "mz", root: "C:/games/picked", gameTitle: "Picked",
+    capabilities: { runtime: "plugin", launch: true },
+  });
+  await dom.elements.get("pick").click();
+  await flush();
+  assert.deepEqual([...dom.runCalls.at(-1)[1]], ["C:/games/picked"]);
+  assert.equal(dom.elements.get("project-line").textContent, "C:/games/picked — Picked");
+  dom.window.yakusha.pickDirectory = async () => null;
+  await dom.elements.get("pick").click();
+  await flush();
+  assert.equal(dom.runCalls.length, 1);
+});
+
+test("the cancel button forwards to the host", async () => {
+  const dom = makeDom();
+  let canceled = 0;
+  dom.window.yakusha.cancel = () => { canceled += 1; };
+  await dom.elements.get("cancel").click();
+  assert.equal(canceled, 1);
+});
+
+test("progress updates the bar and stale run ids are ignored", async () => {
+  const dom = makeDom();
+  await scan(dom, {
+    ok: true, outcome: "ok", engine: "mz", root: "C:/games/alpha", gameTitle: "Alpha",
+    capabilities: { runtime: "plugin", launch: true },
+  });
+  assert.equal(dom.progressFns.length, 1);
+  const progress = dom.elements.get("progress");
+  const fire = (event) => dom.progressFns[0](event);
+  await fire({ runId: 1, progress: { done: 5, total: 10, translated: 4 } });
+  assert.equal(progress.hidden, false);
+  assert.equal(dom.elements.get("bar-fill").style.width, "50%");
+  assert.equal(dom.elements.get("progress-text").textContent, "5/10 entries, 4 translated");
+  await fire({ runId: 99, progress: { done: 9, total: 10, translated: 9 } });
+  assert.equal(dom.elements.get("bar-fill").style.width, "50%");
+  // A new run invalidates the old id; the new id is accepted again.
+  await scan(dom, {
+    ok: true, outcome: "ok", engine: "mv", root: "C:/games/beta", gameTitle: "Beta",
+    capabilities: { runtime: "plugin", launch: true },
+  });
+  assert.equal(progress.hidden, true);
+  await fire({ runId: 1, progress: { done: 9, total: 10, translated: 9 } });
+  assert.equal(progress.hidden, true);
+  await fire({ runId: 2, progress: { done: 3, total: 6, translated: 2 } });
+  assert.equal(dom.elements.get("bar-fill").style.width, "50%");
+  assert.equal(dom.elements.get("progress-text").textContent, "3/6 entries, 2 translated");
+});
+
+test("warning lines are prepended to the output pane", async () => {
+  const dom = makeDom();
+  await scan(dom, {
+    ok: true, outcome: "ok", engine: "mz", root: "C:/games/alpha", gameTitle: "Alpha",
+    capabilities: { runtime: "plugin", launch: true },
+  });
+  assert.equal(dom.warningFns.length, 1);
+  const payload = dom.elements.get("payload");
+  const before = payload.textContent;
+  await dom.warningFns[0]({ line: "warn: glossary miss" });
+  assert.equal(payload.textContent, "warn: glossary miss\n" + before);
 });
