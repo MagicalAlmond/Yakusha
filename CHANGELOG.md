@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.48.0] - 2026-10-27
+
+### Fixed
+
+- `launch` starts nw.js games that ship the runtime in `data/` with the assets in `data/www/`. The project root stays `data/www`, but the launcher and the working directory become the nw.js host directory in `data/` (detected by its `package.json` plus an nw.js runtime file, such as `nw.dll`); a browser build under `data/www/` without such a manifest still reports `E_EXE` from the asset root, as in 0.44. Payload keys are unchanged.
+
+### Unchanged
+
+- No breaking change: the envelope, exit codes, command table and the 13 error codes are identical to 0.47.0.
+
 ## [0.47.0] - 2026-10-27
 
 ### Fixed
@@ -596,7 +606,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.47.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.48.0...HEAD
+[0.48.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.47.0...v0.48.0
 [0.47.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.46.0...v0.47.0
 [0.46.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.45.0...v0.46.0
 [0.45.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.44.0...v0.45.0

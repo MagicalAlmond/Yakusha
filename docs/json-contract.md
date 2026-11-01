@@ -379,6 +379,8 @@ pending decisions in docs/dev/DEVLOG.md` 都是新文案，脚本不应依赖 `m
 
 **0.45 至 0.47 只改文本或消息内容。** 0.45 只在 `scan` 文本模式里给 24 字符及以上的文件名与计数之间补一个空格；0.46 只改 RGSS `install --native --dry-run` 的 `state` 预测（首次 `added`、重装 `unchanged`）；0.47 只改 Kirikiri `scan` 的 `undecodable` 归档级错误文案（去掉重复的归档名前缀）。信封、退出码、命令表、13 个错误码、所有载荷键与 `yakusha/1` 字典格式都不变。
 
+**0.48 只改 `launch` 的启动目录选择。** 项目根是 `data/www/` 且 `data/` 里有 `package.json` 加 nw.js 运行时文件（`nw.dll` / `node.dll` / `nw_100_percent.pak` 之一）时，`launch` 的 `exe` 与工作目录取 `data/` 里的那个 `.exe`，载荷 `root` 仍是项目根 `data/www`；没有这份清单的 `data/www` 浏览器构建维持 0.44 行为。所有载荷键与错误码不变。
+
 ## 9. 实现落点
 
 - 新增 `src/cli/envelope.js`：`emit(payload)`、`emitError(code, message, details)`、

@@ -316,7 +316,8 @@ node bin/yakusha.js launch "/games/MyGame"
 
 仅 Windows。MZ / MV / Ren'Py / Kirikiri 共用同一套规则：项目根恰好一个 `.exe` 时直接启动；
 多个时用 `--exe <name>` 指定（只收裸文件名）。MV 的 `www/` 布局把 `www/` 当项目根，启动器与
-工作目录取放着 `Game.exe` 的上一层（0.44 起）；`data/www` 的浏览器构建不受影响。启动后工具立即退出，游戏继续运行；子进程环境
+工作目录取放着 `Game.exe` 的上一层（0.44 起）；`data/www` 的浏览器构建不受影响；`data/`
+本身是 nw.js 宿主（`package.json` + `nw.dll` 等）时改从 `data/` 里的 `.exe` 启动（0.48 起）。启动后工具立即退出，游戏继续运行；子进程环境
 会删掉 `YAKUSHA_API_KEY` / `OPENAI_API_KEY`。RGSS 多一步：装过 `install --native` 时走
 `yakusha_injector.exe`，输出仍是 `launched:` / `pid:` 两行；没装时照常启动项目根的 exe。
 `attach` 调试注入仍是桩，能力表里 `attach: false`，没有 CLI 入口。

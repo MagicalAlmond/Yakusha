@@ -102,13 +102,30 @@ export function launchDirectory(project) {
   const root = project.root;
   if (path.basename(root).toLowerCase() !== "www") return root;
   const parent = path.dirname(root);
-  if (path.basename(parent).toLowerCase() === "data") return root;
+  const parentIsData = path.basename(parent).toLowerCase() === "data";
+  if (parentIsData && !isNwjsHost(parent)) return root;
   try {
     if (listExecutables(parent).length > 0) return parent;
   } catch {
     // An unreadable parent is not a usable launcher; keep the project root.
   }
   return root;
+}
+
+/**
+ * True when a directory is an nw.js host rather than a plain asset folder.
+ *
+ * Some MV games ship the nw.js runtime in data/ and the assets in data/www/,
+ * with package.json describing the app. That folder is a real launcher even
+ * though its name is "data"; a browser build under data/www/ has no such
+ * manifest and keeps the asset root.
+ *
+ * @param {string} dir
+ * @returns {boolean}
+ */
+export function isNwjsHost(dir) {
+  if (!fs.existsSync(path.join(dir, "package.json"))) return false;
+  return ["nw.dll", "node.dll", "nw_100_percent.pak"].some((name) => fs.existsSync(path.join(dir, name)));
 }
 
 /**

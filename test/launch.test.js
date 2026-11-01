@@ -19,6 +19,7 @@ import { fileURLToPath } from "node:url";
 import {
   childEnvironment,
   isBareExecutableName,
+  isNwjsHost,
   launchDirectory,
   launchProject,
   listExecutables,
@@ -132,6 +133,31 @@ test("launch: a browser build under data/www keeps its own root", () => {
   assert.equal(project.root, game);
   assert.equal(launchDirectory(project), game);
   assert.throws(() => selectExecutable(launchDirectory(project)), /no \.exe found/);
+});
+
+test("launch: an nw.js host under data launches its own runtime", async () => {
+  const base = tempDir("yakusha-launch-nwjs-");
+  const host = path.join(base, "data");
+  const game = path.join(host, "www");
+  fs.cpSync(FIXTURES.mv, game, { recursive: true });
+  fs.writeFileSync(path.join(host, "package.json"), JSON.stringify({ name: "sample", main: "www/index.html" }));
+  fs.writeFileSync(path.join(host, "nw.dll"), "");
+  writeExe(host, "YM.exe");
+  const { adapter, project } = projectFor(base, "mv");
+  assert.equal(project.root, game);
+  assert.equal(isNwjsHost(host), true);
+  assert.equal(launchDirectory(project), host);
+
+  const calls = [];
+  const result = await adapter.launch(project, {
+    platform: "win32",
+    spawn(exe, args, options) {
+      calls.push({ exe, args, options });
+      return fakeChild(3579);
+    },
+  });
+  assert.deepEqual(result, { pid: 3579, exe: path.join(host, "YM.exe"), root: project.root });
+  assert.equal(calls[0].options.cwd, host);
 });
 
 test("launch: --exe accepts only a bare .exe file name", () => {
