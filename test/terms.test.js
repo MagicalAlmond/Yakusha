@@ -47,9 +47,10 @@ function line(spelling, index) {
  * @param {number} use lines that use `rendering`
  * @param {number} total total mentions
  * @param {string} [other] spelling used by the remaining lines
+ * @param {string[]} [nameContext] context written on the name entry
  */
-function mentions(name, db, rendering, use, total, other = "something") {
-  const rows = [[name, db, NAME]];
+function mentions(name, db, rendering, use, total, other = "something", nameContext = NAME) {
+  const rows = [[name, db, nameContext]];
   for (let i = 0; i < total; i += 1) {
     rows.push([line(name, i), line(i < use ? rendering : other, i)]);
   }
@@ -84,6 +85,19 @@ test("terms: a name whose dialogue agrees with the entry is ok", () => {
   assert.equal(result.terms[0].status, "ok");
   assert.equal(result.terms[0].suggested, "哥布林");
   assert.equal(result.drift.length, 0);
+});
+
+test("terms: RGSS database name contexts count as name entries", () => {
+  // RGSS writes Actors.rvdata2:name (XP/VX use .rxdata/.rvdata); those are
+  // database name tables just like Actors.json:name, so terms has to mine them.
+  for (const extension of ["rxdata", "rvdata", "rvdata2"]) {
+    const context = ["Actors." + extension + ":name"];
+    const result = mineTerms(dictionary(mentions("ゴブリン", "哥布林", "哥布林", 6, 6, undefined, context)));
+    assert.equal(result.nameEntries, 1, extension);
+    assert.equal(result.terms.length, 1, extension);
+    assert.equal(result.terms[0].status, "ok", extension);
+    assert.equal(result.terms[0].suggested, "哥布林", extension);
+  }
 });
 
 test("terms: a name the dialogue spells differently is drift", () => {

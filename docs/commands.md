@@ -1,6 +1,6 @@
 # 命令参考
 
-本文是 yakusha 0.40.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出；0.33 给 `verify` 增加了 SARIF 报告输出（`--report-format sarif`）；0.34 给 `export` 增加 JSONL 输出（`--format jsonl`），0.35 给 `verify` 增加 `--fail-on warning`（warning 也算发布失败），0.36 给 `verify` 增加 `--require-complete`（还有未译条目就失败），0.37 只修 markdown 报告表格里的 `|` 转义，0.38 只让 `verify` 的 problem 带出字典条目的 `locator`，0.39 修 `import --dry-run --create` 会落盘空字典的问题（dry-run 不写盘），0.40 让 `verify --write-report`、`speaker --write-names`、`terms --write` 拒绝把输出写到项目字典上（`E_EXISTS`、退出 2），其余命令不变。
+本文是 yakusha 0.41.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出；0.33 给 `verify` 增加了 SARIF 报告输出（`--report-format sarif`）；0.34 给 `export` 增加 JSONL 输出（`--format jsonl`），0.35 给 `verify` 增加 `--fail-on warning`（warning 也算发布失败），0.36 给 `verify` 增加 `--require-complete`（还有未译条目就失败），0.37 只修 markdown 报告表格里的 `|` 转义，0.38 只让 `verify` 的 problem 带出字典条目的 `locator`，0.39 修 `import --dry-run --create` 会落盘空字典的问题（dry-run 不写盘），0.40 让 `verify --write-report`、`speaker --write-names`、`terms --write` 拒绝把输出写到项目字典上（`E_EXISTS`、退出 2），0.41 只让 `terms` 识别 RGSS 的数据库名表（`.rvdata2` / `.rvdata` / `.rxdata`），其余命令不变。
 
 **RGSS 在 0.18 起有了交付层。** `scan` / `extract` / `status` / `translate` / `verify` / `speaker` / `terms` / `export` / `import` 都能用；0.18 新增 `install --native`，把预编译的注入器与 hook DLL 装进 `yakusha/native/`，游戏启动时由注入器加载，译文从 `dictionary.txt` 读。`install` 不带 `--native` 仍报 `E_USAGE`（RGSS 没有插件交付层）。安装细节与限制见下文 [install 与 uninstall](#install-与-uninstall)。
 
@@ -214,7 +214,7 @@
 ### --help 与 --version
 
 - `--help` / `-h`：永远 stdout 纯文本、退出 0，即使同时给了 `--json`；`scan -h` 也一样打整段帮助。连未知命令都投降：`nope --help` 打帮助、退出 0。
-- `--version`：永远 stdout 一行 `yakusha <version>`、退出 0，并且优先于一切——`--help --version` 只打 `yakusha 0.40.0`，`--json --version` 也不产出 JSON。
+- `--version`：永远 stdout 一行 `yakusha <version>`、退出 0，并且优先于一切——`--help --version` 只打 `yakusha 0.41.0`，`--json --version` 也不产出 JSON。
 - 无命令：文本模式把整段 USAGE 打到 stderr、退出 2；`--json` 时输出 `command: null` 的信封，`message` 是 `no command`。
 - 未知命令：stderr 两行 `error: unknown command: nope` 和 `run 'yakusha --help' for usage`，退出 2，不再打印整段 USAGE。
 
@@ -609,9 +609,9 @@ glossary  : 0 entries, pass --write <file> to save them
 
 阈值由 `--min-holders`（默认 5：一个名字至少被 5 条已译文本提到才挖）和 `--min-support`（默认 0.5：主流写法至少要占一半）控制；夹具只有 32 条串，所以一条也挖不出来——这是正常结果，不是失败。
 
-「名字条目」的判定写死在 RPG Maker 的上下文格式上（`^(Actors|Enemies|Classes|Items|Weapons|Armors|Skills|States)\.json:name$`，`src/pipeline/terms.js:34`）。Ren'Py 的 contexts 是 `game/script.rpy:12` 这种路径，永远匹配不上，因此 Ren'Py 项目上 `nameEntries` 恒为 0、`mined` 恒为 0：实测输出 `names     : 0 mined from 0 name entries`。
+「名字条目」的判定基于数据库名字段的上下文格式（`^(Actors|Enemies|Classes|Items|Weapons|Armors|Skills|States)\.(json|rxdata|rvdata|rvdata2):name$`，`src/pipeline/terms.js:34`）。MZ/MV 的 `Actors.json:name` 与 RGSS 的 `Actors.rvdata2:name`（XP/VX 为 `.rxdata` / `.rvdata`）都能匹配；Ren'Py 的 contexts 是 `game/script.rpy:12` 这种路径，永远匹配不上，因此 Ren'Py 项目上 `nameEntries` 恒为 0、`mined` 恒为 0：实测输出 `names     : 0 mined from 0 name entries`。
 
-RGSS 撞的是同一堵墙、换了个方向：数据库名字条目的 context 是 `Actors.rvdata2:name` 这种形状，扩展名是 `.rvdata2` 而不是 `.json`，正则同样匹配不上，所以 RGSS 项目上 `nameEntries` / `mined` / `drift` / `missing` 恒为 0，实测输出也是 `names     : 0 mined from 0 name entries`。Kirikiri 撞的还是这堵墙：`.ks` 的 context 是 `scene1.ks:2` 这种形状，既不是 `.json:name` 也不是数据库字段，正则匹配不上，所以 Kirikiri 项目上 `nameEntries` / `mined` / `drift` / `missing` 恒为 0。这套名字一致性机制目前只对 MZ/MV 有效。载荷：`file` / `names` / `nameEntries` / `skipped{untranslated, short, prose}` / `holdersMin` / `supportMin` / `mined` / `listed` / `drift` / `missing` / `glossary` / `written` / `terms[]`。
+Kirikiri 撞的是另一堵墙：`.ks` 的 context 是 `scene1.ks:2` 这种形状，既不是 `.json:name` 也不是数据库字段，正则匹配不上，所以 Kirikiri 项目上 `nameEntries` / `mined` / `drift` / `missing` 恒为 0。这套名字一致性机制目前对 MZ/MV 与 RGSS 有效（0.41 起 RGSS；实测一款 VX Ace 样本的 2,085 条字典里有 35 条数据库名表条目，`MapInfos.rvdata2:name` 的地图名不计入）。载荷：`file` / `names` / `nameEntries` / `skipped{untranslated, short, prose}` / `holdersMin` / `supportMin` / `mined` / `listed` / `drift` / `missing` / `glossary` / `written` / `terms[]`。
 
 `--write <file>` 把词表写成 `translate --glossary` 吃的格式（`{"format": "yakusha/glossary/1", "game": ..., "generatedAt": ..., "entries": {...}}`），文本末行变 `glossary  : N entries written to <abs>`；`--dry-run` 只报不写（`--dry-run, not written`）；没写文件时 JSON 的 `written` 是 `null`。词表路径不能是项目字典，否则报 `E_EXISTS`、退出 2、不写文件（0.40 起）。
 

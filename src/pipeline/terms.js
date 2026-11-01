@@ -3,7 +3,7 @@
  * finished dictionary back.
  *
  * A dictionary translates each database name exactly once - Actors.json:name,
- * Items.json:name, Enemies.json:name and so on - but a name is mentioned far
+ * Actors.rvdata2:name in RGSS, and so on - but a name is mentioned far
  * more often inside ordinary dialogue. Those mentions are translated
  * independently, in different batches, by a model that never sees the name
  * entry. So the two surfaces drift apart:
@@ -31,7 +31,8 @@ import { visibleText } from "../core/textkey.js";
  * dialogue. Weapons, armours and states are included because their names are
  * printed in menus next to item names and must agree with them.
  */
-const NAME_CONTEXT = /^(Actors|Enemies|Classes|Items|Weapons|Armors|Skills|States)\.json:name$/;
+const NAME_CONTEXT =
+  /^(Actors|Enemies|Classes|Items|Weapons|Armors|Skills|States)\.(json|rxdata|rvdata|rvdata2):name$/;
 
 /**
  * A run of characters that can carry a name: Han, katakana, hiragana, and the
