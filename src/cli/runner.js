@@ -735,14 +735,24 @@ async function commandTranslate(dir, flags, sink, onProgress, opts = {}) {
   let glossary = {};
   if (typeof flags.glossary === "string") {
     if (!fs.existsSync(flags.glossary)) throw new CliError("E_IO", "glossary file not found: " + flags.glossary);
+    let text;
     try {
-      const parsed = JSON.parse(fs.readFileSync(flags.glossary, "utf8"));
+      text = fs.readFileSync(flags.glossary, "utf8");
+    } catch (error) {
+      if (error && error.code === "EISDIR") {
+        throw new CliError("E_IO", "cannot read glossary: " + flags.glossary + " (is a directory)");
+      }
+      throw new CliError("E_IO", "cannot read glossary: " + flags.glossary + " (" + (error && error.code ? error.code : error) + ")");
+    }
+    try {
+      const parsed = JSON.parse(text);
       if (parsed && typeof parsed === "object") glossary = parsed.entries || parsed;
     } catch (error) {
       throw new CliError("E_USAGE", "cannot read glossary: " + error.message);
     }
   }
 
+  const contextFilter = normalizeContexts(flags.context);
   const started = Date.now();
   let lastPercent = -1;
   const maxLength = numberFlag(flags, "max-length", 0);
@@ -764,7 +774,7 @@ async function commandTranslate(dir, flags, sink, onProgress, opts = {}) {
     charBudget: numberFlag(flags, "char-budget", undefined),
     concurrency: numberFlag(flags, "concurrency", undefined),
     limit: numberFlag(flags, "limit", undefined),
-    onlyContext: normalizeContexts(flags.context),
+    onlyContext: contextFilter,
     glossaryOnly,
     overwriteExisting: flags["overwrite"] === true,
     strictCodes: flags["allow-code-drift"] ? false : undefined,
@@ -796,6 +806,12 @@ async function commandTranslate(dir, flags, sink, onProgress, opts = {}) {
   // The payload names the provider family (openai / mock), never the model and
   // never the key; the text output may still show the model.
   const providerLabel = String(provider.name).split(":")[0];
+
+  // A --context filter that matches nothing must not read as a finished run:
+  // say so instead of printing a bare "0/0 this run" (0.63).
+  if (contextFilter && result.total === 0 && dictStats(data).pending > 0) {
+    sink.warn("warning: no pending entries match --context " + (Array.isArray(contextFilter) ? contextFilter.join(", ") : contextFilter));
+  }
 
   if (dryRun) {
     sink.out("dry run   : " + result.translated + " of " + result.total + " would be translated (not saved)");
@@ -1042,7 +1058,10 @@ async function commandImport(dir, flags, sink) {
   try {
     text = fs.readFileSync(from, "utf8");
   } catch (error) {
-    throw new CliError("E_IO", "cannot read " + from + ": " + (error && error.code === "ENOENT" ? "the file does not exist" : String(error && error.code ? error.code : error)));
+    throw new CliError(
+      "E_IO",
+      "cannot read " + from + ": " + (error && error.code === "ENOENT" ? "the file does not exist" : error && error.code === "EISDIR" ? "is a directory" : String(error && error.code ? error.code : error))
+    );
   }
   let rows;
   if (formatName === "jsonl") rows = parseJsonl(text);

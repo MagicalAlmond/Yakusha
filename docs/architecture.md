@@ -310,6 +310,7 @@ test/fixtures/           各引擎最小夹具（mini-mz、mini-mv、renpy-*、r
 | 0.60.0 | **已交付**：三个报告写路径（`verify --write-report` / `speaker --write-names` / `terms --write`）拒绝 `-` 与目录目标——此前 `-` 会静默创建名为 `-` 的文件、目录目标把底层 `EPERM` 原样带出；现在分别是 `E_USAGE ... must be a file path, not -` 与 `E_IO ... (is a directory)` | 810 pass / 0 fail（cli +2） |
 | 0.61.0 | **已交付**：`translate --limit` 拒绝 0 / 负数 / 非整数（`E_USAGE`）——此前 `0` 退出 0 一条不翻、负数静默从尾部丢条目 | 811 pass / 0 fail（cli +1） |
 | 0.62.0 | **已交付**：`translate` 的请求形状旗标（`--batch-size` / `--char-budget` / `--concurrency` / `--timeout` / `--max-tokens`）拒绝 <1 的整数（`E_USAGE`）——此前负批量把每请求 1 条且无提示 | 812 pass / 0 fail（cli +1） |
+| 0.63.0 | **已交付**：`translate --glossary` 与 `import --from` 的目录目标改报 `E_IO`（此前分别是 `E_USAGE` + 裸 errno 与裸 `EISDIR`）；`translate --context` 零匹配时打 `warning: no pending entries match --context ...`（退出码仍 0） | 815 pass / 0 fail（cli +3） |
 | 1.0.0 | 10 个引擎 + 能力矩阵 + 便携 exe（图标、无控制台、最近游戏） | 双击 exe 可用 |
 
 ## 10. 风险

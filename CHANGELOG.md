@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.63.0] - 2026-11-01
+
+### Fixed
+
+- `translate --glossary` on a directory reported a usage error carrying the raw errno (`E_USAGE` / `cannot read glossary: EISDIR: illegal operation on a directory, read`). Reading failures are now `E_IO` with the path spelled out: `cannot read glossary: <abs> (is a directory)`, and any other read error reports its code (`cannot read glossary: <abs> (<code>)`). A file that exists but is not valid JSON still reports `E_USAGE`.
+- `import --from` on a directory printed the bare errno (`cannot read <abs>: EISDIR`). It now says `cannot read <abs>: is a directory`, matching the wording the report writers use.
+
+### Added
+
+- `translate --context` now warns when the filter hides every pending entry: `warning: no pending entries match --context <names>` on stderr, exit stays 0. A run that translates 0 of 0 no longer reads like a finished dictionary when the real reason is a typo in the context name.
+
+### Unchanged
+
+- No breaking changes: envelope, exit codes, payload keys, the 13 error codes, the dictionary format and every documented command behavior are untouched.
+
 ## [0.62.0] - 2026-11-01
 
 ### Fixed
@@ -752,7 +767,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.62.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.63.0...HEAD
+[0.63.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.62.0...v0.63.0
 [0.62.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.61.0...v0.62.0
 [0.61.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.60.0...v0.61.0
 [0.60.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.59.0...v0.60.0

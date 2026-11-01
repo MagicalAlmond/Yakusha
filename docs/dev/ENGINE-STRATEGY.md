@@ -580,6 +580,7 @@ TextGrammar = {
 | 0.60 | 三个报告写路径拒绝 `-` 与目录目标（`E_USAGE must be a file path, not -` / `E_IO ... (is a directory)`）（**已交付**） | — | 810 pass / 56 个文件；cli +2 |
 | 0.61 | `translate --limit` 拒绝 0 / 负数 / 非整数（E_USAGE，显式报错）（**已交付**） | — | 811 pass / 56 个文件；cli +1 |
 | 0.62 | 请求形状旗标（batch-size / char-budget / concurrency / timeout / max-tokens）拒绝 <1 的整数（E_USAGE）（**已交付**） | — | 812 pass / 56 个文件；cli +1 |
+| 0.63 | `translate --glossary` / `import --from` 的目录目标改报 `E_IO`（此前 `E_USAGE` + 裸 errno）；`--context` 零匹配打警告（**已交付**） | — | 815 pass / 56 个文件；cli +3 |
 | 1.0 | 10 个引擎目标 + 能力矩阵 + 便携 exe | — | 每个引擎有 L4 证据；不达标的明确标 experimental |
 
 说明：

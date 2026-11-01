@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -202,6 +202,55 @@ test("cli: translate run-shape numbers below 1 are usage errors", () => {
   const ok = run(["translate", game, "--dry-run", "--batch-size", "2", "--char-budget", "100", "--concurrency", "1", "--timeout", "5000", "--max-tokens", "512", "--json"]);
   assert.equal(ok.code, 0, ok.stderr);
   assert.equal(JSON.parse(ok.stdout).translated, 32);
+});
+
+test("cli: translate --glossary pointing at a directory is an I/O error", () => {
+  const game = tempGame();
+  assert.equal(run(["extract", game]).code, 0);
+  const dir = path.join(game, "glossdir");
+  fs.mkdirSync(dir);
+  const result = run(["translate", game, "--dry-run", "--glossary", dir, "--json"]);
+  assert.equal(result.code, 2, result.stderr);
+  const body = JSON.parse(result.stdout);
+  assert.equal(body.error.code, "E_IO");
+  // The message echoes the absolute path, but the envelope rewrites the home
+  // directory to ~, so only the shape is stable here.
+  assert.ok(body.error.message.startsWith("cannot read glossary: "), body.error.message);
+  assert.ok(body.error.message.endsWith(" (is a directory)"), body.error.message);
+});
+
+test("cli: import --from pointing at a directory is an I/O error", () => {
+  const game = tempGame();
+  assert.equal(run(["extract", game]).code, 0);
+  const from = path.join(game, "data");
+  const result = run(["import", game, "--from", from, "--format", "json", "--json"]);
+  assert.equal(result.code, 2, result.stderr);
+  const body = JSON.parse(result.stdout);
+  assert.equal(body.error.code, "E_IO");
+  assert.ok(body.error.message.startsWith("cannot read "), body.error.message);
+  assert.ok(body.error.message.endsWith(": is a directory"), body.error.message);
+});
+
+test("cli: translate --context that matches nothing warns instead of a silent 0/0", () => {
+  const game = tempGame();
+  assert.equal(run(["extract", game]).code, 0);
+
+  // execFileSync drops stderr when the process succeeds, so this one test uses
+  // spawnSync to see the warning channel.
+  const spawn = (args) => spawnSync(process.execPath, [BIN, ...args], { encoding: "utf8", env: cleanEnv() });
+
+  const result = spawn(["translate", game, "--provider", "mock", "--context", "Nowhere.json", "--json"]);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(JSON.parse(result.stdout).translated, 0);
+  assert.match(result.stderr, /no pending entries match --context Nowhere\.json/);
+
+  const repeated = spawn(["translate", game, "--provider", "mock", "--context", "A.json", "--context", "B.json", "--json"]);
+  assert.equal(repeated.status, 0, repeated.stderr);
+  assert.match(repeated.stderr, /no pending entries match --context A\.json, B\.json/);
+
+  const matching = spawn(["translate", game, "--provider", "mock", "--context", "Items.json", "--json"]);
+  assert.equal(matching.status, 0, matching.stderr);
+  assert.doesNotMatch(matching.stderr, /no pending entries match/);
 });
 
 test("cli: --glossary-only applies a term base without a provider", () => {
