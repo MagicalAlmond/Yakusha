@@ -60,8 +60,10 @@ function credentialsPath() {
  * @param {string[]} args
  * @param {Record<string, unknown>} flags
  * @param {number} runId identifier the renderer uses to match progress events
+ * @param {AbortSignal} [signal] cooperative cancellation for long runs; the
+ *   gui:run handler owns the controller and gui:cancel aborts it
  */
-async function runInWindow(win, command, args, flags, runId) {
+async function runInWindow(win, command, args, flags, runId, signal) {
   const send = (channel, body) => {
     if (!win.isDestroyed()) win.webContents.send(channel, body);
   };
@@ -70,6 +72,7 @@ async function runInWindow(win, command, args, flags, runId) {
       flags,
       onProgress: (progress) => send("gui:progress", { runId, command, progress }),
       onWarning: (line) => send("gui:warning", { runId, command, line }),
+      signal: signal || null,
     });
     send("gui:result", { runId, command, envelope });
     return envelope;
@@ -96,7 +99,8 @@ function registerIpc() {
   ipcMain.handle("gui:run", (_event, request) => {
     const command = request && typeof request.command === "string" ? request.command : "";
     const args = Array.isArray(request && request.args) ? request.args.map(String) : [];
-    const flags = request && typeof request.flags === "object" && request.flags ? request.flags : {};
+    // let (not const): the stored-key path below rebinds it
+    let flags = request && typeof request.flags === "object" && request.flags ? request.flags : {};
     const runId = request && Number.isInteger(request.runId) ? request.runId : 0;
     if (!GUI_COMMANDS.includes(command)) {
       return Promise.resolve({
@@ -146,7 +150,7 @@ function registerIpc() {
       }
       const controller = new AbortController();
       activeRun = { command, controller };
-      return runInWindow(winOf(), command, args, flags, runId).finally(() => {
+      return runInWindow(winOf(), command, args, flags, runId, controller.signal).finally(() => {
         activeRun = null;
       });
     }

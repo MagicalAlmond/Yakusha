@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.57.0] - 2026-11-01
+
+### Fixed
+
+- The GUI cancel button cancels for real. Since 0.14 the main process created an `AbortController` for every translate run and kept it for `gui:cancel` and window close, but the signal was never handed to the runner - both paths aborted a controller nobody listened to. `runInWindow` now forwards the signal, and the new main-process contract test pins "cancel reaches the runner".
+- Remembering the API key no longer crashes the shell. The `useStoredKey` branch rebound a `const` (`Assignment to constant variable`), so the first run with the remembered key always failed with an internal error instead of injecting the stored key; the binding is now `let`.
+
+### Added
+
+- `test/gui-main.test.js`, a stub-Electron contract test for the main-process glue (16 cases): the single-instance lock, the eight-channel IPC allowlist, hardened window options, navigation denial, request normalization, cancel reaching the runner, progress/warning/result forwarding, the credentials, dictionary and directory-picker channels, and the window-close abort.
+
+### Unchanged
+
+- No breaking change: the envelope, exit codes, command table, the 13 error codes and the `yakusha/1` dictionary format are identical to 0.56.0; both fixes change GUI behavior only.
+
 ## [0.56.0] - 2026-10-27
 
 ### Added
@@ -686,7 +701,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.56.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.57.0...HEAD
+[0.57.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.56.0...v0.57.0
 [0.56.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.55.0...v0.56.0
 [0.55.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.54.0...v0.55.0
 [0.54.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.53.0...v0.54.0

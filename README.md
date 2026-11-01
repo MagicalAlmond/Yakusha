@@ -334,7 +334,7 @@ npx electron gui/main.js
 ```
 
 0.14 的外壳覆盖主链路：目录选择器或拖入游戏目录 → scan → extract → translate（带
-真实进度与取消）→ verify → install/uninstall → doctor，外加 export（JSON）、
+真实进度与取消——0.57 修复主进程漏传取消信号的缺陷）→ verify → install/uninstall → doctor，外加 export（JSON）、
 speaker、terms 与 `config list`。API key 可以显式勾选"记住"（Windows DPAPI 加密
 存盘，CLI 不读它），也可以照旧用环境变量或 `--api-key`；`launch` 也在外壳里（与 CLI 同一条
 启动路径，`--exe` 歧义时展示候选）；最小字典编辑器也在外壳里（逐条改 pending

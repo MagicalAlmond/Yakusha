@@ -1,6 +1,6 @@
 # GUI 设计与用户流程（Electron 外壳，0.14）
 
-> 状态：0.14 已交付最小外壳（`gui/main.js` + `preload.js` + `renderer/`，含原生目录选择、export/import/speaker/terms/config/launch 按钮、「记住密钥」（safeStorage，见 §5）、最小字典编辑器（见 §3 字典编辑分区）），长任务接口（进度事件 + 取消）随 0.14 的 runner seam 落地；0.16 起按钮可用性按 §3 的规则由 `capabilities` 驱动（`scan` 载荷新增 `capabilities`，不支持交付层的引擎灰掉 install/uninstall 并写明原因；0.18 起 RGSS 的注入交付层落地，install/uninstall 对 RGSS 自动带 `--native`，不再灰）；本文其余部分仍是演进的设计稿（完整字典编辑界面未做——已交付的是 §3 描述的最小逐条编辑器）。0.20 起渲染层另有 `test/gui-renderer.test.js` 的 stub-DOM 契约测试（7 条），并在每次扫描开始时清空上一个引擎的能力位。
+> 状态：0.14 已交付最小外壳（`gui/main.js` + `preload.js` + `renderer/`，含原生目录选择、export/import/speaker/terms/config/launch 按钮、「记住密钥」（safeStorage，见 §5）、最小字典编辑器（见 §3 字典编辑分区）），长任务接口（进度事件 + 取消）随 0.14 的 runner seam 落地；0.16 起按钮可用性按 §3 的规则由 `capabilities` 驱动（`scan` 载荷新增 `capabilities`，不支持交付层的引擎灰掉 install/uninstall 并写明原因；0.18 起 RGSS 的注入交付层落地，install/uninstall 对 RGSS 自动带 `--native`，不再灰）；本文其余部分仍是演进的设计稿（完整字典编辑界面未做——已交付的是 §3 描述的最小逐条编辑器）。0.20 起渲染层另有 `test/gui-renderer.test.js` 的 stub-DOM 契约测试（7 条），并在每次扫描开始时清空上一个引擎的能力位；0.57 起主进程另有 `test/gui-main.test.js` 的 stub-Electron 契约测试（16 条），该轮修复两条主进程接缝缺陷（取消信号从未传进 runner、「记住密钥」撞 `const` 崩溃，见 §6/§9）。
 
 ## 1. 定位与边界
 
@@ -73,7 +73,7 @@ export/import（§3 字典编辑分区的驱动命令不变）。
 `{done,total,translated,rejected}`）与协作式取消（`AbortSignal`，翻译中的请求
 自然结束、已翻条目保留，载荷里 `cancelled: true` 标记）。GUI 的进度条与
 取消按钮都建立在这两个接口上，不再有黑盒模式；恢复机制仍是
-`--save-every` 周期落盘（默认 200），中断后重跑同一命令即可续跑。
+`--save-every` 周期落盘（默认 200），中断后重跑同一命令即可续跑。（0.57 修复：0.14–0.56 的外壳里，取消按钮 abort 的控制器从未传进 runner，`gui:cancel` 与窗口关闭一直空转；`test/gui-main.test.js` 已把「取消必须到达 runner」钉住。）
 
 **当前 core 没有事件流。** CLI 靠 `--save-every <n>`（默认 200）把字典周期性落盘，
 中断后重跑同一命令即可续跑——这是今天唯一存在的"恢复机制"，没有进度事件、没有取消信号、
@@ -149,7 +149,7 @@ GUI 永远不做以下事情（与 [limitations.md](limitations.md) 的工具边
 - [x] 每个界面分区都对应本文第 3 节的表格：有命名的库调用或 CLI 命令，没有私有 API。（0.14–0.16：14 命令白名单 + 两条字典专用通道，test/gui-handlers.test.js 盯着）
 - [x] 每个按钮点击产生的行为都能在 CLI 里找到等价命令，输出一致（同一 core）。（信封逐键对拍）
 - [x] 按钮可用性由 `capabilities` 驱动：不支持的能力显示灰色 + 原因，点击后报错视为设计缺陷。（0.16 交付）
-- [x] 长任务有真实的进度事件与取消，结束后载荷与 CLI 的 `--json` 一致；没有假进度条。（0.14 runner seam + AbortSignal）
+- [x] 长任务有真实的进度事件与取消，结束后载荷与 CLI 的 `--json` 一致；没有假进度条。（0.14 runner seam + AbortSignal；0.57 修复主进程漏传 signal 的接缝缺陷）
 - [x] 翻译中断后能从落盘的字典继续（`--save-every` 语义或其后续接口），不需要用户重头跑。（已翻译条目不重翻，取消后已翻的保留）
 - [ ] 安装/卸载界面对四档交付的描述与 ENGINE-STRATEGY §5.5 逐字对齐，无"完全可逆"承诺。（文档层已对齐；等真机 GUI 走查确认）
 - [ ] 在四档测试矩阵上，从 GUI 卸载后游戏回到可运行状态（plugin 档逐字节还原）。（CLI 路径在 0.10/0.11 真机验过；GUI 按同一路径调同一 runner，但「从 GUI 点出来」的走查未做）
@@ -157,6 +157,7 @@ GUI 永远不做以下事情（与 [limitations.md](limitations.md) 的工具边
 - [x] 拖入非项目目录、多项目目录、损坏字典时，错误提示与 CLI 的错误码一一对应。（gui-handlers 对拍）
 - [ ] MZ/MV + Ren'Py + RGSS 三条链路都能从 GUI 一键跑通（ENGINE-STRATEGY §6.3 的 0.14 验收）。（`test/gui-e2e.test.js` 已按 GUI 的调用缝 `runGuiCommand` 把三条链路的完整命令序列各走通一遍（RGSS 走 `install --native`）；剩下的未验部分只有 Electron 窗口本身的点击与渲染。0.16 复查：在本机自动化会话里实测，`gui/main.js` 能被 Electron 37.2.3 加载、`BrowserWindow` 能创建（隐藏窗口冒烟 exit 0），但 Chromium 的单实例锁在自动化会话派生的进程令牌下无法创建（`process_singleton_win.cc:454 Lock file can not be created! Error code: 5`，与 user-data-dir 无关），应用按设计退出——窗口交互走查需要在正常桌面会话里双击启动，不是 headless 限制，是本会话进程令牌的限制）
 - [x] 渲染层的扫描状态、能力灰显、字典编辑与密钥输入有 stub-DOM 契约测试（0.20 起 `test/gui-renderer.test.js`；0.56 起补齐拖放（`pathForFile`）、目录选择、取消转发与进度/警告接线，共 14 条；真机窗口交互仍在上一行的范围内）。
+- [x] 主进程（`gui/main.js`）有 stub-Electron 契约测试（0.57 起 `test/gui-main.test.js`，16 条：单实例锁、IPC 白名单、窗口安全参数、取消真达 runner、凭据/字典/目录选择通道）——随测试修复取消断链与「记住密钥」撞 `const` 崩溃两条接缝缺陷。
 
 ## 相关文档
 

@@ -300,10 +300,11 @@ test/fixtures/           各引擎最小夹具（mini-mz、mini-mv、renpy-*、r
 | 0.50.0 | **已交付**：`install --embed` 在非 RPG Maker 引擎上报 `E_USAGE`（Ren'Py 此前静默忽略、Kirikiri 被字典检查盖住、RGSS 直接给交付层提示）；`--embed` 只在插件层读字典 | 759 pass / 0 fail（新增 2 条 cli） |
 | 0.51.0 | **已交付**：空字符串的选项值算缺值——`verify --write-report ""`、`speaker --write-names ""`、`terms --write ""` 从「被当成当前目录去写、报 `E_IO`」改为 `E_USAGE`，与既有的 `--flag=` 形式一致，所有取值选项统一 | 760 pass / 0 fail（新增 1 条 cli） |
 | 0.52.0 | **已交付**：`extract --prune` 删掉游戏更新后字典里已不含的键（默认仍只增不删，`stale` 计数报告、`--prune` 才删）；`doctor` 的 sync advice 指向 `--prune` | 764 pass / 0 fail（dict +2、cli +1、renpy-adapter +1） |
-| 0.56.0 | **已交付**：渲染层契约测试补齐拖放（`pathForFile`）、目录选择、取消转发与进度/警告接线（stub DOM，无窗口）；无产品代码改动 | 778 pass / 0 fail（gui-renderer +7） |
-| 0.55.0 | **已交付**：Kirikiri KS 抽取恢复前置标签行的可见文本（宏引用对白 `[「]text」`），行内标签扫描感知引号属性（真实样本唯一串 5,231→9,941） | 771 pass / 0 fail（krkr-ks +1、krkr-extract +1） |
-| 0.54.0 | **已交付**：Kirikiri KS 抽取跳过 `[iscript]` 代码块、行首 `@` 的单行标签按标签行处理（真实样本唯一串 5,686→5,231，echo 字典的 verify 从 115+115 问题到 0） | 769 pass / 0 fail（krkr-ks +2、krkr-extract +1） |
 | 0.53.0 | **已交付**：`import` 对 `engine` / `locator` / `contexts` 的类型错误显式报 `E_DICTIONARY`（此前静默丢弃或悄悄包裹），JSONL 与 rich JSON 两条导入路径一致，坏表不落盘 | 766 pass / 0 fail（export +2） |
+| 0.54.0 | **已交付**：Kirikiri KS 抽取跳过 `[iscript]` 代码块、行首 `@` 的单行标签按标签行处理（真实样本唯一串 5,686→5,231，echo 字典的 verify 从 115+115 问题到 0） | 769 pass / 0 fail（krkr-ks +2、krkr-extract +1） |
+| 0.55.0 | **已交付**：Kirikiri KS 抽取恢复前置标签行的可见文本（宏引用对白 `[「]text」`），行内标签扫描感知引号属性（真实样本唯一串 5,231→9,941） | 771 pass / 0 fail（krkr-ks +1、krkr-extract +1） |
+| 0.56.0 | **已交付**：渲染层契约测试补齐拖放（`pathForFile`）、目录选择、取消转发与进度/警告接线（stub DOM，无窗口）；无产品代码改动 | 778 pass / 0 fail（gui-renderer +7） |
+| 0.57.0 | **已交付**：GUI 主进程两条接缝缺陷修复——取消信号从未传进 runner（`gui:cancel`/窗口关闭空转）、「记住密钥」撞 `const flags` 崩溃；新增 `test/gui-main.test.js` 主进程 stub-Electron 契约测试（16 条） | 794 pass / 0 fail（gui-main +16） |
 | 1.0.0 | 10 个引擎 + 能力矩阵 + 便携 exe（图标、无控制台、最近游戏） | 双击 exe 可用 |
 
 ## 10. 风险
