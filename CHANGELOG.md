@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.45.0] - 2026-10-27
+
+### Fixed
+
+- `scan` text output now keeps a space between a long per-file name and its string count. Names of 24 characters or more used to run into the number (`game/very_long_script.rpy1`); short names are unchanged.
+
+### Unchanged
+
+- No contract change: the scan payload keys, the envelope, exit codes, the command table, the 13 error codes and the `yakusha/1` dictionary format stay the same.
+
 ## [0.44.0] - 2026-10-27
 
 ### Fixed
@@ -566,7 +576,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.44.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.45.0...HEAD
+[0.45.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.44.0...v0.45.0
 [0.44.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.43.0...v0.44.0
 [0.43.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.42.0...v0.43.0
 [0.42.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.41.0...v0.42.0

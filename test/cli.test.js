@@ -73,6 +73,18 @@ test("cli: scan reports the fixture and exits 0", () => {
   assert.equal(summary.perFile["CommonEvents.json"] > 0, true);
 });
 
+test("cli: scan keeps long file names apart from their counts", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "yakusha-cli-renpy-"));
+  const game = path.join(dir, "game");
+  fs.cpSync(path.join(HERE, "fixtures", "renpy-extract", "rpy"), game, { recursive: true });
+  const name = "very_long_script_name_that_exceeds_24.rpy";
+  fs.writeFileSync(path.join(game, "game", name), 'label start:\n    "Hello."\n    return\n', "utf8");
+
+  const result = run(["scan", game]);
+  assert.equal(result.code, 0, result.stderr);
+  assert.match(result.stdout, new RegExp("  game/" + name + " 1\\n"));
+});
+
 test("cli: extract writes a dictionary with empty targets", () => {
   const game = tempGame();
   assert.equal(run(["extract", game, "--json"]).code, 0);

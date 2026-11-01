@@ -212,7 +212,9 @@ async function commandScan(dir, sink) {
   const top = Object.entries(payload.perFile)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10);
-  for (const [file, count] of top) sink.out("  " + file.padEnd(24) + count);
+  // padEnd(24) alone glues the count to names that are 24 characters or
+  // longer; keep at least one space so the columns stay readable.
+  for (const [file, count] of top) sink.out("  " + file.padEnd(24) + (file.length >= 24 ? " " : "") + count);
   return { payload };
 }
 
