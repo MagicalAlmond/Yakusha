@@ -272,6 +272,15 @@ async function commandVerify(dir, flags, sink) {
       );
     }
   }
+  // The width check compares every line against --max-length, so asking for it
+  // without a limit could only ever produce an empty report. Reject the
+  // combination like a misspelt kind (0.19) instead of answering "problems: none".
+  if (kinds && kinds.includes("width") && !(maxColumns > 0)) {
+    throw new CliError(
+      "E_USAGE",
+      "verify --kind width needs --max-length <columns>: the width check has no limit to compare against"
+    );
+  }
   const result = verifyDictionary(data, { maxColumns, kinds, profile: adapter.profile });
   const shown = numberFlag(flags, "limit", 20);
   // An error makes the command fail, so a release script can gate on it

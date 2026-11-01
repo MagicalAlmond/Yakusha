@@ -433,6 +433,31 @@ test("cli: verify rejects an unknown --kind instead of filtering it away", () =>
   );
 });
 
+test("cli: verify --kind width without --max-length is a usage error", () => {
+  const game = tempGame();
+  assert.equal(run(["extract", game]).code, 0);
+  // Without a limit the width check has nothing to compare against, so the
+  // report could only ever be empty: reject the combination like 0.19
+  // rejects a misspelt kind instead of answering "problems: none".
+  const bare = run(["verify", game, "--kind", "width", "--json"]);
+  assert.equal(bare.code, 2);
+  const body = JSON.parse(bare.stdout);
+  assert.equal(body.ok, false);
+  assert.equal(body.outcome, "error");
+  assert.equal(body.error.code, "E_USAGE");
+  assert.match(body.error.message, /verify --kind width needs --max-length/);
+  // The guard also fires when width is only one of the requested kinds, and
+  // an explicit 0 is the same "off" value as omitting the flag.
+  const mixed = run(["verify", game, "--kind", "kana,width", "--json"]);
+  assert.equal(mixed.code, 2);
+  assert.equal(JSON.parse(mixed.stdout).error.code, "E_USAGE");
+  const zero = run(["verify", game, "--kind", "width", "--max-length", "0", "--json"]);
+  assert.equal(zero.code, 2);
+  // With a real limit the combination is valid and the run stays clean.
+  const ok = run(["verify", game, "--kind", "width", "--max-length", "5", "--json"]);
+  assert.equal(ok.code, 0, ok.stdout + ok.stderr);
+  assert.deepEqual(JSON.parse(ok.stdout).counts, {});
+});
 test("cli: verify needs a dictionary first", () => {
   const game = tempGame();
   const result = run(["verify", game]);

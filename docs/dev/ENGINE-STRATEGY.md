@@ -566,6 +566,7 @@ TextGrammar = {
 | 0.46 | RGSS `install --native --dry-run` 的 `state` 按真实安装预测（**已交付**） | — | 755 pass / 54 个文件；新增 1 条 rgss-adapter |
 | 0.47 | Kirikiri `scan` 的 `undecodable` 归档级错误不再重复归档名（**已交付**） | — | 755 pass / 54 个文件；强化 1 条 krkr-adapter 断言 |
 | 0.48 | `launch` 识别 `data/` 里的 nw.js 宿主目录，从 `data/` 的 `.exe` 启动 `data/www/` 项目（**已交付**） | — | 756 pass / 54 个文件；新增 1 条 launch |
+| 0.49 | `verify --kind width` 缺 `--max-length` 时改报 `E_USAGE`，不再静默给空报告（**已交付**） | — | 757 pass / 54 个文件；新增 1 条 cli |
 | 1.0 | 10 个引擎目标 + 能力矩阵 + 便携 exe | — | 每个引擎有 L4 证据；不达标的明确标 experimental |
 
 说明：

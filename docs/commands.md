@@ -1,6 +1,6 @@
 # 命令参考
 
-本文是 yakusha 0.48.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出；0.33 给 `verify` 增加了 SARIF 报告输出（`--report-format sarif`）；0.34 给 `export` 增加 JSONL 输出（`--format jsonl`），0.35 给 `verify` 增加 `--fail-on warning`（warning 也算发布失败），0.36 给 `verify` 增加 `--require-complete`（还有未译条目就失败），0.37 只修 markdown 报告表格里的 `|` 转义，0.38 只让 `verify` 的 problem 带出字典条目的 `locator`，0.39 修 `import --dry-run --create` 会落盘空字典的问题（dry-run 不写盘），0.40 让 `verify --write-report`、`speaker --write-names`、`terms --write` 拒绝把输出写到项目字典上（`E_EXISTS`、退出 2），0.41 只让 `terms` 识别 RGSS 的数据库名表（`.rvdata2` / `.rvdata` / `.rxdata`），0.42 让 `install --dry-run` 在 RPG Maker 插件层与 Ren'Py 译文文件层上真的不写盘（RGSS 的 `--native --dry-run` 0.18 起已如此），0.43 给 `uninstall` 增加 `--dry-run`（MZ/MV、Ren'Py、RGSS 四个引擎都只报告将要删除或还原的内容），0.44 只修 `launch` 在 MV 的 `www/` 布局下从上一层启动 `Game.exe`（项目根仍是 `www/`），0.45 只修 `scan` 文本模式的长文件名与计数间距（载荷不变），0.46 只修 RGSS `install --native --dry-run` 的 `state` 预测（首次安装报 `added`，不是 `unchanged`；不写盘），其余命令不变。
+本文是 yakusha 0.49.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出；0.33 给 `verify` 增加了 SARIF 报告输出（`--report-format sarif`）；0.34 给 `export` 增加 JSONL 输出（`--format jsonl`），0.35 给 `verify` 增加 `--fail-on warning`（warning 也算发布失败），0.36 给 `verify` 增加 `--require-complete`（还有未译条目就失败），0.37 只修 markdown 报告表格里的 `|` 转义，0.38 只让 `verify` 的 problem 带出字典条目的 `locator`，0.39 修 `import --dry-run --create` 会落盘空字典的问题（dry-run 不写盘），0.40 让 `verify --write-report`、`speaker --write-names`、`terms --write` 拒绝把输出写到项目字典上（`E_EXISTS`、退出 2），0.41 只让 `terms` 识别 RGSS 的数据库名表（`.rvdata2` / `.rvdata` / `.rxdata`），0.42 让 `install --dry-run` 在 RPG Maker 插件层与 Ren'Py 译文文件层上真的不写盘（RGSS 的 `--native --dry-run` 0.18 起已如此），0.43 给 `uninstall` 增加 `--dry-run`（MZ/MV、Ren'Py、RGSS 四个引擎都只报告将要删除或还原的内容），0.44 只修 `launch` 在 MV 的 `www/` 布局下从上一层启动 `Game.exe`（项目根仍是 `www/`），0.45 只修 `scan` 文本模式的长文件名与计数间距（载荷不变），0.46 只修 RGSS `install --native --dry-run` 的 `state` 预测（首次安装报 `added`，不是 `unchanged`；不写盘），0.49 只让 `verify --kind width` 在没给 `--max-length`（或给 0）时报用法错误（`E_USAGE`、退出 2），其余命令不变。
 
 **RGSS 在 0.18 起有了交付层。** `scan` / `extract` / `status` / `translate` / `verify` / `speaker` / `terms` / `export` / `import` 都能用；0.18 新增 `install --native`，把预编译的注入器与 hook DLL 装进 `yakusha/native/`，游戏启动时由注入器加载，译文从 `dictionary.txt` 读。`install` 不带 `--native` 仍报 `E_USAGE`（RGSS 没有插件交付层）。安装细节与限制见下文 [install 与 uninstall](#install-与-uninstall)。
 
@@ -73,7 +73,8 @@
 
 ```text
 --kind <list>       only report these kinds, comma separated; unknown names are a usage error
-                    (kana, echo, codes, slots, lines, width, no-text, trad, speaker, rejected)
+                    (kana, echo, codes, slots, lines, width, no-text, trad, speaker, rejected;
+                    width also needs --max-length)
 --max-length <cols> also report lines wider than n display columns
 --limit <n>         how many problems to print (default 20)
 --write-report <f>  write every finding as a report
@@ -490,13 +491,13 @@ RGSS 与 Ren'Py 都走这同一段代码，没有引擎特判：实测 RGSS 的 
 | `codes` | error | 译文里的控制码集合与原文不一致 |
 | `slots` | error | 译文里的占位符与原文不一致 |
 | `lines` | warn | `line breaks differ: N vs M` |
-| `width` | warn | `line is N columns, limit is M`，只在给了 `--max-length` 时启用 |
+| `width` | warn | `line is N columns, limit is M`，只在给了 `--max-length` 时启用；`--kind` 里点名 `width` 却没给（或给 0）是用法错误（0.49 起） |
 | `no-text` | warn | `no Han characters in the translation` |
 | `trad` | warn | `traditional characters: <chars>` |
 | `speaker` | error / warn | `speaker name left in Japanese: <name>`、`speaker name left untranslated: <name>`、`speaker name rendered as ... , elsewhere ...` |
 | `rejected` | warn | 模型拒答或被校验挡下的条目 |
 
-`echo`、`codes`、`slots`、`speaker` 是阻断级（error），其余只算警告。`--kind` 用逗号分隔可限流，取值必须来自上表这 10 个名字；写错名字按用法错误处理，报 `E_USAGE`、退出 2，消息形如 `unknown verify kind: bogus (expected one of: kana, echo, codes, slots, lines, width, no-text, trad, speaker, rejected)`，不会再静默过滤成空报告。`--kind` 传空串等同于不限制。默认只有 error 级问题让命令失败；`--fail-on warning` 让 warning 也算失败，见下一节。
+`echo`、`codes`、`slots`、`speaker` 是阻断级（error），其余只算警告。`--kind` 用逗号分隔可限流，取值必须来自上表这 10 个名字；写错名字按用法错误处理，报 `E_USAGE`、退出 2，消息形如 `unknown verify kind: bogus (expected one of: kana, echo, codes, slots, lines, width, no-text, trad, speaker, rejected)`，不会再静默过滤成空报告。`--kind` 传空串等同于不限制。`--kind` 点名 `width` 时必须同时给 `--max-length`（0.49 起）：宽度判据没有上限就没有可比对象，结果只会是空报告，所以按 0.19 对未知 kind 的同一口径报 `E_USAGE`、退出 2，消息形如 `verify --kind width needs --max-length <columns>: the width check has no limit to compare against`；`--kind kana,width` 这种混合列表同样受此约束，显式 `--max-length 0` 也算没给。默认只有 error 级问题让命令失败；`--fail-on warning` 让 warning 也算失败，见下一节。
 
 实测（mock 翻译后的夹具）：32 条已译文本上有 20 条 kana 警告；把一条译文改成与原文相同后变成 21 条、`counts: {"kana": 20, "echo": 1}`，`outcome` 变 `findings`、退出 1：
 
