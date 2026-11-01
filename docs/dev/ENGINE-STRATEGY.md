@@ -568,6 +568,7 @@ TextGrammar = {
 | 0.48 | `launch` 识别 `data/` 里的 nw.js 宿主目录，从 `data/` 的 `.exe` 启动 `data/www/` 项目（**已交付**） | — | 756 pass / 54 个文件；新增 1 条 launch |
 | 0.49 | `verify --kind width` 缺 `--max-length` 时改报 `E_USAGE`，不再静默给空报告（**已交付**） | — | 757 pass / 54 个文件；新增 1 条 cli |
 | 0.50 | `install --embed` 在非 RPG Maker 引擎上报 `E_USAGE`，`--embed` 只在插件层读字典（**已交付**） | — | 759 pass / 54 个文件；新增 2 条 cli |
+| 0.51 | 空字符串的选项值改报 `E_USAGE`，不再被当成当前目录去写（**已交付**） | — | 760 pass / 54 个文件；新增 1 条 cli |
 | 1.0 | 10 个引擎目标 + 能力矩阵 + 便携 exe | — | 每个引擎有 L4 证据；不达标的明确标 experimental |
 
 说明：

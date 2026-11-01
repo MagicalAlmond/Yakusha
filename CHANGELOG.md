@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.51.0] - 2026-10-27
+
+### Fixed
+
+- An option value that arrives as an empty string is now a usage error. `verify --write-report ""`, `speaker --write-names ""` and `terms --write ""` used to resolve the empty path to the current directory and fail with `E_IO` (`cannot write report file: <cwd> (EPERM)`), which reported a filesystem problem for what was really a missing argument; `export --out ""` and `import --from ""` already answered `E_USAGE`. All value options now raise `E_USAGE` (`option --<name> requires a value`, exit 2), matching the long-standing behaviour of the inline `--flag=` form. Leaving an option out entirely is unchanged.
+
+### Unchanged
+
+- No breaking change: the envelope, exit codes, command table, the 13 error codes and the `yakusha/1` dictionary format are identical to 0.50.0.
+
 ## [0.50.0] - 2026-10-27
 
 ### Fixed
@@ -625,7 +635,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.50.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.51.0...HEAD
+[0.51.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.50.0...v0.51.0
 [0.50.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.49.0...v0.50.0
 [0.49.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.48.0...v0.49.0
 [0.48.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.47.0...v0.48.0

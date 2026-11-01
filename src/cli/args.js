@@ -201,9 +201,10 @@ export function parseArgs(argv) {
         continue;
       }
       const next = argv[i + 1];
-      // A value may not be omitted or be another option. This is what turns
-      // "yakusha translate game --limit" from a silent no-op into a usage error.
-      if (next === undefined || next === "--" || next.startsWith("--")) {
+      // A value may not be omitted, empty, or another option. This is what turns
+      // "yakusha translate game --limit" from a silent no-op into a usage error,
+      // and what keeps "--write-report \"\"" from resolving to the current directory.
+      if (next === undefined || next === "" || next === "--" || next.startsWith("--")) {
         throw usageError("option --" + name + " requires a value");
       }
       setFlag(flags, name, next);

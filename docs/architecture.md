@@ -298,6 +298,7 @@ test/fixtures/           各引擎最小夹具（mini-mz、mini-mv、renpy-*、r
 | 0.48.0 | **已交付**：`launch` 识别 `data/` 里的 nw.js 宿主（`package.json` + nw.js 运行时文件）——项目根仍是 `data/www/`，启动器与工作目录取 `data/` 里的 `.exe`；无清单的浏览器构建不变 | 756 pass / 0 fail（新增 1 条 launch） |
 | 0.49.0 | **已交付**：`verify --kind width` 没给 `--max-length` 时报 `E_USAGE`（与 0.19 的未知 kind 同口径），不再静默返回空报告 | 757 pass / 0 fail（新增 1 条 cli） |
 | 0.50.0 | **已交付**：`install --embed` 在非 RPG Maker 引擎上报 `E_USAGE`（Ren'Py 此前静默忽略、Kirikiri 被字典检查盖住、RGSS 直接给交付层提示）；`--embed` 只在插件层读字典 | 759 pass / 0 fail（新增 2 条 cli） |
+| 0.51.0 | **已交付**：空字符串的选项值算缺值——`verify --write-report ""`、`speaker --write-names ""`、`terms --write ""` 从「被当成当前目录去写、报 `E_IO`」改为 `E_USAGE`，与既有的 `--flag=` 形式一致，所有取值选项统一 | 760 pass / 0 fail（新增 1 条 cli） |
 | 1.0.0 | 10 个引擎 + 能力矩阵 + 便携 exe（图标、无控制台、最近游戏） | 双击 exe 可用 |
 
 ## 10. 风险

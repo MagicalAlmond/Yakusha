@@ -280,6 +280,22 @@ test("cli: a directory that is not a game fails politely", () => {
   assert.match(result.stderr, /not an RPG Maker project/);
 });
 
+test("cli: an empty option value is a usage error, not a path into the cwd", () => {
+  const game = tempGame();
+  assert.equal(run(["extract", game]).code, 0);
+  // "" resolves to the current directory, so a lenient parser would try to
+  // write a report over a folder and report E_IO instead of the real mistake.
+  const result = run(["verify", game, "--write-report", "", "--json"]);
+  assert.equal(result.code, 2);
+  const body = JSON.parse(result.stdout);
+  assert.equal(body.error.code, "E_USAGE");
+  assert.match(body.error.message, /option --write-report requires a value/);
+
+  const inline = run(["verify", game, "--write-report=", "--json"]);
+  assert.equal(inline.code, 2);
+  assert.equal(JSON.parse(inline.stdout).error.code, "E_USAGE");
+});
+
 test("cli: a game nested in a subfolder is found from the parent", () => {
   const outer = fs.mkdtempSync(path.join(os.tmpdir(), "yakusha-outer-"));
   const inner = path.join(outer, "the game");
