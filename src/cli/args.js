@@ -90,7 +90,7 @@ const COMMAND_OPTIONS = {
   export: ["out", "format", "flat", "force"],
   import: ["from", "format", "strategy", "dry-run", "create"],
   launch: ["exe"],
-  uninstall: [],
+  uninstall: ["dry-run"],
   install: ["embed", "native", "dry-run"],
   doctor: ["max-length"],
   translate: [

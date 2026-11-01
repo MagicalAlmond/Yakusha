@@ -106,6 +106,27 @@ test("uninstall restores plugins.js byte for byte", () => {
   assert.equal(fs.existsSync(project.pluginsFile + ".yakusha-backup"), false);
 });
 
+test("uninstall --dry-run predicts the restore without touching anything", () => {
+  const root = sandbox();
+  const project = openProject(root);
+  const before = fs.readFileSync(project.pluginsFile, "utf8");
+  installPlugin(project);
+  const installed = fs.readFileSync(project.pluginsFile, "utf8");
+  const pluginPath = path.join(project.pluginDir, PLUGIN_FILE);
+
+  const result = uninstallPlugin(project, { dryRun: true });
+  assert.equal(result.removed, true);
+  assert.equal(result.restored, true);
+  assert.equal(result.dryRun, true);
+  assert.equal(fs.existsSync(pluginPath), true);
+  assert.equal(fs.readFileSync(project.pluginsFile, "utf8"), installed);
+  assert.equal(fs.existsSync(project.pluginsFile + ".yakusha-backup"), true);
+  assert.notEqual(installed, before);
+  // The real uninstall still works afterwards.
+  assert.equal(uninstallPlugin(project).restored, true);
+  assert.equal(fs.readFileSync(project.pluginsFile, "utf8"), before);
+});
+
 test("uninstall on a clean game is a no-op", () => {
   const root = sandbox();
   const project = openProject(root);

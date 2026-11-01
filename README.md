@@ -143,9 +143,9 @@ node bin/yakusha.js uninstall "/games/MyGame"   # 摘掉插件那一行并还原
 **不会**拿旧备份盖掉这些改动，只摘掉自己那条、把备份留在原地给你核对。
 细节见 [docs/design.md](docs/design.md)。
 
-三个能装的引擎都支持 `--dry-run`：只算不写，屏幕上多一行 `dry run   : nothing written`。
+三个能装的引擎都支持 `install --dry-run`：只算不写，屏幕上多一行 `dry run   : nothing written`。
 插件层与 Ren'Py 层从 0.42 起也严格如此（不再创建插件、备份或译文文件）；Kirikiri 仍然直接报
-`E_NOT_IMPLEMENTED`。
+`E_NOT_IMPLEMENTED`。`uninstall --dry-run`（0.43 起）同样只报告将要删除或还原的内容，不碰磁盘。
 
 **Ren'Py** 只写一个文件：`game/yakusha_translation.rpy`。它内含 `translate schinese strings:`
 块，每条把字典里的原文映射到译文；游戏自己的脚本、`options.rpy` 一个字节都不改。

@@ -195,9 +195,12 @@ export function installPlugin(project, options = {}) {
  * this removes only our entry and leaves the backup on disk for review.
  *
  * @param {import("./mzproject.js").Project} project
- * @returns {{ removed: boolean, restored: boolean, backupPath: string|null, drifted: boolean, keptBackup: string|null }}
+ * @param {{ dryRun?: boolean }} [options] when dryRun is true the removal is
+ *   predicted but nothing on disk is deleted, written or restored
+ * @returns {{ removed: boolean, restored: boolean, backupPath: string|null, drifted: boolean, keptBackup: string|null, dryRun?: true }}
  */
-export function uninstallPlugin(project) {
+export function uninstallPlugin(project, options = {}) {
+  const dryRun = options.dryRun === true;
   const backupPath = project.pluginsFile + BACKUP_SUFFIX;
   const pluginPath = path.join(project.pluginDir, PLUGIN_FILE);
   assertInsideRoot(project, project.pluginsFile);
@@ -206,7 +209,7 @@ export function uninstallPlugin(project) {
   let removed = false;
 
   if (fs.existsSync(pluginPath)) {
-    fs.rmSync(pluginPath);
+    if (!dryRun) fs.rmSync(pluginPath);
     removed = true;
   }
 
@@ -214,8 +217,8 @@ export function uninstallPlugin(project) {
   const layout = pluginsJsLayout(current);
   const plugins = parsePluginsJs(current).plugins;
   if (removePlugin(plugins, PLUGIN_NAME)) {
-    writeFileAtomic(project.pluginsFile, serialisePluginsJs(plugins, layout));
     removed = true;
+    if (!dryRun) writeFileAtomic(project.pluginsFile, serialisePluginsJs(plugins, layout));
   }
 
   let restored = false;
@@ -227,13 +230,17 @@ export function uninstallPlugin(project) {
     if (drifted) {
       keptBackup = backupPath;
     } else {
-      copyFileAtomic(backupPath, project.pluginsFile);
-      fs.rmSync(backupPath);
       restored = true;
+      if (!dryRun) {
+        copyFileAtomic(backupPath, project.pluginsFile);
+        fs.rmSync(backupPath);
+      }
     }
   }
 
-  return { removed, restored, backupPath: restored ? backupPath : null, drifted, keptBackup };
+  const result = { removed, restored, backupPath: restored ? backupPath : null, drifted, keptBackup };
+  if (dryRun) result.dryRun = true;
+  return result;
 }
 
 /**

@@ -236,7 +236,8 @@ export function installRuntime(project, options = {}) {
  * Remove the runtime plugin and, when safe, restore plugins.js.
  *
  * @param {import("../core/mzproject.js").Project} project
+ * @param {{ dryRun?: boolean }} [options]
  */
-export function uninstallRuntime(project) {
-  return uninstallPlugin(project);
+export function uninstallRuntime(project, options = {}) {
+  return uninstallPlugin(project, options);
 }

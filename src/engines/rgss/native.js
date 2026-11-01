@@ -351,14 +351,17 @@ export function installNative(project, options = {}) {
  * by accident.
  *
  * @param {{ root: string }} project
- * @returns {{ dir: string, removed: boolean }}
+ * @param {{ dryRun?: boolean }} [options] when dryRun is true the removal is
+ *   predicted but the directory is left on disk
+ * @returns {{ dir: string, removed: boolean, dryRun?: true }}
  */
-export function uninstallNative(project) {
+export function uninstallNative(project, options = {}) {
   const dir = nativeDir(project);
   if (!fs.existsSync(dir)) return { dir, removed: false };
   assertInsideRoot(project, dir);
   assertInsideRoot(project, path.join(dir, MANIFEST_FILE));
   readManifest(dir);
+  if (options.dryRun === true) return { dir, removed: true, dryRun: true };
   fs.rmSync(dir, { recursive: true, force: true });
   return { dir, removed: true };
 }

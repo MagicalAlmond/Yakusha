@@ -342,6 +342,24 @@ test("uninstall: removes the native directory only when the manifest is ours", (
   assert.equal(fs.existsSync(path.join(root, "yakusha", "native", "stray.txt")), true);
 });
 
+test("uninstall: --native --dry-run reports the removal without deleting", () => {
+  const { root, project, adapter } = projectFor();
+  translateAll(project, adapter);
+  const assets = nativeAssets();
+  adapter.installRuntime(project, { native: true, assetsDir: assets.dir });
+  const dir = path.join(root, "yakusha", "native");
+  const before = fs.readdirSync(dir).sort();
+
+  const result = adapter.uninstallRuntime(project, { dryRun: true });
+  assert.equal(result.removed, true);
+  assert.equal(result.native.removed, true);
+  assert.equal(fs.existsSync(dir), true);
+  assert.deepEqual(fs.readdirSync(dir).sort(), before);
+  // The real uninstall still removes it.
+  assert.equal(adapter.uninstallRuntime(project).removed, true);
+  assert.equal(fs.existsSync(dir), false);
+});
+
 test("install: a native directory that is a junction outside the project is refused", (t) => {
   const { root, project, adapter } = projectFor();
   translateAll(project, adapter);

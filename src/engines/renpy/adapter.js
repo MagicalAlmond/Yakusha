@@ -238,9 +238,10 @@ export const adapter = {
    * is a single removal and a second run reports `removed: false`.
    *
    * @param {{ root: string, gameDir: string }} project
+   * @param {{ dryRun?: boolean }} [options]
    */
-  uninstallRuntime(project) {
-    const result = uninstallTranslation(project);
+  uninstallRuntime(project, options = {}) {
+    const result = uninstallTranslation(project, options);
     return {
       removed: result.removed,
       restored: false,

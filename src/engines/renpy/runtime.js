@@ -360,12 +360,15 @@ export function installTranslation(project, pairs, options = {}) {
  * removed:false.
  *
  * @param {{ root: string, gameDir: string }} project
- * @returns {{ path: string, removed: boolean }}
+ * @param {{ dryRun?: boolean }} [options] when dryRun is true the removal is
+ *   predicted but the file is left on disk
+ * @returns {{ path: string, removed: boolean, dryRun?: true }}
  */
-export function uninstallTranslation(project) {
+export function uninstallTranslation(project, options = {}) {
   const target = translationPath(project);
   assertInsideRoot(project, target);
   if (!fs.existsSync(target)) return { path: target, removed: false };
+  if (options.dryRun === true) return { path: target, removed: true, dryRun: true };
   try {
     fs.rmSync(target);
   } catch (error) {

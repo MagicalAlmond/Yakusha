@@ -842,11 +842,13 @@ async function commandInstall(dir, flags, sink) {
  * Remove the runtime plugin (or the engine's translation file).
  *
  * @param {string|undefined} dir
+ * @param {Record<string, unknown>} flags
  * @param {{ out(line: string): void }} sink
  */
-async function commandUninstall(dir, sink) {
+async function commandUninstall(dir, flags, sink) {
+  const dryRun = flags["dry-run"] === true;
   const { project, adapter } = requireProject(dir);
-  const result = await pluginStep(() => adapter.uninstallRuntime(project));
+  const result = await pluginStep(() => adapter.uninstallRuntime(project, { dryRun }));
   if (result.native) {
     sink.out(result.removed ? "native components removed" : "the native components are not installed");
   } else if (adapter.capabilities && adapter.capabilities.runtime === "translation") {
@@ -860,6 +862,7 @@ async function commandUninstall(dir, sink) {
       sink.out("backup kept : " + result.keptBackup);
     }
   }
+  if (dryRun) sink.out("dry run   : nothing written");
   const payload = {
     removed: result.removed,
     restored: result.restored,
@@ -1247,7 +1250,7 @@ const commands = {
   terms: (dir, flags, sink) => commandTerms(dir, flags, sink),
   translate: (dir, flags, sink, onProgress, opts) => commandTranslate(dir, flags, sink, onProgress, opts),
   install: (dir, flags, sink) => commandInstall(dir, flags, sink),
-  uninstall: (dir, flags, sink) => commandUninstall(dir, sink),
+  uninstall: (dir, flags, sink) => commandUninstall(dir, flags, sink),
   export: (dir, flags, sink) => commandExport(dir, flags, sink),
   import: (dir, flags, sink) => commandImport(dir, flags, sink),
   launch: (dir, flags, sink) => commandLaunch(dir, flags, sink),

@@ -192,6 +192,29 @@ test("cli: install --dry-run writes nothing on the plugin tier", () => {
   assert.deepEqual(fs.readFileSync(plugins), before);
 });
 
+test("cli: uninstall --dry-run reports the plan and leaves the install alone", () => {
+  const game = tempGame();
+  assert.equal(run(["install", game]).code, 0);
+  const plugins = path.join(game, "js", "plugins.js");
+  const plugin = path.join(game, "js", "plugins", "YAKUSHA_Translator.js");
+  const installed = fs.readFileSync(plugins);
+  const backup = plugins + ".yakusha-backup";
+
+  const result = run(["uninstall", game, "--dry-run"]);
+  assert.equal(result.code, 0, result.stderr);
+  assert.match(result.stdout, /plugin removed/);
+  assert.match(result.stdout, /plugins\.js restored from backup/);
+  assert.match(result.stdout, /dry run   : nothing written/);
+  assert.equal(fs.existsSync(plugin), true);
+  assert.equal(fs.existsSync(backup), true);
+  assert.deepEqual(fs.readFileSync(plugins), installed);
+
+  const real = run(["uninstall", game, "--json"]);
+  assert.equal(real.code, 0, real.stderr);
+  assert.equal(JSON.parse(real.stdout).removed, true);
+  assert.equal(fs.existsSync(plugin), false);
+});
+
 test("cli: install --embed writes the translations into the plugin file", () => {
   const game = tempGame();
   assert.equal(run(["extract", game]).code, 0);

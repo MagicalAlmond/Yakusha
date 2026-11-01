@@ -355,6 +355,22 @@ test("uninstallTranslation removes the file and is idempotent", () => {
   assert.deepEqual(uninstallTranslation(project(dir)), { path: target, removed: false });
 });
 
+test("uninstallTranslation --dry-run leaves the file in place", () => {
+  const dir = sandbox();
+  const target = path.join(dir.gameDir, TRANSLATION_FILE);
+  installTranslation(project(dir), [["a", "b"]]);
+  const before = fs.readFileSync(target, "utf8");
+
+  const result = uninstallTranslation(project(dir), { dryRun: true });
+  assert.equal(result.removed, true);
+  assert.equal(result.dryRun, true);
+  assert.equal(fs.existsSync(target), true);
+  assert.equal(fs.readFileSync(target, "utf8"), before);
+  // A dry run on an absent file still reports that nothing is installed.
+  uninstallTranslation(project(dir));
+  assert.equal(uninstallTranslation(project(dir), { dryRun: true }).removed, false);
+});
+
 test("uninstallTranslation restores the game to its original bytes", () => {
   const dir = sandbox();
   const script = path.join(dir.gameDir, "script.rpy");

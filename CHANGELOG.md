@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.43.0] - 2026-10-27
+
+### Added
+
+- `uninstall --dry-run` previews the removal on every delivery tier: RPG Maker MZ/MV report the plugin and the `js/plugins.js` restore that would happen, Ren'Py reports the translation file, and RGSS `--native` reports the native directory. Nothing is deleted, written or restored, and the output ends with `dry run   : nothing written`.
+
+### Unchanged
+
+- No contract change: every uninstall payload key, the envelope, exit codes, the command table, the 13 error codes and the `yakusha/1` dictionary format stay the same.
+
 ## [0.42.0] - 2026-10-27
 
 ### Fixed
@@ -546,7 +556,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.42.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.43.0...HEAD
+[0.43.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.42.0...v0.43.0
 [0.42.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.41.0...v0.42.0
 [0.41.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.40.0...v0.41.0
 [0.40.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.39.0...v0.40.0

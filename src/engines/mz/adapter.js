@@ -51,8 +51,8 @@ export const adapter = {
     return installRuntimeCore(project, options);
   },
 
-  uninstallRuntime(project) {
-    return uninstallRuntimeCore(project);
+  uninstallRuntime(project, options = {}) {
+    return uninstallRuntimeCore(project, options);
   },
 
   launch(project, options = {}) {

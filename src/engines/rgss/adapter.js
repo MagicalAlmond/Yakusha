@@ -256,9 +256,10 @@ export const adapter = {
 
   /**
    * @param {import("../../core/mzproject.js").Project} project
+   * @param {{ dryRun?: boolean }} [options]
    * @returns {{ removed: boolean, restored: false, backupPath: null, drifted: false, keptBackup: null, native: object }}
    */
-  uninstallRuntime(project) {
+  uninstallRuntime(project, options = {}) {
     const state = nativeStatus(project);
     if (!fs.existsSync(state.dir)) {
       return { removed: false, restored: false, backupPath: null, drifted: false, keptBackup: null, native: { dir: state.dir, removed: false } };
@@ -266,7 +267,7 @@ export const adapter = {
     // The directory exists: let uninstallNative check the manifest. A directory
     // without our manifest is not ours to delete, and saying "not installed"
     // would leave a broken half-install behind silently.
-    const result = uninstallNative(project);
+    const result = uninstallNative(project, options);
     return { removed: result.removed, restored: false, backupPath: null, drifted: false, keptBackup: null, native: { dir: result.dir, removed: result.removed } };
   },
 
