@@ -305,6 +305,7 @@ test/fixtures/           各引擎最小夹具（mini-mz、mini-mv、renpy-*、r
 | 0.55.0 | **已交付**：Kirikiri KS 抽取恢复前置标签行的可见文本（宏引用对白 `[「]text」`），行内标签扫描感知引号属性（真实样本唯一串 5,231→9,941） | 771 pass / 0 fail（krkr-ks +1、krkr-extract +1） |
 | 0.56.0 | **已交付**：渲染层契约测试补齐拖放（`pathForFile`）、目录选择、取消转发与进度/警告接线（stub DOM，无窗口）；无产品代码改动 | 778 pass / 0 fail（gui-renderer +7） |
 | 0.57.0 | **已交付**：GUI 主进程两条接缝缺陷修复——取消信号从未传进 runner（`gui:cancel`/窗口关闭空转）、「记住密钥」撞 `const flags` 崩溃；新增 `test/gui-main.test.js` 主进程 stub-Electron 契约测试（16 条） | 794 pass / 0 fail（gui-main +16） |
+| 0.58.0 | **已交付**：preload 桥契约测试（`test/gui-preload.test.js` 11 条：暴露面、命令表与 handlers 白名单及 index.html 按钮三方一致、逐方法 IPC 通道与请求形状、可取消订阅）；无产品代码改动 | 805 pass / 0 fail（gui-preload +11） |
 | 1.0.0 | 10 个引擎 + 能力矩阵 + 便携 exe（图标、无控制台、最近游戏） | 双击 exe 可用 |
 
 ## 10. 风险

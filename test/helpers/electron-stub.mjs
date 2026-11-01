@@ -1,4 +1,5 @@
-// Shared-state stub of the electron API surface gui/main.js uses.
+// Shared-state stub of the electron API surface gui/main.js and
+// gui/preload.js use.
 // The contract tests import this module directly AND the module hook
 // resolves the bare "electron" specifier to the same URL, so both see
 // one mutable state object.
@@ -68,6 +69,13 @@ const state = {
   windows: [],
   dialogResult: { canceled: false, filePaths: [] },
   dialogCalls: [],
+  bridges: [],
+  rendererInvokes: [],
+  rendererListeners: new Map(),
+  rendererReplies: new Map(),
+  invokeReply: null,
+  pathForCalls: [],
+  pathForReply: "D:/games/demo",
 };
 
 export const app = {
@@ -110,6 +118,38 @@ export const ipcMain = {
   },
 };
 
+export const contextBridge = {
+  exposeInMainWorld(world, api) {
+    state.bridges.push({ world, api });
+  },
+};
+
+export const ipcRenderer = {
+  invoke(channel, ...args) {
+    state.rendererInvokes.push([channel, ...args]);
+    const reply = state.rendererReplies.has(channel)
+      ? state.rendererReplies.get(channel)
+      : state.invokeReply;
+    return Promise.resolve(reply);
+  },
+  on(channel, listener) {
+    if (!state.rendererListeners.has(channel)) state.rendererListeners.set(channel, []);
+    state.rendererListeners.get(channel).push(listener);
+  },
+  removeListener(channel, listener) {
+    const list = state.rendererListeners.get(channel) || [];
+    const at = list.indexOf(listener);
+    if (at >= 0) list.splice(at, 1);
+  },
+};
+
+export const webUtils = {
+  getPathForFile(file) {
+    state.pathForCalls.push(file);
+    return state.pathForReply;
+  },
+};
+
 export const dialog = {
   async showOpenDialog(win, opts) {
     state.dialogCalls.push(opts);
@@ -134,6 +174,13 @@ export function __reset(overrides = {}) {
   state.windows = [];
   state.dialogResult = { canceled: false, filePaths: [] };
   state.dialogCalls = [];
+  state.bridges = [];
+  state.rendererInvokes = [];
+  state.rendererListeners = new Map();
+  state.rendererReplies = new Map();
+  state.invokeReply = null;
+  state.pathForCalls = [];
+  state.pathForReply = "D:/games/demo";
   Object.assign(state, overrides);
 }
 

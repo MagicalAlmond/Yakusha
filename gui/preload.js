@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld(WORLD, {
    * @param {string[]} args positionals (the game directory, or config words)
    * @param {Record<string, unknown>} [flags] command options as parsed by the CLI
    * @param {number} [runId] caller-chosen id used to match progress events
+   * @param {boolean} [useStoredKey] inject the remembered key inside the main process
    * @returns {Promise<object>} envelope (schema/command/ok/outcome/error + payload)
    */
   run: (command, args, flags, runId, useStoredKey) =>

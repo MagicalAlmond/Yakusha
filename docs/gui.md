@@ -1,6 +1,6 @@
 # GUI 设计与用户流程（Electron 外壳，0.14）
 
-> 状态：0.14 已交付最小外壳（`gui/main.js` + `preload.js` + `renderer/`，含原生目录选择、export/import/speaker/terms/config/launch 按钮、「记住密钥」（safeStorage，见 §5）、最小字典编辑器（见 §3 字典编辑分区）），长任务接口（进度事件 + 取消）随 0.14 的 runner seam 落地；0.16 起按钮可用性按 §3 的规则由 `capabilities` 驱动（`scan` 载荷新增 `capabilities`，不支持交付层的引擎灰掉 install/uninstall 并写明原因；0.18 起 RGSS 的注入交付层落地，install/uninstall 对 RGSS 自动带 `--native`，不再灰）；本文其余部分仍是演进的设计稿（完整字典编辑界面未做——已交付的是 §3 描述的最小逐条编辑器）。0.20 起渲染层另有 `test/gui-renderer.test.js` 的 stub-DOM 契约测试（7 条），并在每次扫描开始时清空上一个引擎的能力位；0.57 起主进程另有 `test/gui-main.test.js` 的 stub-Electron 契约测试（16 条），该轮修复两条主进程接缝缺陷（取消信号从未传进 runner、「记住密钥」撞 `const` 崩溃，见 §6/§9）。
+> 状态：0.14 已交付最小外壳（`gui/main.js` + `preload.js` + `renderer/`，含原生目录选择、export/import/speaker/terms/config/launch 按钮、「记住密钥」（safeStorage，见 §5）、最小字典编辑器（见 §3 字典编辑分区）），长任务接口（进度事件 + 取消）随 0.14 的 runner seam 落地；0.16 起按钮可用性按 §3 的规则由 `capabilities` 驱动（`scan` 载荷新增 `capabilities`，不支持交付层的引擎灰掉 install/uninstall 并写明原因；0.18 起 RGSS 的注入交付层落地，install/uninstall 对 RGSS 自动带 `--native`，不再灰）；本文其余部分仍是演进的设计稿（完整字典编辑界面未做——已交付的是 §3 描述的最小逐条编辑器）。0.20 起渲染层另有 `test/gui-renderer.test.js` 的 stub-DOM 契约测试（7 条），并在每次扫描开始时清空上一个引擎的能力位；0.57 起主进程另有 `test/gui-main.test.js` 的 stub-Electron 契约测试（16 条），该轮修复两条主进程接缝缺陷（取消信号从未传进 runner、「记住密钥」撞 `const` 崩溃，见 §6/§9）；0.58 起 preload 桥也有 `test/gui-preload.test.js`（11 条），钉死三方一致（桥 ↔ handlers 白名单 ↔ index.html 按钮）。
 
 ## 1. 定位与边界
 
@@ -158,6 +158,7 @@ GUI 永远不做以下事情（与 [limitations.md](limitations.md) 的工具边
 - [ ] MZ/MV + Ren'Py + RGSS 三条链路都能从 GUI 一键跑通（ENGINE-STRATEGY §6.3 的 0.14 验收）。（`test/gui-e2e.test.js` 已按 GUI 的调用缝 `runGuiCommand` 把三条链路的完整命令序列各走通一遍（RGSS 走 `install --native`）；剩下的未验部分只有 Electron 窗口本身的点击与渲染。0.16 复查：在本机自动化会话里实测，`gui/main.js` 能被 Electron 37.2.3 加载、`BrowserWindow` 能创建（隐藏窗口冒烟 exit 0），但 Chromium 的单实例锁在自动化会话派生的进程令牌下无法创建（`process_singleton_win.cc:454 Lock file can not be created! Error code: 5`，与 user-data-dir 无关），应用按设计退出——窗口交互走查需要在正常桌面会话里双击启动，不是 headless 限制，是本会话进程令牌的限制）
 - [x] 渲染层的扫描状态、能力灰显、字典编辑与密钥输入有 stub-DOM 契约测试（0.20 起 `test/gui-renderer.test.js`；0.56 起补齐拖放（`pathForFile`）、目录选择、取消转发与进度/警告接线，共 14 条；真机窗口交互仍在上一行的范围内）。
 - [x] 主进程（`gui/main.js`）有 stub-Electron 契约测试（0.57 起 `test/gui-main.test.js`，16 条：单实例锁、IPC 白名单、窗口安全参数、取消真达 runner、凭据/字典/目录选择通道）——随测试修复取消断链与「记住密钥」撞 `const` 崩溃两条接缝缺陷。
+- [x] preload 桥有 stub-Electron 契约测试（0.58 起 `test/gui-preload.test.js`，11 条：暴露面、命令表与 handlers 白名单及 index.html 按钮三方一致、逐方法的 IPC 通道与请求形状、可取消的进度订阅）。
 
 ## 相关文档
 
