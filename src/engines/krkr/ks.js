@@ -2,9 +2,12 @@
  * KAG scenario (.ks) text extraction.
  *
  * A .ks file is line-oriented: comment lines start with `;`, labels with `*`,
- * everything else is either tags only (`[...]`) or a text line with optional
- * inline tags. The extractor keeps plain text lines (tags stripped), tracks
- * the most recent `[name_set name='...']` speaker, and records line numbers.
+ * and everything else is either a tag line (leading `[` or the `@` one-line
+ * form) or a text line with optional inline tags. The extractor keeps plain
+ * text lines (tags stripped), tracks the most recent `[name_set name='...']`
+ * speaker, records line numbers, and skips the TJS code between `[iscript]`
+ * and `[endscript]` - code lines are executed by the engine, never shown as
+ * dialogue.
  *
  * @module engines/krkr/ks
  */
@@ -46,7 +49,8 @@ export function decodeKs(buffer) {
  * The kind decides whether the line can hold strings: only "text" lines are
  * collected, so the boundaries matter. A semicolon starts a comment only at
  * the start of the line - inside a line it is an ordinary character - and an
- * unclosed bracket stays text.
+ * unclosed bracket stays text. The `@` prefix is the one-line spelling of a
+ * tag, so `@wait ...` is a tag line just like `[wait ...]`.
  *
  * @param {string} rawLine the line as read
  * @returns {"blank"|"comment"|"label"|"tags"|"text"}
@@ -57,7 +61,7 @@ export function classifyLine(rawLine) {
   if (line.startsWith(";")) return "comment";
   if (line.startsWith("*")) return "label";
   const first = line[0];
-  if (first === "[") return "tags";
+  if (first === "[" || first === "@") return "tags";
   return "text";
 }
 
@@ -93,8 +97,10 @@ export function stripInlineTags(line) {
   return { text, tags };
 }
 /**
- * Read a `[name_set name='...']` (double or single quotes) speaker value.
- * @param {string} tagBody content between the brackets
+ * Read a `[name_set name='...']` or `@name_set name='...'` (double or
+ * single quotes) speaker value from the bare tag body.
+ * @param {string} tagBody content between the brackets, without the leading
+ *   bracket or `@` and without the trailing bracket
  * @returns {string | null}
  */
 function nameSetValue(tagBody) {
@@ -106,10 +112,30 @@ function nameSetValue(tagBody) {
 }
 
 /**
+ * Read the first tag name from a tag line, case-insensitively.
+ *
+ * `[iscript]`, `[endscript]` and their `@iscript` / `@endscript` one-line
+ * spellings all reduce to the bare name so the block tracking in
+ * collectKsStrings can compare them.
+ *
+ * @param {string} rawLine the line as read
+ * @returns {string} the tag name in lower case, or "" when there is none
+ */
+function tagName(rawLine) {
+  const body = rawLine.trim().replace(/^\[/, "").replace(/^@/, "");
+  const match = body.match(/^[A-Za-z_][A-Za-z0-9_]*/);
+  return match ? match[0].toLowerCase() : "";
+}
+
+/**
  * Collect translatable strings from one decoded .ks source.
  *
  * A collected unit is one text line with inline tags stripped. Line numbers
- * are 1-based and refer to the decoded text (one line per `\n`).
+ * are 1-based and refer to the decoded text (one line per `\n`). The TJS
+ * code between `[iscript]` and `[endscript]` (either bracket or `@`
+ * spelling) is skipped: those lines run as code and never render as
+ * dialogue, so collecting them would only put comments and statements into
+ * the dictionary. The speaker keeps its value across a script block.
  *
  * @param {string} source decoded file text
  * @param {string} file relative path for messages (unused in units, kept for parity)
@@ -121,18 +147,30 @@ export function collectKsStrings(source, file) {
   const strings = [];
   const names = [];
   let speaker = null;
+  let inScript = false;
   for (let i = 0; i < lines.length; i += 1) {
     const kind = classifyLine(lines[i]);
+    if (inScript) {
+      // Inside [iscript] every line is TJS the engine executes. KAG reads
+      // the closing [endscript] from its own line, and so do we: an
+      // unterminated block runs to the end of the file.
+      if (kind === "tags" && tagName(lines[i]) === "endscript") inScript = false;
+      continue;
+    }
     if (kind === "comment" || kind === "blank" || kind === "label") continue;
     if (kind === "tags") {
-      // Tag-only lines may still carry the speaker declaration.
-      const inner = lines[i].trim().replace(/^\[/, "").replace(/\]\s*$/, "");
-      const speakerValue = nameSetValue(lines[i].trim().slice(1, -1));
+      if (tagName(lines[i]) === "iscript") {
+        inScript = true;
+        continue;
+      }
+      // Tag-only lines may still carry the speaker declaration, in both the
+      // [name_set ...] and @name_set ... spellings. Any other tag line does
+      // not reset the speaker.
+      const body = lines[i].trim().replace(/^\[/, "").replace(/\]\s*$/, "").replace(/^@/, "");
+      const speakerValue = nameSetValue(body);
       if (speakerValue !== null) {
         speaker = speakerValue;
         names.push({ name: speakerValue, line: i + 1 });
-      } else if (/^\s*name_set\b/.test(inner) === false) {
-        // any other tag line does not reset the speaker
       }
       continue;
     }

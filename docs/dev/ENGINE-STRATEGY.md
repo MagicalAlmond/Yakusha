@@ -570,6 +570,7 @@ TextGrammar = {
 | 0.50 | `install --embed` 在非 RPG Maker 引擎上报 `E_USAGE`，`--embed` 只在插件层读字典（**已交付**） | — | 759 pass / 54 个文件；新增 2 条 cli |
 | 0.51 | 空字符串的选项值改报 `E_USAGE`，不再被当成当前目录去写（**已交付**） | — | 760 pass / 54 个文件；新增 1 条 cli |
 | 0.52 | `extract --prune` 清掉游戏更新后字典里已不含的键；`doctor` sync advice 指向 `--prune`（**已交付**） | — | 764 pass / 54 个文件；dict +2、cli +1、renpy-adapter +1 |
+| 0.54 | Kirikiri KS 抽取跳过 `[iscript]` 代码块、`@` 单行标签按标签行处理（**已交付**） | — | 769 pass / 54 个文件；krkr-ks +2、krkr-extract +1 |
 | 0.53 | `import` 对 provenance 类型错误显式报 `E_DICTIONARY`（**已交付**） | — | 766 pass / 54 个文件；export +2 |
 | 1.0 | 10 个引擎目标 + 能力矩阵 + 便携 exe | — | 每个引擎有 L4 证据；不达标的明确标 experimental |
 

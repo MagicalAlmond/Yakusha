@@ -157,14 +157,14 @@ Kirikiri 的文本面在 `.xp3` 归档内的 `.ks` 脚本里，按行抽取（`s
 | --- | --- |
 | 文本行 | 收进字典；行内 KAG 标签剥离后存纯文本，context 是 `<归档内文件名>:<行号>` |
 | 注释行（行首 `;`） | 跳过 |
-| 标签行（行首 `[`） | 不收文本，但其中的 `[name_set name=...]` 会记成后续文本行的说话人 |
+| 标签行（行首 `[` 或 `@`） | 不收文本，但其中的 `[name_set name=...]`（含 `@` 单行形式）会记成后续文本行的说话人；`[iscript]` 开启的代码块到 `[endscript]` 为止整块跳过（0.54 起） |
 | 标签行（行首 `*`） | 跳过（标签/跳转点） |
 | `.tjs` 脚本 | 只计数不读内容：TJS 是编程语言，不理解代码就翻译其中的字符串不安全 |
 
-行分类与说话人跟踪在 `src/engines/krkr/ks.js:48-56`（`classifyLine`）与 `:94-100`
-（`nameSetValue`）；行内标签剥离在 `:65-88`（`stripInlineTags`），未闭合的 `[` 按普通文字
+行分类与说话人跟踪在 `src/engines/krkr/ks.js:46-66`（`classifyLine`）与 `:99-112`
+（`nameSetValue`）；行内标签剥离在 `:68-96`（`stripInlineTags`），未闭合的 `[` 按普通文字
 处理。编码先按 UTF-8 严格解码、失败再按 Shift_JIS 兜底，仍解不开的字节记 `undecodable`，
-一条损坏的脚本不影响其余文件（`src/engines/krkr/ks.js:13-36`）。
+一条损坏的脚本不影响其余文件（`src/engines/krkr/ks.js:15-44`）。
 
 ## 转义码
 

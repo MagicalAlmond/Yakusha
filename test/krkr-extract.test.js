@@ -109,3 +109,15 @@ test("a corrupt archive is reported; the other archives still extract", () => {
   assert.match(result.undecodable[0].file, /broken\.xp3$/);
   assert.equal(result.entries.size, 1);
 });
+
+test("iscript code and @ tag lines never reach the dictionary", () => {
+  const parent = tempDir();
+  const { root } = writeKrkrProject(parent, { archives: [
+    { archiveName: "data.xp3", files: [
+      { name: "s.ks", data: KS("@macro name=box\n[iscript]\nvar code = 1; // 注釈\n[endscript]\n本文のせりふ\n") },
+    ] },
+  ] });
+  const result = extractKrkrProject(root);
+  assert.equal(result.entries.size, 1);
+  assert.ok(result.entries.get("本文のせりふ"), "only the dialogue line is collected");
+});

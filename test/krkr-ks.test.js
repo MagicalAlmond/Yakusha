@@ -2,9 +2,11 @@
  * KAG script reader contract (src/engines/krkr/ks.js).
  *
  * The fixtures are invented lines that exercise the rules the reader commits
- * to: text lines are collected, comment/label/tag lines are not, inline tags
- * are stripped, the most recent [name_set] names the speaker, and a script
- * that is not valid UTF-8 is decoded as Shift_JIS with undecodable counting.
+ * to: text lines are collected, comment/label/tag lines (including the @
+ * one-line tag form) are not, inline tags are stripped, the most recent
+ * [name_set] names the speaker, the TJS code between [iscript] and
+ * [endscript] is skipped, and a script that is not valid UTF-8 is decoded as
+ * Shift_JIS with undecodable counting.
  */
 
 import test from "node:test";
@@ -19,6 +21,9 @@ test("classifyLine sorts KAG lines into the five kinds", () => {
   assert.equal(classifyLine("; comment"), "comment");
   assert.equal(classifyLine("*label"), "label");
   assert.equal(classifyLine("[tags]"), "tags");
+  // The @ form is the one-line spelling of a tag, not display text.
+  assert.equal(classifyLine("@wait mode=until time=5500"), "tags");
+  assert.equal(classifyLine("  @macro name=box"), "tags");
   assert.equal(classifyLine("text"), "text");
   // A semicolon inside a line is not a comment start.
   assert.equal(classifyLine("text ; still text"), "text");
@@ -64,4 +69,36 @@ test("decodeKs counts replacement characters as undecodable", () => {
   assert.equal(result.encoding, "shift_jis");
   assert.equal(result.undecodable, true);
   assert.match(result.error, /1 undecodable byte/);
+});
+
+test("collectKsStrings skips iscript code blocks and @ tag lines", () => {
+  const source = [
+    "@macro name=box",
+    "[iscript]",
+    "var mouseDown; // code comment",
+    "tf.label = 'hidden';",
+    "[endscript]",
+    "[name_set name='Aoi']",
+    "あおい「コードの後のせりふ」",
+    "@iscript",
+    "function f() { return 1; }",
+    "@endscript",
+    "れん「二つ目のブロックの後」",
+  ].join("\n");
+  const result = collectKsStrings(source, "s.ks");
+  assert.deepEqual(result.strings.map((item) => item.text), [
+    "あおい「コードの後のせりふ」",
+    "れん「二つ目のブロックの後」",
+  ]);
+  // The speaker survives a script block; @ lines never speak.
+  assert.deepEqual(result.strings.map((item) => item.speaker), ["Aoi", "Aoi"]);
+  assert.deepEqual(result.names.map((item) => item.name), ["Aoi"]);
+});
+
+test("collectKsStrings accepts an @name_set speaker and skips an unterminated iscript", () => {
+  const atSpeaker = collectKsStrings("@name_set name='Yuki'\nゆき「せりふ」\n", "s.ks");
+  assert.deepEqual(atSpeaker.strings.map((item) => item.speaker), ["Yuki"]);
+  assert.deepEqual(atSpeaker.names.map((item) => item.name), ["Yuki"]);
+  const unterminated = collectKsStrings("text before\n[iscript]\ncode\nmore code", "s.ks");
+  assert.deepEqual(unterminated.strings.map((item) => item.text), ["text before"]);
 });

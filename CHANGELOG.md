@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.54.0] - 2026-10-27
+
+### Fixed
+
+- Kirikiri extraction no longer collects TJS code and KAG tag lines as dialogue. A line starting with `@` (the one-line tag spelling, `@wait`, `@macro name=...`) is now classified as a tag line, and the TJS code between `[iscript]` and `[endscript]` (either bracket or `@` spelling; an unterminated block runs to the end of the file) is skipped entirely: those lines execute as code and never render as dialogue. On a real game whose dialogue is already localized the unique string count drops from 5,686 to 5,231 - all 455 removed keys are code or tag lines, nothing else changes - and `verify` over an echo dictionary goes from 115 kana warnings plus 115 echo errors to a clean pass.
+
+### Unchanged
+
+- Envelope, exit codes, payload keys, the 13 error codes and the `yakusha/1` dictionary format are untouched.
+
 ## [0.53.0] - 2026-10-27
 
 ### Fixed
@@ -655,7 +665,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.53.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.54.0...HEAD
+[0.54.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.53.0...v0.54.0
 [0.53.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.52.0...v0.53.0
 [0.52.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.51.0...v0.52.0
 [0.51.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.50.0...v0.51.0
