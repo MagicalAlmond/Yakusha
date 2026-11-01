@@ -156,10 +156,11 @@ export function writeExportFile(file, text, options = {}) {
  * Refuse to replace the live dictionary, even with --force. realpath is used
  * so a symlink and a case-only difference still resolve to the same file.
  *
- * @param {string} target absolute export target
+ * @param {string} target absolute export or report target
  * @param {string} dictionaryFile absolute live dictionary path
+ * @param {string} [reason] what the target is, shown in the error
  */
-export function assertNotDictionaryTarget(target, dictionaryFile) {
+export function assertNotDictionaryTarget(target, dictionaryFile, reason = "export is a projection, not a backup") {
   const resolvedTarget = canonicalPath(target);
   let resolvedDictionary;
   try {
@@ -170,7 +171,7 @@ export function assertNotDictionaryTarget(target, dictionaryFile) {
   if (samePath(resolvedTarget, resolvedDictionary)) {
     throw new CliError(
       "E_EXISTS",
-      "refusing to overwrite the project dictionary at " + dictionaryFile + " (export is a projection, not a backup)"
+      "refusing to overwrite the project dictionary at " + dictionaryFile + " (" + reason + ")"
     );
   }
 }

@@ -1,6 +1,6 @@
 # 命令参考
 
-本文是 yakusha 0.39.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出；0.33 给 `verify` 增加了 SARIF 报告输出（`--report-format sarif`）；0.34 给 `export` 增加 JSONL 输出（`--format jsonl`），0.35 给 `verify` 增加 `--fail-on warning`（warning 也算发布失败），0.36 给 `verify` 增加 `--require-complete`（还有未译条目就失败），0.37 只修 markdown 报告表格里的 `|` 转义，0.38 只让 `verify` 的 problem 带出字典条目的 `locator`，0.39 修 `import --dry-run --create` 会落盘空字典的问题（dry-run 不写盘），其余命令不变。
+本文是 yakusha 0.40.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出；0.33 给 `verify` 增加了 SARIF 报告输出（`--report-format sarif`）；0.34 给 `export` 增加 JSONL 输出（`--format jsonl`），0.35 给 `verify` 增加 `--fail-on warning`（warning 也算发布失败），0.36 给 `verify` 增加 `--require-complete`（还有未译条目就失败），0.37 只修 markdown 报告表格里的 `|` 转义，0.38 只让 `verify` 的 problem 带出字典条目的 `locator`，0.39 修 `import --dry-run --create` 会落盘空字典的问题（dry-run 不写盘），0.40 让 `verify --write-report`、`speaker --write-names`、`terms --write` 拒绝把输出写到项目字典上（`E_EXISTS`、退出 2），其余命令不变。
 
 **RGSS 在 0.18 起有了交付层。** `scan` / `extract` / `status` / `translate` / `verify` / `speaker` / `terms` / `export` / `import` 都能用；0.18 新增 `install --native`，把预编译的注入器与 hook DLL 装进 `yakusha/native/`，游戏启动时由注入器加载，译文从 `dictionary.txt` 读。`install` 不带 `--native` 仍报 `E_USAGE`（RGSS 没有插件交付层）。安装细节与限制见下文 [install 与 uninstall](#install-与-uninstall)。
 
@@ -214,7 +214,7 @@
 ### --help 与 --version
 
 - `--help` / `-h`：永远 stdout 纯文本、退出 0，即使同时给了 `--json`；`scan -h` 也一样打整段帮助。连未知命令都投降：`nope --help` 打帮助、退出 0。
-- `--version`：永远 stdout 一行 `yakusha <version>`、退出 0，并且优先于一切——`--help --version` 只打 `yakusha 0.39.0`，`--json --version` 也不产出 JSON。
+- `--version`：永远 stdout 一行 `yakusha <version>`、退出 0，并且优先于一切——`--help --version` 只打 `yakusha 0.40.0`，`--json --version` 也不产出 JSON。
 - 无命令：文本模式把整段 USAGE 打到 stderr、退出 2；`--json` 时输出 `command: null` 的信封，`message` 是 `no command`。
 - 未知命令：stderr 两行 `error: unknown command: nope` 和 `run 'yakusha --help' for usage`，退出 2，不再打印整段 USAGE。
 
@@ -538,7 +538,7 @@ result    : FAILED, 12 untranslated (--require-complete)
 
 ### --write-report
 
-`--write-report <file>` 把全部发现写成一份报告，默认是 markdown；载荷多 `report`（绝对路径）与 `reportFormat`（`markdown` / `sarif`），文本模式多一行 `report    : <abs>`（SARIF 时末尾带 ` (sarif)`）。`--report-format` 只能取 `markdown` 或 `sarif`，只能和 `--write-report` 一起用，否则报 `E_USAGE`、退出 2。markdown 报告真实结构：
+`--write-report <file>` 把全部发现写成一份报告，默认是 markdown；载荷多 `report`（绝对路径）与 `reportFormat`（`markdown` / `sarif`），文本模式多一行 `report    : <abs>`（SARIF 时末尾带 ` (sarif)`）。`--report-format` 只能取 `markdown` 或 `sarif`，只能和 `--write-report` 一起用，否则报 `E_USAGE`、退出 2。报告路径不能是项目字典 `yakusha/dictionary.json`：指向字典时命令报 `E_EXISTS`、退出 2，并且一个字节都不写（0.40 起）。markdown 报告真实结构：
 
 ```text
 # yakusha verify report
@@ -591,7 +591,7 @@ result    : no change
 ```
 
 - `--include-drift` 才处理「同一名字多种写法」的风格问题（默认不动，因为那是编辑判断）。
-- `--write-names <file>` 生成一份供 `--names` 填的模板（实测落盘 `{"entries": {}}`），文本模式首行 `names file: <abs> (nothing to fill in)`；`--names <file>` 补上「游戏里从没翻译过、因此无从抄写法」的名字，文件不存在报 `E_IO`。
+- `--write-names <file>` 生成一份供 `--names` 填的模板（实测落盘 `{"entries": {}}`），文本模式首行 `names file: <abs> (nothing to fill in)`；`--names <file>` 补上「游戏里从没翻译过、因此无从抄写法」的名字，文件不存在报 `E_IO`。模板路径不能是项目字典，否则报 `E_EXISTS`、退出 2、不写文件（0.40 起）。
 - 载荷：`file` / `includeDrift` / `dryRun` / `supplied` / `saved` / `entries` / `tags` / `names[]` / `namesFile` / `namesNeeded` / `errorsBefore` / `errorsAfter` / `warningsBefore` / `warningsAfter`。
 
 实测（一款 MV 长篇，词典规模见上一节）：`verify` 报 411 个 speaker error，`speaker` 一次改掉 414 条、涉及 23 个名字，剩 3 条是全文没译过的名字，用 `--names` 补上后 error 归零；再用 `--include-drift` 把 8 个存在多种写法的名字统一到主流写法，`warn` 从 51 归零。两轮都只动字典，没有调用模型。
@@ -613,7 +613,7 @@ glossary  : 0 entries, pass --write <file> to save them
 
 RGSS 撞的是同一堵墙、换了个方向：数据库名字条目的 context 是 `Actors.rvdata2:name` 这种形状，扩展名是 `.rvdata2` 而不是 `.json`，正则同样匹配不上，所以 RGSS 项目上 `nameEntries` / `mined` / `drift` / `missing` 恒为 0，实测输出也是 `names     : 0 mined from 0 name entries`。Kirikiri 撞的还是这堵墙：`.ks` 的 context 是 `scene1.ks:2` 这种形状，既不是 `.json:name` 也不是数据库字段，正则匹配不上，所以 Kirikiri 项目上 `nameEntries` / `mined` / `drift` / `missing` 恒为 0。这套名字一致性机制目前只对 MZ/MV 有效。载荷：`file` / `names` / `nameEntries` / `skipped{untranslated, short, prose}` / `holdersMin` / `supportMin` / `mined` / `listed` / `drift` / `missing` / `glossary` / `written` / `terms[]`。
 
-`--write <file>` 把词表写成 `translate --glossary` 吃的格式（`{"format": "yakusha/glossary/1", "game": ..., "generatedAt": ..., "entries": {...}}`），文本末行变 `glossary  : N entries written to <abs>`；`--dry-run` 只报不写（`--dry-run, not written`）；没写文件时 JSON 的 `written` 是 `null`。
+`--write <file>` 把词表写成 `translate --glossary` 吃的格式（`{"format": "yakusha/glossary/1", "game": ..., "generatedAt": ..., "entries": {...}}`），文本末行变 `glossary  : N entries written to <abs>`；`--dry-run` 只报不写（`--dry-run, not written`）；没写文件时 JSON 的 `written` 是 `null`。词表路径不能是项目字典，否则报 `E_EXISTS`、退出 2、不写文件（0.40 起）。
 
 ### 为什么值得看 drift
 

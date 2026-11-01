@@ -732,3 +732,22 @@ test("cli: doctor turns usable once the plugin and the dictionary agree", () => 
 
   assert.match(run(["doctor", game]).stdout, /verdict {3}: usable with \d+ warning/);
 });
+
+test("cli: report outputs refuse to replace the dictionary", () => {
+  const commands = [
+    ["verify", "--write-report"],
+    ["speaker", "--write-names"],
+    ["terms", "--write"],
+  ];
+  for (const [command, option] of commands) {
+    const game = tempGame();
+    const file = writeDictionary(game, [["おはよう", "早上好"]]);
+    const before = fs.readFileSync(file);
+    const result = run([command, game, option, file, "--json"]);
+    assert.equal(result.code, 2, command + ": " + result.stderr);
+    const body = JSON.parse(result.stdout);
+    assert.equal(body.error.code, "E_EXISTS", command);
+    assert.match(body.error.message, /project dictionary/, command);
+    assert.deepEqual(fs.readFileSync(file), before, command + " must not touch the dictionary");
+  }
+});

@@ -283,6 +283,7 @@ async function commandVerify(dir, flags, sink) {
   if (flags["report-format"] !== undefined && !reportFile) {
     throw new CliError("E_USAGE", "verify --report-format requires --write-report");
   }
+  if (reportFile) assertNotDictionaryTarget(reportFile, file, "a verify report is not a dictionary");
   const failOn = typeof flags["fail-on"] === "string" ? flags["fail-on"] : "error";
   if (failOn !== "error" && failOn !== "warning") {
     throw new CliError("E_USAGE", "verify --fail-on must be error or warning, not " + failOn);
@@ -413,6 +414,7 @@ async function commandSpeaker(dir, flags, sink) {
   // user fills in only the names they care about and reruns with --names.
   const missing = namesNeedingInput(after, data);
   const namesFile = typeof flags["write-names"] === "string" ? path.resolve(flags["write-names"]) : null;
+  if (namesFile) assertNotDictionaryTarget(namesFile, file, "a names template is not a dictionary");
   if (namesFile) {
     const template = { entries: {} };
     for (const entry of missing) template.entries[entry.name] = "";
@@ -494,6 +496,7 @@ async function commandTerms(dir, flags, sink) {
   const statuses = typeof flags.status === "string" ? flags.status.split(",").map((s) => s.trim()).filter(Boolean) : null;
   const terms = statuses ? result.terms.filter((term) => statuses.includes(term.status)) : result.terms;
   const written = typeof flags.write === "string" ? path.resolve(flags.write) : null;
+  if (written) assertNotDictionaryTarget(written, file, "a glossary is not a dictionary");
   const glossary = toGlossary(terms, { game: data.game, limit: maxLength, driftOnly: flags["drift-only"] === true });
 
   // --dry-run here means "show what would be written", because writing a

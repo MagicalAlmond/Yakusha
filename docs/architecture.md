@@ -287,6 +287,7 @@ test/fixtures/           各引擎最小夹具（mini-mz、mini-mv、renpy-*、r
 | 0.37.0 | **已交付**：markdown verify 报告的字段表转义 `\|` 与换行，游戏标题或字典路径带竖线时不再把表格拆成两列 | 739 pass / 0 fail（新增 1 条：report 1） |
 | 0.38.0 | **已交付**：verify 的 findings 带出字典 v2 的 `locator` 位置（problem 上的 `locator` 数组、markdown 的 `at <位置>` 行、SARIF 的 `properties.locator`），报告能指到条目出处；无 provenance 的字典输出不变 | 741 pass / 0 fail（新增 2 条：verify 1、report 1） |
 | 0.39.0 | **已交付**：`import --dry-run --create` 不再写盘——项目还没有字典时只在内存里建空字典并在 stderr 提示 `dry run: would create an empty dictionary`，不再留下 `yakusha/dictionary.json`；载荷与退出码不变 | 742 pass / 0 fail（新增 1 条：export） |
+| 0.40.0 | **已交付**：`verify --write-report`、`speaker --write-names`、`terms --write` 拒绝把输出写到项目字典（`E_EXISTS`、退出 2、不写文件）；`export` 的既有守卫消息统一带原因 | 743 pass / 0 fail（新增 1 条：cli） |
 | 1.0.0 | 10 个引擎 + 能力矩阵 + 便携 exe（图标、无控制台、最近游戏） | 双击 exe 可用 |
 
 ## 10. 风险
