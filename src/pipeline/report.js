@@ -165,6 +165,7 @@ export function buildSarif(result, options = {}) {
       key: problem.key,
       ...(problem.target === undefined ? {} : { target: problem.target }),
       ...(problem.name === undefined ? {} : { name: problem.name }),
+      ...(Array.isArray(problem.locator) && problem.locator.length > 0 ? { locator: problem.locator.slice() } : {}),
     },
   }));
   const failOn = options.failOn === "warning" ? "warning" : "error";
@@ -302,6 +303,9 @@ export function buildReport(result, options = {}) {
       // The detail carries the specifics (which name, which code, how wide), so
       // it stays even when the section already explains the kind.
       if (problem.detail) lines.push("   " + problem.detail);
+      if (Array.isArray(problem.locator)) {
+        for (const locator of problem.locator) lines.push("   at " + codeSpan(locator));
+      }
     }
     lines.push("");
   }

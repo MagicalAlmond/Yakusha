@@ -199,6 +199,23 @@ test("report: table cells escape pipes and newlines", () => {
   assert.ok(markdown.includes("| game | Pipe \\| Game |"));
 });
 
+test("report: findings list their dictionary locators", () => {
+  const result = verifyResult([
+    {
+      kind: "echo",
+      severity: "error",
+      key: "こんにちは",
+      target: "こんにちは",
+      detail: "target is identical to a Japanese source",
+      locator: ["Map001.json#/events/1/pages/0/list/2/parameters/0"],
+    },
+  ]);
+  const markdown = buildReport(result, { game: "test game" });
+  assert.match(markdown, /   at `Map001\.json#\/events\/1\/pages\/0\/list\/2\/parameters\/0`/);
+  const sarif = JSON.parse(buildSarif(result, { game: "test game" }));
+  assert.deepEqual(sarif.runs[0].results[0].properties.locator, ["Map001.json#/events/1/pages/0/list/2/parameters/0"]);
+});
+
 test("report: SARIF is still valid with no findings", () => {
   const document = JSON.parse(buildSarif(verifyResult([]), { game: "clean" }));
   assert.equal(document.version, "2.1.0");

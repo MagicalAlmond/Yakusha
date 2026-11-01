@@ -1,6 +1,6 @@
 # 命令参考
 
-本文是 yakusha 0.37.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出；0.33 给 `verify` 增加了 SARIF 报告输出（`--report-format sarif`）；0.34 给 `export` 增加 JSONL 输出（`--format jsonl`），0.35 给 `verify` 增加 `--fail-on warning`（warning 也算发布失败），0.36 给 `verify` 增加 `--require-complete`（还有未译条目就失败），0.37 只修 markdown 报告表格里的 `|` 转义，其余命令不变。
+本文是 yakusha 0.38.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出；0.33 给 `verify` 增加了 SARIF 报告输出（`--report-format sarif`）；0.34 给 `export` 增加 JSONL 输出（`--format jsonl`），0.35 给 `verify` 增加 `--fail-on warning`（warning 也算发布失败），0.36 给 `verify` 增加 `--require-complete`（还有未译条目就失败），0.37 只修 markdown 报告表格里的 `|` 转义，0.38 只让 `verify` 的 problem 带出字典条目的 `locator`，其余命令不变。
 
 **RGSS 在 0.18 起有了交付层。** `scan` / `extract` / `status` / `translate` / `verify` / `speaker` / `terms` / `export` / `import` 都能用；0.18 新增 `install --native`，把预编译的注入器与 hook DLL 装进 `yakusha/native/`，游戏启动时由注入器加载，译文从 `dictionary.txt` 读。`install` 不带 `--native` 仍报 `E_USAGE`（RGSS 没有插件交付层）。安装细节与限制见下文 [install 与 uninstall](#install-与-uninstall)。
 
@@ -214,7 +214,7 @@
 ### --help 与 --version
 
 - `--help` / `-h`：永远 stdout 纯文本、退出 0，即使同时给了 `--json`；`scan -h` 也一样打整段帮助。连未知命令都投降：`nope --help` 打帮助、退出 0。
-- `--version`：永远 stdout 一行 `yakusha <version>`、退出 0，并且优先于一切——`--help --version` 只打 `yakusha 0.37.0`，`--json --version` 也不产出 JSON。
+- `--version`：永远 stdout 一行 `yakusha <version>`、退出 0，并且优先于一切——`--help --version` 只打 `yakusha 0.38.0`，`--json --version` 也不产出 JSON。
 - 无命令：文本模式把整段 USAGE 打到 stderr、退出 2；`--json` 时输出 `command: null` 的信封，`message` 是 `no command`。
 - 未知命令：stderr 两行 `error: unknown command: nope` 和 `run 'yakusha --help' for usage`，退出 2，不再打印整段 USAGE。
 
@@ -497,7 +497,7 @@ problems  : 21 (echo 1, kana 20)
 result    : FAILED, 1 error(s)
 ```
 
-列表按字典键顺序输出、kind 交错（同一键能同时中 kana 和 echo，两条会挨着；不是按 kind 分组，只有 `--write-report` 生成的 markdown 才按 kind 分组），每条下一行缩进 8 空格写 detail，`--limit`（默认 20）截断后补一行提示。全绿时末行是 `result    : OK with 20 warning(s)`、退出 0；0 条已译时只有两行 `entries` 和 `problems  : none`。载荷：`file` / `maxColumns` / `total` / `translated` / `pending` / `errors` / `warnings` / `rejected` / `counts` / `problems[]`，每个 problem 是 `{kind, severity, key, target, detail}`；`--write-report` 时额外有 `report`（绝对路径）与 `reportFormat`（`markdown` / `sarif`）。
+列表按字典键顺序输出、kind 交错（同一键能同时中 kana 和 echo，两条会挨着；不是按 kind 分组，只有 `--write-report` 生成的 markdown 才按 kind 分组），每条下一行缩进 8 空格写 detail，`--limit`（默认 20）截断后补一行提示。全绿时末行是 `result    : OK with 20 warning(s)`、退出 0；0 条已译时只有两行 `entries` 和 `problems  : none`。载荷：`file` / `maxColumns` / `total` / `translated` / `pending` / `errors` / `warnings` / `rejected` / `counts` / `problems[]`，每个 problem 是 `{kind, severity, key, target, detail}`，0.38 起如果该条目带 provenance（0.17 的字典 v2 `locator`）还会多一个 `locator` 字符串数组；`--write-report` 时额外有 `report`（绝对路径）与 `reportFormat`（`markdown` / `sarif`）。
 
 ### 判据的边界
 
@@ -506,7 +506,7 @@ result    : FAILED, 1 error(s)
 - `trad` 只报原文里没有的繁体字，字表来自 OpenCC 的 TSCharacters（Apache-2.0），只收「一繁对一简且不同」的字，排除 乾 / 藉 / 於 / 瞭 / 徵 这类两边都合法的。
 - `speaker` 按三档判级：名字还是日文（error）、名字没翻（error）、同一名字在本作里出现多种写法（warn，只有 `speaker --include-drift` 会去改）；尖括号里的代码表达式（如 `<50*\v[65]>`）不会被误认成名字。
 - Ren'Py 的 `codes` / `slots` 走同一套判据，只是「控制码」换成了文本标签与变量插值：标签漏掉报 `escape codes differ: ["{i}","{/i}","[player_name]"] vs []`，插值漏掉报 `placeholders differ: ["[player_name]"] vs []`（实测把两者的译文标记删干净后，`counts` 是 `{"codes": 1, "kana": 1, "slots": 1}`，两个 error、退出 1）。`kana` 与 `trad` 在两种引擎上完全一样。
-- RGSS 的 `codes` 判的是反斜杠转义码。实测把一条带 `\C[6]` / `\C[0]` 的译文改成纯中文后，`codes` 报 1 个 error、退出 1，detail 是 `escape codes differ: ["\C[6]","\C[0]"] vs []`（`src/pipeline/verify.js:206-215` 的 `codes` 分支对所有引擎共用，没有 RGSS 专有的判据）。`kana` / `trad` / `echo` 等在 RGSS 上与 MZ 完全一致。
+- RGSS 的 `codes` 判的是反斜杠转义码。实测把一条带 `\C[6]` / `\C[0]` 的译文改成纯中文后，`codes` 报 1 个 error、退出 1，detail 是 `escape codes differ: ["\C[6]","\C[0]"] vs []`（`src/pipeline/verify.js:213-223` 的 `codes` 分支对所有引擎共用，没有 RGSS 专有的判据）。`kana` / `trad` / `echo` 等在 RGSS 上与 MZ 完全一致。
 - Kirikiri 的「控制码」是行内 KAG 标签（`[r]`、`[er]` 这类），`codes` 同样报 `escape codes differ: [...] vs []`；`slots` 只认 `%1`、`%2` 这种 `%<数字>` 占位符（`src/engines/krkr/profile.js:123`，KAG 的 `[emb exp=...]` 标签不进这个判据）；假名判据 `VERIFY_KANA` 在 `src/engines/krkr/profile.js:26`，其余 kind 与 MZ 一致。
 
 ### --fail-on
@@ -560,6 +560,7 @@ _kana the player will see; onomatopoeia often keeps one on purpose_
 
 1. warning: `アリア` -> `译:アリア`
    Japanese kana left in the translation
+   at `Map001.json#/events/1/pages/0/list/2/parameters/0`
 ```
 
 0 条发现时正文是 `**OK** - no findings at all.`。报告里的 verdict 也按闸门复算：`--fail-on warning` 且有警告时写 `**FAILED: N warning(s) under --fail-on warning**`，`--require-complete` 且还有未译条目时写 `**FAILED: N pending entries under --require-complete**`；对应地在字段表里多一行 `| fail-on | warning |` 或 `| require-complete | yes |`。报告里换行显示成 `⏎`（U+23CE），这样一条多行台词在一行里看得完；字段值里的 `|` 写成 `\|`，不会把表格拆成两列。
@@ -570,7 +571,7 @@ _kana the player will see; onomatopoeia often keeps one on purpose_
 
 - `tool.driver`：`name: "yakusha"`、`version`（取自 `package.json`）与 `rules[]`，每个 kind 一条 `yakusha/verify/<kind>`，`defaultConfiguration.level` 按阻断级映射成 `error` / `warning`。
 - `invocations[0]`：`executionSuccessful` 按 `--fail-on` 阈值计算（默认 `errors === 0`，`--fail-on warning` 时还要 `warnings === 0`），并且 `--require-complete` 时还要求 `pending === 0`；`properties` 带 `game` / `dictionary` / `generatedAt` / `maxColumns` / `failOn` / `requireComplete` / `total` / `translated` / `pending` / `rejected` / `errors` / `warnings`。
-- `results[]`：每个 problem 一条，`ruleId` 与 `ruleIndex` 指向上面的规则，`level` 用 problem 的 severity；`message.text` 是 `kind: detail`；有字典文件时 `locations[0]` 带 `physicalLocation.artifactLocation.uri`（`file:///` 形式）与 `logicalLocations[0]`（原文键）；`partialFingerprints["yakusha/v1"]` 是 `kind + NUL + key` 的 SHA-256 前 32 位十六进制，`properties` 带 `kind` / `key` / `target` /（可选）`name`。没有行号可指，因为字典键不对应源码行。
+- `results[]`：每个 problem 一条，`ruleId` 与 `ruleIndex` 指向上面的规则，`level` 用 problem 的 severity；`message.text` 是 `kind: detail`；有字典文件时 `locations[0]` 带 `physicalLocation.artifactLocation.uri`（`file:///` 形式）与 `logicalLocations[0]`（原文键）；`partialFingerprints["yakusha/v1"]` 是 `kind + NUL + key` 的 SHA-256 前 32 位十六进制，`properties` 带 `kind` / `key` / `target` /（可选）`name` /（可选）`locator`。没有行号可指，因为字典键不对应源码行；`locator` 是 0.17 记录的游戏内位置（如 `Map001.json#/events/1/pages/0/list/2/parameters/0` 或 `game/script.rpy:12`），0.38 起原样带进来，供报告消费者跳到条目出处。
 
 0 条发现时 `results` 与 `rules` 都是空数组，SARIF 仍然合法。
 

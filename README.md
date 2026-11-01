@@ -207,7 +207,7 @@ node bin/yakusha.js verify "/games/MyGame"
 字典会被逐条体检，只读不写。`error` 让命令失败退出（`echo`、转义码、占位符、说话人名），
 `warn` 只提示（残留假名、超宽行、繁体字、被拒条目）。`--write-report report.md` 把全部
 问题写成一份可贴进 issue 的 markdown；加 `--report-format sarif` 则写 SARIF 2.1.0，供 CI 的
-code scanning 消费。默认只有 `error` 让命令失败；发布闸门可以加 `--fail-on warning`，让残留
+code scanning 消费。0.38 起，字典条目记录了 provenance 位置时，报告会在每条发现下多一行 `at <位置>`（SARIF 则放在 `properties.locator`），能直接跳回原文出处。默认只有 `error` 让命令失败；发布闸门可以加 `--fail-on warning`，让残留
 假名、超宽行这类警告也退出 1；再加 `--require-complete` 则字典里还有未译条目也会失败。
 
 游戏更新后中文没了，先跑 `doctor` 分清是安装产物丢了、备份对不上，还是字典与这版游戏

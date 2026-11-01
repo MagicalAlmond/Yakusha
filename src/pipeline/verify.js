@@ -82,6 +82,7 @@ export const VERIFY_KINDS = Object.freeze([
  * @property {string} [target] stored translation
  * @property {string} detail human readable explanation
  * @property {string} [name] speaker tag the finding is about (kind "speaker")
+ * @property {string[]} [locator] dictionary provenance positions for this entry
  */
 
 /**
@@ -155,11 +156,16 @@ export function verifyDictionary(dictionary, options = {}) {
   let pending = 0;
   let rejected = 0;
 
+  /** The entry currently being audited, so every finding can carry its positions. */
+  let currentEntry = null;
   const report = (kind, severity, key, target, detail, extra) => {
     if (only && !only.has(kind)) return;
     counts[kind] = (counts[kind] || 0) + 1;
     const problem = { kind, severity, key, target, detail };
     if (extra && extra.name) problem.name = extra.name;
+    if (currentEntry && Array.isArray(currentEntry.locator) && currentEntry.locator.length > 0) {
+      problem.locator = currentEntry.locator.slice();
+    }
     problems.push(problem);
   };
 
@@ -176,6 +182,7 @@ export function verifyDictionary(dictionary, options = {}) {
   for (const key of keys) {
     const entry = entries[key];
     if (!entry || typeof entry !== "object") continue;
+    currentEntry = entry;
     const target = typeof entry.text === "string" ? entry.text : "";
     if (entry.error) {
       rejected += 1;

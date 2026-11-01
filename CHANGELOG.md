@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.38.0] - 2026-10-27
+
+### Added
+
+- Verify findings carry the dictionary entry's optional provenance positions: every problem gets a `locator` array when the entry has one (dictionary v2, 0.17), the Markdown report prints each position as `at <locator>` under the finding, and the SARIF result adds the same array under `properties.locator`. Entries without provenance produce exactly the old output.
+
+### Unchanged
+
+- No contract change: `locator` is an optional addition to the existing `problems[]` objects, and the envelope, exit codes, command table, 13 error codes and the `yakusha/1` dictionary format stay the same.
+
 ## [0.37.0] - 2026-10-27
 
 ### Fixed

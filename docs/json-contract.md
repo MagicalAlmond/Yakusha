@@ -7,7 +7,7 @@
 > 0.17 给字典条目加了可选的 `engine` / `locator`；0.18 给 RGSS 加了原生注入器交付
 > （`install --native` / `uninstall` 的 `native` 子对象与 `runtime: "inject"`）；0.19 把
 > `verify --kind` 的未知值从静默过滤改为 `E_USAGE`（输入校验，信封与载荷不变）；0.20 只修
-> GUI 渲染层的扫描状态；0.21 让 `doctor`/`launch` 识别损坏的原生组件；0.22 让 `doctor` 报出安装后又被改过的原生字典；0.23 把同一检查推广到 Ren'Py 译文文件与 MZ/MV `--embed` 插件（都只是检查结论变化，载荷键与错误码不变）；0.24 只优化 translate 内部的术语表匹配，载荷键与错误码不变；0.25 修复字典被清空后 Ren'Py 译文文件未判过期（诊断结果变化，载荷键与错误码不变）；0.26 只加固字典键的读写（`__proto__` 等原型名按普通条目处理）；0.27 只加固 XP3 读取器对损坏归档的尺寸检查，载荷键与错误码不变；0.28 给 `doctor` 的 `checks` 增加可选的 `version` 项（版本矩阵异常时才出现），`checks` 的形状与所有载荷键不变；0.29 只优化 `data/` 的 XOR 探测，所有载荷键与错误码不变；0.30 只把字典与 GUI 凭据写盘改为同目录临时文件加 rename，所有载荷键与错误码不变；0.31 只给 RGSS 原生安装/卸载加路径包含检查与原子复制，所有载荷键与错误码不变；0.32 只把安装状态文件与 report/names/glossary 输出改为原子写，所有载荷键与错误码不变；0.33 给 `verify --write-report` 增加可选 `--report-format sarif` 与配套的 `reportFormat` 载荷键；0.34 给 `export` 增加 `jsonl` 输出格式（只是 `format` 的取值增加，载荷键与错误码不变）；0.35 给 `verify` 增加 `--fail-on error|warning`（只改 findings 的判定阈值，载荷键与错误码不变）；0.36 给 `verify` 增加 `--require-complete`（还有 pending 条目就 findings/1，载荷键与错误码不变）。
+> GUI 渲染层的扫描状态；0.21 让 `doctor`/`launch` 识别损坏的原生组件；0.22 让 `doctor` 报出安装后又被改过的原生字典；0.23 把同一检查推广到 Ren'Py 译文文件与 MZ/MV `--embed` 插件（都只是检查结论变化，载荷键与错误码不变）；0.24 只优化 translate 内部的术语表匹配，载荷键与错误码不变；0.25 修复字典被清空后 Ren'Py 译文文件未判过期（诊断结果变化，载荷键与错误码不变）；0.26 只加固字典键的读写（`__proto__` 等原型名按普通条目处理）；0.27 只加固 XP3 读取器对损坏归档的尺寸检查，载荷键与错误码不变；0.28 给 `doctor` 的 `checks` 增加可选的 `version` 项（版本矩阵异常时才出现），`checks` 的形状与所有载荷键不变；0.29 只优化 `data/` 的 XOR 探测，所有载荷键与错误码不变；0.30 只把字典与 GUI 凭据写盘改为同目录临时文件加 rename，所有载荷键与错误码不变；0.31 只给 RGSS 原生安装/卸载加路径包含检查与原子复制，所有载荷键与错误码不变；0.32 只把安装状态文件与 report/names/glossary 输出改为原子写，所有载荷键与错误码不变；0.33 给 `verify --write-report` 增加可选 `--report-format sarif` 与配套的 `reportFormat` 载荷键；0.34 给 `export` 增加 `jsonl` 输出格式（只是 `format` 的取值增加，载荷键与错误码不变）；0.35 给 `verify` 增加 `--fail-on error|warning`（只改 findings 的判定阈值，载荷键与错误码不变）；0.36 给 `verify` 增加 `--require-complete`（还有 pending 条目就 findings/1，载荷键与错误码不变）；0.37 只改 markdown 报告的表格转义（载荷与错误码不变）；0.38 给 `verify` 的 `problems[]` 追加可选的 `locator` 数组（仅当字典条目带 0.17 的 provenance 时出现，新增字段，旧消费者忽略）。
 > 这些都是只增不改：不新增保留键约束、不改字段类型、已有载荷键一个没动。
 > 本文冻结的形状自 0.10 起不再变化，实际输出以 [commands.md](commands.md) 为准。
 
@@ -233,7 +233,7 @@
 - `translate` 的 `provider` 是实际使用的 provider 名（`openai` / `mock`），不回显密钥。
 - `doctor` 的 `checks` 每项仍是 `{id, level, message, samples?}`；`level` 为
   `ok | info | warn | fail`。顶层不再有第二个 `ok`。
-- `verify` 的 `problems` 结构不变；`report` 只给路径，报告内容在文件里。
+- `verify` 的 `problems` 结构不变（0.38 起仅当条目带 provenance 时多个可选 `locator` 数组）；`report` 只给路径，报告内容在文件里。
 - `install` / `uninstall` 的路径字段必须是命令自己解析出的绝对路径。
 
 ### 7.1 按引擎的语义（0.11 起；0.18 更新 RGSS）
@@ -372,6 +372,10 @@ pending decisions in docs/dev/DEVLOG.md` 都是新文案，脚本不应依赖 `m
 **0.35 没有破坏性变更。** `verify` 新增可选 `--fail-on error|warning`：默认 `error` 与 0.34 完全一致，`warning` 时把 warning 也算进 findings（退出 1），未知值报 `E_USAGE` / 退出 2。信封、命令表、13 个错误码、所有载荷键与 `yakusha/1` 字典格式都不变；SARIF 的 `invocations[0].executionSuccessful` 按同一阈值计算，`properties` 多一个 `failOn`。
 
 **0.36 没有破坏性变更。** `verify` 新增可选 `--require-complete`：默认关闭时与 0.35 完全一致，打开后只要 `pending > 0` 就 `outcome: findings` / 退出 1（即使 `problems` 为空），`pending` 已经说明条数，所有载荷键与错误码不变。同名开关也写进 markdown 报告（`| require-complete | yes |` 与对应 verdict）和 SARIF（`properties.requireComplete`，`executionSuccessful` 一并要求 `pending === 0`）；markdown 报告的 verdict 从 0.36 起也正确反映 `--fail-on warning`。
+
+**0.37 没有破坏性变更。** markdown verify 报告的字段值把 `|` 转义成 `\|`、换行写成 `<br>`，报告路径、章节、SARIF 与所有载荷键不变。
+
+**0.38 只增不改。** `verify` 的每个 problem 在字典条目带 0.17 的 `locator` 时多一个同名字符串数组；报告（markdown 与 SARIF）也把它带出来。没有 provenance 的字典输出与 0.37 逐字节相同，信封、退出码、命令表、13 个错误码与 `yakusha/1` 字典格式都不变。
 
 ## 9. 实现落点
 

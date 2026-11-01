@@ -285,6 +285,7 @@ test/fixtures/           各引擎最小夹具（mini-mz、mini-mv、renpy-*、r
 | 0.35.0 | **已交付**：`verify --fail-on error\|warning` 把发布闸门的判定阈值显式化；默认 `error` 保持原行为，`warning` 时警告也退出 1，SARIF 的 `executionSuccessful` 同步 | 733 pass / 0 fail（新增 3 条：cli 2、report 1） |
 | 0.36.0 | **已交付**：`verify --require-complete` 把「还有未译条目」变成发布条件（`pending > 0` 即 findings / 1，即使 `problems` 为空）；markdown 报告与 SARIF 也按 `--fail-on` 与 `--require-complete` 复算 verdict / `executionSuccessful` | 738 pass / 0 fail（新增 5 条：cli 2、report 3） |
 | 0.37.0 | **已交付**：markdown verify 报告的字段表转义 `\|` 与换行，游戏标题或字典路径带竖线时不再把表格拆成两列 | 739 pass / 0 fail（新增 1 条：report 1） |
+| 0.38.0 | **已交付**：verify 的 findings 带出字典 v2 的 `locator` 位置（problem 上的 `locator` 数组、markdown 的 `at <位置>` 行、SARIF 的 `properties.locator`），报告能指到条目出处；无 provenance 的字典输出不变 | 741 pass / 0 fail（新增 2 条：verify 1、report 1） |
 | 1.0.0 | 10 个引擎 + 能力矩阵 + 便携 exe（图标、无控制台、最近游戏） | 双击 exe 可用 |
 
 ## 10. 风险

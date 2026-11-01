@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import { verifyDictionary } from "../src/pipeline/verify.js";
 import { plainText, visibleText } from "../src/core/textkey.js";
 
-/** @param {Record<string, {text?: string, error?: string}>} entries */
+/** @param {Record<string, {text?: string, error?: string, locator?: string[]}>} entries */
 function dictionary(entries) {
   return {
     format: "yakusha/1",
@@ -37,6 +37,20 @@ test("verify: a clean dictionary reports nothing", () => {
   assert.equal(result.translated, 2);
   assert.equal(result.problems.length, 0);
   assert.equal(result.errors, 0);
+});
+
+test("verify: findings carry the entry's locators", () => {
+  const result = verifyDictionary(
+    dictionary({
+      "\\C[2]hello": {
+        text: "\\C[3]hello",
+        locator: ["Map001.json#/events/1/pages/0/list/2/parameters/0"],
+      },
+    })
+  );
+  assert.equal(result.problems.length, 1);
+  assert.equal(result.problems[0].kind, "codes");
+  assert.deepEqual(result.problems[0].locator, ["Map001.json#/events/1/pages/0/list/2/parameters/0"]);
 });
 
 test("verify: empty targets count as pending, not as problems", () => {
