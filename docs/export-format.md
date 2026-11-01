@@ -1,6 +1,6 @@
-# 译文导出格式（0.13；0.15 增补 JSONL 导入；0.17 增补来源字段；0.34 增补 JSONL 导出）
+# 译文导出格式（0.13；0.15 增补 JSONL 导入；0.17 增补来源字段；0.34 增补 JSONL 导出；0.53 收紧导入的类型校验）
 
-> **状态：0.10 实现 JSON（WP4）；0.13 补上 TSV / CSV 表格与 `import` 命令；0.34 补上 JSONL 导出。**
+> **状态：0.10 实现 JSON（WP4）；0.13 补上 TSV / CSV 表格与 `import` 命令；0.34 补上 JSONL 导出；0.53 起 `import` 对 provenance 的类型错误显式报 `E_DICTIONARY`，不再静默丢弃。**
 > 本文冻结的是**格式契约**，不是排期；排期权威版本见
 > [dev/ENGINE-STRATEGY.md](dev/ENGINE-STRATEGY.md) §6.3。
 > 实现与测试见 `src/cli/export.js`、`src/cli/table.js`、`test/export.test.js`、
@@ -157,7 +157,10 @@ yakusha export <game-dir> --out <file> [--format json|tsv|csv|jsonl] [--flat] [-
 - 导出不是备份：它只含已翻译条目，丢了未翻条目的 `contexts` 与 `error`。
   要备份就复制 `yakusha/dictionary.json`。
 - 0.17 起 rich 导出还复制 `engine` / `locator`（条目里有就带）；JSON 与 0.34 起的 JSONL
-  导入会把这两个字段写回字典，表格三列没有它们。
+  导入会把这两个字段写回字典，表格三列没有它们。0.53 起 `import` 对这两个字段的类型
+  错误显式报 `E_DICTIONARY`（消息带条目名，例如 `the export file entry "X": engine must
+  be a non-empty string`）；`engine` 必须是非空字符串，`locator` 必须是非空字符串数组，
+  `contexts` 必须是非空字符串数组。此前版本会把这些值静默丢弃。
 - 导出文件可以被外部工具消费（字幕、校对表、CAT）。外部工具改过的文件**不承诺**无损
   导入；本项目只对自己导出的表格保证 round-trip：`export --format tsv` → `import --from`
   → 再 `export`，字节一致（见 §8 与 `test/export.test.js`）。
@@ -276,10 +279,17 @@ CRLF 行尾：
   `table line 1 needs a non-empty source/key and target/text`。
 - `target|text`：译文，规则同上。
 - `contexts`（字符串数组）或 `locator`（单个字符串）：写进该条目的 contexts；
-  都缺就是空数组。其它未知字段被忽略。
-- `engine`（字符串）与 `locator`（字符串数组）是 0.17 的条目级 provenance；
+  都缺就是空数组；`contexts` 是单个字符串时也按一个 context 收下。其它未知字段被忽略。
+- `engine`（非空字符串）与 `locator`（非空字符串数组）是 0.17 的条目级 provenance；
   0.34 起 JSONL 导入会把它们写进字典。`locator` 是单个字符串时按上一条处理
   （0.15 的旧语义，一个 context），不会当成 provenance。
+- 0.53 起这些字段的类型错误整体拒绝该表，报 `E_DICTIONARY`、消息带 1 起的行号：
+  `contexts` 数组里有非字符串或空串元素 → `table line 1: contexts entries must be non-empty strings`；
+  `contexts` 是数组/字符串之外的值（含 `null`）→ `table line 1: contexts must be a string or an array of strings`；
+  `locator` 数组里有非字符串或空串元素 → `table line 1: locator entries must be non-empty strings`；
+  `locator` 是字符串之外的标量（数组与单串 shorthand 之外）→ `table line 1: locator must be a string or an array of strings`；
+  `engine` 出现但不是非空字符串 → `table line 1: engine must be a non-empty string`。
+  0.15–0.52 会把这些值静默丢弃或悄悄包裹；现在显式报错，字典在坏表上保持字节不变。
 - 坏 JSON 报 `E_DICTIONARY`：`table line 2 is not valid JSON`（行号从 1 起）。
 
 ### 9.2 `--create`
@@ -316,3 +326,6 @@ TSV / CSV 仍是三列、不带 provenance。
   / `--strategy` 报 `E_USAGE`。
 - [x] JSONL 导出无 BOM、一行一个对象、跳过空译文；导出 → 导入恢复
   `engine` / `locator`，旧式单字符串 `locator` 仍写进 contexts。
+- [x] 0.53：JSONL 与 rich JSON 导入对 `engine` / `locator` / `contexts` 的类型错误
+  报 `E_DICTIONARY`（行号 / 条目名），字典字节不变；合法 provenance 与单串 shorthand
+  行为不变（`test/export.test.js`）。

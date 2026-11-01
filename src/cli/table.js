@@ -338,9 +338,9 @@ function splitContexts(cell) {
  *
  * @param {string} text file contents
  * @returns {TableRow[]}
- * @throws {CliError} E_DICTIONARY with the 1-based line number on bad JSON
- *   or a row missing source/target
- */
+ * @throws {CliError} E_DICTIONARY with the 1-based line number on bad JSON,
+ *   a row missing source/target, or a provenance field of the wrong type
+ *   (engine / locator / contexts; 0.53 replaced the old silent drops) */
 export function parseJsonl(text) {
   const rows = [];
   const lines = text.split(/\r?\n/);
@@ -365,17 +365,31 @@ export function parseJsonl(text) {
     }
     let contexts = [];
     if (Array.isArray(object.contexts)) {
-      contexts = object.contexts.filter((context) => typeof context === "string" && context.length > 0);
+      if (!object.contexts.every((context) => typeof context === "string" && context.length > 0)) {
+        throw new CliError("E_DICTIONARY", "table line " + (index + 1) + ": contexts entries must be non-empty strings");
+      }
+      contexts = object.contexts.slice();
     } else if (typeof object.locator === "string" && object.locator.length > 0) {
       contexts = [object.locator];
     } else if (typeof object.contexts === "string" && object.contexts.length > 0) {
       contexts = [object.contexts];
+    } else if (typeof object.contexts !== "undefined") {
+      throw new CliError("E_DICTIONARY", "table line " + (index + 1) + ": contexts must be a string or an array of strings");
     }
     const row = { source, target, contexts };
-    if (typeof object.engine === "string" && object.engine.length > 0) row.engine = object.engine;
     if (Array.isArray(object.locator)) {
-      const locator = object.locator.filter((value) => typeof value === "string" && value.length > 0);
-      if (locator.length > 0) row.locator = locator;
+      if (!object.locator.every((value) => typeof value === "string" && value.length > 0)) {
+        throw new CliError("E_DICTIONARY", "table line " + (index + 1) + ": locator entries must be non-empty strings");
+      }
+      if (object.locator.length > 0) row.locator = object.locator.slice();
+    } else if (typeof object.locator !== "undefined" && typeof object.locator !== "string") {
+      throw new CliError("E_DICTIONARY", "table line " + (index + 1) + ": locator must be a string or an array of strings");
+    }
+    if (typeof object.engine !== "undefined") {
+      if (typeof object.engine !== "string" || object.engine.length === 0) {
+        throw new CliError("E_DICTIONARY", "table line " + (index + 1) + ": engine must be a non-empty string");
+      }
+      row.engine = object.engine;
     }
     rows.push(row);
   }

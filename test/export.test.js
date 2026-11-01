@@ -588,6 +588,54 @@ test("import: a bad jsonl line is E_DICTIONARY with the line number", () => {
   assert.match(err.message, /table line 2 is not valid JSON/);
 });
 
+
+test("import: jsonl provenance type errors are E_DICTIONARY, not silent drops", () => {
+  const cases = [
+    ["{\"key\":\"Hello\",\"text\":\"你好\",\"engine\":123}", /table line 1: engine must be a non-empty string/],
+    ["{\"key\":\"Hello\",\"text\":\"你好\",\"engine\":\"\"}", /table line 1: engine must be a non-empty string/],
+    ["{\"key\":\"Hello\",\"text\":\"你好\",\"locator\":[\"a\",1]}", /table line 1: locator entries must be non-empty strings/],
+    ["{\"key\":\"Hello\",\"text\":\"你好\",\"locator\":7}", /table line 1: locator must be a string or an array of strings/],
+    ["{\"key\":\"Hello\",\"text\":\"你好\",\"contexts\":true}", /table line 1: contexts must be a string or an array of strings/],
+  ];
+  for (const [line, pattern] of cases) {
+    const game = tempGame();
+    writeDictionary(game, { "Hello": { text: "", contexts: [] } });
+    const before = fs.readFileSync(path.join(game, "yakusha", "dictionary.json"), "utf8");
+    const from = path.join(game, "..", "bad.jsonl");
+    fs.writeFileSync(from, line + "\n");
+    const result = run(["import", game, "--from", from, "--json"]);
+    assert.equal(result.code, 2, line);
+    const err = envelope(result).error;
+    assert.equal(err.code, "E_DICTIONARY", line);
+    assert.match(err.message, pattern, line);
+    // The bad table is rejected before anything is merged, so the dictionary
+    // on disk is untouched.
+    assert.equal(fs.readFileSync(path.join(game, "yakusha", "dictionary.json"), "utf8"), before);
+  }
+});
+
+test("import: rich json provenance type errors are E_DICTIONARY", () => {
+  const cases = [
+    [{ text: "你好", engine: 123 }, /engine must be a non-empty string/],
+    [{ text: "你好", engine: "" }, /engine must be a non-empty string/],
+    [{ text: "你好", locator: ["a", 1] }, /locator entries must be non-empty strings/],
+    [{ text: "你好", locator: "a" }, /locator must be an array of strings/],
+    [{ text: "你好", contexts: "solo" }, /contexts must be an array of strings/],
+    [{ text: "你好", contexts: ["a", null] }, /contexts entries must be non-empty strings/],
+  ];
+  for (const [value, pattern] of cases) {
+    const game = tempGame();
+    const from = path.join(game, "..", "bad.json");
+    fs.writeFileSync(from, JSON.stringify({ format: "yakusha/1", entries: { "Hello": value } }));
+    const result = run(["import", game, "--from", from, "--format", "json", "--json"]);
+    assert.equal(result.code, 2, JSON.stringify(value));
+    const err = envelope(result).error;
+    assert.equal(err.code, "E_DICTIONARY", JSON.stringify(value));
+    assert.match(err.message, pattern, JSON.stringify(value));
+    assert.match(err.message, /"Hello"/);
+  }
+});
+
 test("import: --create starts a dictionary when the project has none", () => {
   const game = tempGame();
   fs.rmSync(path.join(game, "yakusha"), { recursive: true, force: true });

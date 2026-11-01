@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.53.0] - 2026-10-27
+
+### Fixed
+
+- `import` no longer silently drops provenance whose type is wrong. A JSONL line with an `engine` that is not a non-empty string, a `locator` that is neither a string (the single-context shorthand) nor an array of non-empty strings, or a `contexts` value outside those shapes is now rejected with `E_DICTIONARY` and the 1-based line number (`table line 1: engine must be a non-empty string`); the rich JSON path reports the entry name instead (`the export file entry "X": engine must be a non-empty string`). The dictionary on disk is untouched, and valid provenance plus the JSONL single-string `contexts` / `locator` shorthand behave exactly as before. 0.15-0.52 silently dropped these values or wrapped them.
+
+### Unchanged
+
+- Envelope, exit codes, payload keys, the 13 error codes and the `yakusha/1` dictionary format are untouched.
+
 ## [0.52.0] - 2026-10-27
 
 ### Added
@@ -645,7 +655,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.52.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.53.0...HEAD
+[0.53.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.52.0...v0.53.0
 [0.52.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.51.0...v0.52.0
 [0.51.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.50.0...v0.51.0
 [0.50.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.49.0...v0.50.0

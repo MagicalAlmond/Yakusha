@@ -258,15 +258,34 @@ export function parseExportEntries(text) {
       continue;
     }
     if (value && typeof value === "object" && typeof value.text === "string") {
-      const contexts = Array.isArray(value.contexts)
-        ? value.contexts.filter((context) => typeof context === "string")
-        : [];
+      const label = JSON.stringify(source.length > 80 ? source.slice(0, 80) : source);
+      let contexts;
+      if (typeof value.contexts === "undefined") {
+        contexts = [];
+      } else if (Array.isArray(value.contexts)) {
+        if (!value.contexts.every((context) => typeof context === "string" && context.length > 0)) {
+          throw new CliError("E_DICTIONARY", "the export file entry " + label + ": contexts entries must be non-empty strings");
+        }
+        contexts = value.contexts.slice();
+      } else {
+        throw new CliError("E_DICTIONARY", "the export file entry " + label + ": contexts must be an array of strings");
+      }
       /** @type {{ source: string, target: string, contexts: string[], engine?: string, locator?: string[] }} */
       const row = { source, target: value.text, contexts };
-      if (typeof value.engine === "string" && value.engine.length > 0) row.engine = value.engine;
-      if (Array.isArray(value.locator)) {
-        const locator = value.locator.filter((item) => typeof item === "string" && item.length > 0);
-        if (locator.length > 0) row.locator = locator;
+      if (typeof value.engine !== "undefined") {
+        if (typeof value.engine !== "string" || value.engine.length === 0) {
+          throw new CliError("E_DICTIONARY", "the export file entry " + label + ": engine must be a non-empty string");
+        }
+        row.engine = value.engine;
+      }
+      if (typeof value.locator !== "undefined") {
+        if (!Array.isArray(value.locator)) {
+          throw new CliError("E_DICTIONARY", "the export file entry " + label + ": locator must be an array of strings");
+        }
+        if (!value.locator.every((item) => typeof item === "string" && item.length > 0)) {
+          throw new CliError("E_DICTIONARY", "the export file entry " + label + ": locator entries must be non-empty strings");
+        }
+        if (value.locator.length > 0) row.locator = value.locator.slice();
       }
       rows.push(row);
       continue;
