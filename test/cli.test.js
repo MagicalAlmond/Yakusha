@@ -180,6 +180,30 @@ test("cli: translate --limit below 1 is a usage error, not a smaller run", () =>
   assert.equal(JSON.parse(result.stdout).translated, 1);
 });
 
+test("cli: translate run-shape numbers below 1 are usage errors", () => {
+  const game = tempGame();
+  assert.equal(run(["extract", game]).code, 0);
+  const cases = [
+    [["--batch-size", "0"], "translate --batch-size must be a whole number of entries per request (at least 1), not 0"],
+    [["--batch-size", "-5"], "translate --batch-size must be a whole number of entries per request (at least 1), not -5"],
+    [["--batch-size", "abc"], "translate --batch-size must be a whole number of entries per request (at least 1), not abc"],
+    [["--char-budget", "-100"], "translate --char-budget must be a whole number of characters per request (at least 1), not -100"],
+    [["--concurrency", "0"], "translate --concurrency must be a whole number of parallel requests (at least 1), not 0"],
+    [["--timeout", "-1"], "translate --timeout must be a whole number of milliseconds (at least 1), not -1"],
+    [["--max-tokens", "-100"], "translate --max-tokens must be a whole number of tokens (at least 1), not -100"],
+  ];
+  for (const [extra, message] of cases) {
+    const result = run(["translate", game, "--dry-run", ...extra, "--json"]);
+    assert.equal(result.code, 2, extra.join(" ") + ": " + result.stderr);
+    const body = JSON.parse(result.stdout);
+    assert.equal(body.error.code, "E_USAGE", extra.join(" "));
+    assert.equal(body.error.message, message);
+  }
+  const ok = run(["translate", game, "--dry-run", "--batch-size", "2", "--char-budget", "100", "--concurrency", "1", "--timeout", "5000", "--max-tokens", "512", "--json"]);
+  assert.equal(ok.code, 0, ok.stderr);
+  assert.equal(JSON.parse(ok.stdout).translated, 32);
+});
+
 test("cli: --glossary-only applies a term base without a provider", () => {
   const game = tempGame();
   assert.equal(run(["extract", game]).code, 0);

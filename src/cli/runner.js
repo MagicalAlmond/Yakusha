@@ -82,6 +82,27 @@ function numberFlag(flags, name, fallback) {
 }
 
 /**
+ * Reject a translate numeric flag that is not a whole number of at least
+ * one. Degenerate values silently change the run's request economics: a
+ * negative --batch-size or --char-budget collapses batching to one entry
+ * per request (a request blowup on a real provider), a negative --timeout
+ * aborts every request instantly, and a non-finite value falls through
+ * numberFlag into a default the user never asked for. Only commandTranslate
+ * uses this; the message names the flag so the error points at the typo.
+ *
+ * @param {Record<string, unknown>} flags
+ * @param {string} name flag name in kebab case as the user typed it
+ * @param {string} unit what one unit of the flag counts
+ */
+function requirePositiveIntFlag(flags, name, unit) {
+  if (flags[name] === undefined) return;
+  const value = Number(flags[name]);
+  if (!Number.isInteger(value) || value < 1) {
+    throw new CliError("E_USAGE", "translate --" + name + " must be a whole number of " + unit + " (at least 1), not " + flags[name]);
+  }
+}
+
+/**
  * Write a user-facing text output without leaving a half-written file behind.
  *
  * @param {string} file target path
@@ -641,15 +662,14 @@ async function commandTerms(dir, flags, sink) {
  *        cancels a long translate run through signal; the CLI passes nothing.
  */
 async function commandTranslate(dir, flags, sink, onProgress, opts = {}) {
-  // The pipeline slices the pending list with limit, so a zero translated
-  // nothing (exit 0, "ok") and a negative number silently dropped entries
-  // from the end. Both are input errors, not run scopes.
-  if (flags.limit !== undefined) {
-    const limit = Number(flags.limit);
-    if (!Number.isInteger(limit) || limit < 1) {
-      throw new CliError("E_USAGE", "translate --limit must be a whole number of entries (at least 1), not " + flags.limit);
-    }
-  }
+  // Run-shape numbers: a zero or negative --limit emptied or shrank the
+  // run (0.61), and the request-shape flags below have the same trap.
+  requirePositiveIntFlag(flags, "limit", "entries");
+  requirePositiveIntFlag(flags, "batch-size", "entries per request");
+  requirePositiveIntFlag(flags, "char-budget", "characters per request");
+  requirePositiveIntFlag(flags, "concurrency", "parallel requests");
+  requirePositiveIntFlag(flags, "timeout", "milliseconds");
+  requirePositiveIntFlag(flags, "max-tokens", "tokens");
   const { project, adapter } = requireProject(dir);
   const { file, data } = requireDictionary(project);
 

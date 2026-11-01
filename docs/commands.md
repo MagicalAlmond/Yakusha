@@ -1,6 +1,6 @@
 # 命令参考
 
-本文是 yakusha 0.61.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出；0.33 给 `verify` 增加了 SARIF 报告输出（`--report-format sarif`）；0.34 给 `export` 增加 JSONL 输出（`--format jsonl`），0.35 给 `verify` 增加 `--fail-on warning`（warning 也算发布失败），0.36 给 `verify` 增加 `--require-complete`（还有未译条目就失败），0.37 只修 markdown 报告表格里的 `|` 转义，0.38 只让 `verify` 的 problem 带出字典条目的 `locator`，0.39 修 `import --dry-run --create` 会落盘空字典的问题（dry-run 不写盘），0.40 让 `verify --write-report`、`speaker --write-names`、`terms --write` 拒绝把输出写到项目字典上（`E_EXISTS`、退出 2），0.41 只让 `terms` 识别 RGSS 的数据库名表（`.rvdata2` / `.rvdata` / `.rxdata`），0.42 让 `install --dry-run` 在 RPG Maker 插件层与 Ren'Py 译文文件层上真的不写盘（RGSS 的 `--native --dry-run` 0.18 起已如此），0.43 给 `uninstall` 增加 `--dry-run`（MZ/MV、Ren'Py、RGSS 四个引擎都只报告将要删除或还原的内容），0.44 只修 `launch` 在 MV 的 `www/` 布局下从上一层启动 `Game.exe`（项目根仍是 `www/`），0.45 只修 `scan` 文本模式的长文件名与计数间距（载荷不变），0.46 只修 RGSS `install --native --dry-run` 的 `state` 预测（首次安装报 `added`，不是 `unchanged`；不写盘），0.49 只让 `verify --kind width` 在没给 `--max-length`（或给 0）时报用法错误（`E_USAGE`、退出 2），0.47 只让 Kirikiri 的归档级错误不再把归档名重复两遍，0.48 只让 `launch` 在 `data/` 本身是 nw.js 宿主时从 `data/` 启动（项目根仍是 `data/www/`），0.50 只让 `install --embed` 在非 RPG Maker 引擎上报用法错误（此前在 Ren'Py 上被静默忽略，在 Kirikiri 上被字典检查盖住），0.51 只把空字符串的选项值也当缺值（`--write-report ""` 报 `E_USAGE`，不再被当成当前目录去写），0.53 只让 `import` 对 provenance（`engine` / `locator` / `contexts`）的类型错误显式报 `E_DICTIONARY`（此前版本会静默丢弃这些值），0.54 只让 Kirikiri 的 KS 抽取跳过 `[iscript]` 代码块并把行首 `@` 的单行标签当标签行（代码与注释不再混进字典），0.55 又把行首 `[` 的标签行里剥掉标签后的可见文本收进字典（宏引用对白 `[「]text」` 不再整行丢失），0.59 只给 `import` 的同源重复行定下显式语义（同译文只应用第一次、计入新的 `duplicates` 载荷键；冲突译文整体拒绝），其余命令不变。
+本文是 yakusha 0.62.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出；0.33 给 `verify` 增加了 SARIF 报告输出（`--report-format sarif`）；0.34 给 `export` 增加 JSONL 输出（`--format jsonl`），0.35 给 `verify` 增加 `--fail-on warning`（warning 也算发布失败），0.36 给 `verify` 增加 `--require-complete`（还有未译条目就失败），0.37 只修 markdown 报告表格里的 `|` 转义，0.38 只让 `verify` 的 problem 带出字典条目的 `locator`，0.39 修 `import --dry-run --create` 会落盘空字典的问题（dry-run 不写盘），0.40 让 `verify --write-report`、`speaker --write-names`、`terms --write` 拒绝把输出写到项目字典上（`E_EXISTS`、退出 2），0.41 只让 `terms` 识别 RGSS 的数据库名表（`.rvdata2` / `.rvdata` / `.rxdata`），0.42 让 `install --dry-run` 在 RPG Maker 插件层与 Ren'Py 译文文件层上真的不写盘（RGSS 的 `--native --dry-run` 0.18 起已如此），0.43 给 `uninstall` 增加 `--dry-run`（MZ/MV、Ren'Py、RGSS 四个引擎都只报告将要删除或还原的内容），0.44 只修 `launch` 在 MV 的 `www/` 布局下从上一层启动 `Game.exe`（项目根仍是 `www/`），0.45 只修 `scan` 文本模式的长文件名与计数间距（载荷不变），0.46 只修 RGSS `install --native --dry-run` 的 `state` 预测（首次安装报 `added`，不是 `unchanged`；不写盘），0.49 只让 `verify --kind width` 在没给 `--max-length`（或给 0）时报用法错误（`E_USAGE`、退出 2），0.47 只让 Kirikiri 的归档级错误不再把归档名重复两遍，0.48 只让 `launch` 在 `data/` 本身是 nw.js 宿主时从 `data/` 启动（项目根仍是 `data/www/`），0.50 只让 `install --embed` 在非 RPG Maker 引擎上报用法错误（此前在 Ren'Py 上被静默忽略，在 Kirikiri 上被字典检查盖住），0.51 只把空字符串的选项值也当缺值（`--write-report ""` 报 `E_USAGE`，不再被当成当前目录去写），0.53 只让 `import` 对 provenance（`engine` / `locator` / `contexts`）的类型错误显式报 `E_DICTIONARY`（此前版本会静默丢弃这些值），0.54 只让 Kirikiri 的 KS 抽取跳过 `[iscript]` 代码块并把行首 `@` 的单行标签当标签行（代码与注释不再混进字典），0.55 又把行首 `[` 的标签行里剥掉标签后的可见文本收进字典（宏引用对白 `[「]text」` 不再整行丢失），0.59 只给 `import` 的同源重复行定下显式语义（同译文只应用第一次、计入新的 `duplicates` 载荷键；冲突译文整体拒绝），其余命令不变。
 
 **RGSS 在 0.18 起有了交付层。** `scan` / `extract` / `status` / `translate` / `verify` / `speaker` / `terms` / `export` / `import` 都能用；0.18 新增 `install --native`，把预编译的注入器与 hook DLL 装进 `yakusha/native/`，游戏启动时由注入器加载，译文从 `dictionary.txt` 读。`install` 不带 `--native` 仍报 `E_USAGE`（RGSS 没有插件交付层）。安装细节与限制见下文 [install 与 uninstall](#install-与-uninstall)。
 
@@ -64,9 +64,9 @@
 --limit <n>         translate at most n pending entries (at least 1); 0, negatives and non-integers are a usage error (0.61)
 --context <text>    only entries whose context contains text; repeat to
                     accept any of several
---batch-size <n>    entries per request (default 40)
---char-budget <n>   characters per request (default 6000)
---concurrency <n>   parallel requests (default 2)
+--batch-size <n>    entries per request (default 40; at least 1)
+--char-budget <n>   characters per request (default 6000; at least 1)
+--concurrency <n>   parallel requests (default 2; at least 1)
 --save-every <n>    write the dictionary every n translations (default 200)
 --max-length <cols> wrap translated lines wider than n display columns (0 = off)
 --no-rewrap         leave existing translations alone (no re-wrap)
@@ -237,7 +237,7 @@
 ### --help 与 --version
 
 - `--help` / `-h`：永远 stdout 纯文本、退出 0，即使同时给了 `--json`；`scan -h` 也一样打整段帮助。连未知命令都投降：`nope --help` 打帮助、退出 0。
-- `--version`：永远 stdout 一行 `yakusha <version>`、退出 0，并且优先于一切——`--help --version` 只打 `yakusha 0.61.0`，`--json --version` 也不产出 JSON。
+- `--version`：永远 stdout 一行 `yakusha <version>`、退出 0，并且优先于一切——`--help --version` 只打 `yakusha 0.62.0`，`--json --version` 也不产出 JSON。
 - 无命令：文本模式把整段 USAGE 打到 stderr、退出 2；`--json` 时输出 `command: null` 的信封，`message` 是 `no command`。
 - 未知命令：stderr 两行 `error: unknown command: nope` 和 `run 'yakusha --help' for usage`，退出 2，不再打印整段 USAGE。
 
@@ -492,7 +492,7 @@ elapsed   : 0.0s
 - `--dry-run` 只算不写：`dry run   : 32 of 32 would be translated (not saved)`，载荷换成 `{dryRun, provider, total, translated, rejected}`；同时给了 `--provider` 会警告 `warning: --dry-run always uses the mock provider; --provider openai ignored`。
 - `--glossary <file>` 收两种形状：`{"entries": {...}}` 或裸映射 `{"アリア": "艾莉亚"}`。文件不存在报 `E_IO`：`glossary file not found: <path>`。
 - `--glossary-only` 只套词表、绝不调模型，此时 `provider` 是 `glossary`；不带 `--glossary` 也成功，只是 0 条。
-- `--limit` / `--context` / `--batch-size` / `--char-budget` / `--concurrency` / `--save-every` / `--max-length` / `--no-rewrap` 控制批量、并发、落盘节奏与重排宽度；`translate --limit` 必须是至少 1 的整数，`0` / 负数 / 非整数报 `E_USAGE`：`translate --limit must be a whole number of entries (at least 1), not <value>`（0.61 起；0.60 及之前 `0` 会退出 0 什么也不翻、负数会静默从尾部丢条目）。数字选项给了非有限值（如 `--limit abc`）会静默回到默认值，不报错。
+- `--limit` / `--context` / `--batch-size` / `--char-budget` / `--concurrency` / `--save-every` / `--max-length` / `--no-rewrap` 控制批量、并发、落盘节奏与重排宽度；`translate --limit` 必须是至少 1 的整数，`0` / 负数 / 非整数报 `E_USAGE`：`translate --limit must be a whole number of entries (at least 1), not <value>`（0.61 起；0.60 及之前 `0` 会退出 0 什么也不翻、负数会静默从尾部丢条目）。0.62 把同一校验推广到四个请求形状旗标：`--batch-size` / `--char-budget` / `--concurrency` / `--timeout`（以及未写进 help 的 `--max-tokens`）都必须是至少 1 的整数，否则 `E_USAGE`（如 `translate --batch-size must be a whole number of entries per request (at least 1), not -5`）——此前负的 `--batch-size` / `--char-budget` 会把批量坍缩成每请求 1 条（真 provider 上请求量放大 40 倍且无任何提示）、负 `--timeout` 会让所有请求立刻中止。数字选项给了非有限值（如 `--limit abc`）会静默回到默认值，不报错。
 - 有 `rejected > 0` 时仍 `ok`、退出 0——坏条目留给 `verify` 报。
 
 RGSS 与 Ren'Py 都走这同一段代码，没有引擎特判：实测 RGSS 的 29 条串 `--provider mock` 一次翻完，输出四行与上面逐字相同（只是数字是 29）。控制码的识别共用 `src/core/textkey.js` 的 `tokenize()`：它把反斜杠开头的转义码当不透明 token，`\C[n]` 这种带方括号参数的、`\!` `\>` 这种单字符的都是同一套规则，所以 RGSS 的转义码不必另写一份。
