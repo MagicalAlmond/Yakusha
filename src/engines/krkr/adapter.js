@@ -109,8 +109,11 @@ export function scanKrkr(project) {
     stringsWithControlCodes: withCodes,
     encodings: result.encodings,
     // The extractor reports {file, error} pairs; the shared shape asks for
-    // strings, because the CLI joins them into one line.
-    undecodable: result.undecodable.map((item) => item.file + ": " + item.error),
+    // strings, because the CLI joins them into one line. Archive-level errors
+    // already start with the archive name, so prefix only when they do not.
+    undecodable: result.undecodable.map((item) =>
+      item.error.startsWith(item.file + ": ") ? item.error : item.file + ": " + item.error
+    ),
     perFile: result.perFile,
   };
 }

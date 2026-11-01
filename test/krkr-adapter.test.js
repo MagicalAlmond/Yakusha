@@ -121,7 +121,8 @@ test("scan: undecodable items are strings the CLI can join", () => {
   const scan = adapter.scan(project);
   assert.equal(scan.undecodable.length, 1);
   assert.equal(typeof scan.undecodable[0], "string");
-  assert.match(scan.undecodable[0], /broken\.xp3: /);
+  assert.match(scan.undecodable[0], /^broken\.xp3: not an XP3 archive/);
+  assert.doesNotMatch(scan.undecodable[0], /^broken\.xp3: broken\.xp3:/);
 });
 
 test("extract: writes a dictionary with empty targets and merged contexts", () => {

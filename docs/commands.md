@@ -1,6 +1,6 @@
 # 命令参考
 
-本文是 yakusha 0.46.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出；0.33 给 `verify` 增加了 SARIF 报告输出（`--report-format sarif`）；0.34 给 `export` 增加 JSONL 输出（`--format jsonl`），0.35 给 `verify` 增加 `--fail-on warning`（warning 也算发布失败），0.36 给 `verify` 增加 `--require-complete`（还有未译条目就失败），0.37 只修 markdown 报告表格里的 `|` 转义，0.38 只让 `verify` 的 problem 带出字典条目的 `locator`，0.39 修 `import --dry-run --create` 会落盘空字典的问题（dry-run 不写盘），0.40 让 `verify --write-report`、`speaker --write-names`、`terms --write` 拒绝把输出写到项目字典上（`E_EXISTS`、退出 2），0.41 只让 `terms` 识别 RGSS 的数据库名表（`.rvdata2` / `.rvdata` / `.rxdata`），0.42 让 `install --dry-run` 在 RPG Maker 插件层与 Ren'Py 译文文件层上真的不写盘（RGSS 的 `--native --dry-run` 0.18 起已如此），0.43 给 `uninstall` 增加 `--dry-run`（MZ/MV、Ren'Py、RGSS 四个引擎都只报告将要删除或还原的内容），0.44 只修 `launch` 在 MV 的 `www/` 布局下从上一层启动 `Game.exe`（项目根仍是 `www/`），0.45 只修 `scan` 文本模式的长文件名与计数间距（载荷不变），0.46 只修 RGSS `install --native --dry-run` 的 `state` 预测（首次安装报 `added`，不是 `unchanged`；不写盘），其余命令不变。
+本文是 yakusha 0.47.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出；0.33 给 `verify` 增加了 SARIF 报告输出（`--report-format sarif`）；0.34 给 `export` 增加 JSONL 输出（`--format jsonl`），0.35 给 `verify` 增加 `--fail-on warning`（warning 也算发布失败），0.36 给 `verify` 增加 `--require-complete`（还有未译条目就失败），0.37 只修 markdown 报告表格里的 `|` 转义，0.38 只让 `verify` 的 problem 带出字典条目的 `locator`，0.39 修 `import --dry-run --create` 会落盘空字典的问题（dry-run 不写盘），0.40 让 `verify --write-report`、`speaker --write-names`、`terms --write` 拒绝把输出写到项目字典上（`E_EXISTS`、退出 2），0.41 只让 `terms` 识别 RGSS 的数据库名表（`.rvdata2` / `.rvdata` / `.rxdata`），0.42 让 `install --dry-run` 在 RPG Maker 插件层与 Ren'Py 译文文件层上真的不写盘（RGSS 的 `--native --dry-run` 0.18 起已如此），0.43 给 `uninstall` 增加 `--dry-run`（MZ/MV、Ren'Py、RGSS 四个引擎都只报告将要删除或还原的内容），0.44 只修 `launch` 在 MV 的 `www/` 布局下从上一层启动 `Game.exe`（项目根仍是 `www/`），0.45 只修 `scan` 文本模式的长文件名与计数间距（载荷不变），0.46 只修 RGSS `install --native --dry-run` 的 `state` 预测（首次安装报 `added`，不是 `unchanged`；不写盘），其余命令不变。
 
 **RGSS 在 0.18 起有了交付层。** `scan` / `extract` / `status` / `translate` / `verify` / `speaker` / `terms` / `export` / `import` 都能用；0.18 新增 `install --native`，把预编译的注入器与 hook DLL 装进 `yakusha/native/`，游戏启动时由注入器加载，译文从 `dictionary.txt` 读。`install` 不带 `--native` 仍报 `E_USAGE`（RGSS 没有插件交付层）。安装细节与限制见下文 [install 与 uninstall](#install-与-uninstall)。
 
@@ -227,7 +227,7 @@
 ### --help 与 --version
 
 - `--help` / `-h`：永远 stdout 纯文本、退出 0，即使同时给了 `--json`；`scan -h` 也一样打整段帮助。连未知命令都投降：`nope --help` 打帮助、退出 0。
-- `--version`：永远 stdout 一行 `yakusha <version>`、退出 0，并且优先于一切——`--help --version` 只打 `yakusha 0.46.0`，`--json --version` 也不产出 JSON。
+- `--version`：永远 stdout 一行 `yakusha <version>`、退出 0，并且优先于一切——`--help --version` 只打 `yakusha 0.47.0`，`--json --version` 也不产出 JSON。
 - 无命令：文本模式把整段 USAGE 打到 stderr、退出 2；`--json` 时输出 `command: null` 的信封，`message` 是 `no command`。
 - 未知命令：stderr 两行 `error: unknown command: nope` 和 `run 'yakusha --help' for usage`，退出 2，不再打印整段 USAGE。
 
@@ -406,7 +406,7 @@ encodings : xp3 1
 - 第 4 行仍叫 `data files`（`adapter.dataUnit`，`src/engines/krkr/adapter.js:268`），数值是 `dataFiles` 键，数的是**打开的 `.xp3` 归档数**（`result.documents`）——打包游戏没有松散文件可数，归档清单是唯一诚实的数字。
 - `encodings` 是归档格式计数 `{"xp3": N}`，0.13 只有这一个键。
 - 文本从 `.ks` 脚本按行抽：注释行（行首 `;`）、标签行（行首 `*`）与纯标签行跳过，行内 KAG 标签（`[r]` 这类）剥掉后存纯文本；`.tjs` 是编程语言，只计数不读内容。编码先按 UTF-8 严格解码、失败回退 Shift_JIS，仍解不开的记进 `undecodable`。
-- `perFile` 的键是归档内路径（`scene1.ks`），context 是 `<归档内文件名>:<行号>`（`scene1.ks:2`）；`undecodable` 是字符串数组，元素形如 `"scenario.xp3:scene1.ks: U+FFFD …"`（`<归档名>:<文件名>: <错误>`，`src/engines/krkr/adapter.js:113`）。
+- `perFile` 的键是归档内路径（`scene1.ks`），context 是 `<归档内文件名>:<行号>`（`scene1.ks:2`）；`undecodable` 是字符串数组，归档级错误形如 `"data.xp3: the XP3 index uses an unsupported format ..."`（`<归档名>: <原因>`），归档内文件级错误形如 `"scenario.xp3:scene1.ks: U+FFFD …"`（`<归档名>:<文件名>: <原因>`）。0.47 起归档级错误不再把归档名重复两遍（此前会输出 `"data.xp3: data.xp3: ..."`），读取逻辑与载荷键不变。
 - XP3 索引只读标准格式（索引体以 `File` 开头）；修改版索引（实测发行版里见过 `Hxv4`）明确不支持，报 `E_UNSUPPORTED` 而不是猜（`src/engines/krkr/xp3.js:77`）。同名补丁 `.xp3` 不遮蔽基础归档，两个都读。损坏的归档或索引记进 `undecodable` 后继续走完整个游戏，不因一个文件丢掉其余文本。
 - 从 `<root>/data` 子目录调用同样能定位项目根；向上、向下各找最多 3 层。
 

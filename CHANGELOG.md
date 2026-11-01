@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.47.0] - 2026-10-27
+
+### Fixed
+
+- `scan` on Kirikiri games no longer repeats the archive name in archive-level `undecodable` entries. A broken or transformed index used to read `data.xp3: data.xp3: the XP3 index ...`; it now reads `data.xp3: the XP3 index ...`. File-level entries keep the `<archive>:<file>: <reason>` form, and the payload keys are unchanged.
+
+### Unchanged
+
+- No contract change: the scan payload keys, the envelope, exit codes, the command table, the 13 error codes and the `yakusha/1` dictionary format stay the same.
+
 ## [0.46.0] - 2026-10-27
 
 ### Fixed
@@ -586,7 +596,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.46.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.47.0...HEAD
+[0.47.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.46.0...v0.47.0
 [0.46.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.45.0...v0.46.0
 [0.45.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.44.0...v0.45.0
 [0.44.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.43.0...v0.44.0
