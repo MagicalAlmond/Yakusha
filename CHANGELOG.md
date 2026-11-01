@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.55.0] - 2026-10-27
+
+### Fixed
+
+- Kirikiri extraction recovers the visible text on tag-led lines. Localization groups commonly quote dialogue through a custom macro spelled `[「]line」`; the old rule "a line starting with `[` is a tag line" dropped the whole line, and the real sample lost 4,710 distinct lines of visible dialogue across 4,839 lines. After stripping the tags, any remaining visible text is collected as usual (whatever the engine renders is what gets extracted). Inline tag scanning is now quote-aware, so a `]` inside a quoted attribute such as `left="&tf.X[0]"` no longer cuts the tag short.
+
+### Unchanged
+
+- No breaking change: the envelope, exit codes, command table, the 13 error codes and the `yakusha/1` dictionary format are identical to 0.54.0; this is an extraction-quality fix, the adapter contract is untouched.
+
 ## [0.54.0] - 2026-10-27
 
 ### Fixed
@@ -55,6 +65,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Unchanged
 
 - No breaking change: the envelope, exit codes, command table, the 13 error codes and the `yakusha/1` dictionary format are identical to 0.49.0.
+
 ## [0.49.0] - 2026-10-27
 
 ### Fixed
@@ -665,7 +676,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.54.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.55.0...HEAD
+[0.55.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.54.0...v0.55.0
 [0.54.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.53.0...v0.54.0
 [0.53.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.52.0...v0.53.0
 [0.52.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.51.0...v0.52.0

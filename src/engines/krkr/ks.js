@@ -7,7 +7,11 @@
  * text lines (tags stripped), tracks the most recent `[name_set name='...']`
  * speaker, records line numbers, and skips the TJS code between `[iscript]`
  * and `[endscript]` - code lines are executed by the engine, never shown as
- * dialogue.
+ * dialogue. A bracket-led tag line may still carry visible dialogue after its
+ * tags (macro-quoted lines like `[「]text」` are a common style), so its
+ * remaining text is collected too; an `@` line is one whole tag and never
+ * carries visible text. Quoted attribute values may contain `]`, so the tag
+ * scanner skips over quotes while looking for the closing bracket.
  *
  * @module engines/krkr/ks
  */
@@ -66,10 +70,12 @@ export function classifyLine(rawLine) {
 }
 
 /**
- * Strip KAG inline tags from a text line: `[r]` becomes a space marker that
- * the caller re-derives, `[name_set ...]`-style tags vanish. Returns the
- * remaining literal text with tags removed.
- * @param {string} line text line with inline tags
+ * Strip KAG inline tags from a line: `[r]` becomes a space marker that the
+ * caller re-derives, `[name_set ...]`-style tags vanish. A `]` inside a
+ * quoted attribute value (`left="&tf.X[0]"`) does not close the tag, so the
+ * scanner skips over double- and single-quoted spans while looking for the
+ * closing bracket. Returns the remaining literal text with tags removed.
+ * @param {string} line line with inline tags
  * @returns {{ text: string, tags: string[] }} visible text and tag names in order
  */
 export function stripInlineTags(line) {
@@ -79,7 +85,23 @@ export function stripInlineTags(line) {
   while (i < line.length) {
     const ch = line[i];
     if (ch === "[") {
-      const end = line.indexOf("]", i + 1);
+      let end = -1;
+      let quote = null;
+      for (let j = i + 1; j < line.length; j += 1) {
+        const c = line[j];
+        if (quote !== null) {
+          if (c === quote) quote = null;
+          continue;
+        }
+        if (c === '"' || c === "'") {
+          quote = c;
+          continue;
+        }
+        if (c === "]") {
+          end = j;
+          break;
+        }
+      }
       if (end === -1) {
         // Unterminated bracket: treat the rest as literal text.
         text += line.slice(i);
@@ -135,7 +157,10 @@ function tagName(rawLine) {
  * code between `[iscript]` and `[endscript]` (either bracket or `@`
  * spelling) is skipped: those lines run as code and never render as
  * dialogue, so collecting them would only put comments and statements into
- * the dictionary. The speaker keeps its value across a script block.
+ * the dictionary. A bracket-led tag line still contributes its visible text:
+ * the tags are stripped and the rest is collected like any text line, which
+ * is how macro-quoted dialogue (`[「]text」`) reaches the dictionary. The
+ * speaker keeps its value across a script block.
  *
  * @param {string} source decoded file text
  * @param {string} file relative path for messages (unused in units, kept for parity)
@@ -163,7 +188,7 @@ export function collectKsStrings(source, file) {
         inScript = true;
         continue;
       }
-      // Tag-only lines may still carry the speaker declaration, in both the
+      // Tag lines may still carry the speaker declaration, in both the
       // [name_set ...] and @name_set ... spellings. Any other tag line does
       // not reset the speaker.
       const body = lines[i].trim().replace(/^\[/, "").replace(/\]\s*$/, "").replace(/^@/, "");
@@ -171,6 +196,15 @@ export function collectKsStrings(source, file) {
       if (speakerValue !== null) {
         speaker = speakerValue;
         names.push({ name: speakerValue, line: i + 1 });
+      }
+      // A bracket-led line is tags followed by whatever the engine displays:
+      // macro-quoted dialogue like [「]text」 keeps its visible text on the
+      // same line, so collect what remains after the tags. An @-led line is
+      // one tag that owns the whole line - there is never visible text.
+      if (lines[i].trim().startsWith("[")) {
+        const { text, tags } = stripInlineTags(lines[i]);
+        const visible = text.trim();
+        if (visible !== "") strings.push({ text: visible, line: i + 1, speaker, tags });
       }
       continue;
     }

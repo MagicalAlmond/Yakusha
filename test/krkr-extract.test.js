@@ -52,6 +52,20 @@ test("extract merges strings across archives with per-line contexts", () => {
   assert.equal(entry.count, 1);
 });
 
+test("macro-quoted dialogue on a bracket-led line reaches the dictionary", () => {
+  const parent = tempDir();
+  const { root } = writeKrkrProject(parent, { archives: [
+    { archiveName: "data.xp3", files: [
+      { name: "s.ks", data: KS("[name_set name='Aoi'][「]せりふはタグの後にもある」\n") },
+    ] },
+  ] });
+  const result = extractKrkrProject(root);
+  const entry = result.entries.get("せりふはタグの後にもある」");
+  assert.ok(entry, "the visible text after the tags is collected");
+  assert.equal(entry.count, 1);
+  assert.deepEqual([...entry.contexts], ["s.ks:1"]);
+});
+
 test("the same text twice in one file merges into one entry and counts both", () => {
   const parent = tempDir();
   const line = "のこ「同じせりふを二回言う」\n";

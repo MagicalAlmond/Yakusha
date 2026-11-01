@@ -2,9 +2,10 @@
  * KAG script reader contract (src/engines/krkr/ks.js).
  *
  * The fixtures are invented lines that exercise the rules the reader commits
- * to: text lines are collected, comment/label/tag lines (including the @
- * one-line tag form) are not, inline tags are stripped, the most recent
- * [name_set] names the speaker, the TJS code between [iscript] and
+ * to: text lines are collected, comment/label lines and @ tag lines are not,
+ * a bracket-led tag line contributes the visible text its tags leave behind,
+ * inline tags are stripped (also out of quoted attribute values), the most
+ * recent [name_set] names the speaker, the TJS code between [iscript] and
  * [endscript] is skipped, and a script that is not valid UTF-8 is decoded as
  * Shift_JIS with undecodable counting.
  */
@@ -34,6 +35,35 @@ test("stripInlineTags removes tags and keeps [[ as a literal bracket", () => {
   assert.deepEqual(stripInlineTags("[emb exp=x]mid"), { text: "mid", tags: ["emb"] });
   // An unclosed bracket is text, not a tag: the reader never swallows lines.
   assert.deepEqual(stripInlineTags("broken [tag"), { text: "broken [tag", tags: [] });
+  // A ] inside a quoted attribute value does not close the tag.
+  assert.deepEqual(stripInlineTags('a[tag x="f.x[0]"]b'), { text: "ab", tags: ["tag"] });
+  assert.deepEqual(stripInlineTags("[tag y='a]b']c"), { text: "c", tags: ["tag"] });
+});
+
+test("collectKsStrings collects the visible text on bracket-led tag lines", () => {
+  const source = [
+    "[「]マクロ引用のせりふ」",
+    "@macro name=box",
+    "[name_set name='Aoi'][「]名前の後のせりふ」",
+    "[背景 file=庭 trans=false]]",
+  ].join("\n");
+  const result = collectKsStrings(source, "s.ks");
+  assert.deepEqual(result.strings.map((item) => item.text), [
+    "マクロ引用のせりふ」",
+    "名前の後のせりふ」",
+    "]",
+  ]);
+  // The leading tags are recorded by name and the same-line name_set speaks.
+  assert.deepEqual(result.strings[0].tags, ["「"]);
+  assert.deepEqual(result.strings[1].speaker, "Aoi");
+  // A stray ] after a tag is what the engine displays, so it is kept as-is.
+  assert.deepEqual(result.strings[2].tags, ["背景"]);
+  // @ lines are one whole tag: nothing on them is ever display text.
+  const atOnly = collectKsStrings("@wait mode=until time=5500\n", "s.ks");
+  assert.deepEqual(atOnly.strings, []);
+  // Code on the [iscript] line itself is code, not dialogue.
+  const withInlineCode = collectKsStrings("[iscript] var x = 1;\n[endscript]\n後のせりふ\n", "s.ks");
+  assert.deepEqual(withInlineCode.strings.map((item) => item.text), ["後のせりふ"]);
 });
 
 test("collectKsStrings collects text lines with line numbers and speakers", () => {
