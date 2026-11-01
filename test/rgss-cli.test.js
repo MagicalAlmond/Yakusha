@@ -128,6 +128,18 @@ test("cli: install --native rejects --embed", () => {
   assert.equal(fs.existsSync(path.join(game, "yakusha", "native")), false);
 });
 
+test("cli: install --embed without --native keeps the native hint", () => {
+  const game = tempGame();
+  // No dictionary exists yet, and that must not matter: the embed payload is
+  // only read where the plugin tier actually uses it, so the answer stays the
+  // RGSS delivery hint instead of a dictionary complaint.
+  const result = run(["install", game, "--embed", "--json"]);
+  assert.equal(result.code, 2);
+  const payload = JSON.parse(result.stdout);
+  assert.equal(payload.error.code, "E_USAGE");
+  assert.match(payload.error.message, /RGSS has no plugin delivery layer - pass --native/);
+  assert.equal(fs.existsSync(path.join(game, "yakusha", "native")), false);
+});
 test("cli: install --native copies the injector and reports the native payload", () => {
   const game = tempGame();
   translateAll(game);

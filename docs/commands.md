@@ -1,6 +1,6 @@
 # 命令参考
 
-本文是 yakusha 0.49.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出；0.33 给 `verify` 增加了 SARIF 报告输出（`--report-format sarif`）；0.34 给 `export` 增加 JSONL 输出（`--format jsonl`），0.35 给 `verify` 增加 `--fail-on warning`（warning 也算发布失败），0.36 给 `verify` 增加 `--require-complete`（还有未译条目就失败），0.37 只修 markdown 报告表格里的 `|` 转义，0.38 只让 `verify` 的 problem 带出字典条目的 `locator`，0.39 修 `import --dry-run --create` 会落盘空字典的问题（dry-run 不写盘），0.40 让 `verify --write-report`、`speaker --write-names`、`terms --write` 拒绝把输出写到项目字典上（`E_EXISTS`、退出 2），0.41 只让 `terms` 识别 RGSS 的数据库名表（`.rvdata2` / `.rvdata` / `.rxdata`），0.42 让 `install --dry-run` 在 RPG Maker 插件层与 Ren'Py 译文文件层上真的不写盘（RGSS 的 `--native --dry-run` 0.18 起已如此），0.43 给 `uninstall` 增加 `--dry-run`（MZ/MV、Ren'Py、RGSS 四个引擎都只报告将要删除或还原的内容），0.44 只修 `launch` 在 MV 的 `www/` 布局下从上一层启动 `Game.exe`（项目根仍是 `www/`），0.45 只修 `scan` 文本模式的长文件名与计数间距（载荷不变），0.46 只修 RGSS `install --native --dry-run` 的 `state` 预测（首次安装报 `added`，不是 `unchanged`；不写盘），0.49 只让 `verify --kind width` 在没给 `--max-length`（或给 0）时报用法错误（`E_USAGE`、退出 2），其余命令不变。
+本文是 yakusha 0.50.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出；0.33 给 `verify` 增加了 SARIF 报告输出（`--report-format sarif`）；0.34 给 `export` 增加 JSONL 输出（`--format jsonl`），0.35 给 `verify` 增加 `--fail-on warning`（warning 也算发布失败），0.36 给 `verify` 增加 `--require-complete`（还有未译条目就失败），0.37 只修 markdown 报告表格里的 `|` 转义，0.38 只让 `verify` 的 problem 带出字典条目的 `locator`，0.39 修 `import --dry-run --create` 会落盘空字典的问题（dry-run 不写盘），0.40 让 `verify --write-report`、`speaker --write-names`、`terms --write` 拒绝把输出写到项目字典上（`E_EXISTS`、退出 2），0.41 只让 `terms` 识别 RGSS 的数据库名表（`.rvdata2` / `.rvdata` / `.rxdata`），0.42 让 `install --dry-run` 在 RPG Maker 插件层与 Ren'Py 译文文件层上真的不写盘（RGSS 的 `--native --dry-run` 0.18 起已如此），0.43 给 `uninstall` 增加 `--dry-run`（MZ/MV、Ren'Py、RGSS 四个引擎都只报告将要删除或还原的内容），0.44 只修 `launch` 在 MV 的 `www/` 布局下从上一层启动 `Game.exe`（项目根仍是 `www/`），0.45 只修 `scan` 文本模式的长文件名与计数间距（载荷不变），0.46 只修 RGSS `install --native --dry-run` 的 `state` 预测（首次安装报 `added`，不是 `unchanged`；不写盘），0.49 只让 `verify --kind width` 在没给 `--max-length`（或给 0）时报用法错误（`E_USAGE`、退出 2），0.47 只让 Kirikiri 的归档级错误不再把归档名重复两遍，0.48 只让 `launch` 在 `data/` 本身是 nw.js 宿主时从 `data/` 启动（项目根仍是 `data/www/`），0.50 只让 `install --embed` 在非 RPG Maker 引擎上报用法错误（此前在 Ren'Py 上被静默忽略，在 Kirikiri 上被字典检查盖住），其余命令不变。
 
 **RGSS 在 0.18 起有了交付层。** `scan` / `extract` / `status` / `translate` / `verify` / `speaker` / `terms` / `export` / `import` 都能用；0.18 新增 `install --native`，把预编译的注入器与 hook DLL 装进 `yakusha/native/`，游戏启动时由注入器加载，译文从 `dictionary.txt` 读。`install` 不带 `--native` 仍报 `E_USAGE`（RGSS 没有插件交付层）。安装细节与限制见下文 [install 与 uninstall](#install-与-uninstall)。
 
@@ -141,7 +141,7 @@
 ### install
 
 ```text
---embed             embed the translations into the plugin file
+--embed             embed the translations into the plugin file (RPG Maker only)
 --native            install the RGSS injector components (RGSS only)
 --dry-run           report what would change without writing
 ```
@@ -199,7 +199,7 @@
 | `E_USAGE` | 命令行用错：未知命令、未知选项、缺值、多余位置参数、取值校验失败。出现频率最高 |
 | `E_NOT_PROJECT` | 目录里（或上/下 3 层内）找不到 MZ/MV、Ren'Py、RGSS 或 Kirikiri 项目。实测空目录报的是 RPG Maker 措辞：`not an RPG Maker project (no js/rmmz_core.js or js/rpg_core.js found in <dir> or up to 3 levels below it)`——检测顺序是 MZ → MV → Ren'Py → RGSS → Kirikiri（`src/engines/registry.js:18`），第一条「这里什么都没有」的消息胜出，所以其他 adapter 自己那句 `not a Ren'Py project (...)` / `not an RGSS project (...)` / `not a Kirikiri project (...)` 在 CLI 上都看不到 |
 | `E_MULTI_ROOT` | 目录下同时有多个项目，必须直接指定其中一个。MZ/MV：`found 2 RPG Maker projects under <dir>, pass one of them instead: <a>, <b>`；Ren'Py：`found 2 Ren'Py projects under <dir>, pass one of them instead: <a>, <b>`；RGSS：`found 2 RGSS projects under <dir>, pass one of them instead: <a>, <b>`；Kirikiri：`found 2 Kirikiri projects under <dir>, pass one of them instead: <a>, <b>`（实测两个 RGSS 或两个 Kirikiri 项目同级时报这个，没有 `details`） |
-| `E_NO_DICTIONARY` | 还没有 `yakusha/dictionary.json`，先跑 `extract`。RPG Maker 的普通 `install` 不读字典，缺字典也照样成功；带 `--embed` 或 Ren'Py 的 `install` 才报（见下文缺字典表）。RGSS 的 `install --native` 需要字典（缺了报 `install --native needs a dictionary, ...`），不带 `--native` 报 `E_USAGE`；Kirikiri 与字典无关，缺不缺都报 `E_NOT_IMPLEMENTED` |
+| `E_NO_DICTIONARY` | 还没有 `yakusha/dictionary.json`，先跑 `extract`。RPG Maker 的普通 `install` 不读字典，缺字典也照样成功；带 `--embed` 的 RPG Maker `install` 或 Ren'Py 的 `install` 才报（见下文缺字典表；0.50 起 `--embed` 只在 RPG Maker 插件层读字典，其他引擎报各自的用法/未实现错误）。RGSS 的 `install --native` 需要字典（缺了报 `install --native needs a dictionary, ...`），不带 `--native` 报 `E_USAGE`；Kirikiri 与字典无关，缺不缺都报 `E_NOT_IMPLEMENTED` |
 | `E_DICTIONARY` | 字典 JSON 解析失败或结构不对，message 是解析器原文，例如 `Expected property name or '}' in JSON at position 2 (line 1 column 3)` |
 | `E_EXISTS` | 目标已存在且没给覆盖开关；`export` 拒绝覆盖项目字典本身，即使加了 `--force` |
 | `E_EXE` | `launch` 找不到 .exe，或候选不唯一 |
@@ -229,7 +229,7 @@
 ### --help 与 --version
 
 - `--help` / `-h`：永远 stdout 纯文本、退出 0，即使同时给了 `--json`；`scan -h` 也一样打整段帮助。连未知命令都投降：`nope --help` 打帮助、退出 0。
-- `--version`：永远 stdout 一行 `yakusha <version>`、退出 0，并且优先于一切——`--help --version` 只打 `yakusha 0.48.0`，`--json --version` 也不产出 JSON。
+- `--version`：永远 stdout 一行 `yakusha <version>`、退出 0，并且优先于一切——`--help --version` 只打 `yakusha 0.50.0`，`--json --version` 也不产出 JSON。
 - 无命令：文本模式把整段 USAGE 打到 stderr、退出 2；`--json` 时输出 `command: null` 的信封，`message` 是 `no command`。
 - 未知命令：stderr 两行 `error: unknown command: nope` 和 `run 'yakusha --help' for usage`，退出 2，不再打印整段 USAGE。
 
@@ -405,7 +405,7 @@ encodings : xp3 1
 ```
 
 - `.xp3` 归档在游戏根目录或 `data/` 下都能识别；`engineVersion` 与 `gameTitle` 恒为 `null`（0.13 不解析任何加密或可选的配置文件），文本模式第 1 行是占位符 `(untitled)`、第 4 行 `engine    : krkr` 不带版本后缀。
-- 第 4 行仍叫 `data files`（`adapter.dataUnit`，`src/engines/krkr/adapter.js:268`），数值是 `dataFiles` 键，数的是**打开的 `.xp3` 归档数**（`result.documents`）——打包游戏没有松散文件可数，归档清单是唯一诚实的数字。
+- 第 4 行仍叫 `data files`（`adapter.dataUnit`，`src/engines/krkr/adapter.js:271`），数值是 `dataFiles` 键，数的是**打开的 `.xp3` 归档数**（`result.documents`）——打包游戏没有松散文件可数，归档清单是唯一诚实的数字。
 - `encodings` 是归档格式计数 `{"xp3": N}`，0.13 只有这一个键。
 - 文本从 `.ks` 脚本按行抽：注释行（行首 `;`）、标签行（行首 `*`）与纯标签行跳过，行内 KAG 标签（`[r]` 这类）剥掉后存纯文本；`.tjs` 是编程语言，只计数不读内容。编码先按 UTF-8 严格解码、失败回退 Shift_JIS，仍解不开的记进 `undecodable`。
 - `perFile` 的键是归档内路径（`scene1.ks`），context 是 `<归档内文件名>:<行号>`（`scene1.ks:2`）；`undecodable` 是字符串数组，归档级错误形如 `"data.xp3: the XP3 index uses an unsupported format ..."`（`<归档名>: <原因>`），归档内文件级错误形如 `"scenario.xp3:scene1.ks: U+FFFD …"`（`<归档名>:<文件名>: <原因>`）。0.47 起归档级错误不再把归档名重复两遍（此前会输出 `"data.xp3: data.xp3: ..."`），读取逻辑与载荷键不变。
@@ -677,7 +677,7 @@ strings    : 7 (schinese)
 uninstall  : yakusha uninstall "<abs>"
 ```
 
-- 文本只有这三行，和 RPG Maker 的四行不是同一套标签。`--embed` 对这个引擎不加任何输出、也不改变产物（实测带不带 `--embed` 都是同样三行、同样文件）。
+- 文本只有这三行，和 RPG Maker 的四行不是同一套标签。`--embed` 在 Ren'Py 上是用法错误（0.50 起）：译文脚本本来就把 old/new 对写在文件里，没有「编译进插件」这一档可切换，所以报 `E_USAGE` `install --embed applies to RPG Maker games only: the Ren'Py translation script already contains the translations`、退出 2、一个文件都不写；去掉 `--embed` 的普通 `install` 照常工作。此前（0.11–0.49）这个标志被静默忽略，带不带都生成同样的文件。
 - `--dry-run` 在 Ren'Py 层也完全不写盘（0.42 起）：不创建 `game/yakusha_translation.rpy`，同样三行输出加 `dry run   : nothing written`；载荷仍是 6 键。
 - 载荷仍是 6 键：`pluginPath`（生成的 `.rpy` 绝对路径）、`registered`（恒 `true`，文件存在即注册）、`state`（`added` / `unchanged`），以及恒为 `null` / `false` 的 `backupPath`、`createdBackup`、`staleBackup`。**0.11 的 Ren'Py 载荷不多带任何键**——文本里那个 `7 (schinese)` 只存在于 adapter 的返回值，没有进 JSON。
 - 两道前置检查都是 `E_NO_DICTIONARY`（退出 2）：没有字典 → `no dictionary yet: <file> - run: yakusha extract <game>`；有字典但一条都没译 → `the dictionary has no translated entries yet - run: yakusha translate <game>`。`--embed` 在无已译条目时的文案是 `--embed found no translated entries`。
@@ -703,7 +703,7 @@ uninstall : yakusha uninstall "<abs>"
 
 - 载荷还是 6 个通用键（`pluginPath` 是 `yakusha/native` 的绝对路径、`registered` 恒 `true`、`backupPath` / `createdBackup` / `staleBackup` 恒 `null` / `false` / `false`、`state` 首次 `added`、重装 `unchanged`），**外加**一个 `native` 子对象：`{dir, files, dictionaryEntries, dryRun}`。`files` 是四个组件的文件名数组，`dictionaryEntries` 是写进 `dictionary.txt` 的已译条数。
 - `--native --dry-run` 只校验组件与字典、打印计划，不写任何文件：文本多一行 `dry run   : nothing written`，载荷的 `native.dryRun` 是 `true`；`state` 按真实安装会得到的结果预测——目录还不存在时是 `added`（0.46 起；此前误报 `unchanged`），已经装过时是 `unchanged`。
-- `--native` 只对 RGSS 有效：其他引擎报 `E_USAGE` `install --native applies to RGSS games only`。`--native` 与 `--embed` 不能同时给：`E_USAGE` `install --native cannot be combined with --embed: the injector reads dictionary.txt at run time`。
+- `--native` 只对 RGSS 有效：其他引擎报 `E_USAGE` `install --native applies to RGSS games only`。`--native` 与 `--embed` 不能同时给：`E_USAGE` `install --native cannot be combined with --embed: the injector reads dictionary.txt at run time`。反过来，RGSS 上单给 `--embed`（不带 `--native`）从 0.50 起直接落到上面那条交付层提示，不再先读字典——所以缺字典时也是 `E_USAGE`，不是 `E_NO_DICTIONARY`。
 - 组件来自随 npm 包发布的 `native/prebuilt/`，CLI 在复制前按 `manifest.json` 逐项校验文件存在性与 SHA-256。缺组件报 `E_IO` `native component is missing: <names> (<dir>)`；hash 不符报 `E_IO` `native component failed its integrity check: <names> (<dir>)`；manifest 缺失或不可读报 `E_CONFIG` `native component manifest is missing or unreadable: <file>`。`dictionary.txt` 每条已译条目一行 `base64(source)\tbase64(target)`，按 source 排序、空译文跳过、UTF-8 标准 base64 带 padding。
 - `--native` 需要字典：没有字典报 `E_NO_DICTIONARY` `install --native needs a dictionary, run: yakusha extract "<abs>"`。字典可以有 0 条译文——`native.dictionaryEntries: 0` 也照装。
 - `uninstall` 递归删掉 `yakusha/native/`（只删带我们 `manifest.json` 的目录，否则 `E_CONFIG` 拒绝），文本输出 `native components removed`；没装过时输出 `the native components are not installed`，都是 `ok`、退出 0。载荷 5 个通用键（`restored` / `backupPath` / `keptBackup` 恒 `false` / `null` / `null`）外加 `native: {dir, removed}`。`uninstall --dry-run`（0.43 起）只做 manifest 校验并打印将要删除的结论，再加 `dry run   : nothing written`；`yakusha/native/` 原样保留。
@@ -720,7 +720,7 @@ error: install is not implemented for Kirikiri yet - see the pending decisions i
 
 - 错误码 `E_NOT_IMPLEMENTED`、退出 2、stdout 为空；`--json` 的信封是标准的 `E_NOT_IMPLEMENTED` 错误对象，`message` 与上面那行相同。`uninstall` 同形。
 - **一条文件都不写**：实测跑完 `install` / `uninstall` 后项目目录里只有原来的 `.exe` 与 `.xp3` 归档（可能还有 `yakusha/dictionary.json`），新增文件为零。
-- `--embed` 的两道前置检查排在引擎检查之前：缺字典报 `E_NO_DICTIONARY`，有字典且有已译条目时才落到 `E_NOT_IMPLEMENTED`（实测带字典带 `--embed` 时就是这条错误）。
+- `--embed` 不改变 Kirikiri 的结论（0.50 起）：`--embed` 的字典前置检查只在 RPG Maker 插件层执行，所以带不带 `--embed` 都直接报 `E_NOT_IMPLEMENTED`，与有没有字典无关。此前（0.11–0.49）缺字典时会先报 `E_NO_DICTIONARY`，把「这个引擎没有交付层」的事实盖住。
 - 候选路线已记入 [dev/DEVLOG.md](dev/DEVLOG.md) 的待拍板清单；选哪条会改变 `uninstall` 要还原什么，Kirikiri 的路线仍未拍板。
 
 ## doctor：体检
@@ -783,7 +783,7 @@ verdict   : ready
 
 **Kirikiri** 下 doctor 的形状与 0.15 时一样没有交付层：检查项同样少两条（没有 `plugins.js` 也没有 `backup`），`install` 恒 `warn`、`runtime` 恒 `info`，`verdict` 只可能是 `usable` 或 `broken`。实测（合成夹具，1 个归档、3 条串、翻了 1 条）：
 - 下面那份输出是「有字典、只翻了 1 条」的实测：`progress` 是 `warn`，所以是 `usable with 2 warning(s)`。翻完 3 条后 `progress` 行消失、`dictionary` 变 `ok 3 entries (3 translated, 0 pending)`，`verdict` 是 `usable with 1 warning(s)`，退出 0。
-- 没有字典时（`src/core/doctor.js:125`）：`dictionary fail no dictionary at <abs>\yakusha\dictionary.json - run: yakusha extract <game>`，`install` / `runtime` 两行照旧，`verdict` 是 `broken - <同一条 fail 消息>`，`outcome` 转 `findings`、退出 1。`sync` / `verify` 两项这时不出现（载荷里是 `null`）。
+- 没有字典时（`src/core/doctor.js:154`）：`dictionary fail no dictionary at <abs>\yakusha\dictionary.json - run: yakusha extract <game>`，`install` / `runtime` 两行照旧，`verdict` 是 `broken - <同一条 fail 消息>`，`outcome` 转 `findings`、退出 1。`sync` / `verify` 两项这时不出现（载荷里是 `null`）。
 - `install` 载荷 5 个子键全 `false` / `null`：`pluginFile: null`、`pluginFilePresent: false`、`entryPresent: false`、`entryParameters: null`、`backup: null`；`runtime` 是 `{embedded: false, entries: 0, path: null, found: null}`。没有交付层，就没有东西可查。
 
 ```text

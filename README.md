@@ -183,7 +183,8 @@ uninstall : yakusha uninstall "/games/MyGame"
 `yakusha/native/`。
 
 `--dry-run` 只校验组件与字典并打印计划（`dry run   : nothing written`），不写盘；组件缺失或
-SHA-256 对不上会报 `E_IO` 并拒绝安装；`--native` 与 `--embed` 不能同时给。不带 `--native`
+SHA-256 对不上会报 `E_IO` 并拒绝安装；`--native` 与 `--embed` 不能同时给（`--embed` 只对
+RPG Maker 插件层有意义，0.50 起在其他引擎上是 `E_USAGE`）。不带 `--native`
 时 RGSS 直接报 `E_USAGE`（退出码 2），不会去猜用户想用哪种投递方式：
 
 ```

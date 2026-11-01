@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.50.0] - 2026-10-27
+
+### Fixed
+
+- `install --embed` is now a usage error on engines whose delivery is not the RPG Maker plugin. On Ren'Py it used to be silently ignored: the flag changed neither the output nor the generated `game/yakusha_translation.rpy`, because that script always contains its translations inline. It now reports `E_USAGE` (`install --embed applies to RPG Maker games only: the Ren'Py translation script already contains the translations`), exits 2 and writes nothing; a plain `install` keeps working. On Kirikiri the dictionary precheck that `--embed` performed before the engine check is gone as well, so `install --embed` reports `E_NOT_IMPLEMENTED` whether or not a dictionary exists, instead of hiding the missing delivery layer behind `E_NO_DICTIONARY`. On RGSS, `install --embed` without `--native` now answers with the existing delivery hint straight away, again without reading a dictionary. The flag only reads the dictionary where it is used: the RPG Maker plugin tier.
+
+### Unchanged
+
+- No breaking change: the envelope, exit codes, command table, the 13 error codes and the `yakusha/1` dictionary format are identical to 0.49.0.
 ## [0.49.0] - 2026-10-27
 
 ### Fixed
@@ -616,7 +625,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.49.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.50.0...HEAD
+[0.50.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.49.0...v0.50.0
 [0.49.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.48.0...v0.49.0
 [0.48.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.47.0...v0.48.0
 [0.47.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.46.0...v0.47.0

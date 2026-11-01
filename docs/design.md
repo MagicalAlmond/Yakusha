@@ -99,11 +99,11 @@ Ren'Py 那样自带一个可以放翻译资源的目录（`src/engines/krkr/adap
 
 把归档写回去这条路本身还有一道墙：发行版常用加密变体。krkr2 引入逐文件密钥，krkrz
 引入 cxdec 解密，两者都需要游戏自己的密钥数据；本项目**刻意不碰**这些加密变体，写回
-路线在支持它们之前不成立（`src/engines/krkr/adapter.js:229-237`）。另一条路线是原生注入器
+路线在支持它们之前不成立（`src/engines/krkr/adapter.js:232-243`）。另一条路线是原生注入器
 + hook DLL（RGSS 已拍板走这条），Kirikiri 自己的两条路线都还没有拍板，所以交付层记成
 **待拍板**（[dev/DEVLOG.md](dev/DEVLOG.md) 的待拍板清单），
 `install` / `uninstall` 报指向决策记录的 `E_NOT_IMPLEMENTED`（`install is not implemented for
-Kirikiri yet - see the pending decisions in docs/dev/DEVLOG.md`，`src/engines/krkr/adapter.js:178-183`），
+Kirikiri yet - see the pending decisions in docs/dev/DEVLOG.md`，`src/engines/krkr/adapter.js:181-186`），
 `doctor` 的 install 检查是 warning、runtime 检查是 info。`src/index.js` 只导出
 `openKrkrProject` / `extractKrkrProject`（`src/index.js:19-20`），同样没有 install 入口。
 
@@ -265,7 +265,7 @@ Kirikiri 又换了一族：KAG 的控制码是**方括号标签**，不是反斜
   `launch` 先经过 `yakusha_injector.exe`，没装则照旧直接启动 `Game.exe`。
 - **Kirikiri 也只到 L1–L3**：`capabilities.runtime` 是 `null`，`install` /
   `uninstall` 抛指向决策记录的 `E_NOT_IMPLEMENTED`。写回 `.xp3` 还多一道墙——发行版常用的
-  krkr2 / krkrz 加密变体刻意不碰（`src/engines/krkr/adapter.js:229-237`），所以 0.13 同样
+  krkr2 / krkrz 加密变体刻意不碰（`src/engines/krkr/adapter.js:232-243`），所以 0.13 同样
   **不往游戏里写回任何一个字节**，交付路线定了才有下一步。
 - **字典 key = 原文**：不做语言检测、不改写原文，hash 之类的方案会让译文无法人工校对。
 - **校验在写之前**：宁可留原文，也不留一条会显示成乱码的译文。

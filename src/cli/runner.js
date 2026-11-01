@@ -797,8 +797,21 @@ async function commandInstall(dir, flags, sink) {
   if (native && flags.embed) {
     throw new CliError("E_USAGE", "install --native cannot be combined with --embed: the injector reads dictionary.txt at run time");
   }
+  // --embed compiles the dictionary into the RPG Maker plugin file. The Ren'Py
+  // translation script always contains its translations inline, so the flag has
+  // no separate delivery to select there; like --native outside RGSS (0.18) it
+  // is a usage error instead of a silently ignored flag. RGSS and Kirikiri keep
+  // answering from their adapters: RGSS points at --native, Kirikiri reports
+  // E_NOT_IMPLEMENTED — and neither reads a dictionary for a delivery that
+  // cannot exist.
   let embed = null;
-  if (flags.embed) {
+  if (flags.embed && adapter.capabilities && adapter.capabilities.runtime === "translation") {
+    throw new CliError(
+      "E_USAGE",
+      "install --embed applies to RPG Maker games only: the Ren'Py translation script already contains the translations"
+    );
+  }
+  if (flags.embed && adapter.capabilities && adapter.capabilities.runtime === "plugin") {
     const file = dict.dictionaryPath(project.root);
     if (!fs.existsSync(file)) {
       throw new CliError("E_NO_DICTIONARY", "--embed needs a dictionary, run: yakusha extract \"" + project.root + "\"");

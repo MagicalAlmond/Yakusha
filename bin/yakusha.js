@@ -114,7 +114,7 @@ const USAGE = [
   "  --exe <name>        pick one executable when the project root has several",
   "",
   "install options:",
-  "  --embed             embed the translations into the plugin file",
+  "  --embed             embed the translations into the plugin file (RPG Maker only)",
   "  --native            install the RGSS injector components (RGSS only)",
   "  --dry-run           report what would change without writing",
   "",

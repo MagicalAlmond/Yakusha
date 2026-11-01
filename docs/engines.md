@@ -1,11 +1,11 @@
-# 引擎适配器契约（0.49 契约）
+# 引擎适配器契约（0.50 契约）
 
 > **状态：0.47 覆盖五个引擎——RPG Maker MZ、RPG Maker MV、Ren'Py、RGSS（XP / VX / VX Ace）、Kirikiri。**
 > 0.14 交付 GUI 外壳，0.15 加 JSONL 导入，0.16 起 `scan` 载荷带引擎能力位（GUI 据此灰显按钮），
 > 0.17 给字典条目加可选的引擎与位置溯源（`engine` / `locator`，`FORMAT` 不变），
 > 0.18 给 RGSS 接上原生注入器交付层（`runtime: "inject"`）：`install --native` 把四个
 > 原生组件与 `dictionary.txt` 写进 `yakusha/native/`，`launch` 经 `yakusha_injector.exe`
-> 启动游戏；0.19 把 `verify --kind` 的未知值从静默过滤改为 `E_USAGE`（命令层校验，adapter 契约不变）；0.49 把同一校验口径推广到 `--kind width` 与 `--max-length` 的组合（adapter 契约不变）；0.20 只有 GUI 渲染层契约测试与扫描状态重置，adapter 契约不变；0.21 让 `doctor` 与 `launch` 识别被删除或被改动的原生组件；0.22 让 `doctor` 报出安装之后又被修改过的字典；0.23 把这个检查推广到所有快照式交付（Ren'Py 的译文文件与 MZ/MV 的 `--embed` 插件），adapter 契约不变；0.24 只优化 translate 内部的术语表匹配（Aho-Corasick 索引），0.25 修 Ren'Py 译文文件在字典被清空后的过期判断，0.26 只加固字典键的读写（`__proto__` 等原型名按普通条目处理），0.27 只加固 Kirikiri XP3 读取器对损坏/恶意归档的尺寸检查（adapter 契约不变），0.28 给每个 adapter 加 `versions` 版本矩阵，`doctor` 只在版本读不到、未实测或超出区间时多一条 `version` 检查（adapter 契约不变）；0.29 只优化 `data/` 的 XOR 解码探测（按首字节筛选候选 key，20 MB 损坏文件从约 15.7 s 降到约 0.65 s，adapter 契约不变）；0.30 只把字典与 GUI 凭据的写盘改为同目录临时文件加 rename，adapter 契约不变；0.31 给原生安装/卸载加路径包含检查与原子复制，adapter 契约不变；0.32 把安装状态文件与 report/names/glossary 输出也改为原子写，adapter 契约不变；0.33 只给 `verify` 增加 SARIF 报告格式；0.34 只给 `export` 增加 JSONL 输出；0.35 只给 `verify` 增加 `--fail-on` 阈值，0.36 只给 `verify` 增加 `--require-complete`，0.37 只修 markdown 报告表格的 `|` 转义，0.38 只让 verify 的 problem 带出字典条目的 `locator`，0.39 只修 `import --dry-run --create` 的写盘行为，0.40 只给三个报告类输出加字典目标守卫（都不改 adapter 契约）；0.41 只让 `terms` 识别 RGSS 的数据库名表（`.rvdata2` / `.rvdata` / `.rxdata`）；0.42 只修 `install --dry-run` 的写盘行为（插件层与 Ren'Py 层不再写任何文件，RGSS 的 `--native --dry-run` 不变），adapter 契约不变；0.43 只给 `uninstall` 增加 `--dry-run`（各引擎的 `uninstallRuntime` 接受可选的 `{dryRun}`，只影响行为与文本，返回形状不变），adapter 契约不变；0.44 只修 `launch` 对 `www/` 布局的启动目录（项目根仍是 `www/`，启动器与工作目录取上一层，adapter 契约不变）；0.45 只修 `scan` 文本输出里超过 24 字符的文件名与计数之间的空格，0.46 只修 RGSS `install --native --dry-run` 的 `state` 预测（首次安装报 `added`，重装报 `unchanged`；载荷、错误码与 adapter 契约不变）；0.47 只修 Kirikiri `scan` 的 `undecodable` 归档级错误重复归档名（形如 `data.xp3: data.xp3: ...` 改为 `data.xp3: ...`，adapter 契约不变）；0.48 只修 `launch` 对 nw.js 宿主的识别——项目根是 `data/www/` 且 `data/` 里有 `package.json` 加 nw.js 运行时文件时，启动器与 cwd 取 `data/` 里的 `.exe`（项目根、载荷与 adapter 契约不变）；Kirikiri 的交付层仍未拍板（见 §7.8）。
+> 启动游戏；0.19 把 `verify --kind` 的未知值从静默过滤改为 `E_USAGE`（命令层校验，adapter 契约不变）；0.49 把同一校验口径推广到 `--kind width` 与 `--max-length` 的组合（adapter 契约不变）；0.50 只让 `install --embed` 在非 RPG Maker 引擎上报 `E_USAGE`（adapter 契约不变）；0.20 只有 GUI 渲染层契约测试与扫描状态重置，adapter 契约不变；0.21 让 `doctor` 与 `launch` 识别被删除或被改动的原生组件；0.22 让 `doctor` 报出安装之后又被修改过的字典；0.23 把这个检查推广到所有快照式交付（Ren'Py 的译文文件与 MZ/MV 的 `--embed` 插件），adapter 契约不变；0.24 只优化 translate 内部的术语表匹配（Aho-Corasick 索引），0.25 修 Ren'Py 译文文件在字典被清空后的过期判断，0.26 只加固字典键的读写（`__proto__` 等原型名按普通条目处理），0.27 只加固 Kirikiri XP3 读取器对损坏/恶意归档的尺寸检查（adapter 契约不变），0.28 给每个 adapter 加 `versions` 版本矩阵，`doctor` 只在版本读不到、未实测或超出区间时多一条 `version` 检查（adapter 契约不变）；0.29 只优化 `data/` 的 XOR 解码探测（按首字节筛选候选 key，20 MB 损坏文件从约 15.7 s 降到约 0.65 s，adapter 契约不变）；0.30 只把字典与 GUI 凭据的写盘改为同目录临时文件加 rename，adapter 契约不变；0.31 给原生安装/卸载加路径包含检查与原子复制，adapter 契约不变；0.32 把安装状态文件与 report/names/glossary 输出也改为原子写，adapter 契约不变；0.33 只给 `verify` 增加 SARIF 报告格式；0.34 只给 `export` 增加 JSONL 输出；0.35 只给 `verify` 增加 `--fail-on` 阈值，0.36 只给 `verify` 增加 `--require-complete`，0.37 只修 markdown 报告表格的 `|` 转义，0.38 只让 verify 的 problem 带出字典条目的 `locator`，0.39 只修 `import --dry-run --create` 的写盘行为，0.40 只给三个报告类输出加字典目标守卫（都不改 adapter 契约）；0.41 只让 `terms` 识别 RGSS 的数据库名表（`.rvdata2` / `.rvdata` / `.rxdata`）；0.42 只修 `install --dry-run` 的写盘行为（插件层与 Ren'Py 层不再写任何文件，RGSS 的 `--native --dry-run` 不变），adapter 契约不变；0.43 只给 `uninstall` 增加 `--dry-run`（各引擎的 `uninstallRuntime` 接受可选的 `{dryRun}`，只影响行为与文本，返回形状不变），adapter 契约不变；0.44 只修 `launch` 对 `www/` 布局的启动目录（项目根仍是 `www/`，启动器与工作目录取上一层，adapter 契约不变）；0.45 只修 `scan` 文本输出里超过 24 字符的文件名与计数之间的空格，0.46 只修 RGSS `install --native --dry-run` 的 `state` 预测（首次安装报 `added`，重装报 `unchanged`；载荷、错误码与 adapter 契约不变）；0.47 只修 Kirikiri `scan` 的 `undecodable` 归档级错误重复归档名（形如 `data.xp3: data.xp3: ...` 改为 `data.xp3: ...`，adapter 契约不变）；0.48 只修 `launch` 对 nw.js 宿主的识别——项目根是 `data/www/` 且 `data/` 里有 `package.json` 加 nw.js 运行时文件时，启动器与 cwd 取 `data/` 里的 `.exe`（项目根、载荷与 adapter 契约不变）；Kirikiri 的交付层仍未拍板（见 §7.8）。
 > 0.10 把 MZ 与 MV 包进统一的 adapter，**不搬文件、不重写算法**；0.11 用同一套
 > contract 接入 Ren'Py，作为第三个 adapter 挂在 registry 末位；0.12 接入 RGSS，排在
 > 第四位，只做到 L1–L3（detect / scan / extract），**没有交付层**；0.13 接入
@@ -227,7 +227,7 @@ Kirikiri（0.13，第五位）也用这个形状，带着 `dataUnit: "data files
 ```
 
 - `runtime: null` 是**诚实取值**：交付意味着把归档写回去（重打包
-  XP3），0.13 没做这一层（`src/engines/krkr/adapter.js:229-237` 的注释明说）。
+  XP3），0.13 没做这一层（`src/engines/krkr/adapter.js:232-243` 的注释明说）。
 - `diagnostics()` 的 `sourceLabel` 是 `"xp3 archives"`，`delivery` 是
   `{pending: true, message: "Kirikiri has no delivery layer yet, so nothing is written back into the game"}`。
 - `gameTitle` / `version` 恒为 `null`：标题与版本住在加密或可选的配置文件里，
@@ -354,7 +354,7 @@ RGSS 与 Kirikiri 两列的值由 `src/engines/rgss/adapter.js:180-190` 与
     `debug` 仍是预留枚举。
 - `debuggable`：**引擎本身**是否支持 CDP。MZ 为 true，是实测结论；不代表工具能用。
 - `attach`：**工具是否实现** attach。从 0.10 起所有引擎都为 false，RGSS 与 Kirikiri 也一样
-  （`src/engines/rgss/adapter.js:282-283`、`src/engines/krkr/adapter.js:256-257` 都抛共享的
+  （`src/engines/rgss/adapter.js:283-285`、`src/engines/krkr/adapter.js:259-261` 都抛共享的
   `notImplemented("attach")`）；GUI 只有它为 true 才显示“调试注入”。
 
 MV 的 `debuggable:false` 有实测依据：2019/2020 年的 nw.js 版本传
@@ -470,7 +470,8 @@ translation 档（Ren'Py），7.7 是 inject 档（RGSS，原生注入器），7
    `$plugins` 里不会出现两条。
 
 `--embed`：把字典条目编译进插件（`EMBEDDED` 块），适合离线分发；需要字典存在，
-否则 `E_NO_DICTIONARY`。卸载仍然只删插件文件、摘注册条目，不留内嵌数据在别处。
+否则 `E_NO_DICTIONARY`。这个标志只对 RPG Maker 插件层有意义：0.50 起在 Ren'Py 上是
+`E_USAGE`（§7.6），在 RGSS / Kirikiri 上直接落到各自的交付层错误，不再先读字典（§7.7、§7.8）。卸载仍然只删插件文件、摘注册条目，不留内嵌数据在别处。
 内嵌内容是安装时的快照：0.23 起 `doctor` 会比较当前字典与插件里的 `EMBEDDED` 块，
 不一致时把 `install` 与 `runtime` 都记成 `warn`，提示重跑 `install --embed`；
 `verdict` 仍是 `usable`、退出 0，不会自动更新插件。
@@ -535,7 +536,8 @@ translate schinese strings:
 
 ### 7.6 安装与卸载（translation 档）
 
-安装的前置条件与 7.2 的 `--embed` 类似，但这里是硬性的两条 `E_NO_DICTIONARY`：
+安装的前置条件与 7.2 的 `--embed` 类似（`--embed` 本身在 Ren'Py 上是用法错误，见本节末），
+但这里是硬性的两条 `E_NO_DICTIONARY`：
 
 - 没有字典 → `no dictionary yet: <file> - run: yakusha extract <game>`
 - 有字典但一条都没译 → `the dictionary has no translated entries yet - run: yakusha translate <game>`
@@ -558,11 +560,14 @@ translate schinese strings:
   `backupPath` / `createdBackup` / `staleBackup` 恒为 `null` / `false`。
   adapter 还返回 `entries` 与 `language`，但**不进 JSON 信封**——它们只用于文本模式
   的 `strings    : N (schinese)` 那一行。
-- **没有 `--embed`**：翻译文件本身就是投递物，没有“嵌进插件”这回事。`--embed`
-  在 Ren'Py 上只是语法合法的空操作——产物与不带它时逐字节相同，也不多打一行；
-  但它仍会先走 CLI 那层通用于所有引擎的字典前置校验，所以零已译条目时
-  照样报 `E_NO_DICTIONARY`（`--embed needs a dictionary` /
-  `--embed found no translated entries`），不是在 adapter 里被忽略。
+- **`--embed` 是用法错误（0.50 起）**：翻译文件本身就是投递物，old/new 对已经写在
+  文件里，没有“嵌进插件”这一档可切换。`install --embed` 在 Ren'Py 上报 `E_USAGE`、
+  退出 2，消息 `install --embed applies to RPG Maker games only: the Ren'Py
+  translation script already contains the translations`，一个文件都不写
+  （`src/cli/runner.js:800-812`）；去掉标志的普通 `install` 照常工作。
+  0.11–0.49 这个标志是语法合法的空操作：产物与不带它时逐字节相同，只在零已译
+  条目时先撞上 `E_NO_DICTIONARY` 的字典前置检查——静默忽略一个用户明确要求的
+  动作，与 0.18 把 `--native` 限制在 RGSS 上的口径相反，故改报错。
 - **卸载**：只删 `game/yakusha_translation.rpy`。`removed` 为 `false` 表示它本来
   就不在（不报错）；`restored` 恒 `false`，`backupPath` 与 `keptBackup` 恒 `null`，
   `drifted` 恒 `false`。没有“漂移”概念：没有第三方会改这个文件。
@@ -589,6 +594,9 @@ yakusha uninstall <game-dir>
   `RGSS has no plugin delivery layer - pass --native to install the injector: yakusha install --native "<abs>"`。
 - `--native` 不能与 `--embed` 同用（注入器在运行时读 `dictionary.txt`）：`E_USAGE`、
   退出 2，消息 `install --native cannot be combined with --embed: the injector reads dictionary.txt at run time`。
+- 单给 `--embed`（不带 `--native`）从 0.50 起直接落到上面那条交付层提示，**不再先读字典**：
+  缺字典时也是 `E_USAGE` 的 `pass --native` 提示，而不是 `E_NO_DICTIONARY`
+  （`src/cli/runner.js:808-821`；`--embed` 的字典检查只在 `runtime === "plugin"` 时执行）。
 
 **写哪些文件。** `<game>/yakusha/native/` 下恰好六个文件：
 
@@ -724,13 +732,15 @@ uninstall : yakusha uninstall "<abs>"
 
 - `install` / `uninstall` 抛 `E_NOT_IMPLEMENTED`，消息
   `install is not implemented for Kirikiri yet - see the pending decisions in docs/dev/DEVLOG.md`
-  （`uninstall` 换个动词），退出 2（`src/engines/krkr/adapter.js:178-183` 的 `pending()`，
+  （`uninstall` 换个动词），退出 2（`src/engines/krkr/adapter.js:181-186` 的 `pending()`，
   `installRuntime` / `uninstallRuntime` 在 :238-240 / :245-247 调它）。
 - **不写任何文件**。交付层缺位意味着写回就得重打包 XP3 归档，0.13 没做，也留下
-  两个待拍板项（`src/engines/krkr/adapter.js:229-237` 的注释）。
-- **带 `--embed` 时先撞的是 CLI 那层通用校验**：没有字典报 `--embed needs a dictionary`，
-  有字典但没译文报 `--embed found no translated entries`，都是 `E_NO_DICTIONARY` /
-  退出 2（`src/cli/runner.js:786-787`）；不带 `--embed` 时没有字典也先报 pending 那句。
+  两个待拍板项（`src/engines/krkr/adapter.js:232-243` 的注释）。
+- **`--embed` 不改变结论（0.50 起）**：`--embed` 的字典前置检查只在 RPG Maker 插件层
+  （`runtime === "plugin"`）执行，Kirikiri 的 `runtime` 是 `null`，所以带不带 `--embed`
+  都直接报 pending 那句 `E_NOT_IMPLEMENTED`，与有没有字典无关（`src/cli/runner.js:808-821`）。
+  0.11–0.49 时 `--embed` 会先撞 CLI 那层字典校验，缺字典报 `E_NO_DICTIONARY`，
+  把「这个引擎没有交付层」的事实盖住。
 - 测试钉住：`test/krkr-adapter.test.js:150`（install/uninstall 指向待拍板清单）、
   `test/krkr-cli.test.js:101` / :116 / :124（CLI 侧 install 与 uninstall 不写盘）、
   `test/engine-contract.test.js:412`（attach 共享历史措辞）。待拍板清单见
@@ -817,7 +827,7 @@ attach(project, options) {
 - **没有** `yakusha attach` 命令；GUI 也不会显示入口（`capabilities.attach:false`）。
   五个引擎共用这一个桩：Ren'Py 也没有调试注入，`debuggable` 同样是 `false`；RGSS 与
   Kirikiri 的 `attach` 调的是同一个 `notImplemented("attach")`
-  （`src/engines/rgss/adapter.js:282-283`、`src/engines/krkr/adapter.js:256-257`）。
+  （`src/engines/rgss/adapter.js:283-285`、`src/engines/krkr/adapter.js:259-261`）。
 - 未来实现时，返回值固定为 `{status, detach(), on("exit", cb)}`；
   失败必须能回退到“不带注入启动”，不能把游戏弄成打不开。
 - MZ 的 `debuggable:true` 是为未来留的证据，不是“现在能用”的承诺：
@@ -876,7 +886,7 @@ export { VERSION } from "./version.js";
   Ren'Py 时 bin 只多了一个 `adapter.dataUnit === "scripts"` 的分支（`scan` 与 `doctor`
   的行标）和一个 `runtime === "translation"` 的分支（`install` 的三行文本），
   没有出现 `if (engine === "renpy")`。0.12 接 RGSS 时只多了 `doctor` 的一个分支：
-  把 `own.delivery || own.translation || null` 交给诊断器（`src/cli/runner.js:1096`），
+  把 `own.delivery || own.translation || null` 交给诊断器（`src/cli/runner.js:1120`），
   让各引擎自己的交付状态走 `src/core/doctor.js` 的同一套分支（RGSS 装没装、
   Kirikiri 的 `pending` 都从这条路过）；同样没有出现 `if (engine === "rgss")`。0.13 接 Kirikiri 时 bin **什么都没加**：
   `dataUnit` 是 `data files`、`diagnostics.delivery` 走同一个分支，全库搜不到
@@ -997,7 +1007,7 @@ Ren'Py 专属（`test/renpy-adapter.test.js`，16 条）：
   doctor 的 install 与 runtime 都记 `warn`、`verdict` 为 `usable`
   （`doctor: a dictionary emptied after install still makes the translation file stale`）。
 
-RGSS 专属（`test/rgss-adapter.test.js` 28 条 + `test/rgss-cli.test.js` 16 条；其中原生注入器
+RGSS 专属（`test/rgss-adapter.test.js` 28 条 + `test/rgss-cli.test.js` 17 条；其中原生注入器
 相关的是 adapter 侧 11 条、doctor 3 条、CLI 侧 6 条）：
 
 - registry 里排第四、带自己的 profile、`runtime` 为 `inject`、`dataUnit` 为 `data files`、
@@ -1065,9 +1075,10 @@ uninstall 退出码 2 且不写盘；doctor 有字典时 `usable` 并点名 pend
 非游戏目录报 RPG Maker 那句（registry 第一个 adapter 的文案，Kirikiri 自己的措辞由
 adapter 测试覆盖）。
 
-CLI 侧（`test/rgss-cli.test.js`，16 条）走真实的 `bin/yakusha.js`：scan 文本模式打
+CLI 侧（`test/rgss-cli.test.js`，17 条）走真实的 `bin/yakusha.js`：scan 文本模式打
 `data files:`、`rgss 3`；extract 写出字典且 context 指回 `Map001.rvdata2:101`；
-不带 `--native` 的 install 退出码 2 且不写盘，`--native` 与 `--embed` 互斥也被钉住，
+不带 `--native` 的 install 退出码 2 且不写盘，单给 `--embed` 也落回 `pass --native` 提示
+（无字典时同样是 `E_USAGE`），`--native` 与 `--embed` 互斥也被钉住，
 `--native` 拷组件并回报 `native`
 载荷（`dictionaryEntries` 是行数），`--native --dry-run` 只报计划；无字典时
 `--native` 先要求 extract；uninstall 删目录且第二次调用幂等；doctor 装前

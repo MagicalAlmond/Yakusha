@@ -85,6 +85,31 @@ test("cli: scan keeps long file names apart from their counts", () => {
   assert.match(result.stdout, new RegExp("  game/" + name + " 1\\n"));
 });
 
+test("cli: install --embed on Ren'Py is a usage error, not a silent no-op", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "yakusha-cli-renpy-embed-"));
+  const game = path.join(dir, "game");
+  fs.cpSync(path.join(HERE, "fixtures", "renpy-extract", "rpy"), game, { recursive: true });
+  assert.equal(run(["extract", game]).code, 0);
+  const file = path.join(game, "yakusha", "dictionary.json");
+  const dict = JSON.parse(fs.readFileSync(file, "utf8"));
+  dict.entries["Alpha line one."].text = "第一行。";
+  fs.writeFileSync(file, JSON.stringify(dict, null, 2) + "\n", "utf8");
+
+  // The Ren'Py delivery is a translation script whose old/new pairs are inline,
+  // so --embed has no separate mode to select: like --native outside RGSS, it
+  // must fail loudly instead of falling back to the plain install.
+  const result = run(["install", game, "--embed", "--json"]);
+  assert.equal(result.code, 2);
+  const body = JSON.parse(result.stdout);
+  assert.equal(body.error.code, "E_USAGE");
+  assert.match(body.error.message, /install --embed applies to RPG Maker games only/);
+  // And nothing was written: the translation file only appears on a plain
+  // install, which still works.
+  assert.equal(fs.existsSync(path.join(game, "game", "yakusha_translation.rpy")), false);
+  const plain = run(["install", game, "--json"]);
+  assert.equal(plain.code, 0, plain.stdout + plain.stderr);
+  assert.equal(fs.existsSync(path.join(game, "game", "yakusha_translation.rpy")), true);
+});
 test("cli: extract writes a dictionary with empty targets", () => {
   const game = tempGame();
   assert.equal(run(["extract", game, "--json"]).code, 0);
