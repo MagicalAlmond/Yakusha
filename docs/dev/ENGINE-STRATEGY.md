@@ -554,6 +554,7 @@ TextGrammar = {
 | 0.34 | `export --format jsonl` 输出 JSON Lines，并带回 `engine` / `locator` provenance；JSONL 导入接受这两个字段（**已交付**） | — | 730 pass / 54 个文件；新增 1 条（export jsonl） |
 | 0.35 | `verify --fail-on error\|warning` 显式化发布闸门阈值（**已交付**） | — | 733 pass / 54 个文件；新增 3 条（cli 2、report 1） |
 | 0.36 | `verify --require-complete` 把未译条目纳入发布闸门；markdown / SARIF 的 verdict 与 `executionSuccessful` 同步复算（**已交付**） | — | 738 pass / 54 个文件；新增 5 条（cli 2、report 3） |
+| 0.37 | markdown verify 报告字段表的 `\|` 与换行转义（**已交付**） | — | 739 pass / 54 个文件；新增 1 条（report 1） |
 | 1.0 | 10 个引擎目标 + 能力矩阵 + 便携 exe | — | 每个引擎有 L4 证据；不达标的明确标 experimental |
 
 说明：

@@ -10,7 +10,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { buildReport, buildSarif, codeSpan, namesNeedingInput } from "../src/pipeline/report.js";
+import { buildReport, buildSarif, codeSpan, namesNeedingInput, tableCell } from "../src/pipeline/report.js";
 import { verifyDictionary } from "../src/pipeline/verify.js";
 
 /** @param {Record<string, {text?: string}>} entries */
@@ -188,6 +188,15 @@ test("report: SARIF records an incomplete run under --require-complete", () => {
   assert.equal(invocation.properties.requireComplete, true);
   assert.equal(invocation.properties.pending, 2);
   assert.deepEqual(document.runs[0].results, []);
+});
+
+test("report: table cells escape pipes and newlines", () => {
+  assert.equal(tableCell("plain"), "plain");
+  assert.equal(tableCell("a|b"), "a\\|b");
+  assert.equal(tableCell("a\nb"), "a<br>b");
+  const markdown = buildReport(verifyResult([]), { game: "Pipe | Game" });
+  // A raw pipe would split the cell; the escaped form renders as one cell.
+  assert.ok(markdown.includes("| game | Pipe \\| Game |"));
 });
 
 test("report: SARIF is still valid with no findings", () => {

@@ -68,6 +68,24 @@ export function codeSpan(text) {
 }
 
 /**
+ * Make one value safe for a Markdown table cell.
+ *
+ * A game title or a dictionary path can contain a pipe, and an unescaped pipe
+ * splits the cell in two, so the rendered table shows the wrong values.
+ * Newlines are already flattened by `codeSpan`, but plain values pass through here
+ * as well.
+ *
+ * @param {string} text
+ * @returns {string}
+ */
+export function tableCell(text) {
+  return String(text === undefined || text === null ? "" : text)
+    .replace(/\r\n?/g, "\n")
+    .replace(/\n/g, "<br>")
+    .replace(/\|/g, "\\|");
+}
+
+/**
  * Distinct speaker names that no line of this dictionary translates.
  *
  * The mechanical repair copies the rendering another line already uses, so a
@@ -222,9 +240,9 @@ export function buildReport(result, options = {}) {
   lines.push("");
   lines.push("| field | value |");
   lines.push("| --- | --- |");
-  lines.push("| game | " + (options.game || "(untitled)") + " |");
-  if (options.file) lines.push("| dictionary | " + codeSpan(options.file) + " |");
-  lines.push("| generated | " + at + " |");
+  lines.push("| game | " + tableCell(options.game || "(untitled)") + " |");
+  if (options.file) lines.push("| dictionary | " + tableCell(codeSpan(options.file)) + " |");
+  lines.push("| generated | " + tableCell(at) + " |");
   lines.push("| max-length | " + (maxColumns > 0 ? maxColumns + " columns" : "0 (width check off)") + " |");
   const failOn = options.failOn === "warning" ? "warning" : "error";
   const requireComplete = options.requireComplete === true;
