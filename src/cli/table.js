@@ -162,6 +162,10 @@ export function serialiseJsonl(rows) {
  * @param {string} text complete file contents
  * @param {{"tsv"|"csv"}} format
  * @returns {TableRow[]}
+ * @throws {CliError} E_DICTIONARY on a missing header, a row with the wrong
+ *   cell count, or two rows that define the same source with different
+ *   targets (0.59; identical repeats pass through and are counted by the
+ *   import merge instead)
  */
 export function parseTable(text, format) {
   const separator = format === "csv" ? CSV_SEPARATOR : TSV_SEPARATOR;
@@ -177,11 +181,28 @@ export function parseTable(text, format) {
     throw new CliError("E_DICTIONARY", "table file must start with the header row source" + separator + "target" + separator + "contexts");
   }
   const parsed = [];
+  // Two rows that disagree about the same source are an authoring error:
+  // reject the file instead of silently letting the later row win. Rows that
+  // repeat the same source and target are redundant, not a conflict; the
+  // import merge counts and skips them (0.59). Empty targets are skipped by
+  // the merge and never conflict with anything.
+  const seenSources = new Map();
   for (let index = 1; index < rows.length; index += 1) {
     const cells = rows[index];
     if (cells.length !== 3) {
       throw new CliError("E_DICTIONARY",
         "table row " + index + " has " + cells.length + " cells, expected 3");
+    }
+    if (cells[1].length > 0) {
+      const first = seenSources.get(cells[0]);
+      if (first) {
+        if (first.target !== cells[1]) {
+          throw new CliError("E_DICTIONARY",
+            "table row " + index + ": source " + briefValue(cells[0]) + " is defined twice with different targets: row " + first.index + " has " + briefValue(first.target) + ", row " + index + " has " + briefValue(cells[1]));
+        }
+      } else {
+        seenSources.set(cells[0], { target: cells[1], index });
+      }
     }
     parsed.push({ source: cells[0], target: cells[1], contexts: splitContexts(cells[2]) });
   }
@@ -299,6 +320,18 @@ function splitRecord(record, separator) {
 }
 
 /**
+ * Quote a value for a single-line error message: JSON-escaped and capped so
+ * a very long game line cannot blow the 500-character message budget.
+ *
+ * @param {string} value
+ * @returns {string}
+ */
+function briefValue(value) {
+  const text = value.length > 60 ? value.slice(0, 57) + "..." : value;
+  return JSON.stringify(text);
+}
+
+/**
  * Split a contexts cell back into its list. Serialisation joins with ", ",
  * and an empty cell means no contexts.
  *
@@ -339,11 +372,16 @@ function splitContexts(cell) {
  * @param {string} text file contents
  * @returns {TableRow[]}
  * @throws {CliError} E_DICTIONARY with the 1-based line number on bad JSON,
- *   a row missing source/target, or a provenance field of the wrong type
- *   (engine / locator / contexts; 0.53 replaced the old silent drops) */
+ *   a row missing source/target, a provenance field of the wrong type
+ *   (engine / locator / contexts; 0.53 replaced the old silent drops), or
+ *   two lines that define the same source with different targets (0.59) */
 export function parseJsonl(text) {
   const rows = [];
   const lines = text.split(/\r?\n/);
+  // Same rule as the table formats (0.59): two lines that disagree about the
+  // same source reject the file; identical repeats pass through and the
+  // import merge counts them. Every JSONL row carries a non-empty target.
+  const seenSources = new Map();
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index].trim();
     if (line === "") continue;
@@ -362,6 +400,15 @@ export function parseJsonl(text) {
       : typeof object.text === "string" && object.text.length > 0 ? object.text : null;
     if (source === null || target === null) {
       throw new CliError("E_DICTIONARY", "table line " + (index + 1) + " needs a non-empty source/key and target/text");
+    }
+    const firstLine = seenSources.get(source);
+    if (firstLine) {
+      if (firstLine.target !== target) {
+        throw new CliError("E_DICTIONARY",
+          "table line " + (index + 1) + ": source " + briefValue(source) + " is defined twice with different targets: line " + firstLine.line + " has " + briefValue(firstLine.target) + ", line " + (index + 1) + " has " + briefValue(target));
+      }
+    } else {
+      seenSources.set(source, { target, line: index + 1 });
     }
     let contexts = [];
     if (Array.isArray(object.contexts)) {

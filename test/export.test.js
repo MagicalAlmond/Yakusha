@@ -766,3 +766,93 @@ test("import: a __proto__ source survives a JSON import", () => {
   assert.equal(onDisk["__proto__"].text, "译");
   assert.equal(Object.prototype.text, undefined);
 });
+
+test("import: conflicting duplicate rows reject the whole file", () => {
+  const game = tempGame();
+  writeDictionary(game, { "Hello.": { text: "", contexts: [] } });
+  const dictFile = path.join(game, "yakusha", "dictionary.json");
+  const file = path.join(game, "yakusha", "dup.tsv");
+  fs.writeFileSync(file, "source\ttarget\tcontexts\nHello.\t译甲\tctx\nHello.\t译乙\tctx2\n", "utf8");
+  const before = fs.readFileSync(dictFile);
+  const result = run(["import", game, "--from", file, "--json"]);
+  assert.equal(result.code, 2);
+  const body = envelope(result);
+  assert.equal(body.error.code, "E_DICTIONARY");
+  assert.equal(
+    body.error.message,
+    'table row 2: source "Hello." is defined twice with different targets: row 1 has "译甲", row 2 has "译乙"'
+  );
+  assert.deepEqual(fs.readFileSync(dictFile), before, "a rejected file must not touch the dictionary");
+
+  // the same intra-file rule holds under --strategy overwrite and for JSONL
+  const overwrite = run(["import", game, "--from", file, "--strategy", "overwrite", "--json"]);
+  assert.equal(overwrite.code, 2);
+  assert.equal(envelope(overwrite).error.code, "E_DICTIONARY");
+
+  const jsonl = path.join(game, "yakusha", "dup.jsonl");
+  fs.writeFileSync(jsonl, '{"source":"Hello.","target":"译甲"}\n{"source":"Hello.","target":"译乙"}\n', "utf8");
+  const second = run(["import", game, "--from", jsonl, "--json"]);
+  assert.equal(second.code, 2);
+  const secondBody = envelope(second);
+  assert.equal(secondBody.error.code, "E_DICTIONARY");
+  assert.equal(
+    secondBody.error.message,
+    'table line 2: source "Hello." is defined twice with different targets: line 1 has "译甲", line 2 has "译乙"'
+  );
+  assert.deepEqual(fs.readFileSync(dictFile), before, "jsonl rejections leave the dictionary untouched");
+});
+
+test("import: identical duplicate rows apply once and are counted", () => {
+  const game = tempGame();
+  writeDictionary(game, {
+    "Hello.": { text: "", contexts: [] },
+    "Second line.": { text: "", contexts: [] },
+  });
+  const dictFile = path.join(game, "yakusha", "dictionary.json");
+  const file = path.join(game, "yakusha", "dup.tsv");
+  fs.writeFileSync(file, "source\ttarget\tcontexts\nHello.\t译甲\tctx\nHello.\t译甲\tctx2\nSecond line.\t译二\tctx\n", "utf8");
+  const result = run(["import", game, "--from", file, "--json"]);
+  assert.equal(result.code, 0);
+  const body = envelope(result);
+  assert.equal(body.applied, 2, "duplicates are not applied twice");
+  assert.equal(body.skipped, 0);
+  assert.equal(body.duplicates, 1);
+  const dict = JSON.parse(fs.readFileSync(dictFile, "utf8"));
+  assert.equal(dict.entries["Hello."].text, "译甲", "the first row wins");
+  assert.deepEqual(dict.entries["Hello."].contexts, ["ctx"], "later repeats do not change the contexts");
+
+  // jsonl repeats count too; blank lines do not shift the count
+  const jsonl = path.join(game, "yakusha", "dup.jsonl");
+  fs.writeFileSync(jsonl, '{"source":"Hello.","target":"译三"}\n\n{"source":"Hello.","target":"译三"}\n', "utf8");
+  const second = run(["import", game, "--from", jsonl, "--strategy", "overwrite", "--json"]);
+  assert.equal(second.code, 0);
+  assert.equal(envelope(second).duplicates, 1);
+  const dict2 = JSON.parse(fs.readFileSync(dictFile, "utf8"));
+  assert.equal(dict2.entries["Hello."].text, "译三");
+
+  // a file without repeats keeps the 8-key payload and the quiet text output
+  const clean = path.join(game, "yakusha", "clean.tsv");
+  fs.writeFileSync(clean, "source\ttarget\tcontexts\nHello.\t译四\tctx\n", "utf8");
+  const third = run(["import", game, "--from", clean, "--strategy", "overwrite", "--json"]);
+  assert.equal(third.code, 0);
+  assert.equal(envelope(third).duplicates, undefined);
+  const quiet = run(["import", game, "--from", clean, "--strategy", "overwrite"]);
+  assert.doesNotMatch(quiet.stdout, /duplicates/);
+  const loud = run(["import", game, "--from", file, "--strategy", "overwrite"]);
+  assert.match(loud.stdout, /duplicates: 1/);
+});
+
+test("import: empty targets never conflict with filled rows for the same source", () => {
+  const game = tempGame();
+  writeDictionary(game, { "Hello.": { text: "", contexts: [] } });
+  const file = path.join(game, "yakusha", "mix.tsv");
+  fs.writeFileSync(file, "source\ttarget\tcontexts\nHello.\t\tctx\nHello.\t译甲\tctx2\nHello.\t译甲\tctx3\n", "utf8");
+  const result = run(["import", game, "--from", file, "--json"]);
+  assert.equal(result.code, 0);
+  const body = envelope(result);
+  assert.equal(body.applied, 1);
+  assert.equal(body.skipped, 1);
+  assert.equal(body.duplicates, 1);
+  const dict = JSON.parse(fs.readFileSync(path.join(game, "yakusha", "dictionary.json"), "utf8"));
+  assert.equal(dict.entries["Hello."].text, "译甲");
+});

@@ -221,9 +221,14 @@ yakusha import <game-dir> --from <file> [--format tsv|csv|json|jsonl] [--strateg
 
 ### 8.4 导入语义
 
-导入只改字典，不碰游戏（`src/cli/runner.js:955-1067`）：
+导入只改字典，不碰游戏（`src/cli/runner.js:961-1095`）：
 
 - `target` 为空的行跳过——表格允许“只导出原文留空译文”的校对流程；
+- 同一 `source` 出现多行（0.59）：目标译文相同的重复行只应用第一次，其余计入 `duplicates`
+  （载荷键与文本行都只在大于 0 时出现），第一次的 contexts 生效；不同目标译文的冲突行在
+  解析阶段整体拒绝（`E_DICTIONARY`，消息带两个行号：
+  `table row 4: source "Hello." is defined twice with different targets: row 2 has "译甲", row 4 has "译乙"`），
+  字典字节不变、`--create` 也不会留下空字典；空译文行不参与冲突判定；
 - 字典里已有非空译文且 `--strategy only-empty`（默认）：跳过，**永不覆盖**；
   `--strategy overwrite` 才会覆盖；
 - 目标译文与字典现有译文相同：跳过（不计入 applied）；
@@ -233,7 +238,8 @@ yakusha import <game-dir> --from <file> [--format tsv|csv|json|jsonl] [--strateg
 
 ### 8.5 信封载荷
 
-`--json` 时 `import` 返回 8 个键（`src/cli/runner.js:1066`）：
+`--json` 时 `import` 返回 8 个键，出现重复行时多第 9 个 `duplicates`（§8.4；
+`src/cli/runner.js:1094`）：
 
 ```json
 {
@@ -249,7 +255,8 @@ yakusha import <game-dir> --from <file> [--format tsv|csv|json|jsonl] [--strateg
 ```
 
 `read` 是读到的数据行数（不含表头），`applied` 是实际写入字典的行数，`skipped` 是
-因上述规则跳过的行数，`entries` 是导入后字典的条目总数。
+因上述规则跳过的行数，`entries` 是导入后字典的条目总数；`duplicates`（出现时）是
+「同源同译文」被跳过的冗余重复行数。
 
 ### 8.6 往返保证
 
@@ -290,6 +297,9 @@ CRLF 行尾：
   `locator` 是字符串之外的标量（数组与单串 shorthand 之外）→ `table line 1: locator must be a string or an array of strings`；
   `engine` 出现但不是非空字符串 → `table line 1: engine must be a non-empty string`。
   0.15–0.52 会把这些值静默丢弃或悄悄包裹；现在显式报错，字典在坏表上保持字节不变。
+- 0.59 起同一 `source` 出现多行：译文相同的重复行只应用第一次、其余计入 `duplicates`
+  载荷键；译文不同的冲突行整体拒绝（`E_DICTIONARY`：
+  `table line 3: source "Hello." is defined twice with different targets: line 1 has "译甲", line 3 has "译乙"`）。
 - 坏 JSON 报 `E_DICTIONARY`：`table line 2 is not valid JSON`（行号从 1 起）。
 
 ### 9.2 `--create`

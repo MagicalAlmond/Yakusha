@@ -576,6 +576,7 @@ TextGrammar = {
 | 0.56 | 渲染层契约测试补拖放/目录选择/取消/进度接线（**已交付**） | — | 778 pass / 54 个文件；gui-renderer +7 |
 | 0.57 | GUI 主进程接缝缺陷修复（取消信号漏传、「记住密钥」撞 `const`）+ 主进程 stub-Electron 契约测试（**已交付**） | — | 794 pass / 55 个文件；gui-main +16 |
 | 0.58 | preload 桥契约测试：三方一致（桥/handlers 白名单/index.html 按钮）+ 逐方法通道与请求形状（**已交付**） | — | 805 pass / 56 个文件；gui-preload +11 |
+| 0.59 | `import` 同源重复行显式语义：同译文只应用第一次并计入 `duplicates`，冲突译文整体拒绝（**已交付**） | — | 808 pass / 56 个文件；export +3 |
 | 1.0 | 10 个引擎目标 + 能力矩阵 + 便携 exe | — | 每个引擎有 L4 证据；不达标的明确标 experimental |
 
 说明：

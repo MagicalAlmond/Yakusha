@@ -1018,12 +1018,26 @@ async function commandImport(dir, flags, sink) {
   }
   let applied = 0;
   let skipped = 0;
+  // Rows repeating the same source and target are redundant, not a second
+  // translation: the first occurrence applies, later ones only count (0.59).
+  // Conflicting duplicates never reach this loop - the parsers reject the
+  // whole file before anything is merged or written.
+  const firstSeen = new Map();
+  let duplicates = 0;
+  for (let index = 0; index < rows.length; index += 1) {
+    const row = rows[index];
+    if (typeof row.target !== "string" || row.target.length === 0) continue;
+    if (firstSeen.has(row.source)) duplicates += 1;
+    else firstSeen.set(row.source, index);
+  }
   const entries = {};
-  for (const row of rows) {
+  for (let index = 0; index < rows.length; index += 1) {
+    const row = rows[index];
     if (typeof row.target !== "string" || row.target.length === 0) {
       skipped += 1;
       continue;
     }
+    if (firstSeen.get(row.source) !== index) continue;
     const existing = dictionary.entries[row.source];
     const current = existing && typeof existing.text === "string" ? existing.text : "";
     if (current.length > 0 && strategy === "only-empty") {
@@ -1074,9 +1088,10 @@ async function commandImport(dir, flags, sink) {
   sink.out("read      : " + rows.length + (rows.length === 1 ? " row" : " rows"));
   sink.out("applied   : " + applied);
   sink.out("skipped   : " + skipped);
+  if (duplicates > 0) sink.out("duplicates: " + duplicates);
   if (!dryRun && applied > 0) sink.out("dictionary: " + file);
   if (dryRun) sink.out("dry run: nothing written");
-  return { payload: { file: from, format: formatName, strategy, dryRun, read: rows.length, applied, skipped, entries } };
+  return { payload: { file: from, format: formatName, strategy, dryRun, read: rows.length, applied, skipped, entries, ...(duplicates > 0 ? { duplicates } : {}) } };
 }
 
 /**

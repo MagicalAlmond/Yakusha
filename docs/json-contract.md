@@ -225,7 +225,7 @@
 | `doctor` | ok / findings | `verdict, checks, failure, game{title, engine, engineVersion, root, dataFiles}, dictionary, sync, install, runtime, verify` | `broken` → findings / 1；`game.version` 改名 `game.engineVersion`；Ren'Py 与 RGSS 下 `checks` 少 `plugins.js` 与 `backup` 两项，`install` / `runtime` 子对象见 §7.1 |
 | `config` | ok | `action, ...` | 子命令字段见 [config.md](config.md) |
 | `export` | ok | `out, format, flat, entries, bytes` | 0.13 起 `format` 可为 `json` / `tsv` / `csv`，0.34 起还可为 `jsonl`（载荷里是实际格式名）；字段见 [export-format.md](export-format.md) |
-| `import` | ok | `file, format, strategy, dryRun, read, applied, skipped, entries` | 0.13 新增；0.15 起 `format` 还可以是 `jsonl`、并支持 `--create`（缺字典时先建空字典；载荷键集不变）；`entries` 是本次实际写入的对象；语义见 [commands.md](commands.md) 的 import 一节 |
+| `import` | ok | `file, format, strategy, dryRun, read, applied, skipped, entries`（0.59 起文件含冗余重复行时追加 `duplicates`） | 0.13 新增；0.15 起 `format` 还可以是 `jsonl`、并支持 `--create`（缺字典时先建空字典）；`entries` 是本次实际写入的对象；语义见 [commands.md](commands.md) 的 import 一节 |
 | `launch` | ok | `root, exe, pid` | 只 spawn，不接管 |
 
 注意：
@@ -394,6 +394,8 @@ pending decisions in docs/dev/DEVLOG.md` 都是新文案，脚本不应依赖 `m
 **0.54 只改抽取过滤。** Kirikiri 的 KS 读取器把行首 `@` 的单行标签（`@wait`、`@macro name=...`）按标签行处理、`[iscript]`..`[endscript]` 之间的 TJS 代码整体跳过（未闭合就到文件尾）：这些行从不显示为台词，0.53 及之前会被当文本收进字典。载荷键、信封、退出码与错误码不变。
 
 **0.55 只改抽取过滤。** Kirikiri 的 KS 读取器把行首 `[` 的标签行里剥掉标签后的可见文本也按文本行收进字典（宏引用对白 `[「]text」` 0.54 及之前会整行丢失），行内标签扫描感知引号属性（`left="&tf.X[0]"` 里的 `]` 不截断标签）。载荷键、信封、退出码与错误码不变。
+
+**0.59 只增不改。** `import` 对同一 `source` 的重复行给出显式语义：目标译文相同的冗余重复行只应用第一次，其余计入新增的可选载荷键 `duplicates`（只在大于 0 时出现，文本输出多一行 `duplicates: N`）；目标译文不同的冲突行在解析阶段整体拒绝（`E_DICTIONARY`，TSV/CSV 消息形如 `table row 2: source "Hello." is defined twice with different targets: row 1 has "A", row 2 has "B"`，JSONL 换成 `table line ...`），字典字节不变。0.58 及之前重复行会全部应用（后行覆盖前行），`applied` 把重复也计入。其余载荷键、信封、退出码、错误码与 `yakusha/1` 字典格式不变。
 
 ## 9. 实现落点
 

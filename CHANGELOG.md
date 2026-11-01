@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.59.0] - 2026-11-01
+
+### Fixed
+
+- `import` no longer lets duplicate rows silently overwrite each other. A table that repeats the same source with the same target now applies only the first row; the redundant repeats are counted in a new optional payload key `duplicates` (with a `duplicates: N` output line, both present only when N > 0). Repeating a source with a *different* target is rejected outright (`E_DICTIONARY`, exit 2, message names both rows: `table row 2: source "Hello." is defined twice with different targets: row 1 has "A", row 2 has "B"` for TSV/CSV and `table line ...` for JSONL) before anything is merged or written - through 0.58 every duplicate applied and the last row won, with `applied` counting repeats. Empty-target rows never conflict; rich JSON follows plain JSON semantics (duplicate keys collapse at parse time).
+
+### Unchanged
+
+- No breaking change: the envelope, exit codes, command table, the 13 error codes and the `yakusha/1` dictionary format are identical to 0.58.0; the payload grows an optional key and CLI input validation only.
+
 ## [0.58.0] - 2026-11-01
 
 ### Added
@@ -711,7 +721,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.58.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.59.0...HEAD
+[0.59.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.58.0...v0.59.0
 [0.58.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.57.0...v0.58.0
 [0.57.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.56.0...v0.57.0
 [0.56.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.55.0...v0.56.0
