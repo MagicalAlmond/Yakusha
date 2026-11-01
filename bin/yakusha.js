@@ -57,7 +57,7 @@ const USAGE = [
   "  --base-url <url>    OpenAI compatible endpoint, defaults to $YAKUSHA_BASE_URL",
   "  --api-key <key>     API key, defaults to $YAKUSHA_API_KEY or $OPENAI_API_KEY",
   "  --glossary <file>   JSON map of source -> fixed translation",
-  "  --limit <n>         translate at most n pending entries",
+  "  --limit <n>         translate at most n pending entries (at least 1)",
   "  --context <text>    only entries whose context contains text; repeat to",
   "                      accept any of several",
   "  --batch-size <n>    entries per request (default 40)",

@@ -578,6 +578,7 @@ TextGrammar = {
 | 0.58 | preload 桥契约测试：三方一致（桥/handlers 白名单/index.html 按钮）+ 逐方法通道与请求形状（**已交付**） | — | 805 pass / 56 个文件；gui-preload +11 |
 | 0.59 | `import` 同源重复行显式语义：同译文只应用第一次并计入 `duplicates`，冲突译文整体拒绝（**已交付**） | — | 808 pass / 56 个文件；export +3 |
 | 0.60 | 三个报告写路径拒绝 `-` 与目录目标（`E_USAGE must be a file path, not -` / `E_IO ... (is a directory)`）（**已交付**） | — | 810 pass / 56 个文件；cli +2 |
+| 0.61 | `translate --limit` 拒绝 0 / 负数 / 非整数（E_USAGE，显式报错）（**已交付**） | — | 811 pass / 56 个文件；cli +1 |
 | 1.0 | 10 个引擎目标 + 能力矩阵 + 便携 exe | — | 每个引擎有 L4 证据；不达标的明确标 experimental |
 
 说明：

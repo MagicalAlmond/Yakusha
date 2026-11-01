@@ -165,6 +165,21 @@ test("cli: --dry-run uses the mock provider and writes nothing", () => {
   assert.equal(fs.readFileSync(file, "utf8"), before);
 });
 
+test("cli: translate --limit below 1 is a usage error, not a smaller run", () => {
+  const game = tempGame();
+  assert.equal(run(["extract", game]).code, 0);
+  for (const raw of ["0", "-3", "2.5", "abc"]) {
+    const result = run(["translate", game, "--dry-run", "--limit", raw, "--json"]);
+    assert.equal(result.code, 2, "limit " + raw + ": " + result.stderr);
+    const body = JSON.parse(result.stdout);
+    assert.equal(body.error.code, "E_USAGE", "limit " + raw);
+    assert.equal(body.error.message, "translate --limit must be a whole number of entries (at least 1), not " + raw);
+  }
+  const result = run(["translate", game, "--dry-run", "--limit", "1", "--json"]);
+  assert.equal(result.code, 0, result.stderr);
+  assert.equal(JSON.parse(result.stdout).translated, 1);
+});
+
 test("cli: --glossary-only applies a term base without a provider", () => {
   const game = tempGame();
   assert.equal(run(["extract", game]).code, 0);

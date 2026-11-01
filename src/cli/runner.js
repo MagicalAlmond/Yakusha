@@ -641,6 +641,15 @@ async function commandTerms(dir, flags, sink) {
  *        cancels a long translate run through signal; the CLI passes nothing.
  */
 async function commandTranslate(dir, flags, sink, onProgress, opts = {}) {
+  // The pipeline slices the pending list with limit, so a zero translated
+  // nothing (exit 0, "ok") and a negative number silently dropped entries
+  // from the end. Both are input errors, not run scopes.
+  if (flags.limit !== undefined) {
+    const limit = Number(flags.limit);
+    if (!Number.isInteger(limit) || limit < 1) {
+      throw new CliError("E_USAGE", "translate --limit must be a whole number of entries (at least 1), not " + flags.limit);
+    }
+  }
   const { project, adapter } = requireProject(dir);
   const { file, data } = requireDictionary(project);
 
