@@ -287,15 +287,19 @@ async function commandVerify(dir, flags, sink) {
   if (failOn !== "error" && failOn !== "warning") {
     throw new CliError("E_USAGE", "verify --fail-on must be error or warning, not " + failOn);
   }
+  const requireComplete = flags["require-complete"] === true;
+  const incomplete = requireComplete && result.pending > 0;
   if (reportFile) {
     const text =
       reportFormat === "sarif"
-        ? buildSarif(result, { game: project.gameTitle, file, maxColumns, failOn })
+        ? buildSarif(result, { game: project.gameTitle, file, maxColumns, failOn, requireComplete })
         : buildReport(result, {
             game: project.gameTitle,
             file,
             root: project.root,
             maxColumns,
+            failOn,
+            requireComplete,
             dictionary: data,
           });
     writeOutputFile(reportFile, text, "report file");
@@ -305,22 +309,26 @@ async function commandVerify(dir, flags, sink) {
   if (reportFile) sink.out("report    : " + reportFile + (reportFormat === "sarif" ? " (sarif)" : ""));
   if (result.problems.length === 0) {
     sink.out("problems  : none");
-    return {
-      outcome: "ok",
-      payload: {
-        file,
-        maxColumns,
-        ...(reportFile ? { report: reportFile, reportFormat } : {}),
-        total: result.total,
-        translated: result.translated,
-        pending: result.pending,
-        errors: result.errors,
-        warnings: result.warnings,
-        rejected: result.rejected,
-        counts: result.counts,
-        problems: result.problems,
-      },
-    };
+    // Keep the historical clean-run shape (just entries + problems) unless a
+    // gate actually fails; --require-complete needs a result line to explain why.
+    if (!incomplete) {
+      return {
+        outcome: "ok",
+        payload: {
+          file,
+          maxColumns,
+          ...(reportFile ? { report: reportFile, reportFormat } : {}),
+          total: result.total,
+          translated: result.translated,
+          pending: result.pending,
+          errors: result.errors,
+          warnings: result.warnings,
+          rejected: result.rejected,
+          counts: result.counts,
+          problems: result.problems,
+        },
+      };
+    }
   } else {
     const kindsSeen = Object.keys(result.counts).sort();
     sink.out(
@@ -338,17 +346,14 @@ async function commandVerify(dir, flags, sink) {
       sink.out("  ... " + (result.problems.length - shown) + " more, raise --limit or pass --json");
     }
   }
-  const failing = failOn === "warning" ? result.errors + result.warnings > 0 : result.errors > 0;
-  if (failing) {
-    sink.out(
-      "result    : FAILED, " +
-        (result.errors > 0 ? result.errors + " error(s)" : result.warnings + " warning(s) (--fail-on warning)")
-    );
-  } else {
-    sink.out("result    : OK with " + result.warnings + " warning(s)");
-  }
+  const reasons = [];
+  if (result.errors > 0) reasons.push(result.errors + " error(s)");
+  else if (failOn === "warning" && result.warnings > 0) reasons.push(result.warnings + " warning(s) (--fail-on warning)");
+  if (incomplete) reasons.push(result.pending + " untranslated (--require-complete)");
+  if (reasons.length > 0) sink.out("result    : FAILED, " + reasons.join(", "));
+  else sink.out("result    : OK with " + result.warnings + " warning(s)");
   return {
-    outcome: failing ? "findings" : "ok",
+    outcome: reasons.length > 0 ? "findings" : "ok",
     payload: {
       file,
       maxColumns,

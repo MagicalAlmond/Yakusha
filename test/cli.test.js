@@ -314,6 +314,45 @@ test("cli: verify on a dictionary with no translations is clean", () => {
   assert.equal(summary.translated, 0);
 });
 
+test("cli: verify --require-complete fails while entries are untranslated", () => {
+  const game = tempGame();
+  assert.equal(run(["extract", game]).code, 0);
+
+  // An empty target is not a finding: the default gate stays green.
+  const relaxed = run(["verify", game, "--json"]);
+  assert.equal(relaxed.code, 0, relaxed.stderr);
+  assert.ok(JSON.parse(relaxed.stdout).pending > 0);
+
+  const strict = run(["verify", game, "--require-complete", "--json"]);
+  assert.equal(strict.code, 1, strict.stdout + strict.stderr);
+  const summary = JSON.parse(strict.stdout);
+  assert.equal(summary.ok, false);
+  assert.ok(summary.pending > 0);
+  assert.deepEqual(summary.problems, []);
+
+  const text = run(["verify", game, "--require-complete"]);
+  assert.equal(text.code, 1, text.stdout + text.stderr);
+  assert.match(text.stdout, /result    : FAILED, \d+ untranslated \(--require-complete\)/);
+});
+
+test("cli: verify --fail-on warning writes a failed markdown report", () => {
+  const game = tempGame();
+  assert.equal(run(["extract", game]).code, 0);
+  const file = path.join(game, "yakusha", "dictionary.json");
+  const dict = JSON.parse(fs.readFileSync(file, "utf8"));
+  dict.entries["ポーション"].text = "药水";
+  dict.entries["はい"].text = "是ッ";
+  fs.writeFileSync(file, JSON.stringify(dict, null, 2) + "\n", "utf8");
+
+  const report = path.join(game, "verify-report.md");
+  const result = run(["verify", game, "--fail-on", "warning", "--write-report", report]);
+  assert.equal(result.code, 1, result.stdout + result.stderr);
+  const markdown = fs.readFileSync(report, "utf8");
+  assert.match(markdown, /\| fail-on \| warning \|/);
+  assert.match(markdown, /\*\*FAILED: \d+ warning\(s\) under --fail-on warning\*\*/);
+  assert.doesNotMatch(markdown, /nothing blocks a release/);
+});
+
 test("cli: verify --kind limits the report to one kind", () => {
   const game = tempGame();
   assert.equal(run(["extract", game]).code, 0);

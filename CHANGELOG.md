@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.36.0] - 2026-10-27
+
+### Added
+
+- `verify --require-complete` treats untranslated dictionary entries as blocking: when `pending > 0` the run reports `findings` and exits `1`, even if `problems` is empty. The option combines with `--fail-on warning`, adds no payload key, and `doctor` ignores it.
+- Markdown reports recompute their verdict from the same gates: `--fail-on warning` now shows a failed verdict when only warnings remain, and `--require-complete` shows the pending-entry failure. The report table records the non-default flags (`| fail-on | warning |`, `| require-complete | yes |`).
+
+### Fixed
+
+- The Markdown verdict used to claim a release could pass under `--fail-on warning` while the command itself had already failed. The verdict and the SARIF `executionSuccessful` now follow the same thresholds as the exit code.
+
+### Unchanged
+
+- No breaking contract change: `--require-complete` is a new option, every payload key, the envelope, exit codes, the command table, the 13 error codes and the `yakusha/1` dictionary format stay the same.
+
 ## [0.35.0] - 2026-10-27
 
 ### Added
@@ -471,7 +486,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.35.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.36.0...HEAD
+[0.36.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.35.0...v0.36.0
 [0.35.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.34.0...v0.35.0
 [0.34.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.33.0...v0.34.0
 [0.33.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.32.0...v0.33.0

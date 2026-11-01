@@ -150,7 +150,10 @@ export function buildSarif(result, options = {}) {
     },
   }));
   const failOn = options.failOn === "warning" ? "warning" : "error";
-  const failing = failOn === "warning" ? result.errors + result.warnings > 0 : result.errors > 0;
+  const requireComplete = options.requireComplete === true;
+  const failing =
+    (failOn === "warning" ? result.errors + result.warnings > 0 : result.errors > 0) ||
+    (requireComplete && result.pending > 0);
   const document = {
     $schema: "https://json.schemastore.org/sarif-2.1.0.json",
     version: "2.1.0",
@@ -174,6 +177,7 @@ export function buildSarif(result, options = {}) {
               generatedAt: at,
               maxColumns: options.maxColumns || 0,
               failOn,
+              requireComplete,
               total: result.total,
               translated: result.translated,
               pending: result.pending,
@@ -196,6 +200,8 @@ export function buildSarif(result, options = {}) {
  * @property {string} [file] dictionary path for the header
  * @property {string} [root] game directory, so the next-step command can be copied
  * @property {number} [maxColumns]
+ * @property {string} [failOn] release gate: "error" (default) or "warning"
+ * @property {boolean} [requireComplete] also fail while entries are untranslated
  * @property {string} [generatedAt] ISO timestamp (injectable for tests)
  * @property {{entries: Record<string, any>}} [dictionary] needed for the names block
  */
@@ -220,6 +226,12 @@ export function buildReport(result, options = {}) {
   if (options.file) lines.push("| dictionary | " + codeSpan(options.file) + " |");
   lines.push("| generated | " + at + " |");
   lines.push("| max-length | " + (maxColumns > 0 ? maxColumns + " columns" : "0 (width check off)") + " |");
+  const failOn = options.failOn === "warning" ? "warning" : "error";
+  const requireComplete = options.requireComplete === true;
+  // Defaults stay out of the table so a report from a plain run keeps the
+  // same shape it had before these gates existed.
+  if (failOn === "warning") lines.push("| fail-on | warning |");
+  if (requireComplete) lines.push("| require-complete | yes |");
   lines.push(
     "| entries | " +
       result.total +
@@ -233,12 +245,17 @@ export function buildReport(result, options = {}) {
   );
   lines.push("| problems | " + result.problems.length + " (" + result.errors + " errors, " + result.warnings + " warnings) |");
   lines.push("");
+  const incomplete = requireComplete && result.pending > 0;
   const verdict =
     result.errors > 0
       ? "**FAILED: " + result.errors + " error(s)** - these are visible defects, fix them before shipping."
-      : result.warnings > 0
-        ? "**OK with " + result.warnings + " warning(s)** - nothing blocks a release."
-        : "**OK** - no findings at all.";
+      : incomplete
+        ? "**FAILED: " + result.pending + " pending entries under --require-complete** - finish the translations or drop the flag."
+        : failOn === "warning" && result.warnings > 0
+          ? "**FAILED: " + result.warnings + " warning(s) under --fail-on warning** - the release gate is set to warning."
+          : result.warnings > 0
+            ? "**OK with " + result.warnings + " warning(s)** - nothing blocks a release."
+            : "**OK** - no findings at all.";
   lines.push(verdict);
   lines.push("");
 

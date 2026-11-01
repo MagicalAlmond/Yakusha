@@ -38,6 +38,7 @@ const BOOLEAN = new Set([
   "force",
   "create",
   "native",
+  "require-complete",
 ]);
 
 /**
@@ -115,7 +116,7 @@ const COMMAND_OPTIONS = {
     "overwrite",
     "allow-code-drift",
   ],
-  verify: ["kind", "max-length", "limit", "write-report", "report-format", "fail-on"],
+  verify: ["kind", "max-length", "limit", "write-report", "report-format", "fail-on", "require-complete"],
   speaker: ["include-drift", "names", "write-names", "dry-run", "limit"],
   terms: ["status", "min-holders", "min-support", "drift-only", "max-terms", "limit", "write", "dry-run"],
 };

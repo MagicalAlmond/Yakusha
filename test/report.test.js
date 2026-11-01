@@ -85,6 +85,26 @@ test("report: warnings alone say nothing blocks a release", () => {
   assert.match(markdown, /\*\*OK with 1 warning\(s\)\*\* - nothing blocks a release\./);
 });
 
+test("report: the markdown verdict follows the --fail-on gate", () => {
+  const result = verifyResult([
+    { kind: "width", severity: "warn", key: "a", target: "b", detail: "32 columns, wider than 30" },
+  ]);
+  const markdown = buildReport(result, { maxColumns: 30, failOn: "warning" });
+  assert.match(markdown, /\| fail-on \| warning \|/);
+  assert.match(markdown, /\*\*FAILED: 1 warning\(s\) under --fail-on warning\*\*/);
+  // The same result under the default gate is still reported as OK.
+  assert.match(buildReport(result, { maxColumns: 30 }), /\*\*OK with 1 warning\(s\)\*\*/);
+});
+
+test("report: --require-complete fails a clean but unfinished run", () => {
+  const result = verifyResult([], { pending: 2, translated: 1, total: 3 });
+  const markdown = buildReport(result, { requireComplete: true });
+  assert.match(markdown, /\| require-complete \| yes \|/);
+  assert.match(markdown, /\*\*FAILED: 2 pending entries under --require-complete\*\*/);
+  // Without the flag the same dictionary is still a clean report.
+  assert.match(buildReport(result, {}), /\*\*OK\*\* - no findings at all\./);
+});
+
 test("report: the names section asks only for names no line translated", () => {
   const data = dictionary({
     [line("水泳部員", "a")]: { text: line("水泳部員", "a") },
@@ -158,6 +178,16 @@ test("report: SARIF records a warning-only run as failed under --fail-on warning
   assert.equal(strict.runs[0].invocations[0].executionSuccessful, false);
   assert.equal(strict.runs[0].invocations[0].properties.failOn, "warning");
   assert.equal(strict.runs[0].results[0].level, "warning");
+});
+
+test("report: SARIF records an incomplete run under --require-complete", () => {
+  const result = verifyResult([], { pending: 2, translated: 1, total: 3 });
+  const document = JSON.parse(buildSarif(result, { game: "test game", requireComplete: true }));
+  const invocation = document.runs[0].invocations[0];
+  assert.equal(invocation.executionSuccessful, false);
+  assert.equal(invocation.properties.requireComplete, true);
+  assert.equal(invocation.properties.pending, 2);
+  assert.deepEqual(document.runs[0].results, []);
 });
 
 test("report: SARIF is still valid with no findings", () => {

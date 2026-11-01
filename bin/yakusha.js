@@ -75,6 +75,7 @@ const USAGE = [
   "  --write-report <f>  write every finding as a report",
   "  --report-format <f> report format: markdown (default) or sarif",
   "  --fail-on <level>   exit 1 on findings of this level: error (default) or warning",
+  "  --require-complete  exit 1 while any dictionary entry is still untranslated",
   "",
   "speaker options:",
   "  --include-drift     also replace a Chinese rendering that differs from the",
