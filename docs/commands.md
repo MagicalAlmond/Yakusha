@@ -1,6 +1,6 @@
 # 命令参考
 
-本文是 yakusha 0.59.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出；0.33 给 `verify` 增加了 SARIF 报告输出（`--report-format sarif`）；0.34 给 `export` 增加 JSONL 输出（`--format jsonl`），0.35 给 `verify` 增加 `--fail-on warning`（warning 也算发布失败），0.36 给 `verify` 增加 `--require-complete`（还有未译条目就失败），0.37 只修 markdown 报告表格里的 `|` 转义，0.38 只让 `verify` 的 problem 带出字典条目的 `locator`，0.39 修 `import --dry-run --create` 会落盘空字典的问题（dry-run 不写盘），0.40 让 `verify --write-report`、`speaker --write-names`、`terms --write` 拒绝把输出写到项目字典上（`E_EXISTS`、退出 2），0.41 只让 `terms` 识别 RGSS 的数据库名表（`.rvdata2` / `.rvdata` / `.rxdata`），0.42 让 `install --dry-run` 在 RPG Maker 插件层与 Ren'Py 译文文件层上真的不写盘（RGSS 的 `--native --dry-run` 0.18 起已如此），0.43 给 `uninstall` 增加 `--dry-run`（MZ/MV、Ren'Py、RGSS 四个引擎都只报告将要删除或还原的内容），0.44 只修 `launch` 在 MV 的 `www/` 布局下从上一层启动 `Game.exe`（项目根仍是 `www/`），0.45 只修 `scan` 文本模式的长文件名与计数间距（载荷不变），0.46 只修 RGSS `install --native --dry-run` 的 `state` 预测（首次安装报 `added`，不是 `unchanged`；不写盘），0.49 只让 `verify --kind width` 在没给 `--max-length`（或给 0）时报用法错误（`E_USAGE`、退出 2），0.47 只让 Kirikiri 的归档级错误不再把归档名重复两遍，0.48 只让 `launch` 在 `data/` 本身是 nw.js 宿主时从 `data/` 启动（项目根仍是 `data/www/`），0.50 只让 `install --embed` 在非 RPG Maker 引擎上报用法错误（此前在 Ren'Py 上被静默忽略，在 Kirikiri 上被字典检查盖住），0.51 只把空字符串的选项值也当缺值（`--write-report ""` 报 `E_USAGE`，不再被当成当前目录去写），0.53 只让 `import` 对 provenance（`engine` / `locator` / `contexts`）的类型错误显式报 `E_DICTIONARY`（此前版本会静默丢弃这些值），0.54 只让 Kirikiri 的 KS 抽取跳过 `[iscript]` 代码块并把行首 `@` 的单行标签当标签行（代码与注释不再混进字典），0.55 又把行首 `[` 的标签行里剥掉标签后的可见文本收进字典（宏引用对白 `[「]text」` 不再整行丢失），0.59 只给 `import` 的同源重复行定下显式语义（同译文只应用第一次、计入新的 `duplicates` 载荷键；冲突译文整体拒绝），其余命令不变。
+本文是 yakusha 0.60.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出；0.33 给 `verify` 增加了 SARIF 报告输出（`--report-format sarif`）；0.34 给 `export` 增加 JSONL 输出（`--format jsonl`），0.35 给 `verify` 增加 `--fail-on warning`（warning 也算发布失败），0.36 给 `verify` 增加 `--require-complete`（还有未译条目就失败），0.37 只修 markdown 报告表格里的 `|` 转义，0.38 只让 `verify` 的 problem 带出字典条目的 `locator`，0.39 修 `import --dry-run --create` 会落盘空字典的问题（dry-run 不写盘），0.40 让 `verify --write-report`、`speaker --write-names`、`terms --write` 拒绝把输出写到项目字典上（`E_EXISTS`、退出 2），0.41 只让 `terms` 识别 RGSS 的数据库名表（`.rvdata2` / `.rvdata` / `.rxdata`），0.42 让 `install --dry-run` 在 RPG Maker 插件层与 Ren'Py 译文文件层上真的不写盘（RGSS 的 `--native --dry-run` 0.18 起已如此），0.43 给 `uninstall` 增加 `--dry-run`（MZ/MV、Ren'Py、RGSS 四个引擎都只报告将要删除或还原的内容），0.44 只修 `launch` 在 MV 的 `www/` 布局下从上一层启动 `Game.exe`（项目根仍是 `www/`），0.45 只修 `scan` 文本模式的长文件名与计数间距（载荷不变），0.46 只修 RGSS `install --native --dry-run` 的 `state` 预测（首次安装报 `added`，不是 `unchanged`；不写盘），0.49 只让 `verify --kind width` 在没给 `--max-length`（或给 0）时报用法错误（`E_USAGE`、退出 2），0.47 只让 Kirikiri 的归档级错误不再把归档名重复两遍，0.48 只让 `launch` 在 `data/` 本身是 nw.js 宿主时从 `data/` 启动（项目根仍是 `data/www/`），0.50 只让 `install --embed` 在非 RPG Maker 引擎上报用法错误（此前在 Ren'Py 上被静默忽略，在 Kirikiri 上被字典检查盖住），0.51 只把空字符串的选项值也当缺值（`--write-report ""` 报 `E_USAGE`，不再被当成当前目录去写），0.53 只让 `import` 对 provenance（`engine` / `locator` / `contexts`）的类型错误显式报 `E_DICTIONARY`（此前版本会静默丢弃这些值），0.54 只让 Kirikiri 的 KS 抽取跳过 `[iscript]` 代码块并把行首 `@` 的单行标签当标签行（代码与注释不再混进字典），0.55 又把行首 `[` 的标签行里剥掉标签后的可见文本收进字典（宏引用对白 `[「]text」` 不再整行丢失），0.59 只给 `import` 的同源重复行定下显式语义（同译文只应用第一次、计入新的 `duplicates` 载荷键；冲突译文整体拒绝），其余命令不变。
 
 **RGSS 在 0.18 起有了交付层。** `scan` / `extract` / `status` / `translate` / `verify` / `speaker` / `terms` / `export` / `import` 都能用；0.18 新增 `install --native`，把预编译的注入器与 hook DLL 装进 `yakusha/native/`，游戏启动时由注入器加载，译文从 `dictionary.txt` 读。`install` 不带 `--native` 仍报 `E_USAGE`（RGSS 没有插件交付层）。安装细节与限制见下文 [install 与 uninstall](#install-与-uninstall)。
 
@@ -237,7 +237,7 @@
 ### --help 与 --version
 
 - `--help` / `-h`：永远 stdout 纯文本、退出 0，即使同时给了 `--json`；`scan -h` 也一样打整段帮助。连未知命令都投降：`nope --help` 打帮助、退出 0。
-- `--version`：永远 stdout 一行 `yakusha <version>`、退出 0，并且优先于一切——`--help --version` 只打 `yakusha 0.51.0`，`--json --version` 也不产出 JSON。
+- `--version`：永远 stdout 一行 `yakusha <version>`、退出 0，并且优先于一切——`--help --version` 只打 `yakusha 0.60.0`，`--json --version` 也不产出 JSON。
 - 无命令：文本模式把整段 USAGE 打到 stderr、退出 2；`--json` 时输出 `command: null` 的信封，`message` 是 `no command`。
 - 未知命令：stderr 两行 `error: unknown command: nope` 和 `run 'yakusha --help' for usage`，退出 2，不再打印整段 USAGE。
 
@@ -570,7 +570,7 @@ result    : FAILED, 12 untranslated (--require-complete)
 
 ### --write-report
 
-`--write-report <file>` 把全部发现写成一份报告，默认是 markdown；载荷多 `report`（绝对路径）与 `reportFormat`（`markdown` / `sarif`），文本模式多一行 `report    : <abs>`（SARIF 时末尾带 ` (sarif)`）。`--report-format` 只能取 `markdown` 或 `sarif`，只能和 `--write-report` 一起用，否则报 `E_USAGE`、退出 2。报告路径不能是项目字典 `yakusha/dictionary.json`：指向字典时命令报 `E_EXISTS`、退出 2，并且一个字节都不写（0.40 起）。markdown 报告真实结构：
+`--write-report <file>` 把全部发现写成一份报告，默认是 markdown；载荷多 `report`（绝对路径）与 `reportFormat`（`markdown` / `sarif`），文本模式多一行 `report    : <abs>`（SARIF 时末尾带 ` (sarif)`）。`--report-format` 只能取 `markdown` 或 `sarif`，只能和 `--write-report` 一起用，否则报 `E_USAGE`、退出 2。报告路径不能是项目字典 `yakusha/dictionary.json`：指向字典时命令报 `E_EXISTS`、退出 2，并且一个字节都不写（0.40 起）。路径为 `-` 时报 `E_USAGE`：`verify --write-report must be a file path, not -`（0.60 起，与 `export --out` 同一口径，不写任何文件）；路径指向已存在的目录时报 `E_IO cannot write report file: <abs> (is a directory)`、退出 2（0.60 起，此前带出的是底层 `EPERM`）。markdown 报告真实结构：
 
 ```text
 # yakusha verify report
@@ -623,7 +623,7 @@ result    : no change
 ```
 
 - `--include-drift` 才处理「同一名字多种写法」的风格问题（默认不动，因为那是编辑判断）。
-- `--write-names <file>` 生成一份供 `--names` 填的模板（实测落盘 `{"entries": {}}`），文本模式首行 `names file: <abs> (nothing to fill in)`；`--names <file>` 补上「游戏里从没翻译过、因此无从抄写法」的名字，文件不存在报 `E_IO`。模板路径不能是项目字典，否则报 `E_EXISTS`、退出 2、不写文件（0.40 起）。
+- `--write-names <file>` 生成一份供 `--names` 填的模板（实测落盘 `{"entries": {}}`），文本模式首行 `names file: <abs> (nothing to fill in)`；`--names <file>` 补上「游戏里从没翻译过、因此无从抄写法」的名字，文件不存在报 `E_IO`。模板路径不能是项目字典，否则报 `E_EXISTS`、退出 2、不写文件（0.40 起）。路径为 `-` 或已存在的目录时报 `E_USAGE speaker --write-names must be a file path, not -` / `E_IO cannot write names file: <abs> (is a directory)`、退出 2（0.60 起）。
 - 载荷：`file` / `includeDrift` / `dryRun` / `supplied` / `saved` / `entries` / `tags` / `names[]` / `namesFile` / `namesNeeded` / `errorsBefore` / `errorsAfter` / `warningsBefore` / `warningsAfter`。
 
 实测（一款 MV 长篇，词典规模见上一节）：`verify` 报 411 个 speaker error，`speaker` 一次改掉 414 条、涉及 23 个名字，剩 3 条是全文没译过的名字，用 `--names` 补上后 error 归零；再用 `--include-drift` 把 8 个存在多种写法的名字统一到主流写法，`warn` 从 51 归零。两轮都只动字典，没有调用模型。
@@ -645,7 +645,7 @@ glossary  : 0 entries, pass --write <file> to save them
 
 Kirikiri 撞的是另一堵墙：`.ks` 的 context 是 `scene1.ks:2` 这种形状，既不是 `.json:name` 也不是数据库字段，正则匹配不上，所以 Kirikiri 项目上 `nameEntries` / `mined` / `drift` / `missing` 恒为 0。这套名字一致性机制目前对 MZ/MV 与 RGSS 有效（0.41 起 RGSS；实测一款 VX Ace 样本的 2,085 条字典里有 35 条数据库名表条目，`MapInfos.rvdata2:name` 的地图名不计入）。载荷：`file` / `names` / `nameEntries` / `skipped{untranslated, short, prose}` / `holdersMin` / `supportMin` / `mined` / `listed` / `drift` / `missing` / `glossary` / `written` / `terms[]`。
 
-`--write <file>` 把词表写成 `translate --glossary` 吃的格式（`{"format": "yakusha/glossary/1", "game": ..., "generatedAt": ..., "entries": {...}}`），文本末行变 `glossary  : N entries written to <abs>`；`--dry-run` 只报不写（`--dry-run, not written`）；没写文件时 JSON 的 `written` 是 `null`。词表路径不能是项目字典，否则报 `E_EXISTS`、退出 2、不写文件（0.40 起）。
+`--write <file>` 把词表写成 `translate --glossary` 吃的格式（`{"format": "yakusha/glossary/1", "game": ..., "generatedAt": ..., "entries": {...}}`），文本末行变 `glossary  : N entries written to <abs>`；`--dry-run` 只报不写（`--dry-run, not written`）；没写文件时 JSON 的 `written` 是 `null`。词表路径不能是项目字典，否则报 `E_EXISTS`、退出 2、不写文件（0.40 起）。路径为 `-` 或已存在的目录时报 `E_USAGE terms --write must be a file path, not -` / `E_IO cannot write glossary file: <abs> (is a directory)`、退出 2（0.60 起）。
 
 ### 为什么值得看 drift
 
@@ -874,7 +874,7 @@ exported 32 entries to <abs> (4159 B)
 }
 ```
 
-- `--out` 必填、没有默认文件名；`--out -` 被拒：`error: export --out must be a file path, not -`。
+- `--out` 必填、没有默认文件名；`--out -` 被拒：`error: export --out must be a file path, not -`（0.60 起 `verify --write-report` / `speaker --write-names` / `terms --write` 也走同一拒绝口径）。
 - `--format` 接 `json`（默认）、`tsv`、`csv`、`jsonl`；给了别的值报 `E_USAGE`：`export supports --format json, tsv, csv or jsonl, not xls`。TSV / CSV 的表格形状、编码与引用规则见 [export-format.md](export-format.md) §8（UTF-8 带 BOM、表头 `source` / `target` / `contexts`、CRLF 行尾、RFC 4180 引用）；JSONL 一行一个对象、UTF-8 无 BOM、LF 行尾，形状见 [export-format.md](export-format.md) §9.3。
 - `--force` 才允许覆盖已有文件；没有它报 `E_EXISTS`：`refusing to overwrite <path> (pass --force)`。目标是项目字典本身时，即使 `--force` 也拒绝：`refusing to overwrite the project dictionary at <path> (export is a projection, not a backup)`。
 - 目标是游戏目录内但不在 `yakusha/` 下时 stderr 警告：`warning: export target is inside the game directory but outside yakusha/: <path>`。

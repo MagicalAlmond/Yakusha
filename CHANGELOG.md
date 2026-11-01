@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.60.0] - 2026-11-01
+
+### Fixed
+
+- The three report writers now reject the dash path like `export --out` and `import --from` already did. `verify --write-report -`, `speaker --write-names -` and `terms --write -` used to create a file literally named `-`; they now exit 2 with `E_USAGE` (`verify --write-report must be a file path, not -`, and the matching message for the other two) and write nothing.
+- Pointing a report output at an existing directory now fails with a plain reason: `E_IO cannot write <report file|names file|glossary file>: <abs> (is a directory)` instead of surfacing the bare `EPERM` from the write itself.
+
+### Unchanged
+
+- No breaking change: the envelope, exit codes, command table, the 13 error codes and the `yakusha/1` dictionary format are identical to 0.59.
+
 ## [0.59.0] - 2026-11-01
 
 ### Fixed
@@ -721,7 +732,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.59.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.60.0...HEAD
+[0.60.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.59.0...v0.60.0
 [0.59.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.58.0...v0.59.0
 [0.58.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.57.0...v0.58.0
 [0.57.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.56.0...v0.57.0

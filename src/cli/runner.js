@@ -89,6 +89,17 @@ function numberFlag(flags, name, fallback) {
  * @param {string} what short noun for the error message
  */
 function writeOutputFile(file, text, what) {
+  // A directory target would fail deep inside the atomic rename with a
+  // system error; report the actual problem instead.
+  let stats = null;
+  try {
+    stats = fs.statSync(file);
+  } catch {
+    // Absent or unreadable: the write itself reports the real failure.
+  }
+  if (stats && stats.isDirectory()) {
+    throw new CliError("E_IO", "cannot write " + what + ": " + file + " (is a directory)");
+  }
   try {
     writeFileAtomic(file, text);
   } catch (error) {
@@ -299,6 +310,9 @@ async function commandVerify(dir, flags, sink) {
   // An error makes the command fail, so a release script can gate on it
   // ("verify && install"). The report still goes to the out channel: a caller
   // needs the findings of a failed run most of all.
+  if (flags["write-report"] === "-") {
+    throw new CliError("E_USAGE", "verify --write-report must be a file path, not -");
+  }
   const reportFile = typeof flags["write-report"] === "string" ? path.resolve(flags["write-report"]) : null;
   const reportFormat = typeof flags["report-format"] === "string" ? flags["report-format"] : "markdown";
   if (reportFormat !== "markdown" && reportFormat !== "sarif") {
@@ -437,6 +451,9 @@ async function commandSpeaker(dir, flags, sink) {
   // Japanese has nothing to copy. A template is the cheapest way to ask: the
   // user fills in only the names they care about and reruns with --names.
   const missing = namesNeedingInput(after, data);
+  if (flags["write-names"] === "-") {
+    throw new CliError("E_USAGE", "speaker --write-names must be a file path, not -");
+  }
   const namesFile = typeof flags["write-names"] === "string" ? path.resolve(flags["write-names"]) : null;
   if (namesFile) assertNotDictionaryTarget(namesFile, file, "a names template is not a dictionary");
   if (namesFile) {
@@ -519,6 +536,9 @@ async function commandTerms(dir, flags, sink) {
 
   const statuses = typeof flags.status === "string" ? flags.status.split(",").map((s) => s.trim()).filter(Boolean) : null;
   const terms = statuses ? result.terms.filter((term) => statuses.includes(term.status)) : result.terms;
+  if (flags.write === "-") {
+    throw new CliError("E_USAGE", "terms --write must be a file path, not -");
+  }
   const written = typeof flags.write === "string" ? path.resolve(flags.write) : null;
   if (written) assertNotDictionaryTarget(written, file, "a glossary is not a dictionary");
   const glossary = toGlossary(terms, { game: data.game, limit: maxLength, driftOnly: flags["drift-only"] === true });

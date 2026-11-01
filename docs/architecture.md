@@ -307,6 +307,7 @@ test/fixtures/           各引擎最小夹具（mini-mz、mini-mv、renpy-*、r
 | 0.57.0 | **已交付**：GUI 主进程两条接缝缺陷修复——取消信号从未传进 runner（`gui:cancel`/窗口关闭空转）、「记住密钥」撞 `const flags` 崩溃；新增 `test/gui-main.test.js` 主进程 stub-Electron 契约测试（16 条） | 794 pass / 0 fail（gui-main +16） |
 | 0.58.0 | **已交付**：preload 桥契约测试（`test/gui-preload.test.js` 11 条：暴露面、命令表与 handlers 白名单及 index.html 按钮三方一致、逐方法 IPC 通道与请求形状、可取消订阅）；无产品代码改动 | 805 pass / 0 fail（gui-preload +11） |
 | 0.59.0 | **已交付**：`import` 同源重复行显式语义——同译文只应用第一次、冗余计入新的可选载荷键 `duplicates`；冲突译文整体拒绝（`E_DICTIONARY`，TSV/CSV 带 `table row N`、JSONL 带 `table line N` 行号），字典字节不变 | 808 pass / 0 fail（export +3） |
+| 0.60.0 | **已交付**：三个报告写路径（`verify --write-report` / `speaker --write-names` / `terms --write`）拒绝 `-` 与目录目标——此前 `-` 会静默创建名为 `-` 的文件、目录目标把底层 `EPERM` 原样带出；现在分别是 `E_USAGE ... must be a file path, not -` 与 `E_IO ... (is a directory)` | 810 pass / 0 fail（cli +2） |
 | 1.0.0 | 10 个引擎 + 能力矩阵 + 便携 exe（图标、无控制台、最近游戏） | 双击 exe 可用 |
 
 ## 10. 风险

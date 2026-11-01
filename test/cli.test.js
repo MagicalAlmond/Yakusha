@@ -866,6 +866,48 @@ test("cli: report outputs refuse to replace the dictionary", () => {
   }
 });
 
+test("cli: report outputs reject the dash path like export and import", () => {
+  const commands = [
+    ["verify", "--write-report", "verify --write-report must be a file path, not -"],
+    ["speaker", "--write-names", "speaker --write-names must be a file path, not -"],
+    ["terms", "--write", "terms --write must be a file path, not -"],
+  ];
+  for (const [command, option, message] of commands) {
+    const game = tempGame();
+    writeDictionary(game, [["おはよう", "早上好"]]);
+    const before = fs.readdirSync(process.cwd()).filter((name) => name === "-");
+    const result = run([command, game, option, "-", "--json"]);
+    assert.equal(result.code, 2, command + ": " + result.stderr);
+    const body = JSON.parse(result.stdout);
+    assert.equal(body.error.code, "E_USAGE", command);
+    assert.equal(body.error.message, message, command);
+    // The guard fires before any file is touched: no file literally named
+    // "-" may appear next to the report the caller meant to redirect.
+    assert.deepEqual(fs.readdirSync(process.cwd()).filter((name) => name === "-"), before, command);
+  }
+});
+
+test("cli: report outputs refuse a directory target with a plain reason", () => {
+  const commands = [
+    ["verify", "--write-report", "report file"],
+    ["speaker", "--write-names", "names file"],
+    ["terms", "--write", "glossary file"],
+  ];
+  for (const [command, option, noun] of commands) {
+    const game = tempGame();
+    writeDictionary(game, [["おはよう", "早上好"]]);
+    const dir = path.join(game, "out");
+    fs.mkdirSync(dir);
+    const result = run([command, game, option, dir, "--json"]);
+    assert.equal(result.code, 2, command + ": " + result.stderr);
+    const body = JSON.parse(result.stdout);
+    assert.equal(body.error.code, "E_IO", command);
+    // sanitizeMessage abbreviates the home directory to ~, so compare around the path
+    assert.match(body.error.message, /^cannot write [a-z ]+: .+ \(is a directory\)$/, command);
+    assert.ok(body.error.message.endsWith(" (is a directory)"), command);
+  }
+});
+
 test("cli: extract --prune drops the keys the game no longer contains", () => {
   const game = tempGame();
   assert.equal(run(["extract", game]).code, 0);
