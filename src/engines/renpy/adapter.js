@@ -207,7 +207,7 @@ export const adapter = {
    * `language` are additive and only Ren'Py fills them.
    *
    * @param {{ root: string, gameDir: string }} project
-   * @param {{ language?: string }} [options]
+   * @param {{ language?: string, dryRun?: boolean }} [options]
    * @returns {{ pluginPath: string, registered: boolean, backupPath: null, createdBackup: boolean, staleBackup: boolean, state: "added"|"unchanged", entries: number, language: string }}
    */
   installRuntime(project, options = {}) {

@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.42.0] - 2026-10-27
+
+### Fixed
+
+- `install --dry-run` now leaves every game untouched on all three delivery tiers. RPG Maker MZ/MV used to write the plugin, rewrite `js/plugins.js` and create the backup even with `--dry-run`; Ren'Py used to write `game/yakusha_translation.rpy`. Both now report the plan (`dry run   : nothing written`) without creating files, while RGSS `--native --dry-run` keeps its existing behaviour.
+
+### Unchanged
+
+- No contract change: every payload key, the envelope, exit codes, the command table, the 13 error codes and the `yakusha/1` dictionary format stay the same.
+
 ## [0.41.0] - 2026-10-27
 
 ### Added
@@ -536,7 +546,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.41.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.42.0...HEAD
+[0.42.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.41.0...v0.42.0
 [0.41.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.40.0...v0.41.0
 [0.40.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.39.0...v0.40.0
 [0.39.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.38.0...v0.39.0

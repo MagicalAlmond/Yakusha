@@ -823,6 +823,7 @@ async function commandInstall(dir, flags, sink) {
     if (embed) sink.out("embedded  : " + Object.keys(embed).length + " translations");
     else sink.out("dictionary: yakusha/dictionary.json (loaded at runtime)");
   }
+  if (flags["dry-run"] === true && !result.native) sink.out("dry run   : nothing written");
   const payload = {
     pluginPath: result.pluginPath,
     registered: result.registered,

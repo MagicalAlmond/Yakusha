@@ -179,6 +179,19 @@ test("cli: install then uninstall restores plugins.js byte for byte", () => {
   assert.equal(fs.existsSync(info.pluginPath), false);
 });
 
+test("cli: install --dry-run writes nothing on the plugin tier", () => {
+  const game = tempGame();
+  const plugins = path.join(game, "js", "plugins.js");
+  const before = fs.readFileSync(plugins);
+
+  const result = run(["install", game, "--dry-run"]);
+  assert.equal(result.code, 0, result.stderr);
+  assert.match(result.stdout, /dry run   : nothing written/);
+  assert.equal(fs.existsSync(path.join(game, "js", "plugins", "YAKUSHA_Translator.js")), false);
+  assert.equal(fs.existsSync(plugins + ".yakusha-backup"), false);
+  assert.deepEqual(fs.readFileSync(plugins), before);
+});
+
 test("cli: install --embed writes the translations into the plugin file", () => {
   const game = tempGame();
   assert.equal(run(["extract", game]).code, 0);

@@ -320,8 +320,8 @@ function writeAtomic(target, content) {
  *
  * @param {{ root: string, gameDir: string }} project
  * @param {Array<[string, string]|{ source: string, target: string }>} pairs
- * @param {{ language?: string, pluginVersion?: string }} [options]
- * @returns {{ path: string, language: string, entries: number, created: boolean, changed: boolean }}
+ * @param {{ language?: string, pluginVersion?: string, dryRun?: boolean }} [options]
+ * @returns {{ path: string, language: string, entries: number, created: boolean, changed: boolean, dryRun?: true }}
  */
 export function installTranslation(project, pairs, options = {}) {
   const { content, language, entries } = build(pairs, options);
@@ -339,6 +339,13 @@ export function installTranslation(project, pairs, options = {}) {
 
   if (existing === content) {
     return { path: target, language, entries, created: false, changed: false };
+  }
+
+  // A dry run predicts the exact same created/changed flags without writing:
+  // it is the same read above plus the comparison, so callers can preview an
+  // install on a game copy that must stay untouched.
+  if (options.dryRun === true) {
+    return { path: target, language, entries, created: existing === null, changed: true, dryRun: true };
   }
 
   writeAtomic(target, content);

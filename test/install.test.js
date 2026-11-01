@@ -63,6 +63,22 @@ test("install writes the plugin and registers it", () => {
   assert.deepEqual(isInstalled(project), { installed: true, registered: true, pluginPath });
 });
 
+test("install --dry-run predicts the install without touching the game", () => {
+  const root = sandbox();
+  const project = openProject(root);
+  const before = fs.readFileSync(project.pluginsFile, "utf8");
+  const pluginPath = path.join(project.pluginDir, PLUGIN_FILE);
+
+  const result = installPlugin(project, { dryRun: true });
+  assert.equal(result.state, "added");
+  assert.equal(result.createdBackup, true);
+  assert.equal(result.dryRun, true);
+  assert.equal(fs.existsSync(pluginPath), false);
+  assert.equal(fs.existsSync(project.pluginsFile + ".yakusha-backup"), false);
+  assert.equal(fs.readFileSync(project.pluginsFile, "utf8"), before);
+  assert.deepEqual(isInstalled(project).installed, false);
+});
+
 test("install is idempotent", () => {
   const root = sandbox();
   const project = openProject(root);

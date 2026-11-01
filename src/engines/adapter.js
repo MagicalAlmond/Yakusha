@@ -226,7 +226,7 @@ export function extractIntoDictionary(project) {
  * Install the runtime plugin. Kept here so both adapters cannot drift apart.
  *
  * @param {import("../core/mzproject.js").Project} project
- * @param {{ embed?: Record<string,string>|null, parameters?: Record<string,string> }} [options]
+ * @param {{ embed?: Record<string,string>|null, parameters?: Record<string,string>, dryRun?: boolean }} [options]
  */
 export function installRuntime(project, options = {}) {
   return installPlugin(project, options);

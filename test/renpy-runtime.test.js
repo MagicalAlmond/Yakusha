@@ -275,6 +275,20 @@ test("installTranslation creates the file on the first run", () => {
   assert.deepEqual(fs.readdirSync(dir.gameDir).sort(), ["script.rpy", TRANSLATION_FILE]);
 });
 
+test("installTranslation --dry-run predicts the file without writing it", () => {
+  const dir = sandbox();
+  const target = path.join(dir.gameDir, TRANSLATION_FILE);
+  const before = fs.readdirSync(dir.gameDir).sort();
+
+  const result = installTranslation(project(dir), [["Hello.", "你好。"]], { dryRun: true });
+  assert.equal(result.created, true);
+  assert.equal(result.changed, true);
+  assert.equal(result.dryRun, true);
+  assert.equal(result.entries, 1);
+  assert.equal(fs.existsSync(target), false);
+  assert.deepEqual(fs.readdirSync(dir.gameDir).sort(), before);
+});
+
 test("installTranslation leaves an identical file untouched", () => {
   const dir = sandbox();
   const first = installTranslation(project(dir), [["Hello.", "你好。"]]);

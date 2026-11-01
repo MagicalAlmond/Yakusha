@@ -289,6 +289,7 @@ test/fixtures/           各引擎最小夹具（mini-mz、mini-mv、renpy-*、r
 | 0.39.0 | **已交付**：`import --dry-run --create` 不再写盘——项目还没有字典时只在内存里建空字典并在 stderr 提示 `dry run: would create an empty dictionary`，不再留下 `yakusha/dictionary.json`；载荷与退出码不变 | 742 pass / 0 fail（新增 1 条：export） |
 | 0.40.0 | **已交付**：`verify --write-report`、`speaker --write-names`、`terms --write` 拒绝把输出写到项目字典（`E_EXISTS`、退出 2、不写文件）；`export` 的既有守卫消息统一带原因 | 743 pass / 0 fail（新增 1 条：cli） |
 | 0.41.0 | **已交付**：`terms` 识别 RGSS 数据库名表（`.rvdata2` / `.rvdata` / `.rxdata` 的 `Actors…:name`），VX Ace 样本 2,085 条字典的数据库名表条目从 0 变 35；Ren'Py/Kirikiri 的 context 仍不匹配 | 744 pass / 0 fail（新增 1 条：terms） |
+| 0.42.0 | **已交付**：`install --dry-run` 在 RPG Maker 插件层与 Ren'Py 译文文件层也完全不写盘（不再创建插件/备份/译文文件），RGSS 的 `--native --dry-run` 保持原行为；文本统一多一行 `dry run   : nothing written` | 747 pass / 0 fail（新增 3 条：install 1、renpy-runtime 1、cli 1） |
 | 1.0.0 | 10 个引擎 + 能力矩阵 + 便携 exe（图标、无控制台、最近游戏） | 双击 exe 可用 |
 
 ## 10. 风险

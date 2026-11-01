@@ -559,6 +559,7 @@ TextGrammar = {
 | 0.39 | `import --dry-run --create` 不再写字典文件（**已交付**） | — | 742 pass / 54 个文件；新增 1 条（export） |
 | 0.40 | `verify --write-report` / `speaker --write-names` / `terms --write` 拒绝覆盖项目字典（**已交付**） | — | 743 pass / 54 个文件；新增 1 条（cli） |
 | 0.41 | `terms` 识别 RGSS 数据库名表（`.rvdata2` / `.rvdata` / `.rxdata`）（**已交付**） | — | 744 pass / 54 个文件；新增 1 条（terms） |
+| 0.42 | `install --dry-run` 在插件层与 Ren'Py 层不写盘（**已交付**） | — | 747 pass / 54 个文件；新增 3 条（install 1、renpy-runtime 1、cli 1） |
 | 1.0 | 10 个引擎目标 + 能力矩阵 + 便携 exe | — | 每个引擎有 L4 证据；不达标的明确标 experimental |
 
 说明：

@@ -38,7 +38,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const TEMPLATE = path.join(HERE, "..", "plugin", PLUGIN_FILE);
 
 /**
- * @typedef {{ pluginPath: string, registered: boolean, backupPath: string|null, createdBackup: boolean, staleBackup: boolean, state: "added"|"enabled"|"unchanged" }} InstallResult
+ * @typedef {{ pluginPath: string, registered: boolean, backupPath: string|null, createdBackup: boolean, staleBackup: boolean, state: "added"|"enabled"|"unchanged", dryRun?: true }} InstallResult
  */
 
 /**
@@ -125,7 +125,7 @@ function samePlugins(a, b) {
 
 /**
  * @param {import("./mzproject.js").Project} project
- * @param {{ embed?: Record<string,string>|null, parameters?: Record<string,string> }} [options]
+ * @param {{ embed?: Record<string,string>|null, parameters?: Record<string,string>, dryRun?: boolean }} [options]
  * @returns {InstallResult}
  */
 export function installPlugin(project, options = {}) {
@@ -139,12 +139,9 @@ export function installPlugin(project, options = {}) {
   const original = fs.readFileSync(project.pluginsFile, "utf8");
   const plugins = parsePluginsJs(original).plugins;
 
-  let createdBackup = false;
+  const createdBackup = !fs.existsSync(backupPath);
   let staleBackup = false;
-  if (!fs.existsSync(backupPath)) {
-    copyFileAtomic(project.pluginsFile, backupPath);
-    createdBackup = true;
-  } else {
+  if (!createdBackup) {
     // The backup only describes the file it was taken from. If the game
     // updated or another mod rewrote plugins.js since then, restoring it on
     // uninstall would silently throw those edits away (see uninstallPlugin).
@@ -163,6 +160,23 @@ export function installPlugin(project, options = {}) {
       ...(options.parameters || {}),
     },
   });
+
+  // A dry run reports the same plan but leaves the game byte for byte intact:
+  // no backup, no plugins.js rewrite, no plugin file. Keeping the read path
+  // above shared is what makes the predicted state trustworthy.
+  if (options.dryRun === true) {
+    return {
+      pluginPath,
+      registered: true,
+      backupPath: createdBackup ? backupPath : null,
+      createdBackup,
+      staleBackup,
+      state,
+      dryRun: true,
+    };
+  }
+
+  if (createdBackup) copyFileAtomic(project.pluginsFile, backupPath);
   writeFileAtomic(project.pluginsFile, serialisePluginsJs(plugins, layout));
 
   fs.mkdirSync(project.pluginDir, { recursive: true });
