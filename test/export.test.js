@@ -622,6 +622,21 @@ test("import: --create with a bad table leaves no dictionary behind", () => {
   assert.equal(fs.existsSync(path.join(game, "yakusha", "dictionary.json")), false);
 });
 
+test("import: --dry-run with --create does not create a dictionary", () => {
+  const game = tempGame();
+  fs.rmSync(path.join(game, "yakusha"), { recursive: true, force: true });
+  const from = path.join(game, "..", "ext.jsonl");
+  fs.writeFileSync(from, "{\"key\":\"Hello\",\"text\":\"你好\"}\n");
+  const result = run(["import", game, "--from", from, "--create", "--dry-run", "--json"]);
+  assert.equal(result.code, 0, result.stderr);
+  const payload = envelope(result);
+  assert.equal(payload.dryRun, true);
+  assert.equal(payload.applied, 1);
+  assert.equal(fs.existsSync(path.join(game, "yakusha", "dictionary.json")), false);
+  assert.match(result.stderr, /dry run: would create an empty dictionary/);
+  assert.doesNotMatch(result.stderr, /created an empty dictionary: /);
+});
+
 test("export: rich json carries engine and locator, and import restores them", () => {
   const game = tempGame();
   const entry = {

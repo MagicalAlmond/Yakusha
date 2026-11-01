@@ -556,6 +556,7 @@ TextGrammar = {
 | 0.36 | `verify --require-complete` 把未译条目纳入发布闸门；markdown / SARIF 的 verdict 与 `executionSuccessful` 同步复算（**已交付**） | — | 738 pass / 54 个文件；新增 5 条（cli 2、report 3） |
 | 0.37 | markdown verify 报告字段表的 `\|` 与换行转义（**已交付**） | — | 739 pass / 54 个文件；新增 1 条（report 1） |
 | 0.38 | verify 的 findings 带出字典条目的 `locator`（problem 字段、markdown 的 `at <位置>`、SARIF 的 `properties.locator`）（**已交付**） | — | 741 pass / 54 个文件；新增 2 条（verify 1、report 1） |
+| 0.39 | `import --dry-run --create` 不再写字典文件（**已交付**） | — | 742 pass / 54 个文件；新增 1 条（export） |
 | 1.0 | 10 个引擎目标 + 能力矩阵 + 便携 exe | — | 每个引擎有 L4 证据；不达标的明确标 experimental |
 
 说明：

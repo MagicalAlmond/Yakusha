@@ -1,6 +1,6 @@
 # 命令参考
 
-本文是 yakusha 0.38.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出；0.33 给 `verify` 增加了 SARIF 报告输出（`--report-format sarif`）；0.34 给 `export` 增加 JSONL 输出（`--format jsonl`），0.35 给 `verify` 增加 `--fail-on warning`（warning 也算发布失败），0.36 给 `verify` 增加 `--require-complete`（还有未译条目就失败），0.37 只修 markdown 报告表格里的 `|` 转义，0.38 只让 `verify` 的 problem 带出字典条目的 `locator`，其余命令不变。
+本文是 yakusha 0.39.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出；0.33 给 `verify` 增加了 SARIF 报告输出（`--report-format sarif`）；0.34 给 `export` 增加 JSONL 输出（`--format jsonl`），0.35 给 `verify` 增加 `--fail-on warning`（warning 也算发布失败），0.36 给 `verify` 增加 `--require-complete`（还有未译条目就失败），0.37 只修 markdown 报告表格里的 `|` 转义，0.38 只让 `verify` 的 problem 带出字典条目的 `locator`，0.39 修 `import --dry-run --create` 会落盘空字典的问题（dry-run 不写盘），其余命令不变。
 
 **RGSS 在 0.18 起有了交付层。** `scan` / `extract` / `status` / `translate` / `verify` / `speaker` / `terms` / `export` / `import` 都能用；0.18 新增 `install --native`，把预编译的注入器与 hook DLL 装进 `yakusha/native/`，游戏启动时由注入器加载，译文从 `dictionary.txt` 读。`install` 不带 `--native` 仍报 `E_USAGE`（RGSS 没有插件交付层）。安装细节与限制见下文 [install 与 uninstall](#install-与-uninstall)。
 
@@ -214,7 +214,7 @@
 ### --help 与 --version
 
 - `--help` / `-h`：永远 stdout 纯文本、退出 0，即使同时给了 `--json`；`scan -h` 也一样打整段帮助。连未知命令都投降：`nope --help` 打帮助、退出 0。
-- `--version`：永远 stdout 一行 `yakusha <version>`、退出 0，并且优先于一切——`--help --version` 只打 `yakusha 0.38.0`，`--json --version` 也不产出 JSON。
+- `--version`：永远 stdout 一行 `yakusha <version>`、退出 0，并且优先于一切——`--help --version` 只打 `yakusha 0.39.0`，`--json --version` 也不产出 JSON。
 - 无命令：文本模式把整段 USAGE 打到 stderr、退出 2；`--json` 时输出 `command: null` 的信封，`message` 是 `no command`。
 - 未知命令：stderr 两行 `error: unknown command: nope` 和 `run 'yakusha --help' for usage`，退出 2，不再打印整段 USAGE。
 
@@ -862,7 +862,7 @@ exported 32 entries to <abs> (4159 B)
 - 跳过规则按行处理：`target` 为空 → 跳过；`only-empty` 下字典已有非空译文 → 跳过；字典当前值与 `target` 相同 → 跳过（两种策略都算）。`contexts` 的合并顺序：字典里已有非空 contexts 优先，否则用表格行的 `contexts`，否则为空数组。
 - provenance（0.17）：JSON 导入时，字典里没有 `engine` 就用行里的 `engine`；字典里没有 `locator` 且行里有就写入。JSONL 从 0.34 起同样支持：`engine` 是字符串，`locator` 是字符串数组；JSONL 里 `locator` 是单个字符串时仍是 0.15 的旧语义（一个 context），不是 provenance。表格三列没有 provenance，既不写也不清掉字典里已有的 `engine` / `locator`。
 - `--create`（0.15）：项目还没有字典时，先用 `emptyDictionary(gameTitle)` 建一个再合并（stderr 提示 `created an empty dictionary: <abs>`）；没有 `--create` 时行为与 0.13 相同（`E_NO_DICTIONARY`，消息末尾追加 `(pass --create to start one from this import)`）。解析先于建字典：表坏了不会留下半成品空字典。
-- `--dry-run` 完整执行匹配与校验但不写盘；`applied` 为 0 时也不写（不碰 `updatedAt`）。
+- `--dry-run` 完整执行匹配与校验但不写盘；`applied` 为 0 时也不写（不碰 `updatedAt`）。与 `--create` 一起用时只在内存里建空字典（stderr 提示 `dry run: would create an empty dictionary: <abs>`），不会留下字典文件（0.39 起）。
 - 载荷 8 键平铺：`file` / `format`（实际格式名）/ `strategy` / `dryRun` / `read`（读到的行数，含表头与跳过行）/ `applied` / `skipped` / `entries`（本次实际写入的对象）。
 
 ```text

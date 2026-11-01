@@ -955,15 +955,23 @@ async function commandImport(dir, flags, sink) {
   if (formatName === "jsonl") rows = parseJsonl(text);
   else if (formatName === "json") rows = parseExportEntries(text);
   else rows = parseTable(text, formatName);
+  let dictionary;
   if (!fs.existsSync(file)) {
     if (flags.create !== true) {
       throw new CliError("E_NO_DICTIONARY", "no dictionary yet: " + file +
         " (pass --create to start one from this import)");
     }
-    dict.saveDictionary(file, dict.emptyDictionary(project.gameTitle));
-    sink.warn("created an empty dictionary: " + file);
+    if (dryRun) {
+      dictionary = dict.emptyDictionary(project.gameTitle);
+      sink.warn("dry run: would create an empty dictionary: " + file);
+    } else {
+      dict.saveDictionary(file, dict.emptyDictionary(project.gameTitle));
+      sink.warn("created an empty dictionary: " + file);
+      dictionary = dict.loadDictionary(file);
+    }
+  } else {
+    dictionary = dict.loadDictionary(file);
   }
-  const dictionary = dict.loadDictionary(file);
   let applied = 0;
   let skipped = 0;
   const entries = {};
