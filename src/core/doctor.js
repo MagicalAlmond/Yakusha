@@ -189,7 +189,13 @@ export function diagnose(project, options = {}) {
         add(
           "sync",
           "warn",
-          parts.join(", ") + " - " + (fresh.length ? "run extract" : "the game probably updated"),
+          parts.join(", ") +
+          " - " +
+          (fresh.length
+            ? stale.length
+              ? "run extract; extract --prune drops the stale keys"
+              : "run extract"
+            : "the game probably updated - run: yakusha extract --prune <game>"),
           samples
         );
       }

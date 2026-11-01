@@ -865,3 +865,45 @@ test("cli: report outputs refuse to replace the dictionary", () => {
     assert.deepEqual(fs.readFileSync(file), before, command + " must not touch the dictionary");
   }
 });
+
+test("cli: extract --prune drops the keys the game no longer contains", () => {
+  const game = tempGame();
+  assert.equal(run(["extract", game]).code, 0);
+  const file = path.join(game, "yakusha", "dictionary.json");
+
+  // Give a key a real translation, then rewrite the game data so that
+  // "ポーション" no longer exists anywhere: a game update that renames or
+  // removes lines must be visible, and repairable, through extract.
+  const dict = JSON.parse(fs.readFileSync(file, "utf8"));
+  dict.entries["ポーション"].text = "药水";
+  fs.writeFileSync(file, JSON.stringify(dict, null, 2) + "\n", "utf8");
+
+  // RPG Maker data arrays are 1-based (index 0 stays null), so the shape
+  // must survive the rewrite for the extractor to still read the file.
+  const items = path.join(game, "data", "Items.json");
+  fs.writeFileSync(items, JSON.stringify([null, { id: 1, name: "回復薬", description: "HPを50回復する。" }], null, 1), "utf8");
+
+  const report = run(["extract", game, "--json"]);
+  assert.equal(report.code, 0, report.stderr);
+  const staleRun = JSON.parse(report.stdout);
+  assert.deepEqual([staleRun.added, staleRun.stale, staleRun.pruned], [1, 1, 0], "the renamed item lands, the old key is reported stale");
+  const kept = JSON.parse(fs.readFileSync(file, "utf8"));
+  assert.equal(Object.hasOwn(kept.entries, "ポーション"), true, "without --prune the stale key survives");
+  assert.equal(kept.entries["ポーション"].text, "药水");
+
+  const text = run(["extract", game]);
+  assert.match(text.stdout, /1 key\(s\) no longer in the game/);
+
+  const pruned = run(["extract", game, "--prune", "--json"]);
+  assert.equal(pruned.code, 0, pruned.stderr);
+  const done = JSON.parse(pruned.stdout);
+  assert.deepEqual([done.added, done.stale, done.pruned], [0, 1, 1]);
+  const after = JSON.parse(fs.readFileSync(file, "utf8"));
+  assert.equal(Object.hasOwn(after.entries, "ポーション"), false, "prune drops the stale key");
+  assert.equal(Object.hasOwn(after.entries, "回復薬"), true, "the renamed key keeps its extraction");
+  assert.equal(Object.keys(after.entries).length, 32, "one key out, one key in");
+
+  const quiet = run(["extract", game, "--json"]);
+  const settled = JSON.parse(quiet.stdout);
+  assert.deepEqual([settled.added, settled.stale, settled.pruned], [0, 0, 0], "a second run is clean");
+});

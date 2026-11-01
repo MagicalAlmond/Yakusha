@@ -42,8 +42,8 @@ export const adapter = {
     return scanProject(project);
   },
 
-  extract(project) {
-    return extractIntoDictionary(project);
+  extract(project, options = {}) {
+    return extractIntoDictionary(project, options);
   },
 
   installRuntime(project, options = {}) {

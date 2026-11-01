@@ -21,7 +21,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { capabilities, detectFail, detectOk, notImplemented } from "../adapter.js";
-import { dictionaryPath, emptyDictionary, loadDictionary, recordExtracted, saveDictionary, stats } from "../../core/dict.js";
+import { dictionaryPath, emptyDictionary, loadDictionary, saveDictionary, stats, mergeExtracted } from "../../core/dict.js";
 import { launchProject } from "../launch.js";
 import { installNative, launchNative, nativeStatus, uninstallNative } from "./native.js";
 import { rgssProfile } from "./profile.js";
@@ -132,7 +132,7 @@ export function scanRgss(project) {
  * @param {{ root: string, gameTitle: string|null }} project
  * @returns {{ file: string, added: number, total: number, translated: number, pending: number }}
  */
-export function extractIntoDictionary(project) {
+export function extractIntoDictionary(project, options = {}) {
   const result = extractRgssProject(project.root);
   const file = dictionaryPath(project.root);
   let existing = null;
@@ -144,10 +144,7 @@ export function extractIntoDictionary(project) {
     }
   }
   const target = existing || emptyDictionary(project.gameTitle);
-  let added = 0;
-  for (const entry of result.entries.values()) {
-    if (recordExtracted(target.entries, entry, "rgss")) added += 1;
-  }
+  const { added, stale, pruned } = mergeExtracted(target.entries, result.entries.values(), "rgss", options);
   saveDictionary(file, target);
   const summary = stats(target);
   return {
@@ -156,6 +153,8 @@ export function extractIntoDictionary(project) {
     total: summary.total,
     translated: summary.translated,
     pending: summary.pending,
+    stale,
+    pruned,
   };
 }
 
@@ -214,8 +213,8 @@ export const adapter = {
     return scanRgss(project);
   },
 
-  extract(project) {
-    return extractIntoDictionary(project);
+  extract(project, options = {}) {
+    return extractIntoDictionary(project, options);
   },
 
   /**

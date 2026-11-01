@@ -9,7 +9,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { emptyDictionary, loadDictionary, note, recordExtracted, saveDictionary, translatedOnly } from "../src/core/dict.js";
+import { emptyDictionary, loadDictionary, mergeExtracted, note, recordExtracted, saveDictionary, translatedOnly } from "../src/core/dict.js";
 
 const created = [];
 
@@ -133,4 +133,26 @@ test("save: the dictionary is replaced without leaving a temporary file", () => 
   saveDictionary(file, dict);
   assert.deepEqual(fs.readdirSync(path.dirname(file)), ["dictionary.json"]);
   assert.equal(loadDictionary(file).entries.a.text, "译");
+});
+
+test("mergeExtracted: a fresh extraction adds keys and reports keys it no longer has", () => {
+  const entries = {
+    gone: { text: "译", contexts: ["Map001.json:401"], engine: "mz" },
+    kept: { text: "", contexts: ["Map001.json:402"], engine: "mz" },
+  };
+  const result = mergeExtracted(entries, [{ text: "kept", contexts: new Set(["Map001.json:402"]), locators: new Set() }, { text: "new", contexts: new Set(["Map001.json:403"]), locators: new Set() }], "mz");
+  assert.deepEqual(result, { added: 1, stale: 1, pruned: 0 });
+  assert.deepEqual(entries.new, { text: "", contexts: ["Map001.json:403"], engine: "mz" });
+  assert.equal(entries.gone.text, "译", "without prune the stale key survives with its translation");
+});
+
+test("mergeExtracted: prune drops the stale keys, including translated ones", () => {
+  const entries = {
+    gone: { text: "译", contexts: ["Map001.json:401"], engine: "mz" },
+    kept: { text: "留", contexts: ["Map001.json:402"], engine: "mz" },
+  };
+  const result = mergeExtracted(entries, [{ text: "kept", contexts: new Set(["Map001.json:402"]), locators: new Set() }], "mz", { prune: true });
+  assert.deepEqual(result, { added: 0, stale: 1, pruned: 1 });
+  assert.equal(Object.hasOwn(entries, "gone"), false);
+  assert.deepEqual(entries.kept, { text: "留", contexts: ["Map001.json:402"], engine: "mz" });
 });

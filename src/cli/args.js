@@ -39,6 +39,7 @@ const BOOLEAN = new Set([
   "create",
   "native",
   "require-complete",
+  "prune",
 ]);
 
 /**
@@ -85,7 +86,7 @@ const VALUE = [
 const COMMAND_OPTIONS = {
   config: [],
   scan: [],
-  extract: [],
+  extract: ["prune"],
   status: [],
   export: ["out", "format", "flat", "force"],
   import: ["from", "format", "strategy", "dry-run", "create"],

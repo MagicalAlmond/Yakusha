@@ -1,6 +1,6 @@
 # 命令参考
 
-本文是 yakusha 0.51.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出；0.33 给 `verify` 增加了 SARIF 报告输出（`--report-format sarif`）；0.34 给 `export` 增加 JSONL 输出（`--format jsonl`），0.35 给 `verify` 增加 `--fail-on warning`（warning 也算发布失败），0.36 给 `verify` 增加 `--require-complete`（还有未译条目就失败），0.37 只修 markdown 报告表格里的 `|` 转义，0.38 只让 `verify` 的 problem 带出字典条目的 `locator`，0.39 修 `import --dry-run --create` 会落盘空字典的问题（dry-run 不写盘），0.40 让 `verify --write-report`、`speaker --write-names`、`terms --write` 拒绝把输出写到项目字典上（`E_EXISTS`、退出 2），0.41 只让 `terms` 识别 RGSS 的数据库名表（`.rvdata2` / `.rvdata` / `.rxdata`），0.42 让 `install --dry-run` 在 RPG Maker 插件层与 Ren'Py 译文文件层上真的不写盘（RGSS 的 `--native --dry-run` 0.18 起已如此），0.43 给 `uninstall` 增加 `--dry-run`（MZ/MV、Ren'Py、RGSS 四个引擎都只报告将要删除或还原的内容），0.44 只修 `launch` 在 MV 的 `www/` 布局下从上一层启动 `Game.exe`（项目根仍是 `www/`），0.45 只修 `scan` 文本模式的长文件名与计数间距（载荷不变），0.46 只修 RGSS `install --native --dry-run` 的 `state` 预测（首次安装报 `added`，不是 `unchanged`；不写盘），0.49 只让 `verify --kind width` 在没给 `--max-length`（或给 0）时报用法错误（`E_USAGE`、退出 2），0.47 只让 Kirikiri 的归档级错误不再把归档名重复两遍，0.48 只让 `launch` 在 `data/` 本身是 nw.js 宿主时从 `data/` 启动（项目根仍是 `data/www/`），0.50 只让 `install --embed` 在非 RPG Maker 引擎上报用法错误（此前在 Ren'Py 上被静默忽略，在 Kirikiri 上被字典检查盖住），0.51 只把空字符串的选项值也当缺值（`--write-report ""` 报 `E_USAGE`，不再被当成当前目录去写），其余命令不变。
+本文是 yakusha 0.52.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出；0.33 给 `verify` 增加了 SARIF 报告输出（`--report-format sarif`）；0.34 给 `export` 增加 JSONL 输出（`--format jsonl`），0.35 给 `verify` 增加 `--fail-on warning`（warning 也算发布失败），0.36 给 `verify` 增加 `--require-complete`（还有未译条目就失败），0.37 只修 markdown 报告表格里的 `|` 转义，0.38 只让 `verify` 的 problem 带出字典条目的 `locator`，0.39 修 `import --dry-run --create` 会落盘空字典的问题（dry-run 不写盘），0.40 让 `verify --write-report`、`speaker --write-names`、`terms --write` 拒绝把输出写到项目字典上（`E_EXISTS`、退出 2），0.41 只让 `terms` 识别 RGSS 的数据库名表（`.rvdata2` / `.rvdata` / `.rxdata`），0.42 让 `install --dry-run` 在 RPG Maker 插件层与 Ren'Py 译文文件层上真的不写盘（RGSS 的 `--native --dry-run` 0.18 起已如此），0.43 给 `uninstall` 增加 `--dry-run`（MZ/MV、Ren'Py、RGSS 四个引擎都只报告将要删除或还原的内容），0.44 只修 `launch` 在 MV 的 `www/` 布局下从上一层启动 `Game.exe`（项目根仍是 `www/`），0.45 只修 `scan` 文本模式的长文件名与计数间距（载荷不变），0.46 只修 RGSS `install --native --dry-run` 的 `state` 预测（首次安装报 `added`，不是 `unchanged`；不写盘），0.49 只让 `verify --kind width` 在没给 `--max-length`（或给 0）时报用法错误（`E_USAGE`、退出 2），0.47 只让 Kirikiri 的归档级错误不再把归档名重复两遍，0.48 只让 `launch` 在 `data/` 本身是 nw.js 宿主时从 `data/` 启动（项目根仍是 `data/www/`），0.50 只让 `install --embed` 在非 RPG Maker 引擎上报用法错误（此前在 Ren'Py 上被静默忽略，在 Kirikiri 上被字典检查盖住），0.51 只把空字符串的选项值也当缺值（`--write-report ""` 报 `E_USAGE`，不再被当成当前目录去写），其余命令不变。
 
 **RGSS 在 0.18 起有了交付层。** `scan` / `extract` / `status` / `translate` / `verify` / `speaker` / `terms` / `export` / `import` 都能用；0.18 新增 `install --native`，把预编译的注入器与 hook DLL 装进 `yakusha/native/`，游戏启动时由注入器加载，译文从 `dictionary.txt` 读。`install` 不带 `--native` 仍报 `E_USAGE`（RGSS 没有插件交付层）。安装细节与限制见下文 [install 与 uninstall](#install-与-uninstall)。
 
@@ -15,7 +15,7 @@
 | 命令 | 用途 |
 | --- | --- |
 | `scan` | 报告什么可以翻译：数据文件数、字符串数、带控制码的字符串数 |
-| `extract` | 建立或刷新 `yakusha/dictionary.json`（`contexts` 记录每条串出现在哪；0.17 起另带 `engine` / `locator` 溯源字段） |
+| `extract` | 建立或刷新 `yakusha/dictionary.json`（`contexts` 记录每条串出现在哪；0.17 起另带 `engine` / `locator` 溯源字段；0.52 起 `--prune` 可删掉游戏已不含的键） |
 | `status` | 看翻译进度 |
 | `translate` | 调用模型把字典填满 |
 | `verify` | 按十条判据审计字典里的坏条目 |
@@ -29,7 +29,7 @@
 | `launch` | 启动游戏可执行文件（仅 Windows） |
 | `config` | 读写用户级配置（不接游戏目录） |
 
-除 `config` 与 `import`（后者的对象是 `--from` 指定的文件）外，每个命令接且只接一个 `<game-dir>`：可以是游戏根目录本身，也可以是它上面最多 3 层内的任意目录，项目根会自动发现。`scan`、`extract`、`status`、`uninstall` 没有命令专属选项（`doctor` 只有一个 `--max-length`，`--help` 里没有 doctor 段，该选项只写在本文的 doctor 一节）。以下是 `--help` 原文里列出的选项块，逐字照抄。
+除 `config` 与 `import`（后者的对象是 `--from` 指定的文件）外，每个命令接且只接一个 `<game-dir>`：可以是游戏根目录本身，也可以是它上面最多 3 层内的任意目录，项目根会自动发现。`scan` 与 `status` 没有命令专属选项（`doctor` 只有一个 `--max-length`，`--help` 里没有 doctor 段，该选项只写在本文的 doctor 一节）。以下是 `--help` 原文里列出的选项块，逐字照抄。
 
 命令、选项、信封和退出码在四类引擎上完全通用，只有输出文本与安装产物按引擎不同：
 
@@ -44,6 +44,14 @@
 | `doctor` 的 `sync` | `every dictionary key still appears in data/` | `every dictionary key still appears in game/` | `every dictionary key still appears in Data/` | `every dictionary key still appears in xp3 archives` |
 
 载荷的键名四边一致（见 [json-contract.md](json-contract.md) §7.1），脚本不需要按引擎分支——要小心的只有两处：`scan` 的 `dataFiles`，MZ/MV 数 JSON 数据文件、RGSS 数读过的 Marshal 文档、Ren'Py 数脚本、Kirikiri 数打开的 `.xp3` 归档；以及各引擎的 `install` 含义并不相同（Ren'Py 见下文小节；RGSS 的 `--native` 在六个通用键之外多带一个 `native` 子对象；Kirikiri 装不上、只有错误信封，没有任何载荷）。
+
+### extract
+
+```text
+--prune             drop dictionary keys the game no longer contains
+```
+
+游戏更新删改台词后，字典里会留下游戏已不含的键：默认 `extract` 原样保留它们（0.52 起），只在有这种键时文本模式多打一行 `stale` 提示；`--prune` 把它们连同译文一起删掉，详见下文 extract 小节。
 
 ### translate
 
@@ -421,7 +429,15 @@ added     : 32
 progress  : 0/32 translated, 32 pending
 ```
 
-第二次跑 `added` 变 0。载荷：`file` / `added` / `total` / `translated` / `pending`。
+第二次跑 `added` 变 0。载荷：`file` / `added` / `total` / `translated` / `pending` / `stale` / `pruned`（0.52 起后两个）。
+
+**游戏更新后的键清理（0.52）。** 默认 `extract` 只增不删：游戏里被改写或删除的台词仍留在字典里。新键之外，本次抽取再没产出的键会被计数，`stale > 0` 时文本模式追加一行：
+
+```text
+stale     : 1 key(s) no longer in the game (pass --prune to drop them)
+```
+
+`extract --prune` 把这些键连同已有译文一起删掉，再打一行 `pruned    : 1 key(s) dropped`；`stale` 为 0 时输出与 0.51 逐字节相同。`doctor` 的 `sync` 检查会对这类键记 `warn`，advice 指向 `extract --prune`（见 doctor 一节）。
 
 缺字典（没跑过 `extract`）时各命令的反应不一样，实测：
 
@@ -813,7 +829,7 @@ verdict   : usable with 2 warning(s)
 | --- | --- | --- |
 | 中文全没了，插件还在 | `install fail`（`$plugins` 条目丢了） | 重跑 `yakusha install <game>` |
 | 一启动就报错 | `plugins.js fail` `js/plugins.js is not readable (...)` | 从 `js/plugins.js.yakusha-backup` 恢复，再 install |
-| 一部分台词变回日文 | `sync warn` `N text not in the dictionary, M dictionary key no longer in the game` | 重跑 `extract` 再 `translate` |
+| 一部分台词变回日文 | `sync warn` `N text not in the dictionary, M dictionary key no longer in the game` | 重跑 `extract` 再 `translate`；游戏已不含的旧键用 `extract --prune` 清掉（0.52 起） |
 | 部署版 MV，字典只放在 `www/yakusha/` 下 | `runtime ok`（`<root>/yakusha/` 与 `<root>/www/yakusha/` 两处路径都试），但 `dictionary fail`、`verdict` 是 `broken`、退出 1 | 把字典留在 `<root>/yakusha/` 下；`dictionary` 检查只认这一处 |
 | 有 32 条空条目 | `progress warn` `32 entries are still empty - run: yakusha translate <game>` | 翻完即可，`verdict` 是 `usable` |
 

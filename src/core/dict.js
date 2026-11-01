@@ -162,6 +162,41 @@ export function recordExtracted(entries, source, engine) {
 }
 
 /**
+ * Merge one extraction into dictionary entries and report keys it no longer
+ * produces.
+ *
+ * Every extractor calls this with the entries the current run found. New keys
+ * are recorded through {@link recordExtracted}; existing keys keep their
+ * translation and only gain the fresh contexts. With `options.prune` the keys
+ * this run did not find are dropped as well: a game update renames or removes
+ * lines, and keys left behind would otherwise sit in the dictionary forever,
+ * inflating the pending count that `status`, `doctor` and
+ * `verify --require-complete` read.
+ *
+ * @param {Record<string, Entry>} entries dictionary entries, mutated in place
+ * @param {Iterable<{ text: string, contexts: Set<string>, locators?: Set<string> }>} extracted what this run found
+ * @param {string} engine engine id, e.g. "mz" or "rgss"
+ * @param {{ prune?: boolean }} [options]
+ * @returns {{ added: number, stale: number, pruned: number }} added keys, keys the game no longer has, and how many were dropped
+ */
+export function mergeExtracted(entries, extracted, engine, options = {}) {
+  const found = [...extracted];
+  let added = 0;
+  for (const entry of found) {
+    if (recordExtracted(entries, entry, engine)) added += 1;
+  }
+  const current = new Set(found.map((entry) => entry.text));
+  const stale = Object.keys(entries).filter((key) => !current.has(key));
+  let pruned = 0;
+  if (options.prune === true) {
+    for (const key of stale) {
+      delete entries[key];
+      pruned += 1;
+    }
+  }
+  return { added, stale: stale.length, pruned };
+}
+/**
  * Only translated entries, as a plain source→target map.
  *
  * @param {Dictionary} dict

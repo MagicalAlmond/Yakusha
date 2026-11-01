@@ -478,3 +478,34 @@ test("doctor: a dictionary emptied after install still makes the translation fil
   assert.equal(levels.install, "warn");
   assert.equal(levels.runtime, "warn");
 });
+
+test("extract: extractIntoDictionary threads --prune through the Ren'Py adapter", () => {
+  const { project, adapter } = projectFor("mixed");
+  const first = adapter.extract(project);
+  const file = dictionaryPath(project.root);
+  const dictionary = loadDictionary(file);
+  const original = Object.keys(dictionary.entries);
+  const anyKey = original[0];
+  assert.ok(anyKey, "the mixed fixture must contain at least one string");
+
+  // Translate the key, then replace the whole game script set so a fresh
+  // extraction can no longer produce any of the original keys. The mixed
+  // fixture carries each string in both a .rpy and a compiled .rpyc, so the
+  // scripts must go together.
+  dictionary.entries[anyKey].text = "T:" + anyKey;
+  saveDictionary(file, dictionary);
+  const gameDir = path.join(project.root, "game");
+  for (const name of fs.readdirSync(gameDir)) fs.rmSync(path.join(gameDir, name));
+  fs.writeFileSync(path.join(gameDir, "remnant.rpy"), 'label remnant:\n    "Remnant line."\n    return\n', "utf8");
+
+  const report = adapter.extract(project);
+  assert.deepEqual([report.added, report.stale, report.pruned], [1, original.length, 0]);
+  const kept = loadDictionary(file);
+  assert.equal(Object.hasOwn(kept.entries, anyKey), true, "stale keys survive without prune");
+  assert.equal(kept.entries[anyKey].text, "T:" + anyKey, "the translation survives too");
+
+  const pruned = adapter.extract(project, { prune: true });
+  assert.deepEqual([pruned.added, pruned.stale, pruned.pruned], [0, original.length, original.length]);
+  const after = loadDictionary(file);
+  assert.deepEqual(Object.keys(after.entries), ["Remnant line."], "prune leaves only the fresh extraction");
+});

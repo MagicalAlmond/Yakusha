@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.52.0] - 2026-10-27
+
+### Added
+
+- `extract --prune` drops dictionary keys the game no longer contains. Extraction used to be strictly additive: after a game update, entries whose source text disappeared stayed in the dictionary forever, `doctor` kept warning about `N dictionary keys no longer in the game`, `status` overcounted pending work and `verify --require-complete` could never pass. The new flag deletes those keys together with their translations; without it, `extract` behaves exactly as before but the payload grows two counters — `stale` (keys no longer present in the game) and `pruned` (keys actually dropped, always 0 without the flag). The text output prints `stale     : N key(s) no longer in the game (pass --prune to drop them)` when it finds stale keys, and `pruned    : N key(s) dropped` after a prune. `doctor`'s sync advice now points at `extract --prune` when only stale keys remain. All four engines share the new merge: existing entries keep their translations and only gain contexts, the `yakusha/1` format is unchanged.
+
+### Unchanged
+
+- No breaking change: the envelope, exit codes, command table, the 13 error codes and the `yakusha/1` dictionary format are identical to 0.51.0.
+
 ## [0.51.0] - 2026-10-27
 
 ### Fixed
@@ -635,7 +645,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.51.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.52.0...HEAD
+[0.52.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.51.0...v0.52.0
 [0.51.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.50.0...v0.51.0
 [0.50.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.49.0...v0.50.0
 [0.49.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.48.0...v0.49.0

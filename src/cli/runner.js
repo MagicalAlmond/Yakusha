@@ -221,17 +221,30 @@ async function commandScan(dir, sink) {
 /**
  * Build or refresh the dictionary of a game.
  *
+ * With `flags.prune` the dictionary drops the keys this extraction no longer
+ * produced: game updates rename or delete lines, and keys left behind would
+ * otherwise keep the pending count inflated forever.
+ *
  * @param {string|undefined} dir
+ * @param {{ prune?: boolean }} flags
  * @param {{ out(line: string): void }} sink
  */
-async function commandExtract(dir, sink) {
+async function commandExtract(dir, flags, sink) {
   const { project, adapter } = requireProject(dir);
-  const payload = await adapter.extract(project);
+  const payload = await adapter.extract(project, { prune: flags.prune === true });
   sink.out("dictionary: " + payload.file);
   sink.out("added     : " + payload.added);
   sink.out(
     "progress  : " + payload.translated + "/" + payload.total + " translated, " + payload.pending + " pending"
   );
+  if (payload.stale > 0 && payload.pruned === 0) {
+    sink.out(
+      "stale     : " + payload.stale + " key(s) no longer in the game (pass --prune to drop them)"
+    );
+  }
+  if (payload.pruned > 0) {
+    sink.out("pruned    : " + payload.pruned + " key(s) dropped");
+  }
   return { payload };
 }
 
@@ -1267,7 +1280,7 @@ async function commandConfig(args, sink) {
 /** The command table: name → handler. The CLI and the GUI dispatch through it. */
 const commands = {
   scan: (dir, flags, sink) => commandScan(dir, sink),
-  extract: (dir, flags, sink) => commandExtract(dir, sink),
+  extract: (dir, flags, sink) => commandExtract(dir, flags, sink),
   status: (dir, flags, sink) => commandStatus(dir, sink),
   verify: (dir, flags, sink) => commandVerify(dir, flags, sink),
   speaker: (dir, flags, sink) => commandSpeaker(dir, flags, sink),
