@@ -561,6 +561,7 @@ TextGrammar = {
 | 0.41 | `terms` 识别 RGSS 数据库名表（`.rvdata2` / `.rvdata` / `.rxdata`）（**已交付**） | — | 744 pass / 54 个文件；新增 1 条（terms） |
 | 0.42 | `install --dry-run` 在插件层与 Ren'Py 层不写盘（**已交付**） | — | 747 pass / 54 个文件；新增 3 条（install 1、renpy-runtime 1、cli 1） |
 | 0.43 | `uninstall --dry-run` 在四个引擎上只预览删除/还原，不写盘（**已交付**） | — | 751 pass / 54 个文件；新增 4 条（install 1、renpy-runtime 1、rgss-adapter 1、cli 1） |
+| 0.44 | `launch` 识别 MV 的 `www/` 资产根布局，从放着 `Game.exe` 的上一层启动（**已交付**） | — | 753 pass / 54 个文件；新增 2 条 launch |
 | 1.0 | 10 个引擎目标 + 能力矩阵 + 便携 exe | — | 每个引擎有 L4 证据；不达标的明确标 experimental |
 
 说明：

@@ -1,6 +1,6 @@
 # 命令参考
 
-本文是 yakusha 0.43.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出；0.33 给 `verify` 增加了 SARIF 报告输出（`--report-format sarif`）；0.34 给 `export` 增加 JSONL 输出（`--format jsonl`），0.35 给 `verify` 增加 `--fail-on warning`（warning 也算发布失败），0.36 给 `verify` 增加 `--require-complete`（还有未译条目就失败），0.37 只修 markdown 报告表格里的 `|` 转义，0.38 只让 `verify` 的 problem 带出字典条目的 `locator`，0.39 修 `import --dry-run --create` 会落盘空字典的问题（dry-run 不写盘），0.40 让 `verify --write-report`、`speaker --write-names`、`terms --write` 拒绝把输出写到项目字典上（`E_EXISTS`、退出 2），0.41 只让 `terms` 识别 RGSS 的数据库名表（`.rvdata2` / `.rvdata` / `.rxdata`），0.42 让 `install --dry-run` 在 RPG Maker 插件层与 Ren'Py 译文文件层上真的不写盘（RGSS 的 `--native --dry-run` 0.18 起已如此），0.43 给 `uninstall` 增加 `--dry-run`（MZ/MV、Ren'Py、RGSS 四个引擎都只报告将要删除或还原的内容），其余命令不变。
+本文是 yakusha 0.44.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出；0.33 给 `verify` 增加了 SARIF 报告输出（`--report-format sarif`）；0.34 给 `export` 增加 JSONL 输出（`--format jsonl`），0.35 给 `verify` 增加 `--fail-on warning`（warning 也算发布失败），0.36 给 `verify` 增加 `--require-complete`（还有未译条目就失败），0.37 只修 markdown 报告表格里的 `|` 转义，0.38 只让 `verify` 的 problem 带出字典条目的 `locator`，0.39 修 `import --dry-run --create` 会落盘空字典的问题（dry-run 不写盘），0.40 让 `verify --write-report`、`speaker --write-names`、`terms --write` 拒绝把输出写到项目字典上（`E_EXISTS`、退出 2），0.41 只让 `terms` 识别 RGSS 的数据库名表（`.rvdata2` / `.rvdata` / `.rxdata`），0.42 让 `install --dry-run` 在 RPG Maker 插件层与 Ren'Py 译文文件层上真的不写盘（RGSS 的 `--native --dry-run` 0.18 起已如此），0.43 给 `uninstall` 增加 `--dry-run`（MZ/MV、Ren'Py、RGSS 四个引擎都只报告将要删除或还原的内容），0.44 只修 `launch` 在 MV 的 `www/` 布局下从上一层启动 `Game.exe`（项目根仍是 `www/`），其余命令不变。
 
 **RGSS 在 0.18 起有了交付层。** `scan` / `extract` / `status` / `translate` / `verify` / `speaker` / `terms` / `export` / `import` 都能用；0.18 新增 `install --native`，把预编译的注入器与 hook DLL 装进 `yakusha/native/`，游戏启动时由注入器加载，译文从 `dictionary.txt` 读。`install` 不带 `--native` 仍报 `E_USAGE`（RGSS 没有插件交付层）。安装细节与限制见下文 [install 与 uninstall](#install-与-uninstall)。
 
@@ -131,6 +131,10 @@
 ```text
 --exe <name>        pick one executable when the project root has several
 ```
+
+项目根恰好一个 `.exe` 时直接启动；多个时用 `--exe` 指定。MV 的 `www/` 布局把资产树
+（`www/`）当项目根，但启动器与工作目录取放着 `Game.exe` 的上一层（0.44 起）；`data/www`
+的浏览器构建仍在资产根找 exe，找不到就按 `E_EXE` 报候选。
 
 ### install
 

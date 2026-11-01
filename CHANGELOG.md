@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.44.0] - 2026-10-27
+
+### Fixed
+
+- `launch` now starts RPG Maker MV games exported with a `www/` wrapper. The project root stays the asset folder (`.../www`), so plugin installs and dictionary lookups are unchanged, but the launcher and the working directory are taken from the parent folder that holds `Game.exe`. A browser build under `data/www/` keeps the old behaviour and reports `E_EXE` from the asset root.
+
+### Unchanged
+
+- No contract change: the launch payload keys, the envelope, exit codes, the command table, the 13 error codes and the `yakusha/1` dictionary format stay the same.
+
 ## [0.43.0] - 2026-10-27
 
 ### Added
@@ -556,7 +566,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.43.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.44.0...HEAD
+[0.44.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.43.0...v0.44.0
 [0.43.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.42.0...v0.43.0
 [0.42.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.41.0...v0.42.0
 [0.41.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.40.0...v0.41.0

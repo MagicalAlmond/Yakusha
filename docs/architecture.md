@@ -291,6 +291,7 @@ test/fixtures/           各引擎最小夹具（mini-mz、mini-mv、renpy-*、r
 | 0.41.0 | **已交付**：`terms` 识别 RGSS 数据库名表（`.rvdata2` / `.rvdata` / `.rxdata` 的 `Actors…:name`），VX Ace 样本 2,085 条字典的数据库名表条目从 0 变 35；Ren'Py/Kirikiri 的 context 仍不匹配 | 744 pass / 0 fail（新增 1 条：terms） |
 | 0.42.0 | **已交付**：`install --dry-run` 在 RPG Maker 插件层与 Ren'Py 译文文件层也完全不写盘（不再创建插件/备份/译文文件），RGSS 的 `--native --dry-run` 保持原行为；文本统一多一行 `dry run   : nothing written` | 747 pass / 0 fail（新增 3 条：install 1、renpy-runtime 1、cli 1） |
 | 0.43.0 | **已交付**：`uninstall --dry-run` 在 MZ/MV、Ren'Py 与 RGSS 三个交付层上只报告将要删除或还原的内容（打印同样的结论并加 `dry run   : nothing written`），不删文件、不改写或恢复 `plugins.js`、不碰 `yakusha/native/` | 751 pass / 0 fail（新增 4 条：install 1、renpy-runtime 1、rgss-adapter 1、cli 1） |
+| 0.44.0 | **已交付**：`launch` 识别 MV 的 `www/` 资产根布局——项目根仍是 `www/`，启动器与工作目录取放着 `Game.exe` 的上一层；`data/www` 的浏览器构建不受影响 | 753 pass / 0 fail（新增 2 条 launch） |
 | 1.0.0 | 10 个引擎 + 能力矩阵 + 便携 exe（图标、无控制台、最近游戏） | 双击 exe 可用 |
 
 ## 10. 风险

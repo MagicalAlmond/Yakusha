@@ -19,6 +19,7 @@ import { fileURLToPath } from "node:url";
 import {
   childEnvironment,
   isBareExecutableName,
+  launchDirectory,
   launchProject,
   listExecutables,
   selectExecutable,
@@ -98,6 +99,40 @@ function envelope(result) {
   assert.equal(lines.length, 1, "expected one JSON object, got: " + result.stdout.slice(0, 400));
   return JSON.parse(lines[0]);
 }
+
+test("launch: a www asset root uses the launcher one level up", async () => {
+  const base = tempDir("yakusha-launch-www-");
+  const game = path.join(base, "www");
+  fs.cpSync(FIXTURES.mv, game, { recursive: true });
+  writeExe(base, "Game.exe");
+  const { adapter, project } = projectFor(base, "mv");
+  assert.equal(project.root, game);
+  assert.equal(launchDirectory(project), base);
+
+  const calls = [];
+  const result = await adapter.launch(project, {
+    platform: "win32",
+    spawn(exe, args, options) {
+      calls.push({ exe, args, options });
+      return fakeChild(2468);
+    },
+  });
+  assert.deepEqual(result, { pid: 2468, exe: path.join(base, "Game.exe"), root: project.root });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].exe, path.join(base, "Game.exe"));
+  assert.equal(calls[0].options.cwd, base);
+});
+
+test("launch: a browser build under data/www keeps its own root", () => {
+  const base = tempDir("yakusha-launch-browser-");
+  const game = path.join(base, "data", "www");
+  fs.cpSync(FIXTURES.mv, game, { recursive: true });
+  writeExe(path.join(base, "data"), "Game.exe");
+  const { project } = projectFor(base, "mv");
+  assert.equal(project.root, game);
+  assert.equal(launchDirectory(project), game);
+  assert.throws(() => selectExecutable(launchDirectory(project)), /no \.exe found/);
+});
 
 test("launch: --exe accepts only a bare .exe file name", () => {
   const valid = ["Game.exe", "GAME.EXE", "my game.exe", "game.ExE"];

@@ -87,9 +87,34 @@ export function listExecutables(root) {
 }
 
 /**
+ * The directory a game launcher should run from.
+ *
+ * Most engines keep Game.exe next to the project root. RPG Maker MV games
+ * exported with a www/ wrapper keep the whole asset tree one level down: the
+ * project root is .../www, but the launcher and the working directory are its
+ * parent. A browser build under data/www/ is not a launcher layout, so it keeps
+ * the asset root and reports the usual E_EXE from there.
+ *
+ * @param {{ root: string }} project
+ * @returns {string}
+ */
+export function launchDirectory(project) {
+  const root = project.root;
+  if (path.basename(root).toLowerCase() !== "www") return root;
+  const parent = path.dirname(root);
+  if (path.basename(parent).toLowerCase() === "data") return root;
+  try {
+    if (listExecutables(parent).length > 0) return parent;
+  } catch {
+    // An unreadable parent is not a usable launcher; keep the project root.
+  }
+  return root;
+}
+
+/**
  * Pick the executable for a launch.
  *
- * @param {string} root project root
+ * @param {string} root directory that holds the launcher
  * @param {string} [requested] bare file name from --exe
  * @returns {string} absolute path of the chosen executable
  */
@@ -158,14 +183,15 @@ export async function launchProject(project, options = {}) {
   if (!isWindows(platform)) {
     throw launchError("E_UNSUPPORTED_PLATFORM", "launch is only supported on Windows (current platform: " + platform + ")");
   }
-  const exePath = selectExecutable(project.root, options.exe);
+  const launchRoot = launchDirectory(project);
+  const exePath = selectExecutable(launchRoot, options.exe);
   const spawnFn = options.spawn || nodeSpawn;
   const env = childEnvironment(options.env || process.env);
 
   let child;
   try {
     child = spawnFn(exePath, [], {
-      cwd: project.root,
+      cwd: launchRoot,
       detached: true,
       stdio: "ignore",
       shell: false,
