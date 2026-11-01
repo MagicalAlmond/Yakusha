@@ -331,7 +331,7 @@ export function installNative(project, options = {}) {
   const existed = fs.existsSync(dir);
 
   if (dryRun) {
-    return { dir, files, dictionaryEntries: built.entries, dryRun: true, created: false };
+    return { dir, files, dictionaryEntries: built.entries, dryRun: true, created: !existed };
   }
 
   fs.mkdirSync(dir, { recursive: true });

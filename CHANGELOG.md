@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.46.0] - 2026-10-27
+
+### Fixed
+
+- `install --native --dry-run` now predicts the same `state` as a real install. With no `yakusha/native/` directory it reports `state: "added"` (it used to say `unchanged` while writing nothing), and after an install it still reports `unchanged`. The `native.dryRun` flag and the rest of the payload are unchanged.
+
+### Unchanged
+
+- No contract change: the install payload keys, the envelope, exit codes, the command table, the 13 error codes and the `yakusha/1` dictionary format stay the same.
+
 ## [0.45.0] - 2026-10-27
 
 ### Fixed
@@ -576,7 +586,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.45.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.46.0...HEAD
+[0.46.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.45.0...v0.46.0
 [0.45.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.44.0...v0.45.0
 [0.44.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.43.0...v0.44.0
 [0.43.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.42.0...v0.43.0

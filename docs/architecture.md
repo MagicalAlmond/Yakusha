@@ -293,6 +293,7 @@ test/fixtures/           各引擎最小夹具（mini-mz、mini-mv、renpy-*、r
 | 0.43.0 | **已交付**：`uninstall --dry-run` 在 MZ/MV、Ren'Py 与 RGSS 三个交付层上只报告将要删除或还原的内容（打印同样的结论并加 `dry run   : nothing written`），不删文件、不改写或恢复 `plugins.js`、不碰 `yakusha/native/` | 751 pass / 0 fail（新增 4 条：install 1、renpy-runtime 1、rgss-adapter 1、cli 1） |
 | 0.44.0 | **已交付**：`launch` 识别 MV 的 `www/` 资产根布局——项目根仍是 `www/`，启动器与工作目录取放着 `Game.exe` 的上一层；`data/www` 的浏览器构建不受影响 | 753 pass / 0 fail（新增 2 条 launch） |
 | 0.45.0 | **已交付**：`scan` 文本模式的长文件名（≥24 字符）与计数之间保留一个空格，短文件名输出不变 | 754 pass / 0 fail（新增 1 条 cli） |
+| 0.46.0 | **已交付**：RGSS `install --native --dry-run` 的 `state` 按真实安装预测（首次 `added`、已装 `unchanged`），仍不写盘 | 755 pass / 0 fail（新增 1 条 rgss-adapter） |
 | 1.0.0 | 10 个引擎 + 能力矩阵 + 便携 exe（图标、无控制台、最近游戏） | 双击 exe 可用 |
 
 ## 10. 风险

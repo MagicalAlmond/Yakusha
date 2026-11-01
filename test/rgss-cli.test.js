@@ -152,6 +152,7 @@ test("cli: install --native --dry-run reports the plan without writing", () => {
   const payload = JSON.parse(result.stdout);
   assert.equal(payload.native.dryRun, true);
   assert.equal(payload.native.dictionaryEntries, 29);
+  assert.equal(payload.state, "added");
   assert.equal(fs.existsSync(path.join(game, "yakusha", "native")), false);
 });
 

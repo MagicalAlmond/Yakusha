@@ -1,11 +1,11 @@
-# 引擎适配器契约（0.45 契约）
+# 引擎适配器契约（0.46 契约）
 
-> **状态：0.45 覆盖五个引擎——RPG Maker MZ、RPG Maker MV、Ren'Py、RGSS（XP / VX / VX Ace）、Kirikiri。**
+> **状态：0.46 覆盖五个引擎——RPG Maker MZ、RPG Maker MV、Ren'Py、RGSS（XP / VX / VX Ace）、Kirikiri。**
 > 0.14 交付 GUI 外壳，0.15 加 JSONL 导入，0.16 起 `scan` 载荷带引擎能力位（GUI 据此灰显按钮），
 > 0.17 给字典条目加可选的引擎与位置溯源（`engine` / `locator`，`FORMAT` 不变），
 > 0.18 给 RGSS 接上原生注入器交付层（`runtime: "inject"`）：`install --native` 把四个
 > 原生组件与 `dictionary.txt` 写进 `yakusha/native/`，`launch` 经 `yakusha_injector.exe`
-> 启动游戏；0.19 把 `verify --kind` 的未知值从静默过滤改为 `E_USAGE`（命令层校验，adapter 契约不变）；0.20 只有 GUI 渲染层契约测试与扫描状态重置，adapter 契约不变；0.21 让 `doctor` 与 `launch` 识别被删除或被改动的原生组件；0.22 让 `doctor` 报出安装之后又被修改过的字典；0.23 把这个检查推广到所有快照式交付（Ren'Py 的译文文件与 MZ/MV 的 `--embed` 插件），adapter 契约不变；0.24 只优化 translate 内部的术语表匹配（Aho-Corasick 索引），0.25 修 Ren'Py 译文文件在字典被清空后的过期判断，0.26 只加固字典键的读写（`__proto__` 等原型名按普通条目处理），0.27 只加固 Kirikiri XP3 读取器对损坏/恶意归档的尺寸检查（adapter 契约不变），0.28 给每个 adapter 加 `versions` 版本矩阵，`doctor` 只在版本读不到、未实测或超出区间时多一条 `version` 检查（adapter 契约不变）；0.29 只优化 `data/` 的 XOR 解码探测（按首字节筛选候选 key，20 MB 损坏文件从约 15.7 s 降到约 0.65 s，adapter 契约不变）；0.30 只把字典与 GUI 凭据的写盘改为同目录临时文件加 rename，adapter 契约不变；0.31 给原生安装/卸载加路径包含检查与原子复制，adapter 契约不变；0.32 把安装状态文件与 report/names/glossary 输出也改为原子写，adapter 契约不变；0.33 只给 `verify` 增加 SARIF 报告格式；0.34 只给 `export` 增加 JSONL 输出；0.35 只给 `verify` 增加 `--fail-on` 阈值，0.36 只给 `verify` 增加 `--require-complete`，0.37 只修 markdown 报告表格的 `|` 转义，0.38 只让 verify 的 problem 带出字典条目的 `locator`，0.39 只修 `import --dry-run --create` 的写盘行为，0.40 只给三个报告类输出加字典目标守卫（都不改 adapter 契约）；0.41 只让 `terms` 识别 RGSS 的数据库名表（`.rvdata2` / `.rvdata` / `.rxdata`）；0.42 只修 `install --dry-run` 的写盘行为（插件层与 Ren'Py 层不再写任何文件，RGSS 的 `--native --dry-run` 不变），adapter 契约不变；0.43 只给 `uninstall` 增加 `--dry-run`（各引擎的 `uninstallRuntime` 接受可选的 `{dryRun}`，只影响行为与文本，返回形状不变），adapter 契约不变；0.44 只修 `launch` 对 `www/` 布局的启动目录（项目根仍是 `www/`，启动器与工作目录取上一层，adapter 契约不变）；0.45 只修 `scan` 文本输出里超过 24 字符的文件名与计数之间的空格（载荷、错误码与 adapter 契约不变）；Kirikiri 的交付层仍未拍板（见 §7.8）。
+> 启动游戏；0.19 把 `verify --kind` 的未知值从静默过滤改为 `E_USAGE`（命令层校验，adapter 契约不变）；0.20 只有 GUI 渲染层契约测试与扫描状态重置，adapter 契约不变；0.21 让 `doctor` 与 `launch` 识别被删除或被改动的原生组件；0.22 让 `doctor` 报出安装之后又被修改过的字典；0.23 把这个检查推广到所有快照式交付（Ren'Py 的译文文件与 MZ/MV 的 `--embed` 插件），adapter 契约不变；0.24 只优化 translate 内部的术语表匹配（Aho-Corasick 索引），0.25 修 Ren'Py 译文文件在字典被清空后的过期判断，0.26 只加固字典键的读写（`__proto__` 等原型名按普通条目处理），0.27 只加固 Kirikiri XP3 读取器对损坏/恶意归档的尺寸检查（adapter 契约不变），0.28 给每个 adapter 加 `versions` 版本矩阵，`doctor` 只在版本读不到、未实测或超出区间时多一条 `version` 检查（adapter 契约不变）；0.29 只优化 `data/` 的 XOR 解码探测（按首字节筛选候选 key，20 MB 损坏文件从约 15.7 s 降到约 0.65 s，adapter 契约不变）；0.30 只把字典与 GUI 凭据的写盘改为同目录临时文件加 rename，adapter 契约不变；0.31 给原生安装/卸载加路径包含检查与原子复制，adapter 契约不变；0.32 把安装状态文件与 report/names/glossary 输出也改为原子写，adapter 契约不变；0.33 只给 `verify` 增加 SARIF 报告格式；0.34 只给 `export` 增加 JSONL 输出；0.35 只给 `verify` 增加 `--fail-on` 阈值，0.36 只给 `verify` 增加 `--require-complete`，0.37 只修 markdown 报告表格的 `|` 转义，0.38 只让 verify 的 problem 带出字典条目的 `locator`，0.39 只修 `import --dry-run --create` 的写盘行为，0.40 只给三个报告类输出加字典目标守卫（都不改 adapter 契约）；0.41 只让 `terms` 识别 RGSS 的数据库名表（`.rvdata2` / `.rvdata` / `.rxdata`）；0.42 只修 `install --dry-run` 的写盘行为（插件层与 Ren'Py 层不再写任何文件，RGSS 的 `--native --dry-run` 不变），adapter 契约不变；0.43 只给 `uninstall` 增加 `--dry-run`（各引擎的 `uninstallRuntime` 接受可选的 `{dryRun}`，只影响行为与文本，返回形状不变），adapter 契约不变；0.44 只修 `launch` 对 `www/` 布局的启动目录（项目根仍是 `www/`，启动器与工作目录取上一层，adapter 契约不变）；0.45 只修 `scan` 文本输出里超过 24 字符的文件名与计数之间的空格，0.46 只修 RGSS `install --native --dry-run` 的 `state` 预测（首次安装报 `added`，重装报 `unchanged`；载荷、错误码与 adapter 契约不变）；Kirikiri 的交付层仍未拍板（见 §7.8）。
 > 0.10 把 MZ 与 MV 包进统一的 adapter，**不搬文件、不重写算法**；0.11 用同一套
 > contract 接入 Ren'Py，作为第三个 adapter 挂在 registry 末位；0.12 接入 RGSS，排在
 > 第四位，只做到 L1–L3（detect / scan / extract），**没有交付层**；0.13 接入
@@ -641,8 +641,8 @@ uninstall : yakusha uninstall "<abs>"
 - `pluginPath` 就是 `<game>/yakusha/native`（注入层没有“插件文件”，这里指安装目录）。
 - `backupPath` / `createdBackup` / `staleBackup` 恒为 `null` / `false` / `false`：
   原生层不改任何原有文件，没有可备份的东西。
-- `state` 首次安装是 `"added"`，重复安装是 `"unchanged"`；`--dry-run` 也报 `"unchanged"`，
-  并且 `native.dryRun` 是 `true`——**校验照做，一个字节都不写**。
+- `state` 首次安装是 `"added"`，重复安装是 `"unchanged"`；`--dry-run` 按真实安装会得到的结果预测
+  （目录不存在时报 `"added"`，已装过时报 `"unchanged"`），并且 `native.dryRun` 是 `true`——**校验照做，一个字节都不写**。
 
 **错误。** 全部是退出码 2；失败时不会留下半套 `yakusha/native/`（组件校验在写盘之前）：
 

@@ -304,7 +304,19 @@ test("install: --native --dry-run reports the plan and writes nothing", () => {
   const result = adapter.installRuntime(project, { native: true, dryRun: true, assetsDir: assets.dir });
   assert.equal(result.native.dryRun, true);
   assert.equal(result.native.dictionaryEntries, 29);
+  assert.equal(result.state, "added");
   assert.equal(fs.existsSync(path.join(root, "yakusha", "native")), false);
+});
+
+test("install: --native --dry-run after an install predicts no change", () => {
+  const { root, project, adapter } = projectFor();
+  translateAll(project, adapter);
+  const assets = nativeAssets();
+  adapter.installRuntime(project, { native: true, assetsDir: assets.dir });
+  const result = adapter.installRuntime(project, { native: true, dryRun: true, assetsDir: assets.dir });
+  assert.equal(result.native.dryRun, true);
+  assert.equal(result.state, "unchanged");
+  assert.equal(fs.existsSync(path.join(root, "yakusha", "native")), true);
 });
 
 test("install: a tampered component stops the install before anything is written", () => {

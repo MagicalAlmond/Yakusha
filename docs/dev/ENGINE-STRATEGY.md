@@ -563,6 +563,7 @@ TextGrammar = {
 | 0.43 | `uninstall --dry-run` 在四个引擎上只预览删除/还原，不写盘（**已交付**） | — | 751 pass / 54 个文件；新增 4 条（install 1、renpy-runtime 1、rgss-adapter 1、cli 1） |
 | 0.44 | `launch` 识别 MV 的 `www/` 资产根布局，从放着 `Game.exe` 的上一层启动（**已交付**） | — | 753 pass / 54 个文件；新增 2 条 launch |
 | 0.45 | `scan` 文本输出的长文件名与计数不再粘连（**已交付**） | — | 754 pass / 54 个文件；新增 1 条 cli |
+| 0.46 | RGSS `install --native --dry-run` 的 `state` 按真实安装预测（**已交付**） | — | 755 pass / 54 个文件；新增 1 条 rgss-adapter |
 | 1.0 | 10 个引擎目标 + 能力矩阵 + 便携 exe | — | 每个引擎有 L4 证据；不达标的明确标 experimental |
 
 说明：
