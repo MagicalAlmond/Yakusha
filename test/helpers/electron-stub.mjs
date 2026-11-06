@@ -78,6 +78,7 @@ const state = {
   pathForReply: "D:/games/demo",
   errorBoxes: [],
   userDataPath: "C:/Users/me/AppData/Roaming/yakusha",
+  switches: {},
 };
 
 export const app = {
@@ -98,6 +99,11 @@ export const app = {
   },
   getPath(name) {
     return name === "userData" ? state.userDataPath : "";
+  },
+  commandLine: {
+    getSwitchValue(name) {
+      return state.switches[name] || "";
+    },
   },
   quit() {
     state.quitCalls += 1;

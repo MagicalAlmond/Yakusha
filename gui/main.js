@@ -257,7 +257,10 @@ if (!gotLock) {
   // (a read-only or sandboxed profile directory). Quitting silently made the
   // second case look like "the GUI does not start", so name the folder and the
   // way out instead (docs/gui.md §10).
-  const profile = app.getPath("userData");
+  // --user-data-dir moves the Chromium profile but does not change
+  // app.getPath("userData"), so name whichever folder is actually in play.
+  const profile =
+    app.commandLine.getSwitchValue("user-data-dir") || app.getPath("userData");
   const reason =
     "Yakusha could not take its single-instance lock.\n\n" +
     "Another Yakusha window may already be open. If it is not, Electron " +

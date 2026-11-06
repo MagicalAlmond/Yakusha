@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.66.0] - 2026-11-07
+
+### Fixed
+
+- The lock-failure message named `app.getPath("userData")` even when the user had passed `--user-data-dir`. That switch moves the Chromium profile but leaves `app.getPath("userData")` untouched, so the box could point at a folder that was not the one that failed. The message now prefers the switch value and falls back to `userData`.
+
+### Added
+
+- `docs/gui.md` §10 has a fifth failure shape: the shell prints nothing at all and the terminal returns to the prompt. That is Chromium failing to initialise its sandbox before any application code runs; `npm start; $LASTEXITCODE` shows `-2147483645` (0x80000003), and `npm start -- --no-sandbox` is the check.
+
+### Unchanged
+
+- No breaking changes: envelope, exit codes, payload keys, error codes, dictionary format and CLI behavior untouched. 818 pass.
+
 ## [0.65.1] - 2026-11-07
 
 ### Fixed
@@ -867,6 +881,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 [0.5.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.2.0...v0.3.0
+[0.66.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.65.1...v0.66.0
 [0.65.1]: https://github.com/MagicalAlmond/Yakusha/compare/v0.65.0...v0.65.1
 [0.65.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.64.0...v0.65.0
 [0.64.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.63.0...v0.64.0

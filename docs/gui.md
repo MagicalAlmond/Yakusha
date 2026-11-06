@@ -169,7 +169,7 @@ npm start               # 等价于 npx electron gui/main.js
 
 窗口不出现时按这个顺序看：
 
-1. **没有任何反应、退出码 0**：Electron 的单实例锁没拿到。0.65 起会打一行 `[yakusha] ...` 并弹错误框；错误框里的目录就是写不进去的 profile 目录（本构建默认 `%APPDATA%\Electron`——`gui/main.js` 没有设置应用名，Electron 用兜底名 `Electron`；注意这不是 Yakusha 的配置目录 `%APPDATA%\yakusha`）。
+1. **没有任何反应、退出码 0**：Electron 的单实例锁没拿到（注意与第 5 条区分：那条是连进程都没活到应用代码）。0.65 起会打一行 `[yakusha] ...` 并弹错误框；错误框里的目录就是写不进去的 profile 目录（本构建默认 `%APPDATA%\Electron`——`gui/main.js` 没有设置应用名，Electron 用兜底名 `Electron`；注意这不是 Yakusha 的配置目录 `%APPDATA%\yakusha`）。
 2. **`Lock file can not be created! Error code: 5`**：浏览器进程对该目录没有写权限（只读 profile，或被沙箱/安全软件限制的目录）。换一个可写目录即可：
 
    ```bash
@@ -179,6 +179,7 @@ npm start               # 等价于 npx electron gui/main.js
    0.65 实测：`--user-data-dir` 指到可写目录后窗口正常创建；指到不可写目录仍报同一个 error 5。
 3. **`Cannot read properties of undefined (reading 'exports')`**：`ELECTRON_RUN_AS_NODE=1` 被继承进了终端，Electron 变成纯 Node 跑。清掉再启动：`Remove-Item Env:ELECTRON_RUN_AS_NODE`。
 4. **`EXCEPTION_BREAKPOINT` / 0x80000003 崩溃**：Chromium 沙箱初始化失败，加 `--no-sandbox` 再试（只改本机渲染进程隔离，不改代码）。
+5. **什么都没打印、终端立刻回到提示符**（`npm start` 只留两行 banner）：进程在 `gui/main.js` 执行之前就死了，最常见的是上一条的沙箱初始化崩溃——崩溃发生在 Chromium 内部，应用代码没有机会打任何字。用退出码确认：`npm start; $LASTEXITCODE` 得到 `-2147483645`（0x80000003）即是。此时先试 `npm start -- --no-sandbox`（npm 会把 `--` 之后的参数透传给 `electron`），窗口能起来就说明是沙箱问题。
 
 `--user-data-dir` 只挪 Electron 的 profile（缓存、Local Storage、单实例锁），**不挪** Yakusha 自己的配置与凭据——那些在 `%APPDATA%\yakusha`（或 `YAKUSHA_CONFIG_DIR` 指定的目录），见 [config.md](config.md) §8。两个目录同名不同物：`%APPDATA%\yakusha` 是 Yakusha 的配置文件，`%APPDATA%\Electron` 是 Electron 的 profile。
 

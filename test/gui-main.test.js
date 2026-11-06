@@ -59,6 +59,25 @@ test("gui-main: a denied single-instance lock explains itself and quits", async 
   assert.match(errors[0], /^\[yakusha\] .*--user-data-dir/);
 });
 
+test("gui-main: a denied lock names the --user-data-dir folder when one was passed", async () => {
+  stub.__reset({ lock: false, switches: { "user-data-dir": "D:/tmp/yakusha-profile" } });
+  const errors = [];
+  const original = console.error;
+  console.error = (...args) => errors.push(args.join(" "));
+  try {
+    await import("../gui/main.js?singleton=off-switch");
+  } finally {
+    console.error = original;
+  }
+  const state = stub.__state();
+  assert.equal(state.quitCalls, 1);
+  // --user-data-dir moves the Chromium profile without moving
+  // app.getPath("userData"), so pointing at the latter would name a folder
+  // the user never asked about.
+  assert.match(state.errorBoxes[0].content, /D:\/tmp\/yakusha-profile/);
+  assert.doesNotMatch(state.errorBoxes[0].content, /AppData\/Roaming\/yakusha/);
+});
+
 test("gui-main: app start registers exactly the documented IPC allowlist", async () => {
   stub.__reset({ lock: true });
   await import("../gui/main.js?core");
