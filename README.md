@@ -330,8 +330,12 @@ node bin/yakusha.js launch "/games/MyGame"
 
 ```bash
 pnpm install          # 开发依赖含 electron；运行时仍是零依赖
-npx electron gui/main.js
+npm start             # 等价于 npx electron gui/main.js
 ```
+
+窗口不出现时看 [docs/gui.md](docs/gui.md) §10「启动与排障」：单实例锁拿不到会打一行
+`[yakusha]` 并弹错误框说明（0.65 起，不再静默退出），profile 目录不可写时用
+`--user-data-dir=<可写目录>` 启动。
 
 0.14 的外壳覆盖主链路：目录选择器或拖入游戏目录 → scan → extract → translate（带
 真实进度与取消——0.57 修复主进程漏传取消信号的缺陷）→ verify → install/uninstall → doctor，外加 export（JSON）、

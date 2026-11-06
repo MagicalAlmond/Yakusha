@@ -1,6 +1,6 @@
 # GUI 设计与用户流程（Electron 外壳，0.14）
 
-> 状态：0.14 已交付最小外壳（`gui/main.js` + `preload.js` + `renderer/`，含原生目录选择、export/import/speaker/terms/config/launch 按钮、「记住密钥」（safeStorage，见 §5）、最小字典编辑器（见 §3 字典编辑分区）），长任务接口（进度事件 + 取消）随 0.14 的 runner seam 落地；0.16 起按钮可用性按 §3 的规则由 `capabilities` 驱动（`scan` 载荷新增 `capabilities`，不支持交付层的引擎灰掉 install/uninstall 并写明原因；0.18 起 RGSS 的注入交付层落地，install/uninstall 对 RGSS 自动带 `--native`，不再灰）；本文其余部分仍是演进的设计稿（完整字典编辑界面未做——已交付的是 §3 描述的最小逐条编辑器）。0.20 起渲染层另有 `test/gui-renderer.test.js` 的 stub-DOM 契约测试（7 条），并在每次扫描开始时清空上一个引擎的能力位；0.57 起主进程另有 `test/gui-main.test.js` 的 stub-Electron 契约测试（16 条），该轮修复两条主进程接缝缺陷（取消信号从未传进 runner、「记住密钥」撞 `const` 崩溃，见 §6/§9）；0.58 起 preload 桥也有 `test/gui-preload.test.js`（11 条），钉死三方一致（桥 ↔ handlers 白名单 ↔ index.html 按钮）。
+> 状态：0.14 已交付最小外壳（`gui/main.js` + `preload.js` + `renderer/`，含原生目录选择、export/import/speaker/terms/config/launch 按钮、「记住密钥」（safeStorage，见 §5）、最小字典编辑器（见 §3 字典编辑分区）），长任务接口（进度事件 + 取消）随 0.14 的 runner seam 落地；0.16 起按钮可用性按 §3 的规则由 `capabilities` 驱动（`scan` 载荷新增 `capabilities`，不支持交付层的引擎灰掉 install/uninstall 并写明原因；0.18 起 RGSS 的注入交付层落地，install/uninstall 对 RGSS 自动带 `--native`，不再灰）；本文其余部分仍是演进的设计稿（完整字典编辑界面未做——已交付的是 §3 描述的最小逐条编辑器）。0.20 起渲染层另有 `test/gui-renderer.test.js` 的 stub-DOM 契约测试（7 条），并在每次扫描开始时清空上一个引擎的能力位；0.57 起主进程另有 `test/gui-main.test.js` 的 stub-Electron 契约测试（16 条），该轮修复两条主进程接缝缺陷（取消信号从未传进 runner、「记住密钥」撞 `const` 崩溃，见 §6/§9）；0.58 起 preload 桥也有 `test/gui-preload.test.js`（11 条），钉死三方一致（桥 ↔ handlers 白名单 ↔ index.html 按钮）。0.65 起单实例锁拿不到不再静默退出：打 stderr、弹错误框并指明 profile 目录与 `--user-data-dir` 出路（见 §10 启动与排障）。
 
 ## 1. 定位与边界
 
@@ -155,10 +155,32 @@ GUI 永远不做以下事情（与 [limitations.md](limitations.md) 的工具边
 - [ ] 在四档测试矩阵上，从 GUI 卸载后游戏回到可运行状态（plugin 档逐字节还原）。（CLI 路径在 0.10/0.11 真机验过；GUI 按同一路径调同一 runner，但「从 GUI 点出来」的走查未做）
 - [x] 密钥只存在于系统凭据存储或内存；`config` 文件、游戏目录、日志与导出文件里都没有。（test/gui-credentials.test.js：文件里只有密文信封）
 - [x] 拖入非项目目录、多项目目录、损坏字典时，错误提示与 CLI 的错误码一一对应。（gui-handlers 对拍）
-- [ ] MZ/MV + Ren'Py + RGSS 三条链路都能从 GUI 一键跑通（ENGINE-STRATEGY §6.3 的 0.14 验收）。（`test/gui-e2e.test.js` 已按 GUI 的调用缝 `runGuiCommand` 把三条链路的完整命令序列各走通一遍（RGSS 走 `install --native`）；剩下的未验部分只有 Electron 窗口本身的点击与渲染。0.16 复查：在本机自动化会话里实测，`gui/main.js` 能被 Electron 37.2.3 加载、`BrowserWindow` 能创建（隐藏窗口冒烟 exit 0），但 Chromium 的单实例锁在自动化会话派生的进程令牌下无法创建（`process_singleton_win.cc:454 Lock file can not be created! Error code: 5`，与 user-data-dir 无关），应用按设计退出——窗口交互走查需要在正常桌面会话里双击启动，不是 headless 限制，是本会话进程令牌的限制）
+- [ ] MZ/MV + Ren'Py + RGSS 三条链路都能从 GUI 一键跑通（ENGINE-STRATEGY §6.3 的 0.14 验收）。（`test/gui-e2e.test.js` 已按 GUI 的调用缝 `runGuiCommand` 把三条链路的完整命令序列各走通一遍（RGSS 走 `install --native`）；剩下的未验部分只有 Electron 窗口本身的点击与渲染。0.16 复查：`gui/main.js` 能被 Electron 37.2.3 加载、`BrowserWindow` 能创建（隐藏窗口冒烟 exit 0）。0.65 更正：单实例锁创建失败不是进程令牌的宿命，而是浏览器进程写不了默认 profile 目录 `%APPDATA%\yakusha`（`process_singleton_win.cc:454 Lock file can not be created! Error code: 5`）；把 `--user-data-dir` 指到可写目录后应用能正常起窗（实测窗口句柄非 0），指到不可写目录仍报同一个 error 5。0.65 起锁失败会打 stderr 并弹错误框，指明目录与 `--user-data-dir`，不再静默退出（§10）。剩下的未验部分仍是一次真机点击）
 - [x] 渲染层的扫描状态、能力灰显、字典编辑与密钥输入有 stub-DOM 契约测试（0.20 起 `test/gui-renderer.test.js`；0.56 起补齐拖放（`pathForFile`）、目录选择、取消转发与进度/警告接线，共 14 条；真机窗口交互仍在上一行的范围内）。
 - [x] 主进程（`gui/main.js`）有 stub-Electron 契约测试（0.57 起 `test/gui-main.test.js`，16 条：单实例锁、IPC 白名单、窗口安全参数、取消真达 runner、凭据/字典/目录选择通道）——随测试修复取消断链与「记住密钥」撞 `const` 崩溃两条接缝缺陷。
 - [x] preload 桥有 stub-Electron 契约测试（0.58 起 `test/gui-preload.test.js`，11 条：暴露面、命令表与 handlers 白名单及 index.html 按钮三方一致、逐方法的 IPC 通道与请求形状、可取消的进度订阅）。
+
+## 10. 启动与排障
+
+```bash
+pnpm install            # 开发依赖含 electron；运行时仍是零依赖
+npm start               # 等价于 npx electron gui/main.js
+```
+
+窗口不出现时按这个顺序看：
+
+1. **没有任何反应、退出码 0**：Electron 的单实例锁没拿到。0.65 起会打一行 `[yakusha] ...` 并弹错误框；错误框里的目录就是写不进去的 profile 目录（默认 `%APPDATA%\yakusha`）。
+2. **`Lock file can not be created! Error code: 5`**：浏览器进程对该目录没有写权限（只读 profile，或被沙箱/安全软件限制的目录）。换一个可写目录即可：
+
+   ```bash
+   npx electron gui/main.js --user-data-dir=D:\path\to\writable\folder
+   ```
+
+   0.65 实测：`--user-data-dir` 指到可写目录后窗口正常创建；指到不可写目录仍报同一个 error 5。
+3. **`Cannot read properties of undefined (reading 'exports')`**：`ELECTRON_RUN_AS_NODE=1` 被继承进了终端，Electron 变成纯 Node 跑。清掉再启动：`Remove-Item Env:ELECTRON_RUN_AS_NODE`。
+4. **`EXCEPTION_BREAKPOINT` / 0x80000003 崩溃**：Chromium 沙箱初始化失败，加 `--no-sandbox` 再试（只改本机渲染进程隔离，不改代码）。
+
+`--user-data-dir` 只挪 Electron 的 profile（缓存、Local Storage、单实例锁），**不挪** Yakusha 自己的配置与凭据——那些仍由 `YAKUSHA_CONFIG_DIR` 或 `%APPDATA%` 决定（见 [config.md](config.md) §8）。
 
 ## 相关文档
 

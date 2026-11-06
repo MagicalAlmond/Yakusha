@@ -76,6 +76,8 @@ const state = {
   invokeReply: null,
   pathForCalls: [],
   pathForReply: "D:/games/demo",
+  errorBoxes: [],
+  userDataPath: "C:/Users/me/AppData/Roaming/yakusha",
 };
 
 export const app = {
@@ -93,6 +95,9 @@ export const app = {
   },
   requestSingleInstanceLock() {
     return state.lock;
+  },
+  getPath(name) {
+    return name === "userData" ? state.userDataPath : "";
   },
   quit() {
     state.quitCalls += 1;
@@ -155,6 +160,9 @@ export const dialog = {
     state.dialogCalls.push(opts);
     return state.dialogResult;
   },
+  showErrorBox(title, content) {
+    state.errorBoxes.push({ title, content });
+  },
 };
 
 export const safeStorage = {
@@ -174,6 +182,8 @@ export function __reset(overrides = {}) {
   state.windows = [];
   state.dialogResult = { canceled: false, filePaths: [] };
   state.dialogCalls = [];
+  state.errorBoxes = [];
+  state.userDataPath = "C:/Users/me/AppData/Roaming/yakusha";
   state.bridges = [];
   state.rendererInvokes = [];
   state.rendererListeners = new Map();

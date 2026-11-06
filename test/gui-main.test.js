@@ -34,13 +34,29 @@ const IPC_CHANNELS = [
   "gui:save-key",
 ].sort();
 
-test("gui-main: a second instance quits without registering anything", async () => {
+test("gui-main: a denied single-instance lock explains itself and quits", async () => {
   stub.__reset({ lock: false });
-  await import("../gui/main.js?singleton=off");
+  const errors = [];
+  const original = console.error;
+  console.error = (...args) => errors.push(args.join(" "));
+  try {
+    await import("../gui/main.js?singleton=off");
+  } finally {
+    console.error = original;
+  }
   const state = stub.__state();
   assert.equal(state.quitCalls, 1);
   assert.equal(state.ipc.size, 0);
   assert.equal(state.windows.length, 0);
+  // 0.65: a denied lock used to be a silent exit, which is indistinguishable
+  // from "the GUI does not start". Both the dialog and stderr must name the
+  // profile folder and the way out.
+  assert.equal(state.errorBoxes.length, 1);
+  assert.equal(state.errorBoxes[0].title, "Yakusha");
+  assert.match(state.errorBoxes[0].content, /--user-data-dir/);
+  assert.match(state.errorBoxes[0].content, /AppData\/Roaming\/yakusha/);
+  assert.equal(errors.length, 1);
+  assert.match(errors[0], /^\[yakusha\] .*--user-data-dir/);
 });
 
 test("gui-main: app start registers exactly the documented IPC allowlist", async () => {

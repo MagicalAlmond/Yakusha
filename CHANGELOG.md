@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.65.0] - 2026-11-07
+
+### Fixed
+
+- The GUI no longer exits silently when Electron cannot take its single-instance lock. `app.requestSingleInstanceLock()` returns `false` both when another window already holds the lock and when the lock file cannot be created at all — a read-only, sandboxed or otherwise unwritable profile folder — and `gui/main.js` treated both as "quit without a word", which looks exactly like a GUI that refuses to start. It now prints one `[yakusha]` line on stderr, shows the same text in an error box, and names the profile folder plus `--user-data-dir=<writable folder>` as the way out.
+
+### Added
+
+- `npm start` runs the Electron shell (`electron gui/main.js`); `npx electron gui/main.js` still works.
+- `docs/gui.md` §10 records how to start the shell, what the lock error means, and the `--user-data-dir` workaround.
+
+### Unchanged
+
+- No breaking changes: envelope, exit codes, payload keys, the 13 error codes, the dictionary format and every documented command behavior are untouched. GUI-only change; the CLI does not import `electron`.
+
 ## [0.64.0] - 2026-11-07
 
 ### Fixed
@@ -842,5 +857,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 [0.5.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.2.0...v0.3.0
+[0.65.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.64.0...v0.65.0
 [0.64.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.63.0...v0.64.0
 [0.2.0]: https://github.com/MagicalAlmond/Yakusha/releases/tag/v0.2.0

@@ -252,6 +252,25 @@ function createWindow() {
 
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
+  // Electron reports two different situations the same way: another window
+  // already holds the lock, or the lock file could not be created at all
+  // (a read-only or sandboxed profile directory). Quitting silently made the
+  // second case look like "the GUI does not start", so name the folder and the
+  // way out instead (docs/gui.md §10).
+  const profile = app.getPath("userData");
+  const reason =
+    "Yakusha could not take its single-instance lock.\n\n" +
+    "Another Yakusha window may already be open. If it is not, Electron " +
+    "cannot write to this folder:\n" +
+    profile +
+    "\n\nStart it with a writable profile folder instead:\n" +
+    "  npx electron gui/main.js --user-data-dir=<writable folder>";
+  console.error("[yakusha] " + reason.replace(/\s*\n+\s*/g, " "));
+  try {
+    dialog.showErrorBox("Yakusha", reason);
+  } catch {
+    // No window station (headless CI): the stderr line above is the record.
+  }
   app.quit();
 } else {
   app.on("second-instance", () => {
