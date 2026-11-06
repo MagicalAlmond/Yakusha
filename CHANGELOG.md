@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.65.1] - 2026-11-07
+
+### Fixed
+
+- Documentation only. The 0.65.0 notes and `docs/gui.md` §10 named `%APPDATA%\yakusha` as the Electron profile folder. That is Yakusha's own config directory; the Electron profile is `%APPDATA%\Electron` because `gui/main.js` never sets an application name and Electron falls back to its own. The troubleshooting text now says both, and points at the error box, which prints the folder it actually failed to write.
+
+### Unchanged
+
+- No code change: envelope, exit codes, payload keys, error codes, dictionary format and command behavior are untouched.
+
 ## [0.65.0] - 2026-11-07
 
 ### Fixed
@@ -857,6 +867,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 [0.5.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.2.0...v0.3.0
+[0.65.1]: https://github.com/MagicalAlmond/Yakusha/compare/v0.65.0...v0.65.1
 [0.65.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.64.0...v0.65.0
 [0.64.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.63.0...v0.64.0
 [0.2.0]: https://github.com/MagicalAlmond/Yakusha/releases/tag/v0.2.0
