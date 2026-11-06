@@ -368,6 +368,35 @@ test("cli: a directory that is not a game fails politely", () => {
   assert.match(result.stderr, /not an RPG Maker project/);
 });
 
+test("cli: a path that does not exist is reported as missing, not searched upward", () => {
+  // The adapters walk up from the directory they are given, so a typo used to
+  // resolve to the nearest parent that looks like a game — and extract would
+  // write a dictionary there. The parent here holds a stray .xp3, which the
+  // Kirikiri adapter accepts as a project root, so this is the exact shape of
+  // the accident rather than a hypothetical one.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "yakusha-missing-"));
+  fs.writeFileSync(path.join(dir, "stray.xp3"), "XP3\r\n \n\x1a", "latin1");
+  const missing = path.join(dir, "no-such-game");
+
+  const result = run(["scan", missing, "--json"]);
+  assert.equal(result.code, 2);
+  const body = JSON.parse(result.stdout);
+  assert.equal(body.error.code, "E_NOT_PROJECT");
+  assert.match(body.error.message, /^no such directory: /);
+  // The envelope rewrites the home directory to "~", so compare the tail.
+  assert.equal(body.error.message.endsWith("no-such-game"), true);
+});
+
+test("cli: a file path is reported as not a directory", () => {
+  const game = tempGame();
+  const file = path.join(game, "js", "rmmz_core.js");
+  const result = run(["extract", file, "--json"]);
+  assert.equal(result.code, 2);
+  const body = JSON.parse(result.stdout);
+  assert.equal(body.error.code, "E_NOT_PROJECT");
+  assert.match(body.error.message, /^not a directory: /);
+});
+
 test("cli: an empty option value is a usage error, not a path into the cwd", () => {
   const game = tempGame();
   assert.equal(run(["extract", game]).code, 0);

@@ -148,7 +148,7 @@
 | code | 何时 | 典型命令 |
 | --- | --- | --- |
 | `E_USAGE` | 未知命令 / 未知选项 / 缺参数 / 值非法 / 缺 `--out` / 拒绝 `config set apiKey` | 全部 |
-| `E_NOT_PROJECT` | 在给定目录及其上下 3 层内找不到 MZ/MV、Ren'Py、RGSS 或 Kirikiri 项目；检测顺序是 MZ → MV → Ren'Py → RGSS → Kirikiri（`src/engines/registry.js:18`），空目录报的是 RPG Maker 措辞 | 除 `config` 外全部 |
+| `E_NOT_PROJECT` | 路径不存在（`no such directory: <abs>`）或不是目录（`not a directory: <abs>`）；目录存在时，在它及其上下 3 层内找不到 MZ/MV、Ren'Py、RGSS 或 Kirikiri 项目；检测顺序是 MZ → MV → Ren'Py → RGSS → Kirikiri（`src/engines/registry.js:18`），空目录报的是 RPG Maker 措辞 | 除 `config` 外全部 |
 | `E_MULTI_ROOT` | 同层有多个项目，必须让用户指定其中一个；文案按引擎不同（`found 2 RPG Maker projects under…` / `found 2 Ren'Py projects under…` / `found 2 RGSS projects under…` / `found 2 Kirikiri projects under…`），候选路径只拼进 `message`，CLI 不输出 `details` | 除 `config` 外全部 |
 | `E_NO_DICTIONARY` | 命令需要字典，但 `yakusha/dictionary.json` 不存在（`doctor` 不报此码，它把缺字典记成 `dictionary: fail` / `verdict: broken` / 退出 1）；Ren'Py 的 `install` 另有「字典存在但一条都没译」的第二种情形 | status/translate/verify/speaker/terms/export；`install` 只在带 `--embed`（读译文编译进插件）、Ren'Py（安装时就要写译文）或 RGSS 的 `--native`（写 `dictionary.txt`）时报，RPG Maker 的普通 `install` 不读字典、缺字典也能装成功；RGSS 的 `uninstall` 与 Kirikiri 的 `install` / `uninstall` 不读字典（Kirikiri 仍报 `E_NOT_IMPLEMENTED`） |
 | `E_DICTIONARY` | 字典存在但无法解析（`message` 就是解析器原文），或 `format` 不是 `yakusha/1` | status/translate/verify/speaker/terms/export。`extract` 遇到坏字典会重建、`doctor` 记成 `dictionary: fail` 并走 findings/1；RPG Maker 的 `install` 不读字典；Ren'Py 的 `install` 要读，坏字典时退出 2，但 `code` 是 `E_INTERNAL`（解析器原文直接冒到捕获不到该码的地方），脚本不要指望这时拿到 `E_DICTIONARY` |

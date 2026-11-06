@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.64.0] - 2026-11-07
+
+### Fixed
+
+- A path that does not exist is now reported as `E_NOT_PROJECT` (`no such directory: <abs>`) instead of being resolved against a parent directory. Every adapter also searches upward — naming a subfolder of a game is a normal way to point at one — so a mistyped path silently landed on whatever project sat above it, and a writing command such as `extract` created its dictionary there. A file path now gets `not a directory: <abs>`.
+
+### Unchanged
+
+- No breaking changes: envelope, exit codes, payload keys, the 13 error codes, the dictionary format and every documented message stay as they were; only the answer for an absent or non-directory path changed.
+
 ## [0.63.0] - 2026-11-01
 
 ### Fixed
@@ -832,4 +842,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 [0.5.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.2.0...v0.3.0
+[0.64.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.63.0...v0.64.0
 [0.2.0]: https://github.com/MagicalAlmond/Yakusha/releases/tag/v0.2.0

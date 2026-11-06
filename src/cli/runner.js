@@ -166,7 +166,22 @@ function writeConfigWarnings(warnings, sink) {
  */
 function requireProject(dir) {
   if (!dir) throw new CliError("E_USAGE", "no game directory given");
-  const result = detectProject(dir);
+  // A typo must not be answered by a parent directory. Every adapter also
+  // walks upward (naming a subfolder of a game is a normal way to point at
+  // it), so an absent path would silently resolve to whatever project sits
+  // above it — and a command that writes (extract, install) would then
+  // create files outside the directory the user named. Report the mistake
+  // before detection runs.
+  const absolute = path.resolve(dir);
+  let stats = null;
+  try {
+    stats = fs.statSync(absolute);
+  } catch {
+    stats = null;
+  }
+  if (!stats) throw new CliError("E_NOT_PROJECT", "no such directory: " + absolute);
+  if (!stats.isDirectory()) throw new CliError("E_NOT_PROJECT", "not a directory: " + absolute);
+  const result = detectProject(absolute);
   if (!result.ok) throw new CliError(result.code, result.message);
   return { project: result.project, adapter: result.adapter };
 }
