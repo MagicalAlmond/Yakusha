@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.67.0] - 2026-11-07
+
+### Fixed
+
+- The GUI could not start at all where the machine confines a program to the folder its image lives in (an application sandbox, or a security product that contains programs living in a data folder). Electron keeps its Chromium profile — and the single-instance lock inside it — under `%APPDATA%\<name>`, and that write is refused there, so `requestSingleInstanceLock()` returned false and no window appeared. `--user-data-dir` did not help: the confinement follows the executable's path, not the folder the profile was pointed at. `gui/main.js` now probes the profile folder before taking the lock and falls back to `.yakusha-gui-profile` next to the app, so the window opens with only the flags that environment requires for Chromium's own sandbox (`--no-sandbox` in the case measured).
+
+### Added
+
+- `gui/profile.js`: `canWriteDir(dir)` (create + write probe + delete) and `resolveProfileDir({requested, userData, appDir, env, probe})`, which picks the first writable folder in the order `--user-data-dir` → Electron's default → a folder next to the app, and reports `{dir, source, fellBack, tried}`. It imports nothing from Electron, so the choice is unit-testable.
+- `YAKUSHA_GUI_PROFILE` overrides where the fallback profile folder goes.
+- `docs/gui.md` §10 gained the failure shape where the program itself is confined to the folder it lives in, with the two ways out (run Electron from outside the project folder, or point `YAKUSHA_GUI_PROFILE` at a writable folder).
+
+### Unchanged
+
+- No breaking changes: the envelope, exit codes, command table, all 13 error codes, the dictionary format (`yakusha/1`) and every CLI command are untouched. The GUI profile folder is not part of any contract.
+
 ## [0.66.0] - 2026-11-07
 
 ### Fixed
@@ -881,6 +897,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 [0.5.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.2.0...v0.3.0
+[0.67.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.66.0...v0.67.0
 [0.66.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.65.1...v0.66.0
 [0.65.1]: https://github.com/MagicalAlmond/Yakusha/compare/v0.65.0...v0.65.1
 [0.65.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.64.0...v0.65.0

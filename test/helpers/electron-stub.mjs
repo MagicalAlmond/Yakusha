@@ -3,6 +3,24 @@
 // The contract tests import this module directly AND the module hook
 // resolves the bare "electron" specifier to the same URL, so both see
 // one mutable state object.
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+
+// gui/main.js probes its profile folder for writability before taking the
+// single-instance lock, so the default must be a real folder: a fake Windows
+// path would make every test take the fallback branch. One scratch folder is
+// reused for the whole file; tests that care about the fallback override it.
+let scratchRoot = null;
+function scratchProfile() {
+  if (!scratchRoot) {
+    scratchRoot = fs.mkdtempSync(path.join(os.tmpdir(), "yakusha-gui-stub-"));
+  }
+  const dir = path.join(scratchRoot, "profile");
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
 class FakeWebContents {
   constructor() {
     this.sent = [];
@@ -77,9 +95,12 @@ const state = {
   pathForCalls: [],
   pathForReply: "D:/games/demo",
   errorBoxes: [],
-  userDataPath: "C:/Users/me/AppData/Roaming/yakusha",
+  userDataPath: null,
   switches: {},
+  paths: {},
+  setPathCalls: [],
 };
+state.userDataPath = scratchProfile();
 
 export const app = {
   on(name, fn) {
@@ -99,6 +120,11 @@ export const app = {
   },
   getPath(name) {
     return name === "userData" ? state.userDataPath : "";
+  },
+  setPath(name, value) {
+    state.setPathCalls.push([name, value]);
+    state.paths[name] = value;
+    if (name === "userData") state.userDataPath = value;
   },
   commandLine: {
     getSwitchValue(name) {
@@ -189,7 +215,10 @@ export function __reset(overrides = {}) {
   state.dialogResult = { canceled: false, filePaths: [] };
   state.dialogCalls = [];
   state.errorBoxes = [];
-  state.userDataPath = "C:/Users/me/AppData/Roaming/yakusha";
+  state.userDataPath = scratchProfile();
+  state.switches = {};
+  state.paths = {};
+  state.setPathCalls = [];
   state.bridges = [];
   state.rendererInvokes = [];
   state.rendererListeners = new Map();

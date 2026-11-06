@@ -4,3 +4,4 @@ _test-tmp/
 .dsh-scratch/
 native/prebuilt/
 native/*/target/
+.yakusha-gui-profile/

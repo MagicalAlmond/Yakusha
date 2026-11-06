@@ -34,6 +34,7 @@ import {
   saveApiKey,
 } from "./credentials.js";
 import { readDictionary, writeEntry } from "./dictionary.js";
+import { resolveProfileDir } from "./profile.js";
 import { configFilePath } from "../src/cli/config.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -250,6 +251,27 @@ function createWindow() {
   });
 }
 
+// Pick a profile folder Electron can actually write before it takes the
+// single-instance lock. A confined environment (an application sandbox, a
+// security product that contains programs living in a data folder) leaves the
+// default profile unwritable, and Electron then fails the lock with the same
+// message as "another window is already open" (docs/gui.md §10). Falling back
+// to a folder next to the app turns that dead end into a working window.
+const profileDir = resolveProfileDir({
+  requested: app.commandLine.getSwitchValue("user-data-dir"),
+  userData: app.getPath("userData"),
+  appDir: path.dirname(HERE),
+  env: process.env,
+});
+if (profileDir.fellBack) {
+  app.setPath("userData", profileDir.dir);
+  console.error(
+    "[yakusha] the default profile folder is not writable; using " +
+      profileDir.dir +
+      " (set YAKUSHA_GUI_PROFILE to pick another folder)",
+  );
+}
+
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   // Electron reports two different situations the same way: another window
@@ -258,16 +280,21 @@ if (!gotLock) {
   // second case look like "the GUI does not start", so name the folder and the
   // way out instead (docs/gui.md §10).
   // --user-data-dir moves the Chromium profile but does not change
-  // app.getPath("userData"), so name whichever folder is actually in play.
-  const profile =
-    app.commandLine.getSwitchValue("user-data-dir") || app.getPath("userData");
+  // app.getPath("userData"), so name whichever folder is actually in play —
+  // and after a fallback that is the fallback, not the switch that failed.
+  const profile = profileDir.fellBack
+    ? profileDir.dir
+    : app.commandLine.getSwitchValue("user-data-dir") || app.getPath("userData");
   const reason =
     "Yakusha could not take its single-instance lock.\n\n" +
     "Another Yakusha window may already be open. If it is not, Electron " +
     "cannot write to this folder:\n" +
     profile +
     "\n\nStart it with a writable profile folder instead:\n" +
-    "  npx electron gui/main.js --user-data-dir=<writable folder>";
+    "  npx electron gui/main.js --user-data-dir=<writable folder>\n\n" +
+    "If this machine confines the program to the folder it lives in (an " +
+    "application sandbox, or a security product), a writable folder is not " +
+    "enough: run Electron from outside the project folder.";
   console.error("[yakusha] " + reason.replace(/\s*\n+\s*/g, " "));
   try {
     dialog.showErrorBox("Yakusha", reason);

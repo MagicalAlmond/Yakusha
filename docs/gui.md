@@ -155,7 +155,7 @@ GUI 永远不做以下事情（与 [limitations.md](limitations.md) 的工具边
 - [ ] 在四档测试矩阵上，从 GUI 卸载后游戏回到可运行状态（plugin 档逐字节还原）。（CLI 路径在 0.10/0.11 真机验过；GUI 按同一路径调同一 runner，但「从 GUI 点出来」的走查未做）
 - [x] 密钥只存在于系统凭据存储或内存；`config` 文件、游戏目录、日志与导出文件里都没有。（test/gui-credentials.test.js：文件里只有密文信封）
 - [x] 拖入非项目目录、多项目目录、损坏字典时，错误提示与 CLI 的错误码一一对应。（gui-handlers 对拍）
-- [ ] MZ/MV + Ren'Py + RGSS 三条链路都能从 GUI 一键跑通（ENGINE-STRATEGY §6.3 的 0.14 验收）。（`test/gui-e2e.test.js` 已按 GUI 的调用缝 `runGuiCommand` 把三条链路的完整命令序列各走通一遍（RGSS 走 `install --native`）；剩下的未验部分只有 Electron 窗口本身的点击与渲染。0.16 复查：`gui/main.js` 能被 Electron 37.2.3 加载、`BrowserWindow` 能创建（隐藏窗口冒烟 exit 0）。0.65 更正：单实例锁创建失败不是进程令牌的宿命，而是浏览器进程写不了默认 profile 目录（未设应用名时为 `%APPDATA%\Electron`，错误框里打印的就是实际目录）（`process_singleton_win.cc:454 Lock file can not be created! Error code: 5`）；把 `--user-data-dir` 指到可写目录后应用能正常起窗（实测窗口句柄非 0），指到不可写目录仍报同一个 error 5。0.65 起锁失败会打 stderr 并弹错误框，指明目录与 `--user-data-dir`，不再静默退出（§10）。剩下的未验部分仍是一次真机点击）
+- [ ] MZ/MV + Ren'Py + RGSS 三条链路都能从 GUI 一键跑通（ENGINE-STRATEGY §6.3 的 0.14 验收）。（`test/gui-e2e.test.js` 已按 GUI 的调用缝 `runGuiCommand` 把三条链路的完整命令序列各走通一遍（RGSS 走 `install --native`）；剩下的未验部分只有 Electron 窗口本身的点击与渲染。0.16 复查：`gui/main.js` 能被 Electron 37.2.3 加载、`BrowserWindow` 能创建（隐藏窗口冒烟 exit 0）。0.65 更正：单实例锁创建失败不是进程令牌的宿命，而是浏览器进程写不了默认 profile 目录（未设应用名时为 `%APPDATA%\Electron`，错误框里打印的就是实际目录）（`process_singleton_win.cc:454 Lock file can not be created! Error code: 5`）；把 `--user-data-dir` 指到可写目录后应用能正常起窗（实测窗口句柄非 0），指到不可写目录仍报同一个 error 5。0.65 起锁失败会打 stderr 并弹错误框，指明目录与 `--user-data-dir`，不再静默退出（§10）。0.67 补充：起不来的最后一段也修好了——profile 目录在拿锁前先探测，默认目录写不进去就自动回退到应用目录旁的 `.yakusha-gui-profile`（或 `YAKUSHA_GUI_PROFILE`），仓库内的 Electron 因此能靠回退目录开窗（实测窗口句柄非 0）；剩下未验的仍是真机点击）
 - [x] 渲染层的扫描状态、能力灰显、字典编辑与密钥输入有 stub-DOM 契约测试（0.20 起 `test/gui-renderer.test.js`；0.56 起补齐拖放（`pathForFile`）、目录选择、取消转发与进度/警告接线，共 14 条；真机窗口交互仍在上一行的范围内）。
 - [x] 主进程（`gui/main.js`）有 stub-Electron 契约测试（0.57 起 `test/gui-main.test.js`，16 条：单实例锁、IPC 白名单、窗口安全参数、取消真达 runner、凭据/字典/目录选择通道）——随测试修复取消断链与「记住密钥」撞 `const` 崩溃两条接缝缺陷。
 - [x] preload 桥有 stub-Electron 契约测试（0.58 起 `test/gui-preload.test.js`，11 条：暴露面、命令表与 handlers 白名单及 index.html 按钮三方一致、逐方法的 IPC 通道与请求形状、可取消的进度订阅）。
@@ -169,17 +169,23 @@ npm start               # 等价于 npx electron gui/main.js
 
 窗口不出现时按这个顺序看：
 
-1. **没有任何反应、退出码 0**：Electron 的单实例锁没拿到（注意与第 5 条区分：那条是连进程都没活到应用代码）。0.65 起会打一行 `[yakusha] ...` 并弹错误框；错误框里的目录就是写不进去的 profile 目录（本构建默认 `%APPDATA%\Electron`——`gui/main.js` 没有设置应用名，Electron 用兜底名 `Electron`；注意这不是 Yakusha 的配置目录 `%APPDATA%\yakusha`）。
+1. **没有任何反应、退出码 0**：Electron 的单实例锁没拿到（注意与第 6 条区分：那条是连进程都没活到应用代码）。0.65 起会打一行 `[yakusha] ...` 并弹错误框；错误框里的目录就是写不进去的 profile 目录（本构建默认 `%APPDATA%\Electron`——`gui/main.js` 没有设置应用名，Electron 用兜底名 `Electron`；注意这不是 Yakusha 的配置目录 `%APPDATA%\yakusha`）。0.67 起在拿锁**之前**先探测这个目录：写不进去就自动回退到应用目录旁的 `.yakusha-gui-profile`（或用 `YAKUSHA_GUI_PROFILE` 指定的目录），并在 stderr 打一行 `the default profile folder is not writable; using <dir>`；只有三个候选目录都写不进去才会走到这个错误框。
 2. **`Lock file can not be created! Error code: 5`**：浏览器进程对该目录没有写权限（只读 profile，或被沙箱/安全软件限制的目录）。换一个可写目录即可：
 
    ```bash
    npx electron gui/main.js --user-data-dir=D:\path\to\writable\folder
    ```
 
-   0.65 实测：`--user-data-dir` 指到可写目录后窗口正常创建；指到不可写目录仍报同一个 error 5。
+   0.65 实测：`--user-data-dir` 指到可写目录后窗口正常创建；指到不可写目录仍报同一个 error 5。0.67 起这条错误前面通常还有一行自动回退提示——有那行说明回退已经生效、窗口应该已经起来了；错误框仍然出现则说明回退目录也写不进去。
 3. **`Cannot read properties of undefined (reading 'exports')`**：`ELECTRON_RUN_AS_NODE=1` 被继承进了终端，Electron 变成纯 Node 跑。清掉再启动：`Remove-Item Env:ELECTRON_RUN_AS_NODE`。
 4. **`EXCEPTION_BREAKPOINT` / 0x80000003 崩溃**：Chromium 沙箱初始化失败，加 `--no-sandbox` 再试（只改本机渲染进程隔离，不改代码）。
-5. **什么都没打印、终端立刻回到提示符**（`npm start` 只留两行 banner）：进程在 `gui/main.js` 执行之前就死了，最常见的是上一条的沙箱初始化崩溃——崩溃发生在 Chromium 内部，应用代码没有机会打任何字。用退出码确认：`npm start; $LASTEXITCODE` 得到 `-2147483645`（0x80000003）即是。此时先试 `npm start -- --no-sandbox`（npm 会把 `--` 之后的参数透传给 `electron`），窗口能起来就说明是沙箱问题。
+5. **两件事同时发生**：先 `-2147483645` 静默退出、加 `--no-sandbox` 后才看到锁错误框——说明沙箱崩溃与 profile 不可写是两层独立故障，两个参数都要给：
+
+   ```bash
+   npm start -- --no-sandbox --user-data-dir=D:\yakusha-gui-profile
+   ```
+6. **什么都没打印、终端立刻回到提示符**（`npm start` 只留两行 banner）：进程在 `gui/main.js` 执行之前就死了，最常见的是上一条的沙箱初始化崩溃——崩溃发生在 Chromium 内部，应用代码没有机会打任何字。用退出码确认：`npm start; $LASTEXITCODE` 得到 `-2147483645`（0x80000003）即是。此时先试 `npm start -- --no-sandbox`（npm 会把 `--` 之后的参数透传给 `electron`），窗口能起来就说明是沙箱问题。
+7. **`--user-data-dir` 指到任何可写目录都仍报 error 5，而且那个目录事后根本没被创建**：说明限制不在目录，而在**可执行文件的位置**——某些环境（应用沙箱、把数据目录里的程序关起来的终端防护）只允许映像在项目内的进程写项目内的路径，`--user-data-dir` 挪不动这条限制。此时把 Electron 放到项目外运行（全局安装，或把 `node_modules/electron/dist` 复制到别处再用那里的 `electron.exe`），项目外的同一份程序不受此限。0.67 实测：仓库内的 `electron.exe` 带 `--no-sandbox` 也能靠回退目录开窗，但写入范围仍只在项目内；仓库外的副本连 `--no-sandbox` 都不需要。
 
 `--user-data-dir` 只挪 Electron 的 profile（缓存、Local Storage、单实例锁），**不挪** Yakusha 自己的配置与凭据——那些在 `%APPDATA%\yakusha`（或 `YAKUSHA_CONFIG_DIR` 指定的目录），见 [config.md](config.md) §8。两个目录同名不同物：`%APPDATA%\yakusha` 是 Yakusha 的配置文件，`%APPDATA%\Electron` 是 Electron 的 profile。
 

@@ -54,13 +54,18 @@ test("gui-main: a denied single-instance lock explains itself and quits", async 
   assert.equal(state.errorBoxes.length, 1);
   assert.equal(state.errorBoxes[0].title, "Yakusha");
   assert.match(state.errorBoxes[0].content, /--user-data-dir/);
-  assert.match(state.errorBoxes[0].content, /AppData\/Roaming\/yakusha/);
+  // The folder named is Electron's own profile folder, not Yakusha's config
+  // directory: the stub hands out a real temp folder, and it must appear.
+  assert.ok(state.errorBoxes[0].content.includes(state.userDataPath));
   assert.equal(errors.length, 1);
   assert.match(errors[0], /^\[yakusha\] .*--user-data-dir/);
 });
 
 test("gui-main: a denied lock names the --user-data-dir folder when one was passed", async () => {
-  stub.__reset({ lock: false, switches: { "user-data-dir": "D:/tmp/yakusha-profile" } });
+  // A writable folder, so the profile resolver keeps the switch instead of
+  // falling back — the point here is which folder the message names.
+  const requested = fs.mkdtempSync(path.join(os.tmpdir(), "yakusha-gui-switch-"));
+  stub.__reset({ lock: false, switches: { "user-data-dir": requested } });
   const errors = [];
   const original = console.error;
   console.error = (...args) => errors.push(args.join(" "));
@@ -74,8 +79,40 @@ test("gui-main: a denied lock names the --user-data-dir folder when one was pass
   // --user-data-dir moves the Chromium profile without moving
   // app.getPath("userData"), so pointing at the latter would name a folder
   // the user never asked about.
-  assert.match(state.errorBoxes[0].content, /D:\/tmp\/yakusha-profile/);
-  assert.doesNotMatch(state.errorBoxes[0].content, /AppData\/Roaming\/yakusha/);
+  assert.ok(state.errorBoxes[0].content.includes(requested));
+  // The default profile folder must not be named: the user never asked for it.
+  assert.equal(state.errorBoxes[0].content.includes(state.userDataPath), false);
+});
+
+test("gui-main: an unwritable profile falls back to a folder next to the app", async () => {
+  // A path under a regular file can never be created, on any platform, so the
+  // default profile is unwritable no matter who runs the test.
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "yakusha-gui-blocked-"));
+  const blocker = path.join(scratch, "blocker");
+  fs.writeFileSync(blocker, "");
+  const fallback = path.join(scratch, "fallback-profile");
+  const previous = process.env.YAKUSHA_GUI_PROFILE;
+  process.env.YAKUSHA_GUI_PROFILE = fallback;
+  stub.__reset({ lock: false, userDataPath: path.join(blocker, "profile") });
+  const errors = [];
+  const original = console.error;
+  console.error = (...args) => errors.push(args.join(" "));
+  try {
+    await import("../gui/main.js?singleton=off-fallback");
+  } finally {
+    console.error = original;
+    if (previous === undefined) delete process.env.YAKUSHA_GUI_PROFILE;
+    else process.env.YAKUSHA_GUI_PROFILE = previous;
+  }
+  const state = stub.__state();
+  assert.deepEqual(state.setPathCalls, [["userData", fallback]]);
+  assert.equal(state.quitCalls, 1);
+  // The warning says what happened; the lock message then names the folder
+  // actually in play, not the one that could not be written.
+  assert.match(errors[0], /^\[yakusha\] the default profile folder is not writable; using /);
+  assert.ok(errors[0].includes(fallback));
+  assert.ok(state.errorBoxes[0].content.includes(fallback));
+  fs.rmSync(scratch, { recursive: true, force: true });
 });
 
 test("gui-main: app start registers exactly the documented IPC allowlist", async () => {
