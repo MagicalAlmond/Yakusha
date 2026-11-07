@@ -686,7 +686,7 @@ TextGrammar = {
 
 1. **RGSS 三个版本的验收基线**：XP（RGSS1）/VX（RGSS2）/VX Ace（RGSS3）各要几款真实游戏
    才敢标 supported？0.18 已在单款 VX Ace（RGSS300.dll）与一款 RGSS301.dll 样本上走查，XP/VX 未测；
-   2026-11-07 已整理 6 款 DLsite XP/VX 候选（均有体验版），待购买后实测。
+   2026-11-07 已整理 14 款 DLsite XP/VX 候选（XP 6 / VX 8，均有体验版），待购买后实测。
 2. **`install --native` 的命名是否保留**：现在挂在现有 `install` 上、不新增命令；
    用户 2026-11-07 问了两者区别，命名尚未拍板。
 3. **Kirikiri 交付层路线**：仍停在 L1–L3，`install` / `uninstall` 报 `E_NOT_IMPLEMENTED`；
