@@ -34,7 +34,7 @@
 ## RGSS（XP / VX / VX Ace）
 
 - 0.18 起有交付层：`install --native` 把原生注入器与 hook DLL 装进 `<游戏>/yakusha/native/`，
-  游戏文件一个字节都不改；`uninstall` 递归删掉这个目录。`--dry-run` 只校验不写盘。
+  游戏文件一个字节都不改；`uninstall` 递归删掉这个目录（旁边的 `yakusha/dictionary.json` 不删，卸载后仍保留）。`--dry-run` 只校验不写盘。
   注入器以挂起方式启动 `Game.exe` 后载入 hook DLL，hook 在 `RGSSGameMain` 之前用
   `RGSSEval` 跑 `bootstrap.rb`，由它包一层 `load_data` 替换数据文档返回的对象里的字符串。
   运行日志写在 `yakusha/native/rgss-hook.log`；第一行 `bootstrap ready` 是 Ruby 侧真的跑起来的

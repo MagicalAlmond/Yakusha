@@ -672,6 +672,7 @@ uninstall : yakusha uninstall "<abs>"
 `native components removed`（不存在时打 `the native components are not installed`，
 退出 0，幂等）。`--json` 是五个通用键加 `native: {dir, removed}`：
 `{removed, restored:false, backupPath:null, drifted:false, keptBackup:null}`。
+这个目录里只有原生层；`yakusha/dictionary.json` 在它旁边，卸载不删它——重装时原样复用。
 如果那个目录存在但里面没有我们的 `manifest.json`，**拒绝删除**，报 `E_CONFIG`
 `native component manifest is missing or unreadable: <file>`——宁可报错，也不删别人的目录。
 

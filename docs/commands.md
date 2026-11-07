@@ -675,6 +675,8 @@ Kirikiri 撞的是另一堵墙：`.ks` 的 context 是 `scene1.ks:2` 这种形�
 
 `install` 的产物按引擎不同：RPG Maker 写插件并注册到 `js/plugins.js`，Ren'Py 生成一个翻译脚本，RGSS 在带 `--native` 时把原生注入器装进 `yakusha/native/`（不带 `--native` 报 `E_USAGE`），Kirikiri 没有交付层、直接报 `E_NOT_IMPLEMENTED`。三个能装的引擎都有 6 个通用载荷键；RGSS 的 `--native` 再额外带一个 `native` 子对象。`install --dry-run` 在三个能装的引擎上都只报告计划、不写任何文件（0.42 起插件层与 Ren'Py 层也如此；文本多一行 `dry run   : nothing written`），Kirikiri 仍然先报 `E_NOT_IMPLEMENTED`。`uninstall --dry-run` 从 0.43 起在 MZ/MV、Ren'Py 与 RGSS 三个有卸载路径的引擎上也只报告计划：同样多一行 `dry run   : nothing written`，不删插件、不删译文文件、不删原生目录，也不改写或恢复 `plugins.js`；Kirikiri 仍然先报 `E_NOT_IMPLEMENTED`。
 
+**`uninstall` 只拆交付层，不碰字典。** 它移除的正是 `install` 写进去的那几样东西：RPG Maker 的插件条目（并从备份恢复 `js/plugins.js`）、Ren'Py 的 `game/yakusha_translation.rpy`、RGSS 的整个 `yakusha/native/`。`yakusha/dictionary.json` 一律留着——它是译文本身，不是交付物：重装后原样复用，`--embed` 编进插件的那份也是从它来的。所以卸载完游戏目录里还剩一个 `yakusha/dictionary.json` 是预期行为，不是残留。要彻底清空就手动删掉 `<游戏>/yakusha/`；只想丢译文、保留条目结构，删掉 `dictionary.json` 再跑一次 `extract` 即可（`extract` 只按游戏数据重建条目，不写译文）。
+
 **RPG Maker（MZ/MV）**——第一次会备份原文件：
 
 ```text
