@@ -252,6 +252,34 @@ test("translate: glossary only fills the gaps and leaves finished work alone", a
   assert.equal(result.overwritten, 0);
 });
 
+test("translate: glossary only seeds entries the dictionary does not have yet", async () => {
+  // A script-drawn label ("ファイル 11") never appears in a data file, so it can
+  // never be extracted. Naming it in the glossary is the only offline way to
+  // translate it, which means the key has to become a dictionary entry.
+  const d = dictOf({ "勇者": "" });
+  const result = await translateDictionary(d, {
+    provider: mockProvider(),
+    glossary: { "勇者": "勇士", "ファイル": "存档" },
+    glossaryOnly: true,
+  });
+  assert.equal(result.translated, 1);
+  assert.equal(result.added, 1);
+  assert.equal(d.entries["ファイル"].text, "存档");
+  assert.deepEqual(d.entries["ファイル"].contexts, []);
+});
+
+test("translate: a seeded entry still has to pass the validators", async () => {
+  const d = dictOf({});
+  const result = await translateDictionary(d, {
+    provider: mockProvider(),
+    glossary: { "\\C[2]お金": "没有颜色码" },
+    glossaryOnly: true,
+  });
+  assert.equal(result.added, 0);
+  assert.equal(Object.hasOwn(d.entries, "\\C[2]お金"), false);
+  assert.equal(result.rejected.length, 1);
+});
+
 test("translate: overwriteExisting lets a drift glossary replace a finished entry", async () => {
   // "terms --drift-only" writes a glossary naming the entries that already have
   // a translation, so without this the report could never be acted on.

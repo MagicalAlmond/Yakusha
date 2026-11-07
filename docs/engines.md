@@ -607,7 +607,7 @@ yakusha uninstall <game-dir>
 | `yakusha_rgss_hook.dll` | 进程内 hook：替换 `GetProcAddress` 的 IAT 槽，包装 `RGSSGameMain` |
 | `libunwind.dll` | `gnullvm` 目标动态链接的运行时，随包附带 |
 | `yakusha_injector.exe` | 启动器：挂起启动游戏、加载 hook DLL、恢复主线程 |
-| `bootstrap.rb` | 在游戏 Ruby VM 里执行的引导脚本：读字典、包 `load_data`、补 `Vocab` |
+| `bootstrap.rb` | 在游戏 Ruby VM 里执行的引导脚本：读字典、包 `load_data`、补 `Vocab`、挂 `Bitmap#draw_text` |
 | `dictionary.txt` | 本游戏的译文表，安装时从 `yakusha/dictionary.json` 生成 |
 | `manifest.json` | 四个**组件**的 SHA-256 清单（`dictionary.txt` 不列入，它是按游戏生成的） |
 
@@ -714,7 +714,11 @@ DLL 搜索路径（Windows 解析 DLL 自己的导入表时走的是**应用程�
 `Encoding::UndefinedConversionError`），包住 `Kernel#load_data`：每个加载出来的数据库 /
 地图对象递归遍历（String、Array、Hash、实例变量，深度上限 64），命中的字符串就地替换；
 另外给 `Vocab` 的字符串常量（VX Ace）与无参字符串方法（XP / VX）打补丁（“New Game”
-这类菜单文本住在脚本里，不在 `Data/`）。`<game>/yakusha/native/rgss-hook.log`
+这类菜单文本住在脚本里，不在 `Data/`）。脚本里**绘制时**才拼出来的标签走第四条路（0.69）：
+`bootstrap.rb` 用 `alias_method` 给 `Bitmap#draw_text` 挂钩子，每个要画的字符串先过一遍字典，
+精确命中就换掉；未命中时按「前缀 + 空格 + 数字」拆开（`/\A(.*?)([ ]*)([0-9]+)\z/`），
+前缀命中就重建，所以一条 `ファイル → 存档` 能覆盖 `存档 1` 到 `存档 30`。
+`<game>/yakusha/native/rgss-hook.log`
 记录补丁的槽位、解析到的导出、字典条数、每次 `load_data` 的名字与替换数；
 **第一行 `bootstrap ready` 是 Ruby 侧真的跑起来的标志**，只有 `DLL attached` 说明 bootstrap
 没执行（`RGSSEval` 对语法错误只返回 0，不会报错）。
@@ -730,8 +734,11 @@ DLL 搜索路径（Windows 解析 DLL 自己的导入表时走的是**应用程�
 - DLL hook 是进程内 IAT 补丁：未签名的注入器或 DLL 可能被杀毒软件拦。后续工作包做
   Authenticode 签名；0.18 的完整性机制是 `manifest.json` 里的 SHA-256。
 - 已经被可执行文件保护壳打包过的游戏不在范围内，不尝试注入。
-- 译文只覆盖从 `load_data` 返回的 Ruby 对象里能到达的字符串（外加 `Vocab` 兜底）；
-  脚本里写死的字符串（字面量参数）不会被翻译。
+- 译文覆盖三处：从 `load_data` 返回的 Ruby 对象里能到达的字符串、`Vocab` 的常量与方法、
+  以及 `Bitmap#draw_text` 收到的绘制字符串（0.69）。脚本里写死、既不进 `Vocab` 也不经
+  `draw_text` 的字符串仍然不会被翻译；绘制钩子只做**精确匹配**加「前缀 + 数字」这一种拼接，
+  不做分词或模板匹配，这些词要先由 `translate --glossary-only` 播种进字典
+  （见 [commands.md](commands.md) 的术语表一节）。
 - 64 位 RGSS 游戏不存在；工具链只构建 32 位。
 - `libunwind.dll` 随包附带，因为 `gnullvm` 目标动态链接它。
 

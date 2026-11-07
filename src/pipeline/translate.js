@@ -15,6 +15,7 @@
  * @module pipeline/translate
  */
 
+import { addEntry } from "../core/dict.js";
 import { controlCodes, visibleText } from "../core/textkey.js";
 import { buildGlossaryIndex, matchGlossary } from "./glossary.js";
 import { wrapText } from "./wrap.js";
@@ -550,9 +551,28 @@ export async function translateDictionary(dict, options) {
       delete entry.error;
       applied += 1;
     }
+    // A glossary can also name text the extractor never saw: labels a game
+    // script draws itself, which never appear in a data file. Seeding those is
+    // what turns "translate this screen offline" into a dictionary edit instead
+    // of a dead entry in the glossary file. Only glossary-only mode does this,
+    // and only for keys the dictionary does not have yet.
+    let added = 0;
+    for (const key of Object.keys(glossary)) {
+      if (Object.hasOwn(dict.entries, key)) continue;
+      const fixed = glossary[key];
+      if (typeof fixed !== "string" || fixed.length === 0) continue;
+      const verdict = validateTranslation(key, fixed, options);
+      if (!verdict.ok) {
+        missed.push({ key, reason: verdict.reason });
+        continue;
+      }
+      addEntry(dict, key, wrapText(fixed, options.maxColumns, wrapOptions(options)));
+      added += 1;
+    }
     return {
       total: Object.keys(glossary).length,
       translated: applied,
+      added,
       overwritten,
       rejected: missed,
       failed: 0,

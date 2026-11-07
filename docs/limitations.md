@@ -45,8 +45,12 @@
 - 注入是进程内 IAT patch：未签名的注入器与 DLL 可能被杀软误报；0.18 的完整性机制是
   SHA-256 `manifest.json`，Authenticode 签名是后续步骤。已被可执行保护器加壳的游戏
   不在范围内（没有尝试注入）。
-- 译文只覆盖 `load_data` 返回的 Ruby 对象可达的字符串（外加 `Vocab` 兜底）；
-  脚本里写死的字面量不翻译。64 位 RGSS 不存在，工具链只构建 32 位。
+- 译文覆盖 `load_data` 返回的 Ruby 对象可达的字符串、`Vocab` 的常量与方法，以及
+  `Bitmap#draw_text` 收到的绘制字符串（0.69 的运行时钩子）。脚本里写死、既不进 `Vocab`
+  也不经 `draw_text` 的文本仍然不翻译；绘制钩子只做精确匹配加「前缀 + 数字」这一种拼接，
+  不做分词或模板匹配，所以存档界面这类标签要先用 `translate --glossary-only --glossary`
+  把词播种进字典（词表里有、字典里没有的键会成为新条目，载荷里计作 `seeded`）。
+  64 位 RGSS 不存在，工具链只构建 32 位。
 - 原生组件随 npm 包分发（`native/prebuilt/`），不从网络下载；`uninstall` 只删带我们
   `manifest.json` 的目录，其它内容一律不动。0.21 起 `doctor` 与 `launch` 会按 `manifest.json`
   复核组件是否被删或被改（坏安装报 `broken` / `E_IO`），但**不会自动修复**——修复手段仍是

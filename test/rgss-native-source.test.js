@@ -85,6 +85,21 @@ test("bootstrap reports that it started, as the last statement", () => {
   assert.equal(lines.at(-1).trimmed, 'Yakusha.log("bootstrap ready")');
 });
 
+test("bootstrap installs the draw hook before it reports ready", () => {
+  const lines = codeLines(bootstrap);
+  const installed = lines.findIndex((line) => line.trimmed === "Yakusha.install_draw_hook");
+  const ready = lines.findIndex((line) => line.trimmed === 'Yakusha.log("bootstrap ready")');
+  assert.notEqual(installed, -1, "text a script draws never reaches load_data, so the draw hook must run");
+  assert.ok(installed < ready, "the hook has to be in place before the game starts drawing");
+
+  const code = lines.map((line) => line.text).join("\n");
+  assert.match(code, /alias_method :yakusha_original_draw_text, :draw_text/);
+  assert.match(code, /def self\.translate_drawn/);
+  // A file label is built at draw time ("ファイル 11"), so one row for the
+  // label has to cover every number appended to it.
+  assert.match(code, /\[0-9\]\+\)\\z/);
+});
+
 test("the injector points the game at the hook folder before loading the DLL", () => {
   const directed = injector.indexOf("remote_call(&process, set_dll_directory");
   const loaded = injector.indexOf("remote_call(&process, load_library");

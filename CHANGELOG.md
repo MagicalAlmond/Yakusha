@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.69.0] - 2026-11-07
+
+### Added
+
+- **Text a script draws at runtime is translated.** Some labels never reach the dictionary through `extract`: they are assembled while the window is drawn, out of constants that live in `Data/Scripts.rvdata2` — a file the extractor deliberately does not read, because rewriting script source breaks the code. `bootstrap.rb` now aliases `Bitmap#draw_text` and runs every string through the dictionary before the original method draws it. A miss falls back to exactly one shape, `prefix + spaces + digits` (`/\A(.*?)([ ]*)([0-9]+)\z/`), so one `ファイル → 存档` row renders `存档 1` through `存档 30`; the first translated string is logged once so a run can be told apart from a silent no-op.
+- **`translate --glossary-only` seeds entries the dictionary does not have yet.** The glossary was only ever applied to keys that `extract` had already produced, so a key no data file contains — precisely the script-drawn labels above — could never be translated at all. It now creates those entries (counted as `seeded` in the payload and shown as `seeded    : N new entries the extractor never saw, taken from --glossary`), after the same validators: a translation that breaks control codes or slots is reported in `rejected` and never written. `addEntry()` in `src/core/dict.js` is the shared writer, and it defines keys with `Object.defineProperty` so a key like `__proto__` cannot reach the prototype.
+- `test/rgss-native-source.test.js`: a sixth assertion over the bootstrap — the draw hook is installed before `bootstrap ready`, it uses `alias_method`, and the numeric-suffix rule stays in place.
+
+### Unchanged
+
+- No breaking changes: envelope, exit codes, all 13 error codes, the dictionary format (`yakusha/1`) and the CLI surface are untouched. `seeded` is a new payload key, ignored by older consumers. 843 pass.
+
 ## [0.68.0] - 2026-11-07
 
 ### Fixed
@@ -849,7 +861,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.63.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.69.0...HEAD
+[0.69.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.68.0...v0.69.0
+[0.68.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.67.0...v0.68.0
+[0.67.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.66.0...v0.67.0
+[0.66.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.65.1...v0.66.0
+[0.65.1]: https://github.com/MagicalAlmond/Yakusha/compare/v0.65.0...v0.65.1
+[0.65.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.64.0...v0.65.0
+[0.64.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.63.0...v0.64.0
 [0.63.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.62.0...v0.63.0
 [0.62.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.61.0...v0.62.0
 [0.61.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.60.0...v0.61.0
@@ -914,9 +933,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 [0.5.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.2.0...v0.3.0
-[0.67.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.66.0...v0.67.0
-[0.66.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.65.1...v0.66.0
-[0.65.1]: https://github.com/MagicalAlmond/Yakusha/compare/v0.65.0...v0.65.1
-[0.65.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.64.0...v0.65.0
-[0.64.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.63.0...v0.64.0
 [0.2.0]: https://github.com/MagicalAlmond/Yakusha/releases/tag/v0.2.0

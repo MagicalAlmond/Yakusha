@@ -33,6 +33,8 @@ module Yakusha
   @loaded = false
   @replacements = 0
   @hooks_installed = false
+  @draw_hooked = false
+  @draw_hits = 0
 
   def self.log(message)
     begin
@@ -114,6 +116,29 @@ module Yakusha
     end
   end
 
+  # Text a script draws never passes through load_data: the label is a Ruby
+  # string built at draw time (Vocab::File + " 11"), so the only place to catch
+  # it is Bitmap#draw_text. Exact matches win; a trailing number is translated
+  # by translating the label in front of it, which covers "ファイル 1" through
+  # "ファイル 30" with a single dictionary row.
+  def self.translate_drawn(text)
+    dict = dictionary
+    direct = dict[text]
+    unless direct.nil?
+      @draw_hits = @draw_hits + 1
+      log("first drawn string translated: " + text) if @draw_hits == 1
+      return direct
+    end
+    if text =~ /\A(.*?)([ ]*)([0-9]+)\z/
+      head = $1
+      space = $2
+      number = $3
+      fixed = dict[head]
+      return fixed + space + number unless fixed.nil?
+    end
+    text
+  end
+
   # Menu labels live in Vocab: VX Ace stores them as constants, VX and XP as
   # zero-argument methods. Both are handled, and only values that are in the
   # dictionary are touched.
@@ -157,9 +182,40 @@ module Yakusha
     log("vocab patched: " + constants.to_s + " constants, " + methods.to_s + " methods")
   end
 
+  # A drawn string is translated where it is drawn. Every draw goes through one
+  # hash lookup, and the alias keeps the engine's own implementation in place,
+  # so a miss costs nothing and no drawing behaviour changes.
+  def self.install_draw_hook
+    return if @draw_hooked
+    return unless defined?(Bitmap)
+    begin
+      Bitmap.class_eval do
+        unless method_defined?(:yakusha_original_draw_text) || private_method_defined?(:yakusha_original_draw_text)
+          alias_method :yakusha_original_draw_text, :draw_text
+        end
+        def draw_text(*args)
+          index = 0
+          while index < args.length
+            if args[index].is_a?(String)
+              args[index] = Yakusha.translate_drawn(args[index])
+              break
+            end
+            index += 1
+          end
+          yakusha_original_draw_text(*args)
+        end
+      end
+      @draw_hooked = true
+      log("draw_text hook installed")
+    rescue Exception => error
+      log("draw_text hook failed: " + error.class.to_s)
+    end
+  end
+
   # Vocab only exists once the game scripts have loaded, so this is retried on
   # every load_data call until it succeeds.
   def self.install_hooks
+    install_draw_hook
     return if @hooks_installed
     return unless defined?(Vocab)
     patch_vocab
@@ -197,4 +253,5 @@ module Kernel
   end
 end
 
+Yakusha.install_draw_hook
 Yakusha.log("bootstrap ready")

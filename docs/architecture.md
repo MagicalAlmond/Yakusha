@@ -317,6 +317,7 @@ test/fixtures/           各引擎最小夹具（mini-mz、mini-mv、renpy-*、r
 | 0.66.0 | **已交付**：锁失败提示改报真正生效的 profile 目录（`--user-data-dir` 优先）；§10 补「什么都没打印」= Chromium 沙箱崩溃（`0x80000003`） | 818 pass / 0 fail（gui-main +1） |
 | 0.67.0 | **已交付**：`gui/profile.js` 在拿锁之前探测 profile 目录，默认目录写不进去就回退到应用目录旁的 `.yakusha-gui-profile`（或 `YAKUSHA_GUI_PROFILE`），受限环境里也能开窗 | 835 pass / 0 fail（gui-profile +6、gui-main +1） |
 | 0.68.0 | **已交付**：RGSS 原生交付层两处真 bug——注入器先 `SetDllDirectoryW` 再 `LoadLibraryW`（DLL 依赖按应用程序目录解析）、失败必 `TerminateProcess`；`bootstrap.rb` 把注入路径按 UTF-8 重新打标签、只用 Ruby 1.8 / 1.9 语法、`Vocab` 常量也翻译 | 840 pass / 0 fail（rgss-native-source +5） |
+| 0.69.0 | **已交付**：脚本绘制时才拼出来的界面文本——`bootstrap.rb` 给 `Bitmap#draw_text` 挂别名钩子（精确匹配 + 「前缀 + 数字」重建），`translate --glossary-only` 把词表里字典没有的键播种成新条目（载荷 `seeded`），补上抽取器故意不读 `Scripts.rvdata2` 留下的空白 | 843 pass / 0 fail（translate +2、rgss-native-source +1） |
 | 1.0.0 | 10 个引擎 + 能力矩阵 + 便携 exe（图标、无控制台、最近游戏） | 双击 exe 可用 |
 
 ## 10. 风险

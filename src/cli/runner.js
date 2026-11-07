@@ -818,6 +818,9 @@ async function commandTranslate(dir, flags, sink, onProgress, opts = {}) {
   });
 
   const overwritten = result.overwritten || 0;
+  // Glossary-only mode seeds entries the extractor never saw (script-drawn UI
+  // labels), so the run can grow the dictionary as well as fill it.
+  const seeded = result.added || 0;
   // The payload names the provider family (openai / mock), never the model and
   // never the key; the text output may still show the model.
   const providerLabel = String(provider.name).split(":")[0];
@@ -836,6 +839,7 @@ async function commandTranslate(dir, flags, sink, onProgress, opts = {}) {
         provider: providerLabel,
         total: result.total,
         translated: result.translated,
+        seeded,
         rejected: result.rejected.length,
       },
     };
@@ -846,6 +850,7 @@ async function commandTranslate(dir, flags, sink, onProgress, opts = {}) {
   sink.out("provider  : " + provider.name);
   sink.out("translated: " + result.translated + "/" + result.total + " this run");
   if (overwritten > 0) sink.out("overwritten: " + overwritten + " existing translations replaced by --glossary");
+  if (seeded > 0) sink.out("seeded    : " + seeded + " new entries the extractor never saw, taken from --glossary");
   if (result.rewrapped > 0) sink.out("rewrapped : " + result.rewrapped + " existing entries fitted to " + maxLength + " columns");
   sink.out("progress  : " + s.translated + "/" + s.total + " translated, " + s.pending + " pending");
   if (result.rejected.length > 0) {
@@ -862,6 +867,7 @@ async function commandTranslate(dir, flags, sink, onProgress, opts = {}) {
       elapsedMs: Date.now() - started,
       total: result.total,
       translated: result.translated,
+      seeded,
       overwritten,
       rejected: result.rejected.length,
       failedBatches: result.failed,

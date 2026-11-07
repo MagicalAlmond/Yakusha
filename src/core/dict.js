@@ -49,6 +49,19 @@ function defineEntry(map, key, value) {
   });
 }
 
+/**
+ * Add an entry that extraction never saw, such as a UI label drawn from a game
+ * script. The key goes through defineEntry so a source string like "__proto__"
+ * stays an ordinary own property.
+ *
+ * @param {Dictionary} dict
+ * @param {string} key
+ * @param {string} text
+ */
+export function addEntry(dict, key, text) {
+  defineEntry(dict.entries, key, { text, contexts: [] });
+}
+
 export const DICT_DIR = "yakusha";
 export const DICT_FILE = "dictionary.json";
 
