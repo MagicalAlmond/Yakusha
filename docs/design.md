@@ -77,12 +77,12 @@ RGSS（XP / VX / VX Ace）是本项目接的第四种引擎。它没有可以挂
 日志写在 `<game>/yakusha/native/rgss-hook.log`：打了哪一格、解析到哪些导出、字典多大、
 每次 `load_data` 替换了几条。
 
-`install --native` 往 `<game>/yakusha/native/` 放 6 个文件：4 个组件
+`install` 往 `<game>/yakusha/native/` 放 6 个文件：4 个组件
 （`yakusha_rgss_hook.dll`、`libunwind.dll`、`yakusha_injector.exe`、`bootstrap.rb`）+
 按字典生成的 `dictionary.txt` + 记录组件 SHA-256 的 `manifest.json`。复制前逐个核对
 `manifest.json` 里的大小与哈希，`uninstall` 整个目录删掉；目录里没有我们的 `manifest.json` 时
-拒绝删除而不是删别人的目录（`src/engines/rgss/native.js`）。不带 `--native` 的 `install`
-直接报 `E_USAGE`，因为装原生组件是可见的改动，必须显式要求。
+拒绝删除而不是删别人的目录（`src/engines/rgss/native.js`）。0.71 起普通 `install` 自动选择
+原生层（每个引擎只有一种交付方式）；`--native` 仍可显式给出，只是兼容别名。
 
 覆盖不到的地方也要说清楚：只有 `load_data` 返回对象里能到达的字符串（加 `Vocab` 兜底）会被
 替换，直接写在脚本里的字面量参数不经过这里；注入器是进程内 IAT patch，未签名的 exe / DLL
@@ -258,7 +258,7 @@ Kirikiri 又换了一族：KAG 的控制码是**方括号标签**，不是反斜
 - **translation 档只写一个新文件**：Ren'Py 的交付是 `game/yakusha_translation.rpy` 一个文件，
   不碰 `game/` 里的任何原脚本，也不碰 `game/tl/`（社区翻译补丁的目录，扫描时整个跳过）。
   卸载删掉它即恢复；因为是引擎自带的翻译资源，这一档是 L4-resource，不是插件档。
-- **RGSS 的交付只写一个目录**：`install --native` 往 `<game>/yakusha/native/` 放 6 个文件——
+- **RGSS 的交付只写一个目录**：`install` 往 `<game>/yakusha/native/` 放 6 个文件——
   4 个组件（`yakusha_rgss_hook.dll`、`libunwind.dll`、`yakusha_injector.exe`、`bootstrap.rb`）
   + 按字典生成的 `dictionary.txt` + 记录组件 SHA-256 的 `manifest.json`；游戏自身文件一个字节
   不改，`uninstall` 删掉这个目录即还原。注入器是 32 位 Windows 程序；装了 native 层后
@@ -311,7 +311,7 @@ installTranslation(project, pairs, { language: "schinese" }); // 写 game/yakush
 uninstallTranslation(project);                                // 删掉它，游戏回到原样
 ```
 
-RGSS 的交付走 CLI 的 `install --native`（`src/engines/rgss/native.js` 里的 `installNative` /
+RGSS 的交付走 CLI 的 `install`（`src/engines/rgss/native.js` 里的 `installNative` /
 `uninstallNative`），库的公开面仍然只有读取和提取。提取结果与 MZ/MV 同形
 （`entries` 是 `Map<原文, { text, contexts, count, locators }>`），可以直接喂给同一条翻译、
 校验流水线：
@@ -324,7 +324,7 @@ const extracted = extractRgssProject(project.root);
 // entries: Map<原文, { text, contexts, count, locators }>
 // contexts 形如 "Map001.rvdata2:401"，commandCounts 统计每种指令码收了多少条
 console.log(extracted.entries.size + " strings in " + extracted.documents + " documents");
-// 没有 installRgss / uninstallRgss：交付只走 CLI 的 install --native
+// 没有 installRgss / uninstallRgss：交付只走 CLI 的 install
 ```
 
 Kirikiri 同样：公开面上只有读取和提取，没有安装/卸载函数：

@@ -313,7 +313,7 @@ export function installNative(project, options = {}) {
 
   const file = dictionaryPath(project.root);
   if (!fs.existsSync(file)) {
-    throw coded("E_NO_DICTIONARY", "install --native needs a dictionary, run: yakusha extract \"" + project.root + "\"");
+    throw coded("E_NO_DICTIONARY", "install needs a dictionary, run: yakusha extract \"" + project.root + "\"");
   }
   let dictionary;
   try {
@@ -383,7 +383,7 @@ export async function launchNative(project, options = {}) {
   }
   const status = nativeStatus(project);
   if (!status.installed) {
-    throw coded("E_EXE", "the native components are not installed - run: yakusha install --native \"" + project.root + "\"");
+    throw coded("E_EXE", "the native components are not installed - run: yakusha install \"" + project.root + "\"");
   }
   if (!status.intact) {
     const problems = status.manifestError
@@ -391,7 +391,7 @@ export async function launchNative(project, options = {}) {
       : status.missing.concat(status.mismatched);
     throw coded(
       "E_IO",
-      "the native components are damaged: " + (problems.join(", ") || "unknown damage") + " - run: yakusha install --native \"" + project.root + "\""
+      "the native components are damaged: " + (problems.join(", ") || "unknown damage") + " - run: yakusha install \"" + project.root + "\""
     );
   }
   const exePath = selectExecutable(project.root, options.exe);

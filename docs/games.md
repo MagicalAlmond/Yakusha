@@ -132,7 +132,7 @@ Ren'Py 的安装产物是一个文件：`install` 写 `game/yakusha_translation.
 `402`、编辑器注释和 `@note`，见 [design.md](design.md) 的「文本面覆盖」。
 
 **0.18 起有运行时交付（原生注入器）。** `capabilities.runtime` 现在是 `"inject"`：
-`install --native` 往 `<game>/yakusha/native/` 放 4 个组件（`yakusha_rgss_hook.dll`、
+`install` 往 `<game>/yakusha/native/` 放 4 个组件（0.71 起自动选择原生层；`--native` 是兼容别名）（`yakusha_rgss_hook.dll`、
 `libunwind.dll`、`yakusha_injector.exe`、`bootstrap.rb`）加上按字典生成的 `dictionary.txt`
 与记录组件 SHA-256 的 `manifest.json`，游戏自身文件一个字节不改；装了以后 `launch` 通过
 `yakusha_injector.exe` 启动 `Game.exe`，`uninstall` 删掉这个目录即还原；`doctor` 的

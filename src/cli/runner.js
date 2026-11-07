@@ -889,20 +889,24 @@ async function commandTranslate(dir, flags, sink, onProgress, opts = {}) {
  */
 async function commandInstall(dir, flags, sink) {
   const { project, adapter } = requireProject(dir);
-  const native = flags.native === true;
-  if (native && adapter.id !== "rgss") {
+  const nativeRequested = flags.native === true;
+  if (nativeRequested && adapter.id !== "rgss") {
     throw new CliError("E_USAGE", "install --native applies to RGSS games only");
   }
+  // Every engine has exactly one delivery layer, so `install` picks it from
+  // the adapter: the RPG Maker plugin, the Ren'Py translation script, or the
+  // RGSS native injector. `--native` remains as a compatibility alias for
+  // scripts written for 0.18-0.70; it no longer changes what RGSS does.
+  const native = adapter.id === "rgss";
   if (native && flags.embed) {
-    throw new CliError("E_USAGE", "install --native cannot be combined with --embed: the injector reads dictionary.txt at run time");
+    throw new CliError("E_USAGE", "install --embed cannot be used with RGSS: the injector reads dictionary.txt at run time");
   }
   // --embed compiles the dictionary into the RPG Maker plugin file. The Ren'Py
   // translation script always contains its translations inline, so the flag has
   // no separate delivery to select there; like --native outside RGSS (0.18) it
-  // is a usage error instead of a silently ignored flag. RGSS and Kirikiri keep
-  // answering from their adapters: RGSS points at --native, Kirikiri reports
-  // E_NOT_IMPLEMENTED — and neither reads a dictionary for a delivery that
-  // cannot exist.
+  // is a usage error instead of a silently ignored flag. Kirikiri keeps
+  // answering from its adapter and reports E_NOT_IMPLEMENTED without reading a
+  // dictionary for a delivery that cannot exist.
   let embed = null;
   if (flags.embed && adapter.capabilities && adapter.capabilities.runtime === "translation") {
     throw new CliError(

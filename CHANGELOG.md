@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.71.0] - 2026-11-08
+
+### Changed
+
+- **`install` now picks the delivery layer from the engine instead of asking for a flag.** Every engine has exactly one way to deliver translations, yet RGSS alone required `install --native`; a plain `install` was a usage error. The CLI now passes `native: true` to the RGSS adapter automatically, so `yakusha install <game>` installs the injector components, `dictionary.txt` and `manifest.json` like `install --native` always did. `--native` stays accepted as a compatibility alias for scripts written between 0.18 and 0.70; on any other engine it is still `E_USAGE`, and RGSS now rejects `--embed` with `install --embed cannot be used with RGSS: the injector reads dictionary.txt at run time`.
+- The GUI no longer appends `--native` for `capabilities.runtime === "inject"`: its install and uninstall buttons run the same command as every other engine.
+- Reinstall hints are engine-neutral: `doctor` and the native component checks now say `yakusha install <game>` instead of `yakusha install --native "<game>"`.
+
+### Unchanged
+
+- No breaking changes: envelope, exit codes, command table, all 13 error codes, the dictionary format (`yakusha/1`) and the install payload keys are untouched (the optional `native` object is still there). 844 pass.
+
 ## [0.70.0] - 2026-11-07
 
 ### Added
@@ -876,7 +888,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.70.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.71.0...HEAD
+[0.71.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.70.0...v0.71.0
 [0.70.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.69.0...v0.70.0
 [0.69.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.68.0...v0.69.0
 [0.68.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.67.0...v0.68.0

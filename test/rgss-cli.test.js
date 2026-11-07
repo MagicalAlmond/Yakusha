@@ -105,17 +105,17 @@ test("cli: extract writes a dictionary for the RGSS strings", () => {
   assert.equal(dictionary.entries["Narrator"].contexts[0], "Map001.rvdata2:101");
 });
 
-test("cli: install without --native refuses with usage and writes nothing", () => {
+test("cli: install selects the native delivery for RGSS", () => {
   const game = tempGame();
   assert.equal(run(["extract", game, "--json"]).code, 0);
+  translateAll(game);
   const result = run(["install", game, "--json"]);
-  assert.equal(result.code, 2);
+  assert.equal(result.code, 0, result.stderr);
   const payload = JSON.parse(result.stdout);
-  assert.equal(payload.ok, false);
-  assert.equal(payload.outcome, "error");
-  assert.equal(payload.error.code, "E_USAGE");
-  assert.match(payload.error.message, /pass --native/);
-  assert.equal(fs.existsSync(path.join(game, "yakusha", "native")), false);
+  assert.equal(payload.ok, true);
+  assert.equal(payload.state, "added");
+  assert.equal(payload.native.dictionaryEntries, 29);
+  assert.equal(fs.existsSync(path.join(game, "yakusha", "native")), true);
 });
 
 test("cli: install --native rejects --embed", () => {
@@ -124,23 +124,23 @@ test("cli: install --native rejects --embed", () => {
   assert.equal(result.code, 2);
   const payload = JSON.parse(result.stdout);
   assert.equal(payload.error.code, "E_USAGE");
-  assert.match(payload.error.message, /cannot be combined with --embed/);
+  assert.match(payload.error.message, /install --embed cannot be used with RGSS/);
   assert.equal(fs.existsSync(path.join(game, "yakusha", "native")), false);
 });
 
-test("cli: install --embed without --native keeps the native hint", () => {
+test("cli: install --embed on RGSS is a usage error", () => {
   const game = tempGame();
   // No dictionary exists yet, and that must not matter: the embed payload is
-  // only read where the plugin tier actually uses it, so the answer stays the
-  // RGSS delivery hint instead of a dictionary complaint.
+  // only read where the plugin tier actually uses it, so the answer stays a
+  // usage error instead of a dictionary complaint.
   const result = run(["install", game, "--embed", "--json"]);
   assert.equal(result.code, 2);
   const payload = JSON.parse(result.stdout);
   assert.equal(payload.error.code, "E_USAGE");
-  assert.match(payload.error.message, /RGSS has no plugin delivery layer - pass --native/);
+  assert.match(payload.error.message, /install --embed cannot be used with RGSS/);
   assert.equal(fs.existsSync(path.join(game, "yakusha", "native")), false);
 });
-test("cli: install --native copies the injector and reports the native payload", () => {
+test("cli: install --native remains a compatible alias for the injector", () => {
   const game = tempGame();
   translateAll(game);
   const result = run(["install", game, "--native", "--json"]);
@@ -156,10 +156,10 @@ test("cli: install --native copies the injector and reports the native payload",
   assert.equal(fs.readFileSync(path.join(dir, "dictionary.txt"), "utf8").trim().split("\n").length, 29);
 });
 
-test("cli: install --native --dry-run reports the plan without writing", () => {
+test("cli: install --dry-run reports the plan without writing", () => {
   const game = tempGame();
   translateAll(game);
-  const result = run(["install", game, "--native", "--dry-run", "--json"]);
+  const result = run(["install", game, "--dry-run", "--json"]);
   assert.equal(result.code, 0, result.stderr);
   const payload = JSON.parse(result.stdout);
   assert.equal(payload.native.dryRun, true);
@@ -168,12 +168,12 @@ test("cli: install --native --dry-run reports the plan without writing", () => {
   assert.equal(fs.existsSync(path.join(game, "yakusha", "native")), false);
 });
 
-test("cli: install --native on a game with no dictionary asks for extract first", () => {
-  const result = run(["install", tempGame(), "--native", "--json"]);
+test("cli: install on a game with no dictionary asks for extract first", () => {
+  const result = run(["install", tempGame(), "--json"]);
   assert.equal(result.code, 2);
   const payload = JSON.parse(result.stdout);
   assert.equal(payload.error.code, "E_NO_DICTIONARY");
-  assert.match(payload.error.message, /^install --native needs a dictionary, run: yakusha extract/);
+  assert.match(payload.error.message, /^install needs a dictionary, run: yakusha extract/);
 });
 
 test("cli: uninstall removes the native directory and is idempotent", () => {
@@ -199,7 +199,7 @@ test("cli: doctor before install reports not-installed, after install reports us
   assert.equal(before.verdict, "not-installed");
   const beforeLevels = Object.fromEntries(before.checks.map((check) => [check.id, check.level]));
   assert.equal(beforeLevels.install, "info");
-  assert.match(before.checks.find((check) => check.id === "install").message, /- run: yakusha install --native \"<game>\"$/);
+  assert.match(before.checks.find((check) => check.id === "install").message, /- run: yakusha install <game>$/);
 
   assert.equal(run(["install", game, "--native", "--json"]).code, 0);
   const after = JSON.parse(run(["doctor", game, "--json"]).stdout);

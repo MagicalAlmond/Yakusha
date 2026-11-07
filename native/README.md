@@ -17,7 +17,7 @@ node native/build.mjs --llvm-mingw <path-to-llvm-mingw>
 `bootstrap.rb` script, the `libunwind.dll` the gnullvm target links against,
 and `manifest.json`. `npm test` does not need the real binaries — the native
 tests use a fixture with real hashes — but `npm pack` and a manual
-`install --native` do.
+`install` do (RGSS selects the native layer automatically since 0.71).
 
 The binaries are unsigned; the CLI verifies the manifest SHA-256 before
 copying anything into a game.

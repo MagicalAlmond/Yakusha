@@ -118,7 +118,7 @@ const USAGE = [
   "",
   "install options:",
   "  --embed             embed the translations into the plugin file (RPG Maker only)",
-  "  --native            install the RGSS injector components (RGSS only)",
+  "  --native            accepted for compatibility; RGSS install uses the injector automatically",
   "  --dry-run           report what would change without writing",
   "",
   "uninstall options:",

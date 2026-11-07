@@ -124,7 +124,7 @@ async function scan(dom, envelope) {
   await flush();
 }
 
-test("scan success shows the engine and enables the RGSS native install path", async () => {
+test("scan success shows the engine and enables the install path", async () => {
   const dom = makeDom();
   await scan(dom, {
     ok: true, outcome: "ok", engine: "rgss", engineVersion: "3",
@@ -140,7 +140,7 @@ test("scan success shows the engine and enables the RGSS native install path", a
   await install.click();
   const call = dom.runCalls.at(-1);
   assert.equal(call[0], "install");
-  assert.deepEqual({ ...call[2] }, { native: true });
+  assert.deepEqual({ ...call[2] }, {});
 });
 
 test("scan success follows capability flags for install and launch", async () => {
@@ -180,9 +180,8 @@ test("a new scan resets the previous engine before the result arrives", async ()
   });
   assert.equal(action(dom, "install").disabled, false);
 
-  // The next scan fails. The renderer must not keep the RGSS capability bits
-  // from the previous project; install must be disabled and must not pass
-  // --native to an unrelated engine.
+  // The next scan fails. The renderer must not keep the previous project's
+  // capability bits; install and uninstall must be disabled again.
   await scan(dom, { ok: false, outcome: "error", error: { code: "E_NOT_PROJECT", message: "no game" } });
   assert.equal(action(dom, "install").disabled, true);
   assert.equal(action(dom, "uninstall").disabled, true);

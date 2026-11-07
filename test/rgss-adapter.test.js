@@ -452,7 +452,7 @@ test("doctor: before install the native layer reads as not installed", () => {
   assert.equal(levels.runtime, "info");
   assert.equal(levels.dictionary, "ok");
   assert.equal(levels.sync, "ok");
-  assert.match(result.checks.find((check) => check.id === "install").message, /- run: yakusha install --native \"<game>\"$/);
+  assert.match(result.checks.find((check) => check.id === "install").message, /- run: yakusha install <game>$/);
   assert.equal(result.runtime.entries, 0);
   assert.equal(result.runtime.found, null);
 });
@@ -504,7 +504,7 @@ test("doctor: a dictionary edited after install is reported as stale", () => {
   const installCheck = result.checks.find((check) => check.id === "install");
   assert.equal(installCheck.level, "warn");
   assert.match(installCheck.message, /is out of date: the project dictionary has changed/);
-  assert.match(installCheck.message, /- run: yakusha install --native "<game>"$/);
+  assert.match(installCheck.message, /- run: yakusha install <game>$/);
   assert.equal(result.checks.find((check) => check.id === "runtime").level, "warn");
 
   // Reinstalling rewrites dictionary.txt and clears the warning.
@@ -536,7 +536,7 @@ test("doctor: a tampered native component is broken, and install repairs it", ()
   const installCheck = result.checks.find((check) => check.id === "install");
   assert.equal(installCheck.level, "fail");
   assert.match(installCheck.message, /is damaged: yakusha_rgss_hook\.dll has changed/);
-  assert.match(installCheck.message, /- run: yakusha install --native "<game>"$/);
+  assert.match(installCheck.message, /- run: yakusha install "<game>"$/);
   assert.equal(result.checks.find((check) => check.id === "runtime").level, "fail");
   // Reinstalling from intact assets is the repair path the message names.
   adapter.installRuntime(project, { native: true, assetsDir: assets.dir });
@@ -554,7 +554,7 @@ test("launch: a damaged native layer refuses to start instead of running untrans
     (error) => {
       assert.equal(error.code, "E_IO");
       assert.match(error.message, /the native components are damaged: libunwind\.dll/);
-      assert.match(error.message, /- run: yakusha install --native/);
+      assert.match(error.message, /- run: yakusha install/);
       return true;
     }
   );

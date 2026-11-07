@@ -13,7 +13,7 @@
 ## 引擎覆盖
 
 - 多引擎只接了 MZ / MV / Ren'Py / RGSS / Kirikiri 五个适配器；Unity、Godot、Wolf
-  不在当前版本内。0.12 注册的 RGSS 在 0.18 补上了注入交付层（`install --native`），
+  不在当前版本内。0.12 注册的 RGSS 在 0.18 补上了注入交付层（`install` 自动选择原生注入器；`--native` 是兼容别名），
   0.13 注册的 Kirikiri 仍只到 L1–L3（识别 / 盘点 / 提取 / 翻译 / 校验 / 导出），没有交付层。
 
 ## 交付快照
@@ -22,8 +22,8 @@
   `yakusha/native/dictionary.txt` 都是安装时的快照：之后 `translate`、`import` 或
   手工改字典都不会自动更新它们。0.23 起 `doctor` 会把这种不一致报成 `warn`
   （`install` / `runtime` 两行），但不会自动修复；改完字典要重跑对应的
-  `install`（MZ/MV 用 `install --embed`，Ren'Py 用 `install`，RGSS 用
-  `install --native`）才会生效。
+  `install`（MZ/MV 用 `install --embed`，Ren'Py 用 `install`，RGSS 也用
+  `install`）才会生效。
 
 ## Ren'Py
 
@@ -33,7 +33,7 @@
 
 ## RGSS（XP / VX / VX Ace）
 
-- 0.18 起有交付层：`install --native` 把原生注入器与 hook DLL 装进 `<游戏>/yakusha/native/`，
+- 0.18 起有交付层：`install` 把原生注入器与 hook DLL 装进 `<游戏>/yakusha/native/`，
   游戏文件一个字节都不改；`uninstall` 递归删掉这个目录（旁边的 `yakusha/dictionary.json` 不删，卸载后仍保留）。`--dry-run` 只校验不写盘。
   注入器以挂起方式启动 `Game.exe` 后载入 hook DLL，hook 在 `RGSSGameMain` 之前用
   `RGSSEval` 跑 `bootstrap.rb`，由它包一层 `load_data` 替换数据文档返回的对象里的字符串。
@@ -57,9 +57,9 @@
 - 原生组件随 npm 包分发（`native/prebuilt/`），不从网络下载；`uninstall` 只删带我们
   `manifest.json` 的目录，其它内容一律不动。0.21 起 `doctor` 与 `launch` 会按 `manifest.json`
   复核组件是否被删或被改（坏安装报 `broken` / `E_IO`），但**不会自动修复**——修复手段仍是
-  再跑一次 `install --native`。`dictionary.txt` 是安装时的快照：0.22 起 `doctor` 会把安装后
+  再跑一次 `install`。`dictionary.txt` 是安装时的快照：0.22 起 `doctor` 会把安装后
   又改过的字典报成 `warn`（`install` / `runtime` 两行），但同样不会自动更新，改完字典必须
-  重跑 `install --native` 才会生效。
+  重跑 `install` 才会生效。
 - 0.31 起安装/卸载先检查 `yakusha/native` 与每个目标文件的 realpath，指向项目外的符号链接/junction 直接 `E_IO` 拒绝；组件复制与 `dictionary.txt` / `manifest.json` 写入走临时文件 + rename，不会穿透已有硬链接/符号链接写外部文件。
 - 只提取玩家可读的位置：事件指令 401 / 405 / 102 / 101 与数据库字段 320。
   Ruby 脚本（codeobj）不碰。

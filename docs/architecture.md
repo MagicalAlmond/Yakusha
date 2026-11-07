@@ -101,7 +101,7 @@ detect 幂等、install 后状态可读回、uninstall 后回到安装前（RPG 
 用例清单见 [engines.md](engines.md) §12；Ren'Py、RGSS 与 Kirikiri 各有自己的用例文件
 （`test/renpy-adapter.test.js`、`test/rgss-adapter.test.js`、`test/krkr-*.test.js`）；
 RGSS 的注入器有独立夹具 `test/rgss-native-fixture.js`（真 SHA-256 造四组件），GUI 链路有
-`test/gui-e2e.test.js` 走 `install --native`。
+`test/gui-e2e.test.js` 走 `install`（RGSS 自动选原生层）。
 
 ## 4. 运行时模式：四档，外加"无投递"
 
@@ -130,7 +130,7 @@ XP3 解包、KAG 行解析——所以 `scan` / `extract` / `translate` / `verif
 `install` 现在是明确拒绝，不是静默无操作——见 `src/engines/krkr/adapter.js` 里
 `installRuntime` 的注释与 [limitations.md](limitations.md)。
 
-RGSS 在 0.18 补上了"送进去"这一半，选的是 `inject`：`install --native` 把四个原生组件
+RGSS 在 0.18 补上了"送进去"这一半，选的是 `inject`：`install` 把四个原生组件
 （注入器、hook DLL、`libunwind.dll`、`bootstrap.rb`）、按当前字典生成的 `dictionary.txt`
 和一份 SHA-256 `manifest.json` 写进 `<游戏>/yakusha/native/`，游戏文件一个字节都不改；
 `uninstall` 只删这个目录。注入器以挂起方式创建 `Game.exe`，把 hook DLL 载入游戏进程；
@@ -199,7 +199,7 @@ hook 改的是 `kernel32!GetProcAddress` 的 IAT 槽，借此在 `RGSSGameMain` 
   `gui/dictionary.js` 复用 `src/core/dict.js` 的加载/校验/保存，每次只写一条。
 - `launch` 也在白名单里（14 个命令全量开放）：主进程不做自己的进程管理，
   spawn 的环境清洗与 `--exe` 契约都留在 `src/engines/launch.js`，GUI 与 CLI 同一条路。
-  GUI 的 install/uninstall 对 RGSS 自动带 `--native`（按 `capabilities.runtime === "inject"` 判断）。
+  GUI 的 install/uninstall 与 CLI 同一条路：0.71 起 `install` 按引擎自动选择交付方式，GUI 不再特判。
 - 不加载任何远程内容；游戏目录一律当不可信输入校验。
 
 ## 7. 目标目录结构
@@ -319,6 +319,7 @@ test/fixtures/           各引擎最小夹具（mini-mz、mini-mv、renpy-*、r
 | 0.68.0 | **已交付**：RGSS 原生交付层两处真 bug——注入器先 `SetDllDirectoryW` 再 `LoadLibraryW`（DLL 依赖按应用程序目录解析）、失败必 `TerminateProcess`；`bootstrap.rb` 把注入路径按 UTF-8 重新打标签、只用 Ruby 1.8 / 1.9 语法、`Vocab` 常量也翻译 | 840 pass / 0 fail（rgss-native-source +5） |
 | 0.69.0 | **已交付**：脚本绘制时才拼出来的界面文本——`bootstrap.rb` 给 `Bitmap#draw_text` 挂别名钩子（精确匹配 + 「前缀 + 数字」重建），`translate --glossary-only` 把词表里字典没有的键播种成新条目（载荷 `seeded`），补上抽取器故意不读 `Scripts.rvdata2` 留下的空白 | 843 pass / 0 fail（translate +2、rgss-native-source +1） |
 | 0.70.0 | **已交付**：`YAKUSHA_DRAW_TRACE=1` 把实际经过 `Bitmap#draw_text` 的前 50 个字符串写进日志，用来区分「钩子没生效」与「游戏自绘位图字体」；第二款真机样本（`RGSS301.dll` + 2.0 GB 归档）全链路跑通 | 844 pass / 0 fail（rgss-native-source +1） |
+| 0.71.0 | **已交付**：`install` 按引擎自动选择唯一交付方式（RGSS 普通 `install` 直接装原生注入器），`--native` 保留为兼容别名；GUI 不再对 RGSS 特判；doctor 与各引擎的「重装」提示统一为 `yakusha install <game>` | 844 pass / 0 fail（行为变、用例数不变） |
 | 1.0.0 | 10 个引擎 + 能力矩阵 + 便携 exe（图标、无控制台、最近游戏） | 双击 exe 可用 |
 
 ## 10. 风险

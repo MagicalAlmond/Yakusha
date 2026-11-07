@@ -1,6 +1,6 @@
 # GUI 设计与用户流程（Electron 外壳，0.14）
 
-> 状态：0.14 已交付最小外壳（`gui/main.js` + `preload.js` + `renderer/`，含原生目录选择、export/import/speaker/terms/config/launch 按钮、「记住密钥」（safeStorage，见 §5）、最小字典编辑器（见 §3 字典编辑分区）），长任务接口（进度事件 + 取消）随 0.14 的 runner seam 落地；0.16 起按钮可用性按 §3 的规则由 `capabilities` 驱动（`scan` 载荷新增 `capabilities`，不支持交付层的引擎灰掉 install/uninstall 并写明原因；0.18 起 RGSS 的注入交付层落地，install/uninstall 对 RGSS 自动带 `--native`，不再灰）；本文其余部分仍是演进的设计稿（完整字典编辑界面未做——已交付的是 §3 描述的最小逐条编辑器）。0.20 起渲染层另有 `test/gui-renderer.test.js` 的 stub-DOM 契约测试（7 条），并在每次扫描开始时清空上一个引擎的能力位；0.57 起主进程另有 `test/gui-main.test.js` 的 stub-Electron 契约测试（16 条），该轮修复两条主进程接缝缺陷（取消信号从未传进 runner、「记住密钥」撞 `const` 崩溃，见 §6/§9）；0.58 起 preload 桥也有 `test/gui-preload.test.js`（11 条），钉死三方一致（桥 ↔ handlers 白名单 ↔ index.html 按钮）。0.65 起单实例锁拿不到不再静默退出：打 stderr、弹错误框并指明 profile 目录与 `--user-data-dir` 出路（见 §10 启动与排障）。
+> 状态：0.14 已交付最小外壳（`gui/main.js` + `preload.js` + `renderer/`，含原生目录选择、export/import/speaker/terms/config/launch 按钮、「记住密钥」（safeStorage，见 §5）、最小字典编辑器（见 §3 字典编辑分区）），长任务接口（进度事件 + 取消）随 0.14 的 runner seam 落地；0.16 起按钮可用性按 §3 的规则由 `capabilities` 驱动（`scan` 载荷新增 `capabilities`，不支持交付层的引擎灰掉 install/uninstall 并写明原因；0.18 起 RGSS 的注入交付层落地（0.71 起普通 `install` 自动选择原生注入器，不再需要 `--native`），install/uninstall 不再灰）；本文其余部分仍是演进的设计稿（完整字典编辑界面未做——已交付的是 §3 描述的最小逐条编辑器）。0.20 起渲染层另有 `test/gui-renderer.test.js` 的 stub-DOM 契约测试（7 条），并在每次扫描开始时清空上一个引擎的能力位；0.57 起主进程另有 `test/gui-main.test.js` 的 stub-Electron 契约测试（16 条），该轮修复两条主进程接缝缺陷（取消信号从未传进 runner、「记住密钥」撞 `const` 崩溃，见 §6/§9）；0.58 起 preload 桥也有 `test/gui-preload.test.js`（11 条），钉死三方一致（桥 ↔ handlers 白名单 ↔ index.html 按钮）。0.65 起单实例锁拿不到不再静默退出：打 stderr、弹错误框并指明 profile 目录与 `--user-data-dir` 出路（见 §10 启动与排障）。
 
 ## 1. 定位与边界
 
@@ -28,7 +28,7 @@ GUI 排在 0.14 不是资源问题，是依赖顺序（ENGINE-STRATEGY §6.3）�
 | 0.13 | 表格导出与回灌（TSV/CSV + `import`） | 字典编辑/导入导出界面才有可用的格式契约 |
 
 > 0.12 注记：0.12 实际只交付 RGSS 的 L1–L3（识别 / 盘点 / 提取 / 翻译 / 校验）。交付层在 0.18
-> 以原生注入器 + hook DLL 落地（`install --native`，组件随 npm 包分发、SHA-256 manifest、
+> 以原生注入器 + hook DLL 落地（`install` 自动选择，组件随 npm 包分发、SHA-256 manifest、
 > 不改游戏文件），[DEVLOG](dev/DEVLOG.md) §8.1 第 10 行记录的路线已执行；上表按 2026-10-25
 > 的拍板路线保留。
 
@@ -40,7 +40,7 @@ GUI 版本只做壳与它需要的接口（能力矩阵、原生组件向导、�
 
 八个分区。每区列出驱动的 CLI 命令、消费的 JSON 载荷、失败时用户看到什么
 （退出码与错误码遵循 [json-contract.md](json-contract.md)，GUI 按 `outcome` + `error.code` 分支，
-不解析 `message` 文案）。按钮可不可点由 adapter 的 `capabilities` 决定，未实现能力灰掉并写明原因（0.16 已交付：能力位随 `scan` 载荷下发，`runtime: null` 的引擎灰掉 install/uninstall、`launch: false` 灰掉启动；0.18 起 `runtime: "inject"` 的 RGSS 自动带 `--native`）。
+不解析 `message` 文案）。按钮可不可点由 adapter 的 `capabilities` 决定，未实现能力灰掉并写明原因（0.16 已交付：能力位随 `scan` 载荷下发，`runtime: null` 的引擎灰掉 install/uninstall、`launch: false` 灰掉启动；0.18 起 `runtime: "inject"` 的 RGSS 可以安装（0.71 起普通 `install` 自动选择，不需要 `--native`）。
 
 | 分区 | 驱动的命令 / 库调用 | 消费的载荷 | 失败时用户看到 |
 | --- | --- | --- | --- |
@@ -49,7 +49,7 @@ GUI 版本只做壳与它需要的接口（能力矩阵、原生组件向导、�
 | 字典编辑 | `extract` / `export --json --out <f>`（原设计；0.14 另有下面的最小逐条编辑器） | `file, added, total, translated, pending`；export 的 `out, entries, bytes` | `E_NO_DICTIONARY`（退出 2，提示先提取）；`E_EXISTS` / `E_IO` |
 | 翻译执行 | `translate`（`--limit`/`--context`/`--glossary`/`--save-every`） | `provider, translated, rejected, failedBatches, progress{total,translated,pending}` | `E_CONFIG`（缺 provider/model/key，退出 2）；`E_PROVIDER`；`rejected > 0` 仍是 `ok`，按 pending 数字提示跑 verify |
 | 校验 | `verify`（`--kind`/`--limit`/`--write-report`） | `errors, warnings, counts, problems[{kind,severity,key,target,detail}]` | findings（退出 1）不是命令失败：按 kind 分组展示，error 拦安装按钮 |
-| 安装与卸载 | `install`（RGSS 加 `--native`）/ `uninstall` / `launch` | `pluginPath, state, backupPath`（RGSS 另带 `native{dir, files, dictionaryEntries, dryRun}`）；`removed, restored, drifted, keptBackup`（RGSS 另带 `native{dir, removed}`）；`root, exe, pid` | `E_EXE`（launch 多/无 .exe，列 details.candidates）；`E_UNSUPPORTED_PLATFORM`；`drifted: true` 时明确"只摘了自己那条，备份保留"；RGSS 没有字典时 `E_NO_DICTIONARY` |
+| 安装与卸载 | `install` / `uninstall` / `launch` | `pluginPath, state, backupPath`（RGSS 另带 `native{dir, files, dictionaryEntries, dryRun}`）；`removed, restored, drifted, keptBackup`（RGSS 另带 `native{dir, removed}`）；`root, exe, pid` | `E_EXE`（launch 多/无 .exe，列 details.candidates）；`E_UNSUPPORTED_PLATFORM`；`drifted: true` 时明确"只摘了自己那条，备份保留"；RGSS 没有字典时 `E_NO_DICTIONARY` |
 | 设置 | `config list/get/set/unset` | `values{provider,model,baseUrl}, apiKey{set,source}` | `E_CONFIG`（文件损坏，不覆盖）；`E_USAGE`（非法值，退出 2） |
 | 诊断 | `doctor`（`--max-length`） | `verdict, checks[{id,level,message}]` | broken → findings（退出 1）：逐项列出 fail/warn 与建议动作 |
 
@@ -155,7 +155,7 @@ GUI 永远不做以下事情（与 [limitations.md](limitations.md) 的工具边
 - [ ] 在四档测试矩阵上，从 GUI 卸载后游戏回到可运行状态（plugin 档逐字节还原）。（CLI 路径在 0.10/0.11 真机验过；GUI 按同一路径调同一 runner，但「从 GUI 点出来」的走查未做）
 - [x] 密钥只存在于系统凭据存储或内存；`config` 文件、游戏目录、日志与导出文件里都没有。（test/gui-credentials.test.js：文件里只有密文信封）
 - [x] 拖入非项目目录、多项目目录、损坏字典时，错误提示与 CLI 的错误码一一对应。（gui-handlers 对拍）
-- [ ] MZ/MV + Ren'Py + RGSS 三条链路都能从 GUI 一键跑通（ENGINE-STRATEGY §6.3 的 0.14 验收）。（`test/gui-e2e.test.js` 已按 GUI 的调用缝 `runGuiCommand` 把三条链路的完整命令序列各走通一遍（RGSS 走 `install --native`）；剩下的未验部分只有 Electron 窗口本身的点击与渲染。0.16 复查：`gui/main.js` 能被 Electron 37.2.3 加载、`BrowserWindow` 能创建（隐藏窗口冒烟 exit 0）。0.65 更正：单实例锁创建失败不是进程令牌的宿命，而是浏览器进程写不了默认 profile 目录（未设应用名时为 `%APPDATA%\Electron`，错误框里打印的就是实际目录）（`process_singleton_win.cc:454 Lock file can not be created! Error code: 5`）；把 `--user-data-dir` 指到可写目录后应用能正常起窗（实测窗口句柄非 0），指到不可写目录仍报同一个 error 5。0.65 起锁失败会打 stderr 并弹错误框，指明目录与 `--user-data-dir`，不再静默退出（§10）。0.67 补充：起不来的最后一段也修好了——profile 目录在拿锁前先探测，默认目录写不进去就自动回退到应用目录旁的 `.yakusha-gui-profile`（或 `YAKUSHA_GUI_PROFILE`），仓库内的 Electron 因此能靠回退目录开窗（实测窗口句柄非 0）；剩下未验的仍是真机点击）
+- [ ] MZ/MV + Ren'Py + RGSS 三条链路都能从 GUI 一键跑通（ENGINE-STRATEGY §6.3 的 0.14 验收）。（`test/gui-e2e.test.js` 已按 GUI 的调用缝 `runGuiCommand` 把三条链路的完整命令序列各走通一遍（RGSS 走普通 `install` 自动选择）；剩下的未验部分只有 Electron 窗口本身的点击与渲染。0.16 复查：`gui/main.js` 能被 Electron 37.2.3 加载、`BrowserWindow` 能创建（隐藏窗口冒烟 exit 0）。0.65 更正：单实例锁创建失败不是进程令牌的宿命，而是浏览器进程写不了默认 profile 目录（未设应用名时为 `%APPDATA%\Electron`，错误框里打印的就是实际目录）（`process_singleton_win.cc:454 Lock file can not be created! Error code: 5`）；把 `--user-data-dir` 指到可写目录后应用能正常起窗（实测窗口句柄非 0），指到不可写目录仍报同一个 error 5。0.65 起锁失败会打 stderr 并弹错误框，指明目录与 `--user-data-dir`，不再静默退出（§10）。0.67 补充：起不来的最后一段也修好了——profile 目录在拿锁前先探测，默认目录写不进去就自动回退到应用目录旁的 `.yakusha-gui-profile`（或 `YAKUSHA_GUI_PROFILE`），仓库内的 Electron 因此能靠回退目录开窗（实测窗口句柄非 0）；剩下未验的仍是真机点击）
 - [x] 渲染层的扫描状态、能力灰显、字典编辑与密钥输入有 stub-DOM 契约测试（0.20 起 `test/gui-renderer.test.js`；0.56 起补齐拖放（`pathForFile`）、目录选择、取消转发与进度/警告接线，共 14 条；真机窗口交互仍在上一行的范围内）。
 - [x] 主进程（`gui/main.js`）有 stub-Electron 契约测试（0.57 起 `test/gui-main.test.js`，16 条：单实例锁、IPC 白名单、窗口安全参数、取消真达 runner、凭据/字典/目录选择通道）——随测试修复取消断链与「记住密钥」撞 `const` 崩溃两条接缝缺陷。
 - [x] preload 桥有 stub-Electron 契约测试（0.58 起 `test/gui-preload.test.js`，11 条：暴露面、命令表与 handlers 白名单及 index.html 按钮三方一致、逐方法的 IPC 通道与请求形状、可取消的进度订阅）。

@@ -10,7 +10,7 @@
 - **translation 档（Ren'Py）**：`install` 在 `game/` 下生成一个
   `yakusha_translation.rpy`，用引擎自己的 `translate <lang> strings:` 块替换源文；
   游戏脚本一个字节都不改，`uninstall` 只删这一个文件。
-- **inject 档（RGSS，0.18 起）**：`install --native` 把注入器与 hook DLL 装进
+- **inject 档（RGSS，0.18 起）**：`install` 把注入器与 hook DLL 装进
   `yakusha/native/`，`launch` 通过 `yakusha_injector.exe` 启动游戏；游戏文件一个字节都不改，
   `uninstall` 只删这个目录。只构建了 32 位 Windows 组件。
 - **Kirikiri 本版没有交付层**：`scan`、`extract`、`translate`、`verify`、`terms`、`speaker`、
@@ -26,7 +26,7 @@ scan  →  extract  →  translate  →  install
 看有多少   建字典      LLM 填译文    装进游戏
 ```
 
-本版最后一步对 MZ / MV / Ren'Py 有效，RGSS 需要 `install --native`；Kirikiri 的流程停在
+本版最后一步对 MZ / MV / Ren'Py / RGSS 都有效（`install` 按引擎自动选交付方式）；Kirikiri 的流程停在
 `translate`，`install` 会拒绝而不是假装装好。
 
 运行时效果不在仓库里放截图；支持范围、匿名实测数据与编号见 [docs/games.md](docs/games.md)。
@@ -161,10 +161,10 @@ uninstall  : yakusha uninstall "/games/MyGame"
 命令行没有选语言的入口，这一版固定投 `schinese`；文件里还会加一段
 `if config.default_language is None` 的守卫，不覆盖玩家自己在设置里选的语言。
 
-**RGSS（XP / VX / VX Ace）** 走注入档，安装命令要加 `--native`：
+**RGSS（XP / VX / VX Ace）** 走注入档，普通 `install` 就会自动选择它（0.71 起；`--native` 仍被接受，作为旧脚本的兼容别名）：
 
 ```bash
-node bin/yakusha.js install "/games/MyGame" --native
+node bin/yakusha.js install "/games/MyGame"
 ```
 
 ```
@@ -183,13 +183,8 @@ uninstall : yakusha uninstall "/games/MyGame"
 `yakusha/native/`。
 
 `--dry-run` 只校验组件与字典并打印计划（`dry run   : nothing written`），不写盘；组件缺失或
-SHA-256 对不上会报 `E_IO` 并拒绝安装；`--native` 与 `--embed` 不能同时给（`--embed` 只对
-RPG Maker 插件层有意义，0.50 起在其他引擎上是 `E_USAGE`）。不带 `--native`
-时 RGSS 直接报 `E_USAGE`（退出码 2），不会去猜用户想用哪种投递方式：
-
-```
-error: RGSS has no plugin delivery layer - pass --native to install the injector: yakusha install --native "/games/MyGame"
-```
+SHA-256 对不上会报 `E_IO` 并拒绝安装；`--embed` 只对 RPG Maker 插件层有意义，在 RGSS 上报
+`E_USAGE`（退出码 2）。
 
 **Kirikiri 本版装不进去**：没有交付层，`install` 与 `uninstall` 都以 `E_NOT_IMPLEMENTED`
 失败、退出码 2、一个文件都不写：
@@ -254,7 +249,7 @@ verdict 到 `ready`：
 ```
 game      : Example Game (RGSS 3, 7 data files)
   sync        ok    every dictionary key still appears in Data/
-  install     info  not installed - run: yakusha install --native "<game>"
+  install     info  not installed - run: yakusha install <game>
   runtime     info  the injector loads yakusha/native when the game starts
 verdict   : not-installed
 ```
@@ -319,7 +314,7 @@ node bin/yakusha.js launch "/games/MyGame"
 多个时用 `--exe <name>` 指定（只收裸文件名）。MV 的 `www/` 布局把 `www/` 当项目根，启动器与
 工作目录取放着 `Game.exe` 的上一层（0.44 起）；`data/www` 的浏览器构建不受影响；`data/`
 本身是 nw.js 宿主（`package.json` + `nw.dll` 等）时改从 `data/` 里的 `.exe` 启动（0.48 起）。启动后工具立即退出，游戏继续运行；子进程环境
-会删掉 `YAKUSHA_API_KEY` / `OPENAI_API_KEY`。RGSS 多一步：装过 `install --native` 时走
+会删掉 `YAKUSHA_API_KEY` / `OPENAI_API_KEY`。RGSS 多一步：装过原生注入器时走
 `yakusha_injector.exe`，输出仍是 `launched:` / `pid:` 两行；没装时照常启动项目根的 exe。
 `attach` 调试注入仍是桩，能力表里 `attach: false`，没有 CLI 入口。
 
@@ -342,7 +337,7 @@ npm start             # 等价于 npx electron gui/main.js
 speaker、terms 与 `config list`。API key 可以显式勾选"记住"（Windows DPAPI 加密
 存盘，CLI 不读它），也可以照旧用环境变量或 `--api-key`；`launch` 也在外壳里（与 CLI 同一条
 启动路径，`--exe` 歧义时展示候选）；最小字典编辑器也在外壳里（逐条改 pending
-译文，批量仍走 export/import）。0.16 起按钮可用性由引擎能力位驱动：没有交付层的引擎（本版是 Kirikiri）把 install/uninstall 置灰并写明原因，不再让用户点了才知道报错；RGSS 从 0.18 起按引擎自动带 `--native`，按钮正常可用。设计与验收清单见 [docs/gui.md](docs/gui.md)。
+译文，批量仍走 export/import）。0.16 起按钮可用性由引擎能力位驱动：没有交付层的引擎（本版是 Kirikiri）把 install/uninstall 置灰并写明原因，不再让用户点了才知道报错；RGSS 从 0.18 起有注入档，0.71 起普通 `install` 自动选择，按钮正常可用。设计与验收清单见 [docs/gui.md](docs/gui.md)。
 
 ## 命令一览
 
@@ -355,7 +350,7 @@ speaker、terms 与 `config list`。API key 可以显式勾选"记住"（Windows
 | `verify` | 体检字典（发布前自检） |
 | `speaker` | 按本作自己的写法修复说话人名 |
 | `terms` | 挖人名/术语的主流译法，报出漂移 |
-| `install` | 装进游戏：MZ/MV 装插件，Ren'Py 写 `game/yakusha_translation.rpy`，RGSS 用 `--native` 装注入器；Kirikiri 报 `E_NOT_IMPLEMENTED` |
+| `install` | 装进游戏：MZ/MV 装插件，Ren'Py 写 `game/yakusha_translation.rpy`，RGSS 装注入器；Kirikiri 报 `E_NOT_IMPLEMENTED` |
 | `uninstall` | 卸载并还原：删插件与注册行、删那个翻译文件，或删 `yakusha/native/`；Kirikiri 未实现 |
 | `doctor` | 查安装产物、备份（Ren'Py 无）、字典是否还与这版游戏对得上；Kirikiri 只报「没有交付层」 |
 | `export` | 把已翻译条目导出成 JSON 快照，或 TSV / CSV / JSONL |

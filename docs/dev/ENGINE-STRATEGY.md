@@ -424,7 +424,7 @@ TextGrammar = {
 | 家族 | 引擎 | 文本面 | 首选交付 | 真实难度 |
 | --- | --- | --- | --- | --- |
 | Maker JS | MZ、MV | `data/*.json` + JS 插件 | `plugin` | 已做到 L4，维护版本矩阵 |
-| Maker RGSS | XP、VX、VX Ace | `Data/*.rxdata`（Ruby Marshal）+ 脚本 | `inject`（原生注入器 + hook DLL，**0.18 已交付 `install --native`**） | 高：Ruby Marshal 解析 + RGSS hook + 原生组件分发/签名（0.18 只做了 SHA-256 manifest 校验；分发渠道与签名仍未做） |
+| Maker RGSS | XP、VX、VX Ace | `Data/*.rxdata`（Ruby Marshal）+ 脚本 | `inject`（原生注入器 + hook DLL，**0.18 已交付；0.71 起普通 `install` 自动选择**） | 高：Ruby Marshal 解析 + RGSS hook + 原生组件分发/签名（0.18 只做了 SHA-256 manifest 校验；分发渠道与签名仍未做） |
 | Ren'Py | Ren'Py | `.rpy` 明文 + `.rpyc` 编译（**两者都要**） | `translation-file` | 已做到 L4-resource（0.11 交付，`src/engines/renpy/`，契约见 [engines.md](../engines.md) §13.2）；屏幕语言 UI 文本仍是已知边界 |
 | TJS 系 | KiriKiri | `.xp3` 归档 + `.ks`/`.tjs` | `patch` 或 `inject` | 高：归档格式/加密、脚本 hook |
 | JS 视觉小说 | TyranoScript（可选） | `.ks` / `.js` | `plugin` 或 `patch` | 中：脚本结构相对简单，归档/编码要处理 |
@@ -468,7 +468,7 @@ TextGrammar = {
 2. **原生 helper**：那个 DLL 和负责塞进去的加载器，是 C/C++/Rust 写的原生程序，
    不是 Node 代码，也不能用 Node 写（Node 进不了别人的进程）。0.18 的实现把注入器、
    hook DLL 与 `bootstrap.rb` 作为预编译组件随 npm 包分发（`native/prebuilt/`），由
-   `install --native` 复制到 `<game>/yakusha/native/`；注入器只负责拉起游戏并加载 DLL，
+   `install` 复制到 `<game>/yakusha/native/`；注入器只负责拉起游戏并加载 DLL，
    译文以 `dictionary.txt` 纯文本交给 hook，不跟 Yakusha 主进程通信。原计划的按引擎
    下载与代码签名仍未做（0.18 只加 SHA-256 manifest 完整性校验）。
 
@@ -490,7 +490,7 @@ TextGrammar = {
 | --- | --- | --- |
 | L4-plugin | 加插件即可，删文件即还原 | MZ、MV |
 | L4-resource | 生成/替换引擎自带的翻译资源 | Ren'Py（0.11 已交付） |
-| L4-inject | 需要下载原生组件，启动时注入 | RGSS（0.18 已交付，`install --native`）、KRKR（路线未定） |
+| L4-inject | 需要下载原生组件，启动时注入 | RGSS（0.18 已交付；0.71 起 `install` 自动选择）、KRKR（路线未定） |
 | L3-only | 只能提取/翻译/校验，交付靠用户自己 | 未做运行时的家族 |
 
 ## 6. 路线图建议
@@ -529,13 +529,13 @@ TextGrammar = {
 | 0.10.0 | 收尾（WP6） | — | 文档/版本号/测试全绿 |
 | 0.10.x | 拆缝 `refactor/engine-seams`（**已交付**） | Ren'Py detect/extract fixture | 现有测试全绿、CLI 契约不变 |
 | 0.11 | Ren'Py L2–L4：`.rpy` + `.rpyc`、translation-file 交付（**已交付**，`feat/0.11-renpy`） | 通用内容导入 v1（文件型）——**未随 0.11 交付，顺延**（源码里没有导入入口） | 一套 8.5.3 SDK 的 585 个 `.rpyc` 全部解码、0 失败、81,041 条字符串、70,728 个 AST 节点、格式版本一律 5003000；两个示例游戏 extract 0 undecodable |
-| 0.12 | RGSS 提取（L1–L3，**已交付**，`feat/0.12-rgss`）；原计划「inject + 原生 helper」当时**未做**——交付层路线 2026-10-27 拍板为原生注入器 + hook DLL，**0.18 已补上**（`install --native`，见下一行；DEVLOG §8.1 #10） | 原生组件分发/签名/manifest 基础设施：0.18 做了 SHA-256 manifest 与 npm 内 prebuilt，签名与外部下载渠道仍未做 | 真实游戏注入成功、卸载后原版可跑、崩溃隔离验证、版本矩阵（0.18 只在单款 VX Ace 上走查，其余仍顺延） |
+| 0.12 | RGSS 提取（L1–L3，**已交付**，`feat/0.12-rgss`）；原计划「inject + 原生 helper」当时**未做**——交付层路线 2026-10-27 拍板为原生注入器 + hook DLL，**0.18 已补上**（`install`，0.71 起自动选择；见下一行；DEVLOG §8.1 #10） | 原生组件分发/签名/manifest 基础设施：0.18 做了 SHA-256 manifest 与 npm 内 prebuilt，签名与外部下载渠道仍未做 | 真实游戏注入成功、卸载后原版可跑、崩溃隔离验证、版本矩阵（0.18 只在单款 VX Ace 上走查，其余仍顺延） |
 | 0.13 | 表格导出 TSV/CSV + `import`（**已交付**，`feat/0.13-table-export`）；KRKR 提取（L1–L3，**已交付**）；字典 v2 字段当时未做（§8.1 #5） | — | round-trip（已达成） |
 | 0.14 | GUI 最小外壳（runner 抽缝 + Electron、14 命令、进度/取消、记住密钥、字典编辑器；**已交付**，`feat/0.14-gui`） | NScripter 提取/补丁（**未做**，顺延） | GUI 外壳可用（已达成）；「按能力矩阵加载译文」的完整验收顺延 |
 | 0.15 | 通用内容导入 v1（JSONL 输入 + `import --create`，**已交付**，`feat/0.15-generic-import`，即 0.11 顺延项）；原计划「KRKR inject + Wolf/SRPG spike」**未做**（等 §8.1 #10 路线拍板） | 能力矩阵/兼容性数据 | 原生组件复用同一套分发与签名流程（顺延） |
 | 0.16 | GUI 能力灰显：`scan` 载荷新增 `capabilities`，GUI 按能力位禁用按钮并写明原因（**已交付**，`feat/0.16-gui-capabilities`）；`test/gui-e2e.test.js` 按调用缝走通三条交付档，gui.md 验收未验范围收窄到 Electron 窗口交互。版内修正：Kirikiri XP3 读取器适配真机归档（双布局索引头、变换头干净报错）与 `.ks` UTF-16 BOM 解码（DEVLOG §6 的 0.16 段） | — | 无窗口环境下的全部可验项已验（信封逐键对拍 + handler 缝 E2E）；真机窗口走查顺延 |
 | 0.17 | 字典 v2 溯源字段：条目可选 `engine`（来源引擎）与 `locator`（精确位置，**已交付**，`feat/0.17-dictionary-provenance`） | — | 670 pass；旧字典照读；TSV/CSV 仍三列 |
-| 0.18 | RGSS inject 交付层：`install --native`（原生注入器 + hook DLL + 生成的 dictionary.txt）、`uninstall` 递归删 native 目录、`doctor` 的 delivery 检查、`scan` 的 `runtime: "inject"`（**已交付**） | GUI 对 RGSS 自动带 `--native`；native/ 两个 Rust crate + build.mjs + prebuilt 进 npm 包 | 677 pass / 50 文件；合成项目上干跑/安装/卸载/JSON 载荷走通；实机只在单款 VX Ace（RGSS300.dll）走查 |
+| 0.18 | RGSS inject 交付层：`install --native`（0.71 起改为普通 `install` 自动选择；原生注入器 + hook DLL + 生成的 dictionary.txt）、`uninstall` 递归删 native 目录、`doctor` 的 delivery 检查、`scan` 的 `runtime: "inject"`（**已交付**） | GUI 对 RGSS 自动带 `--native`（0.71 起由 CLI 自动选择）；native/ 两个 Rust crate + build.mjs + prebuilt 进 npm 包 | 677 pass / 50 文件；合成项目上干跑/安装/卸载/JSON 载荷走通；实机只在单款 VX Ace（RGSS300.dll）走查 |
 | 0.19 | `verify --kind` 严格校验：未知 kind 报 `E_USAGE` / 退出 2（**已交付**） | — | 678 pass；合法 `--kind` 与空值行为不变 |
 | 0.20 | GUI 渲染层契约测试与扫描状态重置（`test/gui-renderer.test.js`，7 条；修复 0.16 起的能力位状态残留）（**已交付**） | — | 685 pass / 51 个文件；真机窗口交互仍顺延 |
 | 0.21 | RGSS 原生组件完整性检查：`nativeStatus()` 按 `manifest.json` 复核组件与 `dictionary.txt`；`doctor` 把损坏安装判 `broken`，`launch` 启动前报 `E_IO`，重装可修复（**已交付**） | — | 688 pass / 51 个文件；新增 3 条 adapter 用例 |
@@ -588,6 +588,7 @@ TextGrammar = {
 | 0.68 | RGSS 注入器两处真 bug（DLL 依赖目录、bootstrap 编码与语法）+ `Vocab` 常量翻译（**已交付**） | — | 840 pass / 58 个文件；rgss-native-source +5 |
 | 0.69 | RGSS 运行时 `Bitmap#draw_text` 钩子（精确匹配 + 前缀/数字重建）+ `--glossary-only` 词表播种（`seeded`）（**已交付**） | — | 843 pass / 58 个文件；translate +2、rgss-native-source +1 |
 | 0.70 | `YAKUSHA_DRAW_TRACE=1` 绘制钩子观测开关；第二款真机样本 `RGSS301.dll` + 2.0 GB 归档实测，确认自绘位图字体是钩子的边界（**已交付**） | — | 844 pass / 58 个文件；rgss-native-source +1 |
+| 0.71 | `install` 按引擎自动选择唯一交付方式（RGSS 普通 `install` 直接装原生注入器），`--native` 保留为兼容别名；GUI 去掉 RGSS 特判（**已交付**） | — | 844 pass / 58 个文件（行为变、用例数不变） |
 | 1.0 | 10 个引擎目标 + 能力矩阵 + 便携 exe | — | 每个引擎有 L4 证据；不达标的明确标 experimental |
 
 说明：
@@ -663,7 +664,7 @@ TextGrammar = {
 
 | # | 事项 | 决定 |
 | --- | --- | --- |
-| 1 | RGSS 运行时 | 接受 **inject + 原生 helper**（状态注记，2026-10-27：0.12 实际**没有**实现注入器，当时也不具备原生工具链；同日用户拍板确认 RGSS 交付层走原生注入器 + hook DLL——工具链现已就绪（Rust 1.99.1 GNU、llvm-mingw clang 23.1.4，32/64 位注入探针通过），**0.18 已交付**：`install --native` 安装未签名的注入器与两个 DLL，完整性靠 SHA-256 manifest；**2026-11-07 用户拍板不签名，见 9.1b #10**） |
+| 1 | RGSS 运行时 | 接受 **inject + 原生 helper**（状态注记，2026-10-27：0.12 实际**没有**实现注入器，当时也不具备原生工具链；同日用户拍板确认 RGSS 交付层走原生注入器 + hook DLL——工具链现已就绪（Rust 1.99.1 GNU、llvm-mingw clang 23.1.4，32/64 位注入探针通过），**0.18 已交付**：`install` 安装未签名的注入器与两个 DLL，完整性靠 SHA-256 manifest；**2026-11-07 用户拍板不签名，见 9.1b #10**） |
 | 2 | Wolf/KRKR 原生组件 | 分发注入器；**按引擎下载**，签名、崩溃恢复、风险说明都要做（2026-11-07 托管方式改为随 npm 包分发，见 9.1b #11） |
 | 3 | GUI 优先级 | **后移到 0.14**；0.11 先 Ren'Py，0.12 RGSS，0.13 字典导出 |
 | 4 | 外部适配器 | **不做**；长尾走文件型内容导入 |
@@ -687,8 +688,7 @@ TextGrammar = {
 1. **RGSS 三个版本的验收基线**：XP（RGSS1）/VX（RGSS2）/VX Ace（RGSS3）各要几款真实游戏
    才敢标 supported？0.18 已在单款 VX Ace（RGSS300.dll）与一款 RGSS301.dll 样本上走查，XP/VX 未测；
    2026-11-07 已整理 14 款 DLsite XP/VX 候选（XP 6 / VX 8，均有体验版），待购买后实测。
-2. **`install --native` 的命名是否保留**：现在挂在现有 `install` 上、不新增命令；
-   用户 2026-11-07 问了两者区别，命名尚未拍板。
+2. ~~**`install --native` 的命名是否保留**~~（0.71 已解决：普通 `install` 按引擎自动选择，`--native` 保留为兼容别名，不新增命令）。
 3. **Kirikiri 交付层路线**：仍停在 L1–L3，`install` / `uninstall` 报 `E_NOT_IMPLEMENTED`；
    XP3 写回还是注入未定。
 

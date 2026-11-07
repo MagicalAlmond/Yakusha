@@ -6,9 +6,6 @@
 const $ = (id) => document.getElementById(id);
 let currentDir = null;
 let runSeq = 0;
-// Remember the engine from the last successful scan: the RGSS install path
-// needs --native, and the renderer must not guess it from a stale state.
-let lastEngine = null;
 
 function showEnvelope(envelope) {
   $("payload").textContent = JSON.stringify(envelope, null, 2);
@@ -24,7 +21,6 @@ async function run(command, args, flags) {
     // A scan starts a new project view. Do not let the previous engine's
     // capabilities keep install/uninstall/launch enabled while this scan is
     // running or after it fails.
-    lastEngine = null;
     const badge = $("engine-badge");
     if (badge) badge.hidden = true;
     const installBtn = document.querySelector('button[data-cmd="install"]');
@@ -50,7 +46,6 @@ async function run(command, args, flags) {
     const badge = $("engine-badge");
     badge.hidden = false;
     badge.textContent = (e.engine || "?") + (e.engineVersion ? " " + e.engineVersion : "");
-    lastEngine = e.engine || null;
     setProjectLine(e.root + " — " + (e.gameTitle || "(untitled)"));
     // Buttons follow the engine's capabilities (docs/gui.md acceptance: a button
     // for an unsupported capability is disabled with the reason shown). The
@@ -91,11 +86,9 @@ for (const button of document.querySelectorAll("button[data-cmd]")) {
   } else if (button.dataset.cmd === "config") {
     button.addEventListener("click", () => run("config", ["list"]));
   } else if (button.dataset.cmd === "install" || button.dataset.cmd === "uninstall") {
-    // RGSS has no plugin layer: its delivery is the native injector, so the
-    // button passes --native. Every other engine keeps the plain command.
-    button.addEventListener("click", () => {
-      run(button.dataset.cmd, undefined, lastEngine === "rgss" ? { native: true } : {});
-    });
+    // Every engine has exactly one delivery layer and the command picks it;
+    // both buttons send the plain command, like the CLI.
+    button.addEventListener("click", () => run(button.dataset.cmd));
   } else {
     button.addEventListener("click", () => run(button.dataset.cmd));
   }

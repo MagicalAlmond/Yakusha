@@ -114,7 +114,7 @@ test("Ren'Py pipeline: scan → extract → translate (dry run) → install → 
     "translation file must be gone after uninstall");
 });
 
-test("RGSS pipeline: scan → extract → install --native → doctor", async () => {
+test("RGSS pipeline: scan → extract → install → doctor", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "yakusha-gui-e2e-"));
   writeRgssProject(dir);
   process.env.YAKUSHA_NATIVE_ASSETS = nativeAssets().dir;
@@ -122,15 +122,12 @@ test("RGSS pipeline: scan → extract → install --native → doctor", async ()
   assert.equal(scan.ok, true);
   assert.equal(scan.engine, "rgss");
   // capabilities: runtime === "inject" — the GUI keeps install enabled, and the
-  // native flag is what the handler receives when that button is used.
+  // plain command selects the injector automatically, just like the CLI.
   assert.equal(scan.capabilities.runtime, "inject");
   const extract = await runGuiCommand("extract", [dir], { flags: {} });
   assert.equal(extract.ok, true);
   assert.ok(extract.added > 0);
-  const plain = await runGuiCommand("install", [dir], { flags: {} });
-  assert.equal(plain.ok, false);
-  assert.equal(plain.error.code, "E_USAGE");
-  const install = await runGuiCommand("install", [dir], { flags: { native: true } });
+  const install = await runGuiCommand("install", [dir], { flags: {} });
   assert.equal(install.ok, true);
   assert.equal(install.state, "added");
   const doctor = await runGuiCommand("doctor", [dir], { flags: {} });
