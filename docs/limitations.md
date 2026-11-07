@@ -39,8 +39,8 @@
   `RGSSEval` 跑 `bootstrap.rb`，由它包一层 `load_data` 替换数据文档返回的对象里的字符串。
   运行日志写在 `yakusha/native/rgss-hook.log`；第一行 `bootstrap ready` 是 Ruby 侧真的跑起来的
   标志，只有 `DLL attached` 而没有它，说明 bootstrap 没执行（`RGSSEval` 对语法/编码错误只返回 0）。
-- 交付层是 32 位 Windows 的原生组件，只在一款 VX Ace 商业游戏（RGSS300.dll）上做过
-  真机验收；XP / VX（RGSS1 / RGSS2）未测，RGSS301 只有同族兼容性推断。`bootstrap.rb`
+- 交付层是 32 位 Windows 的原生组件，只在两款 VX Ace 商业游戏上做过真机验收
+  （`RGSS300.dll` 与 `RGSS301.dll` + 2.0 GB 归档）；XP / VX（RGSS1 / RGSS2）未测。`bootstrap.rb`
   只用 Ruby 1.8 / 1.9 都有的语法，但 1.8 的路径编码没有实机验证：读不到字典时只是不翻译。
 - 注入是进程内 IAT patch：未签名的注入器与 DLL 可能被杀软误报；0.18 的完整性机制是
   SHA-256 `manifest.json`，Authenticode 签名是后续步骤。已被可执行保护器加壳的游戏
@@ -50,6 +50,9 @@
   也不经 `draw_text` 的文本仍然不翻译；绘制钩子只做精确匹配加「前缀 + 数字」这一种拼接，
   不做分词或模板匹配，所以存档界面这类标签要先用 `translate --glossary-only --glossary`
   把词播种进字典（词表里有、字典里没有的键会成为新条目，载荷里计作 `seeded`）。
+  自绘位图字体的游戏（字形是图片、不经 `Bitmap#draw_text`）拿不到绘制字符串，只有 `Vocab`
+  与 `load_data` 两条路可翻；`YAKUSHA_DRAW_TRACE=1` 可以把实际经过钩子的字符串打进日志，
+  用来区分「钩子没生效」与「这个游戏不走这条路」。
   64 位 RGSS 不存在，工具链只构建 32 位。
 - 原生组件随 npm 包分发（`native/prebuilt/`），不从网络下载；`uninstall` 只删带我们
   `manifest.json` 的目录，其它内容一律不动。0.21 起 `doctor` 与 `launch` 会按 `manifest.json`

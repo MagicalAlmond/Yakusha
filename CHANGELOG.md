@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.70.0] - 2026-11-07
+
+### Added
+
+- **`YAKUSHA_DRAW_TRACE=1` shows which strings actually reach the draw hook.** The 0.69 hook can only translate what the engine hands to `Bitmap#draw_text`; a game that paints text through its own bitmap font never calls it, and until now that looked exactly like a hook that failed to install. Set the variable before `yakusha launch` and the bootstrap writes the first 50 distinct strings it sees to `rgss-hook.log` as `drawn: ...` lines. Off by default; when unset the hook does no extra work and the log is unchanged.
+- `test/rgss-native-source.test.js`: a seventh assertion — the trace is opt-in (`ENV["YAKUSHA_DRAW_TRACE"] == "1"`), capped at 50 distinct strings, and called before the dictionary lookup so untranslated strings are visible too.
+
+### Changed
+
+- A second real VX Ace sample (`RGSS301.dll`, 2.0 GB `Game.rgss3a`, 320 data files) ran the full path: `bootstrap ready`, `dictionary loaded`, `draw_text hook installed`, `vocab patched: 3 constants`, `System.rvdata2 +9`, `Skills.rvdata2 +1`, and the archive hash unchanged. Its title screen and menus are painted with a bitmap font, so the hook sees only `00:00` and `e` there; that boundary is now written down in `docs/engines.md` §7.7 and `docs/limitations.md`.
+
+### Unchanged
+
+- No breaking changes: envelope, exit codes, all 13 error codes, the dictionary format (`yakusha/1`) and the CLI surface are untouched. 844 pass.
+
 ## [0.69.0] - 2026-11-07
 
 ### Added
@@ -861,7 +876,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.69.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.70.0...HEAD
+[0.70.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.69.0...v0.70.0
 [0.69.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.68.0...v0.69.0
 [0.68.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.67.0...v0.68.0
 [0.67.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.66.0...v0.67.0

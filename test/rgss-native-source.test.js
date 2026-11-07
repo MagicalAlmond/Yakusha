@@ -100,6 +100,26 @@ test("bootstrap installs the draw hook before it reports ready", () => {
   assert.match(code, /\[0-9\]\+\)\\z/);
 });
 
+test("the draw trace is opt-in, bounded, and runs before the dictionary lookup", () => {
+  const lines = codeLines(bootstrap);
+  const trace = lines.findIndex((line) => line.trimmed === "def self.trace_drawn(text)");
+  assert.notEqual(trace, -1, "a game with a custom renderer looks exactly like a broken hook without a trace");
+  assert.ok(
+    lines.slice(trace, trace + 3).some((line) => line.trimmed === 'return unless ENV["YAKUSHA_DRAW_TRACE"] == "1"'),
+    "the trace must stay off unless YAKUSHA_DRAW_TRACE=1",
+  );
+  assert.ok(
+    lines.some((line) => line.trimmed === 'log("drawn: " + text) if @drawn_names.size <= 50'),
+    "the trace must be capped so a long-running game cannot fill the log",
+  );
+
+  const translated = lines.findIndex((line) => line.trimmed === "def self.translate_drawn(text)");
+  const called = lines.findIndex((line, index) => index > translated && line.trimmed === "trace_drawn(text)");
+  const lookup = lines.findIndex((line, index) => index > translated && line.trimmed === "dict = dictionary");
+  assert.ok(called > translated, "translate_drawn should call the trace");
+  assert.ok(called < lookup, "the trace has to run before the lookup so misses are visible too");
+});
+
 test("the injector points the game at the hook folder before loading the DLL", () => {
   const directed = injector.indexOf("remote_call(&process, set_dll_directory");
   const loaded = injector.indexOf("remote_call(&process, load_library");

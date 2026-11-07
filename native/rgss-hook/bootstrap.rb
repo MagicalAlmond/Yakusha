@@ -122,6 +122,7 @@ module Yakusha
   # by translating the label in front of it, which covers "ファイル 1" through
   # "ファイル 30" with a single dictionary row.
   def self.translate_drawn(text)
+    trace_drawn(text)
     dict = dictionary
     direct = dict[text]
     unless direct.nil?
@@ -137,6 +138,17 @@ module Yakusha
       return fixed + space + number unless fixed.nil?
     end
     text
+  end
+
+  # Off by default: set YAKUSHA_DRAW_TRACE=1 in the environment before launch
+  # to see which strings actually reach Bitmap#draw_text. Games with a custom
+  # bitmap-font renderer never call it, and this is how we tell them apart.
+  def self.trace_drawn(text)
+    return unless ENV["YAKUSHA_DRAW_TRACE"] == "1"
+    @drawn_names = {} if @drawn_names.nil?
+    return if @drawn_names.key?(text)
+    @drawn_names[text] = true
+    log("drawn: " + text) if @drawn_names.size <= 50
   end
 
   # Menu labels live in Vocab: VX Ace stores them as constants, VX and XP as

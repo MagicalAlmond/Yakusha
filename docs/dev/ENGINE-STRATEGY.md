@@ -587,6 +587,7 @@ TextGrammar = {
 | 0.67 | GUI 拿锁前探测 profile 目录并回退到应用目录旁（**已交付**） | — | 835 pass / 57 个文件；gui-profile +6、gui-main +1 |
 | 0.68 | RGSS 注入器两处真 bug（DLL 依赖目录、bootstrap 编码与语法）+ `Vocab` 常量翻译（**已交付**） | — | 840 pass / 58 个文件；rgss-native-source +5 |
 | 0.69 | RGSS 运行时 `Bitmap#draw_text` 钩子（精确匹配 + 前缀/数字重建）+ `--glossary-only` 词表播种（`seeded`）（**已交付**） | — | 843 pass / 58 个文件；translate +2、rgss-native-source +1 |
+| 0.70 | `YAKUSHA_DRAW_TRACE=1` 绘制钩子观测开关；第二款真机样本 `RGSS301.dll` + 2.0 GB 归档实测，确认自绘位图字体是钩子的边界（**已交付**） | — | 844 pass / 58 个文件；rgss-native-source +1 |
 | 1.0 | 10 个引擎目标 + 能力矩阵 + 便携 exe | — | 每个引擎有 L4 证据；不达标的明确标 experimental |
 
 说明：
