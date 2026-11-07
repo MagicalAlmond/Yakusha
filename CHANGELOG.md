@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.68.0] - 2026-11-07
+
+### Fixed
+
+- **`launch` failed with `the native injector failed: the hook DLL could not be loaded into the game`** with every component installed and intact. Windows resolves a DLL's own imports through the *application* directory (the game folder), not through the folder of the DLL being loaded, so `libunwind.dll` sitting next to `yakusha_rgss_hook.dll` was never found and `LoadLibraryW` returned `ERROR_MOD_NOT_FOUND`. The injector now calls `SetDllDirectoryW` with the hook folder inside the game process before loading the DLL, and the error message names the file that has to sit next to it.
+- A failed injection left the game running suspended: `Game.exe` is created with `CREATE_SUSPENDED`, and the injector exited on the first error without terminating it. Every failure after the process exists now terminates it first.
+- **The runtime bootstrap never ran.** `RGSSEval` hands the source over as `ASCII-8BIT`, so the injected root path was `ASCII-8BIT` as well, and `File.exist?` / `File.open` on a path containing Japanese characters raised `Encoding::UndefinedConversionError` — Ruby converts the path to UTF-8 and those bytes are not ASCII. The bootstrap now re-tags the path as UTF-8 before its first `File` call. The same file also used method-level `rescue`, which is Ruby 2.5+ syntax: the embedded interpreters are Ruby 1.8 (XP, VX) and 1.9.2 (VX Ace), so the whole file was a syntax error that `RGSSEval` reports only as `0`.
+- Menu labels stored as `Vocab` constants (the VX Ace shape) are translated too; until now only zero-argument `Vocab` methods (the VX / XP shape) were rewritten.
+
+### Added
+
+- `test/rgss-native-source.test.js`: five assertions over the two native sources — the UTF-8 re-tag comes before any `File` call, `bootstrap.rb` stays inside Ruby 1.8 / 1.9 syntax, `bootstrap ready` is the last statement, `SetDllDirectoryW` runs before `LoadLibraryW`, and a failed injection terminates the game. Both files run where nothing can report a mistake, so the rules are asserted instead of only documented.
+
+### Unchanged
+
+- No breaking changes: envelope, exit codes, payload keys, all 13 error codes, the dictionary format (`yakusha/1`) and the CLI surface are untouched. 840 pass.
+
 ## [0.67.0] - 2026-11-07
 
 ### Fixed

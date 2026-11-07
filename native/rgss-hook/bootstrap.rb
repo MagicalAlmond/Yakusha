@@ -3,15 +3,30 @@
 # The hook DLL evaluates this file inside the game's Ruby VM right before
 # RGSSGameMain starts. At that point the game scripts have not run yet, so the
 # bootstrap only installs a Kernel#load_data wrapper; the first load after the
-# scripts are up also patches the string constants in Vocab (menu labels such as
-# "New Game" live in script source, not in Data/).
+# scripts are up also patches the string constants in Vocab (menu labels such
+# as "New Game" live in script source, not in Data/).
+#
+# Two runtime facts shape this file:
+#
+# 1. RGSSEval hands the source over as ASCII-8BIT, so YAKUSHA_ROOT (a path that
+#    may contain Japanese characters) is ASCII-8BIT too. File.* then tries to
+#    convert it to UTF-8 and raises Encoding::UndefinedConversionError, which
+#    would silently disable the whole dictionary. The bytes are UTF-8, so the
+#    fix is to re-tag them.
+# 2. The embedded interpreters are old (1.8 for XP and VX, 1.9.2 for VX Ace),
+#    so this file avoids method-level rescue, define_singleton_method and
+#    unguarded force_encoding. A syntax error here is silent: RGSSEval returns
+#    0 and the game simply runs untranslated.
 #
 # dictionary.txt holds one entry per line: base64(source) <TAB> base64(target),
 # both UTF-8. Lines with an empty target are not written by install --native.
 
+YAKUSHA_PATH = YAKUSHA_ROOT.dup
+YAKUSHA_PATH.force_encoding("UTF-8") if YAKUSHA_PATH.respond_to?(:force_encoding)
+
 module Yakusha
-  DICT_PATH = File.join(YAKUSHA_ROOT, "yakusha", "native", "dictionary.txt")
-  LOG_PATH = File.join(YAKUSHA_ROOT, "yakusha", "native", "rgss-hook.log")
+  DICT_PATH = File.join(YAKUSHA_PATH, "yakusha", "native", "dictionary.txt")
+  LOG_PATH = File.join(YAKUSHA_PATH, "yakusha", "native", "rgss-hook.log")
   MAX_DEPTH = 64
 
   @dictionary = {}
@@ -20,37 +35,47 @@ module Yakusha
   @hooks_installed = false
 
   def self.log(message)
-    File.open(LOG_PATH, "ab") { |file| file.write(message + "
-") }
-  rescue Exception
+    begin
+      File.open(LOG_PATH, "ab") { |file| file.write(message + "\n") }
+    rescue Exception
+    end
   end
 
   def self.decode(text)
-    text.unpack("m")[0].force_encoding("UTF-8")
-  rescue Exception
-    ""
+    begin
+      value = text.unpack("m")[0]
+      value = value.force_encoding("UTF-8") if value.respond_to?(:force_encoding)
+      value
+    rescue Exception
+      ""
+    end
   end
 
   def self.dictionary
     return @dictionary if @loaded
     @loaded = true
-    unless File.exist?(DICT_PATH)
-      log("dictionary missing: #{DICT_PATH}")
+    begin
+      unless File.exist?(DICT_PATH)
+        log("dictionary missing: " + DICT_PATH)
+        return @dictionary
+      end
+      File.open(DICT_PATH, "rb") do |file|
+        file.each_line do |line|
+          line = line.chomp
+          next if line.empty?
+          parts = line.split("\t")
+          next if parts.length < 2
+          source = decode(parts[0])
+          target = decode(parts[1])
+          next if source.empty? || target.empty?
+          @dictionary[source] = target
+        end
+      end
+    rescue Exception => error
+      log("dictionary unreadable: " + error.class.to_s)
       return @dictionary
     end
-    File.open(DICT_PATH, "rb") do |file|
-      file.each_line do |line|
-        line = line.chomp
-        next if line.empty?
-        parts = line.split("	")
-        next if parts.length < 2
-        source = decode(parts[0])
-        target = decode(parts[1])
-        next if source.empty? || target.empty?
-        @dictionary[source] = target
-      end
-    end
-    log("dictionary loaded: #{@dictionary.size} entries")
+    log("dictionary loaded: " + @dictionary.size.to_s + " entries")
     @dictionary
   end
 
@@ -89,32 +114,56 @@ module Yakusha
     end
   end
 
-  # Patch the zero-argument String methods of Vocab. Argument-taking methods
-  # (item_number, etc.) and non-string values are left alone.
+  # Menu labels live in Vocab: VX Ace stores them as constants, VX and XP as
+  # zero-argument methods. Both are handled, and only values that are in the
+  # dictionary are touched.
   def self.patch_vocab
     return unless defined?(Vocab)
-    names = []
-    Vocab.singleton_methods.each do |name|
-      begin
-        value = Vocab.send(name)
-        names << name if value.is_a?(String) && dictionary.key?(value)
-      rescue Exception
+    constants = 0
+    begin
+      Vocab.constants.each do |name|
+        begin
+          value = Vocab.const_get(name)
+          next unless value.is_a?(String)
+          translated = dictionary[value]
+          next if translated.nil?
+          Vocab.send(:remove_const, name)
+          Vocab.const_set(name, translated)
+          constants += 1
+        rescue Exception
+        end
       end
+    rescue Exception
     end
-    names.each do |name|
-      original = Vocab.method(name)
-      Vocab.define_singleton_method(name) do
-        translated = Yakusha.dictionary[original.call]
-        translated.nil? ? original.call : translated
+    methods = 0
+    begin
+      Vocab.singleton_methods.each do |name|
+        begin
+          value = Vocab.send(name)
+          next unless value.is_a?(String)
+          next if dictionary[value].nil?
+          original = Vocab.method(name)
+          singleton = class << Vocab; self; end
+          singleton.send(:define_method, name) do
+            translated = Yakusha.dictionary[original.call]
+            translated.nil? ? original.call : translated
+          end
+          methods += 1
+        rescue Exception
+        end
       end
+    rescue Exception
     end
-    log("vocab patched: #{names.size}") unless names.empty?
+    log("vocab patched: " + constants.to_s + " constants, " + methods.to_s + " methods")
   end
 
+  # Vocab only exists once the game scripts have loaded, so this is retried on
+  # every load_data call until it succeeds.
   def self.install_hooks
     return if @hooks_installed
-    @hooks_installed = true
+    return unless defined?(Vocab)
     patch_vocab
+    @hooks_installed = true
   end
 
   def self.replacements
@@ -123,16 +172,27 @@ module Yakusha
 end
 
 module Kernel
-  unless method_defined?(:yakusha_original_load_data) || private_method_defined?(:yakusha_original_load_data)
-    alias yakusha_original_load_data load_data
+  begin
+    unless method_defined?(:yakusha_original_load_data) || private_method_defined?(:yakusha_original_load_data)
+      alias yakusha_original_load_data load_data
+    end
+  rescue Exception
   end
 
   def load_data(name)
     before = Yakusha.replacements
     data = yakusha_original_load_data(name)
-    Yakusha.translate(data)
+    begin
+      Yakusha.translate(data)
+    rescue Exception => error
+      Yakusha.log("translate failed: " + error.class.to_s)
+    end
     Yakusha.log("load_data " + name.to_s + " +" + (Yakusha.replacements - before).to_s)
-    Yakusha.install_hooks
+    begin
+      Yakusha.install_hooks
+    rescue Exception => error
+      Yakusha.log("hooks failed: " + error.class.to_s)
+    end
     data
   end
 end

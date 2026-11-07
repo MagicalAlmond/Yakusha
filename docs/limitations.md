@@ -37,9 +37,11 @@
   游戏文件一个字节都不改；`uninstall` 递归删掉这个目录。`--dry-run` 只校验不写盘。
   注入器以挂起方式启动 `Game.exe` 后载入 hook DLL，hook 在 `RGSSGameMain` 之前用
   `RGSSEval` 跑 `bootstrap.rb`，由它包一层 `load_data` 替换数据文档返回的对象里的字符串。
-  运行日志写在 `yakusha/native/rgss-hook.log`。
+  运行日志写在 `yakusha/native/rgss-hook.log`；第一行 `bootstrap ready` 是 Ruby 侧真的跑起来的
+  标志，只有 `DLL attached` 而没有它，说明 bootstrap 没执行（`RGSSEval` 对语法/编码错误只返回 0）。
 - 交付层是 32 位 Windows 的原生组件，只在一款 VX Ace 商业游戏（RGSS300.dll）上做过
-  真机验收；XP / VX（RGSS1 / RGSS2）未测，RGSS301 只有同族兼容性推断。
+  真机验收；XP / VX（RGSS1 / RGSS2）未测，RGSS301 只有同族兼容性推断。`bootstrap.rb`
+  只用 Ruby 1.8 / 1.9 都有的语法，但 1.8 的路径编码没有实机验证：读不到字典时只是不翻译。
 - 注入是进程内 IAT patch：未签名的注入器与 DLL 可能被杀软误报；0.18 的完整性机制是
   SHA-256 `manifest.json`，Authenticode 签名是后续步骤。已被可执行保护器加壳的游戏
   不在范围内（没有尝试注入）。

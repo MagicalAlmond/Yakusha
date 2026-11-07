@@ -581,6 +581,11 @@ TextGrammar = {
 | 0.61 | `translate --limit` 拒绝 0 / 负数 / 非整数（E_USAGE，显式报错）（**已交付**） | — | 811 pass / 56 个文件；cli +1 |
 | 0.62 | 请求形状旗标（batch-size / char-budget / concurrency / timeout / max-tokens）拒绝 <1 的整数（E_USAGE）（**已交付**） | — | 812 pass / 56 个文件；cli +1 |
 | 0.63 | `translate --glossary` / `import --from` 的目录目标改报 `E_IO`（此前 `E_USAGE` + 裸 errno）；`--context` 零匹配打警告（**已交付**） | — | 815 pass / 56 个文件；cli +3 |
+| 0.64 | 不存在的路径在探测前报 `E_NOT_PROJECT`，不再被「向上找项目」带到父目录（**已交付**） | — | 817 pass / 56 个文件；cli +2 |
+| 0.65 | GUI 锁失败不再静默退出（stderr + 错误框 + `npm start`）（**已交付**）；0.65.1 只更正 profile 目录名 | — | gui-main 16 条（817 pass / 56 个文件） |
+| 0.66 | 锁失败提示改报 `--user-data-dir` 生效的目录；文档补 Chromium 沙箱崩溃形态（**已交付**） | — | 818 pass / 56 个文件；gui-main +1 |
+| 0.67 | GUI 拿锁前探测 profile 目录并回退到应用目录旁（**已交付**） | — | 835 pass / 57 个文件；gui-profile +6、gui-main +1 |
+| 0.68 | RGSS 注入器两处真 bug（DLL 依赖目录、bootstrap 编码与语法）+ `Vocab` 常量翻译（**已交付**） | — | 840 pass / 58 个文件；rgss-native-source +5 |
 | 1.0 | 10 个引擎目标 + 能力矩阵 + 便携 exe | — | 每个引擎有 L4 证据；不达标的明确标 experimental |
 
 说明：

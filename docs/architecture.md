@@ -311,6 +311,12 @@ test/fixtures/           各引擎最小夹具（mini-mz、mini-mv、renpy-*、r
 | 0.61.0 | **已交付**：`translate --limit` 拒绝 0 / 负数 / 非整数（`E_USAGE`）——此前 `0` 退出 0 一条不翻、负数静默从尾部丢条目 | 811 pass / 0 fail（cli +1） |
 | 0.62.0 | **已交付**：`translate` 的请求形状旗标（`--batch-size` / `--char-budget` / `--concurrency` / `--timeout` / `--max-tokens`）拒绝 <1 的整数（`E_USAGE`）——此前负批量把每请求 1 条且无提示 | 812 pass / 0 fail（cli +1） |
 | 0.63.0 | **已交付**：`translate --glossary` 与 `import --from` 的目录目标改报 `E_IO`（此前分别是 `E_USAGE` + 裸 errno 与裸 `EISDIR`）；`translate --context` 零匹配时打 `warning: no pending entries match --context ...`（退出码仍 0） | 815 pass / 0 fail（cli +3） |
+| 0.64.0 | **已交付**：路径不存在 / 不是目录在引擎探测之前就报 `E_NOT_PROJECT`（`no such directory: <abs>` / `not a directory: <abs>`），不再被「向上找项目」带到父目录 | 817 pass / 0 fail（cli +2） |
+| 0.65.0 | **已交付**：GUI 单实例锁拿不到时不再静默退出（stderr 一行 + 错误框，点名 profile 目录与 `--user-data-dir` 出路）；`npm start`；`docs/gui.md` 新增 §10 启动与排障 | gui-main 16 条（817 pass） |
+| 0.65.1 | 文档更正：Electron profile 是 `%APPDATA%\Electron`，`%APPDATA%\yakusha` 是 Yakusha 自己的配置目录 | 无代码改动 |
+| 0.66.0 | **已交付**：锁失败提示改报真正生效的 profile 目录（`--user-data-dir` 优先）；§10 补「什么都没打印」= Chromium 沙箱崩溃（`0x80000003`） | 818 pass / 0 fail（gui-main +1） |
+| 0.67.0 | **已交付**：`gui/profile.js` 在拿锁之前探测 profile 目录，默认目录写不进去就回退到应用目录旁的 `.yakusha-gui-profile`（或 `YAKUSHA_GUI_PROFILE`），受限环境里也能开窗 | 835 pass / 0 fail（gui-profile +6、gui-main +1） |
+| 0.68.0 | **已交付**：RGSS 原生交付层两处真 bug——注入器先 `SetDllDirectoryW` 再 `LoadLibraryW`（DLL 依赖按应用程序目录解析）、失败必 `TerminateProcess`；`bootstrap.rb` 把注入路径按 UTF-8 重新打标签、只用 Ruby 1.8 / 1.9 语法、`Vocab` 常量也翻译 | 840 pass / 0 fail（rgss-native-source +5） |
 | 1.0.0 | 10 个引擎 + 能力矩阵 + 便携 exe（图标、无控制台、最近游戏） | 双击 exe 可用 |
 
 ## 10. 风险

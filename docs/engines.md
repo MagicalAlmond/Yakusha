@@ -701,22 +701,32 @@ uninstall : yakusha uninstall "<abs>"
 **不会静默按未安装处理**去启动一个没有译文、甚至可能在加载 hook 时崩溃的游戏。
 
 **原理。** 只有 32 位 Windows。`yakusha_injector.exe` 用 `CreateProcessW` 的
-`CREATE_SUSPENDED` 启动 `Game.exe`，在目标进程里分配内存、写入 hook DLL 路径，
-`CreateRemoteThread(LoadLibraryW)` 加载 hook，等它返回后恢复主线程；注入器自己退出，
+`CREATE_SUSPENDED` 启动 `Game.exe`，在目标进程里分配内存、写入 hook DLL 路径，先用 `SetDllDirectoryW` 把 hook 目录加进该进程的
+DLL 搜索路径（Windows 解析 DLL 自己的导入表时走的是**应用程序目录**，不是被加载 DLL 的目录，
+`libunwind.dll` 明明躺在 hook 旁边也找不到），再 `CreateRemoteThread(LoadLibraryW)` 加载 hook，
+等它返回后恢复主线程；注入器自己退出，
 游戏继续运行，工作目录与命令行保持游戏原来的。hook DLL 在主模块的导入表里替换
 `kernel32!GetProcAddress` 这一个槽，观察游戏解析 `RGSSEval` / `RGSSGameMain` 的过程：
 拿到真正的 `RGSSEval` 后，把 `RGSSGameMain` 换成自己的 wrapper；wrapper 先用真正的
 `RGSSEval` 在此时已初始化好的 Ruby VM 里执行 `bootstrap.rb`，再调用真正的
-`RGSSGameMain`。`bootstrap.rb` 把 `dictionary.txt` 读成 Ruby Hash，包住
-`Kernel#load_data`：每个加载出来的数据库 / 地图对象递归遍历（String、Array、Hash、
-实例变量，深度上限 64），命中的字符串就地替换；另外给 `Vocab` 的无参字符串方法打补丁
-（“New Game” 这类菜单文本住在脚本里，不在 `Data/`）。`<game>/yakusha/native/rgss-hook.log`
-记录补丁的槽位、解析到的导出、字典条数、每次 `load_data` 的名字与替换数。
+`RGSSGameMain`。`bootstrap.rb` 把 `dictionary.txt` 读成 Ruby Hash（`RGSSEval` 交过去的源码是 ASCII-8BIT，
+含非 ASCII 字符的游戏路径要先按 UTF-8 重新打标签，否则 `File.exist?` 会抛
+`Encoding::UndefinedConversionError`），包住 `Kernel#load_data`：每个加载出来的数据库 /
+地图对象递归遍历（String、Array、Hash、实例变量，深度上限 64），命中的字符串就地替换；
+另外给 `Vocab` 的字符串常量（VX Ace）与无参字符串方法（XP / VX）打补丁（“New Game”
+这类菜单文本住在脚本里，不在 `Data/`）。`<game>/yakusha/native/rgss-hook.log`
+记录补丁的槽位、解析到的导出、字典条数、每次 `load_data` 的名字与替换数；
+**第一行 `bootstrap ready` 是 Ruby 侧真的跑起来的标志**，只有 `DLL attached` 说明 bootstrap
+没执行（`RGSSEval` 对语法错误只返回 0，不会报错）。
 
 **已知限制。** 这些都是 0.18 的真实边界，不要写得比实现更满：
 
 - 只在 1 款真实 VX Ace 游戏（`RGSS300.dll`）上实测过；XP / VX（RGSS1 / RGSS2）未实测；
   RGSS301 只是按同一家族推断。
+- `bootstrap.rb` 只用 Ruby 1.8 与 1.9 都有的语法：引擎内嵌的是 1.8（XP / VX）与 1.9.2
+  （VX Ace），2.x 才有的写法（例如 method-level `rescue`）会让整个文件变成语法错误，而
+  `RGSSEval` 只返回 0。1.8 的路径编码（UTF-8 字节 vs 系统 ANSI 代码页）没有实机验证过——
+  读不到字典时只是不翻译，不会崩游戏。
 - DLL hook 是进程内 IAT 补丁：未签名的注入器或 DLL 可能被杀毒软件拦。后续工作包做
   Authenticode 签名；0.18 的完整性机制是 `manifest.json` 里的 SHA-256。
 - 已经被可执行文件保护壳打包过的游戏不在范围内，不尝试注入。
