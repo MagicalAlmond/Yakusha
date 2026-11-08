@@ -30,8 +30,8 @@ test("gui-preload: the bridge is exposed as window.yakusha with the documented s
   assert.equal(WORLD, "yakusha");
   assert.deepEqual(Object.keys(api).sort(), [
     "cancel", "clearApiKey", "commands", "hasApiKey", "loadDictionary",
-    "onProgress", "onResult", "onWarning", "pathForFile", "pickDirectory",
-    "run", "saveApiKey", "saveEntry",
+    "logPath", "onProgress", "onResult", "onWarning", "openLog", "pathForFile",
+    "pickDirectory", "run", "saveApiKey", "saveEntry",
   ]);
 });
 
@@ -73,15 +73,17 @@ test("gui-preload: run defaults the optional fields and only a strict true remem
   assert.equal(state.rendererInvokes[0][1].useStoredKey, true);
 });
 
-test("gui-preload: the four no-argument methods hit their channels bare", async () => {
+test("gui-preload: the no-argument methods hit their channels bare", async () => {
   stub.__reset();
   await api.cancel();
   await api.pickDirectory();
   await api.hasApiKey();
   await api.clearApiKey();
+  await api.logPath();
+  await api.openLog();
   await flush();
   assert.deepEqual(state.rendererInvokes.map((entry) => entry[0]), [
-    "gui:cancel", "gui:pick-directory", "gui:has-key", "gui:clear-key",
+    "gui:cancel", "gui:pick-directory", "gui:has-key", "gui:clear-key", "gui:log-path", "gui:open-log",
   ]);
   for (const entry of state.rendererInvokes) {
     assert.equal(entry.length, 1, entry[0] + " carries no payload");

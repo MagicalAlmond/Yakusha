@@ -1,6 +1,6 @@
-# GUI 设计与用户流程（Electron 外壳，0.14）
+# GUI 设计与用户流程（Electron 外壳，0.14 起；0.72 重做界面）
 
-> 状态：0.14 已交付最小外壳（`gui/main.js` + `preload.js` + `renderer/`，含原生目录选择、export/import/speaker/terms/config/launch 按钮、「记住密钥」（safeStorage，见 §5）、最小字典编辑器（见 §3 字典编辑分区）），长任务接口（进度事件 + 取消）随 0.14 的 runner seam 落地；0.16 起按钮可用性按 §3 的规则由 `capabilities` 驱动（`scan` 载荷新增 `capabilities`，不支持交付层的引擎灰掉 install/uninstall 并写明原因；0.18 起 RGSS 的注入交付层落地（0.71 起普通 `install` 自动选择原生注入器，不再需要 `--native`），install/uninstall 不再灰）；本文其余部分仍是演进的设计稿（完整字典编辑界面未做——已交付的是 §3 描述的最小逐条编辑器）。0.20 起渲染层另有 `test/gui-renderer.test.js` 的 stub-DOM 契约测试（7 条），并在每次扫描开始时清空上一个引擎的能力位；0.57 起主进程另有 `test/gui-main.test.js` 的 stub-Electron 契约测试（16 条），该轮修复两条主进程接缝缺陷（取消信号从未传进 runner、「记住密钥」撞 `const` 崩溃，见 §6/§9）；0.58 起 preload 桥也有 `test/gui-preload.test.js`（11 条），钉死三方一致（桥 ↔ handlers 白名单 ↔ index.html 按钮）。0.65 起单实例锁拿不到不再静默退出：打 stderr、弹错误框并指明 profile 目录与 `--user-data-dir` 出路（见 §10 启动与排障）。
+> 状态：0.14 已交付最小外壳（`gui/main.js` + `preload.js` + `renderer/`，含原生目录选择、export/import/speaker/terms/config/launch 按钮、「记住密钥」（safeStorage，见 §5）、最小字典编辑器（见 §3 字典编辑分区）），长任务接口（进度事件 + 取消）随 0.14 的 runner seam 落地；0.16 起按钮可用性按 §3 的规则由 `capabilities` 驱动（`scan` 载荷新增 `capabilities`，不支持交付层的引擎灰掉 install/uninstall 并写明原因；0.18 起 RGSS 的注入交付层落地（0.71 起普通 `install` 自动选择原生注入器，不再需要 `--native`），install/uninstall 不再灰）；本文其余部分仍是演进的设计稿（完整字典编辑界面未做——已交付的是 §3 描述的最小逐条编辑器）。0.20 起渲染层另有 `test/gui-renderer.test.js` 的 stub-DOM 契约测试（0.72 起 17 条），并在每次扫描开始时清空上一个引擎的能力位；0.57 起主进程另有 `test/gui-main.test.js` 的 stub-Electron 契约测试（0.72 起 20 条），该轮修复两条主进程接缝缺陷（取消信号从未传进 runner、「记住密钥」撞 `const` 崩溃，见 §6/§9）；0.58 起 preload 桥也有 `test/gui-preload.test.js`（11 条），钉死三方一致（桥 ↔ handlers 白名单 ↔ index.html 按钮）。0.65 起单实例锁拿不到不再静默退出：打 stderr、弹错误框并指明 profile 目录与 `--user-data-dir` 出路（见 §10 启动与排障）。0.72 重做界面（左侧导航 + 三阶段工作台），并把运行日志改成右下角 toast 摘要：详细请求、警告与结果写入 JSONL 日志文件，界面只显示一行结论和日志路径（见 §3/§5/§10）。
 
 ## 1. 定位与边界
 
@@ -56,6 +56,8 @@ GUI 版本只做壳与它需要的接口（能力矩阵、原生组件向导、�
 术语/说话人整理（`terms`、`speaker`）挂在字典编辑与校验之间，作为可选步骤展示：
 两者都只动字典、不调模型，`--dry-run` 结果先展示再应用。
 
+**操作反馈（0.72）**：每个命令点击后立即在右下角出现 toast（busy → success / warning / error），正文只有一行摘要（例如 `scan` 报引擎与字符串数、`install` 报组件与字典条目数），失败带错误码与消息。完整请求、警告和结果信封按 JSONL 追加到日志文件，界面不再在页面底部堆一份 Activity 文本；日志面板只显示文件路径和 `Open log file…` 按钮。toast 最多同时 4 个，成功 4.2 秒、失败 8 秒自动消失，也可点击关闭。
+
 **0.14 已交付最小编辑器**：`Edit dictionary…` 按钮经 `gui:dict-load` 读字典
 （`gui/dictionary.js` 复用 `src/core/dict.js` 的加载与校验，坏文件报与 CLI 相同的
 `E_DICTIONARY` 文案），显示 translated/pending 计数，并列出前 200 条 pending 供
@@ -95,9 +97,13 @@ export/import（§3 字典编辑分区的驱动命令不变）。
   写在配置文件同目录的 `credentials`），勾选"use stored key"时主进程把密钥
   作为 `--api-key` 注入 translate，渲染进程不落盘、不回显。
 - 日志与展示沿用现有脱敏（[json-contract.md](json-contract.md) §4.2）：`sk-***`、`Bearer ***`、
-  userinfo 打码、home 目录折叠成 `~`、provider 响应体不进日志。
-- `YAKUSHA_DEBUG=1` 是排查开关，堆栈只进 stderr；GUI 不新增"详细日志"开关，
-  诊断信息走 doctor / verify 的载荷，不引入第二套日志体系。
+  userinfo 打码、home 目录折叠成 `~`、provider 响应体不进日志。0.72 起 GUI 另有一份
+  运行日志：每次命令把 `run.start`（命令、参数、脱敏后的 flags，`api-key`/`token`/
+  `secret`/`authorization` 写成 `[redacted]`）、`run.warning` 与 `run.result`（耗时 +
+  完整信封）以 JSONL 追加到 `%APPDATA%\yakusha\logs\gui.log`（配置目录被
+  `YAKUSHA_CONFIG_DIR` 覆盖时跟着走）。渲染层只显示短 toast，不展示原始载荷。
+- `YAKUSHA_DEBUG=1` 仍是排查开关，堆栈只进 stderr；GUI 的运行日志文件与它不冲突，
+  诊断结论仍以 doctor / verify 的载荷为准，日志不外传、不做统计。
 - `launch` 启动游戏前删掉子进程环境里的 `YAKUSHA_API_KEY` / `OPENAI_API_KEY`；GUI 启动游戏必须走同一条路，不得旁路。
   **0.14 已交付**：外壳的 launch 按钮经 `runGuiCommand("launch", …)` 走与 CLI 相同的
   `runCommand` → `launchProject`（同一处环境清洗、同一个 `--exe` 契约），
@@ -156,8 +162,9 @@ GUI 永远不做以下事情（与 [limitations.md](limitations.md) 的工具边
 - [x] 密钥只存在于系统凭据存储或内存；`config` 文件、游戏目录、日志与导出文件里都没有。（test/gui-credentials.test.js：文件里只有密文信封）
 - [x] 拖入非项目目录、多项目目录、损坏字典时，错误提示与 CLI 的错误码一一对应。（gui-handlers 对拍）
 - [ ] MZ/MV + Ren'Py + RGSS 三条链路都能从 GUI 一键跑通（ENGINE-STRATEGY §6.3 的 0.14 验收）。（`test/gui-e2e.test.js` 已按 GUI 的调用缝 `runGuiCommand` 把三条链路的完整命令序列各走通一遍（RGSS 走普通 `install` 自动选择）；剩下的未验部分只有 Electron 窗口本身的点击与渲染。0.16 复查：`gui/main.js` 能被 Electron 37.2.3 加载、`BrowserWindow` 能创建（隐藏窗口冒烟 exit 0）。0.65 更正：单实例锁创建失败不是进程令牌的宿命，而是浏览器进程写不了默认 profile 目录（未设应用名时为 `%APPDATA%\Electron`，错误框里打印的就是实际目录）（`process_singleton_win.cc:454 Lock file can not be created! Error code: 5`）；把 `--user-data-dir` 指到可写目录后应用能正常起窗（实测窗口句柄非 0），指到不可写目录仍报同一个 error 5。0.65 起锁失败会打 stderr 并弹错误框，指明目录与 `--user-data-dir`，不再静默退出（§10）。0.67 补充：起不来的最后一段也修好了——profile 目录在拿锁前先探测，默认目录写不进去就自动回退到应用目录旁的 `.yakusha-gui-profile`（或 `YAKUSHA_GUI_PROFILE`），仓库内的 Electron 因此能靠回退目录开窗（实测窗口句柄非 0）；剩下未验的仍是真机点击）
-- [x] 渲染层的扫描状态、能力灰显、字典编辑与密钥输入有 stub-DOM 契约测试（0.20 起 `test/gui-renderer.test.js`；0.56 起补齐拖放（`pathForFile`）、目录选择、取消转发与进度/警告接线，共 14 条；真机窗口交互仍在上一行的范围内）。
-- [x] 主进程（`gui/main.js`）有 stub-Electron 契约测试（0.57 起 `test/gui-main.test.js`，16 条：单实例锁、IPC 白名单、窗口安全参数、取消真达 runner、凭据/字典/目录选择通道）——随测试修复取消断链与「记住密钥」撞 `const` 崩溃两条接缝缺陷。
+- [x] 每次命令点击后都有即时 toast 反馈：busy 起始、结束按 `ok`/`outcome` 变 success/warning/error，正文是一行摘要；详细请求与结果只进日志文件，界面提供 `Open log file…`。（0.72：`test/gui-renderer.test.js` 的 toast 三条 + `test/gui-main.test.js` 的日志脱敏与打开通道）
+- [x] 渲染层的扫描状态、能力灰显、字典编辑与密钥输入有 stub-DOM 契约测试（0.20 起 `test/gui-renderer.test.js`；0.56 起补齐拖放（`pathForFile`）、目录选择、取消转发与进度/警告接线；0.72 起 toast 摘要、失败提示与日志面板，共 17 条；真机窗口交互仍在上一行的范围内）。
+- [x] 主进程（`gui/main.js`）有 stub-Electron 契约测试（0.57 起 `test/gui-main.test.js`，0.72 起 20 条：单实例锁、IPC 白名单、窗口安全参数、取消真达 runner、凭据/字典/目录选择通道、运行日志脱敏与 `gui:log-path`/`gui:open-log`）——随测试修复取消断链与「记住密钥」撞 `const` 崩溃两条接缝缺陷。
 - [x] preload 桥有 stub-Electron 契约测试（0.58 起 `test/gui-preload.test.js`，11 条：暴露面、命令表与 handlers 白名单及 index.html 按钮三方一致、逐方法的 IPC 通道与请求形状、可取消的进度订阅）。
 
 ## 10. 启动与排障
@@ -188,6 +195,8 @@ npm start               # 等价于 npx electron gui/main.js
 7. **`--user-data-dir` 指到任何可写目录都仍报 error 5，而且那个目录事后根本没被创建**：说明限制不在目录，而在**可执行文件的位置**——某些环境（应用沙箱、把数据目录里的程序关起来的终端防护）只允许映像在项目内的进程写项目内的路径，`--user-data-dir` 挪不动这条限制。此时把 Electron 放到项目外运行（全局安装，或把 `node_modules/electron/dist` 复制到别处再用那里的 `electron.exe`），项目外的同一份程序不受此限。0.67 实测：仓库内的 `electron.exe` 带 `--no-sandbox` 也能靠回退目录开窗，但写入范围仍只在项目内；仓库外的副本连 `--no-sandbox` 都不需要。
 
 `--user-data-dir` 只挪 Electron 的 profile（缓存、Local Storage、单实例锁），**不挪** Yakusha 自己的配置与凭据——那些在 `%APPDATA%\yakusha`（或 `YAKUSHA_CONFIG_DIR` 指定的目录），见 [config.md](config.md) §8。两个目录同名不同物：`%APPDATA%\yakusha` 是 Yakusha 的配置文件，`%APPDATA%\Electron` 是 Electron 的 profile。
+
+运行日志是第三样东西：`%APPDATA%\yakusha\logs\gui.log`（`YAKUSHA_CONFIG_DIR` 覆盖时是 `<配置目录>\logs\gui.log`）。它是 JSONL，一行一个事件（`run.start` / `run.warning` / `run.result`），只在本机追加，不轮转、不上传；界面右下角 toast 只是它的摘要。要看完整输出时点日志面板里的 `Open log file…`，或用编辑器直接打开。
 
 ## 相关文档
 

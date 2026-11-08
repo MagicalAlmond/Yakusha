@@ -589,6 +589,7 @@ TextGrammar = {
 | 0.69 | RGSS 运行时 `Bitmap#draw_text` 钩子（精确匹配 + 前缀/数字重建）+ `--glossary-only` 词表播种（`seeded`）（**已交付**） | — | 843 pass / 58 个文件；translate +2、rgss-native-source +1 |
 | 0.70 | `YAKUSHA_DRAW_TRACE=1` 绘制钩子观测开关；第二款真机样本 `RGSS301.dll` + 2.0 GB 归档实测，确认自绘位图字体是钩子的边界（**已交付**） | — | 844 pass / 58 个文件；rgss-native-source +1 |
 | 0.71 | `install` 按引擎自动选择唯一交付方式（RGSS 普通 `install` 直接装原生注入器），`--native` 保留为兼容别名；GUI 去掉 RGSS 特判（**已交付**） | — | 844 pass / 58 个文件（行为变、用例数不变） |
+| 0.72 | GUI 重做为侧栏 + 三阶段工作台；命令反馈改为右下角 toast 摘要，完整请求/警告/结果写入 JSONL 运行日志（`%APPDATA%\yakusha\logs\gui.log`，密钥类旗标脱敏），界面提供 `Open log file…`（**已交付**） | — | 839 pass / 58 个文件（gui-main 20、gui-renderer 17；共 48 条 GUI 用例） |
 | 1.0 | 10 个引擎目标 + 能力矩阵 + 便携 exe | — | 每个引擎有 L4 证据；不达标的明确标 experimental |
 
 说明：

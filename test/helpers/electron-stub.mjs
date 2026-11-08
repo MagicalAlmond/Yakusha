@@ -94,6 +94,8 @@ const state = {
   invokeReply: null,
   pathForCalls: [],
   pathForReply: "D:/games/demo",
+  openPathCalls: [],
+  openPathReply: "",
   errorBoxes: [],
   userDataPath: null,
   switches: {},
@@ -197,6 +199,13 @@ export const dialog = {
   },
 };
 
+export const shell = {
+  async openPath(file) {
+    state.openPathCalls.push(file);
+    return state.openPathReply;
+  },
+};
+
 export const safeStorage = {
   isEncryptionAvailable: () => true,
   encryptString: (text) => Buffer.from("enc:" + text, "utf8"),
@@ -226,6 +235,8 @@ export function __reset(overrides = {}) {
   state.invokeReply = null;
   state.pathForCalls = [];
   state.pathForReply = "D:/games/demo";
+  state.openPathCalls = [];
+  state.openPathReply = "";
   Object.assign(state, overrides);
 }
 

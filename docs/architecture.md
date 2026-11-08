@@ -320,6 +320,7 @@ test/fixtures/           各引擎最小夹具（mini-mz、mini-mv、renpy-*、r
 | 0.69.0 | **已交付**：脚本绘制时才拼出来的界面文本——`bootstrap.rb` 给 `Bitmap#draw_text` 挂别名钩子（精确匹配 + 「前缀 + 数字」重建），`translate --glossary-only` 把词表里字典没有的键播种成新条目（载荷 `seeded`），补上抽取器故意不读 `Scripts.rvdata2` 留下的空白 | 843 pass / 0 fail（translate +2、rgss-native-source +1） |
 | 0.70.0 | **已交付**：`YAKUSHA_DRAW_TRACE=1` 把实际经过 `Bitmap#draw_text` 的前 50 个字符串写进日志，用来区分「钩子没生效」与「游戏自绘位图字体」；第二款真机样本（`RGSS301.dll` + 2.0 GB 归档）全链路跑通 | 844 pass / 0 fail（rgss-native-source +1） |
 | 0.71.0 | **已交付**：`install` 按引擎自动选择唯一交付方式（RGSS 普通 `install` 直接装原生注入器），`--native` 保留为兼容别名；GUI 不再对 RGSS 特判；doctor 与各引擎的「重装」提示统一为 `yakusha install <game>` | 844 pass / 0 fail（行为变、用例数不变） |
+| 0.72.0 | **已交付**：GUI 重做为侧栏 + 三阶段工作台；命令反馈改为右下角 toast 摘要（busy / success / warning / error），完整请求、警告与结果写入 `%APPDATA%\yakusha\logs\gui.log`（JSONL，密钥类旗标脱敏），界面提供 `Open log file…`；元素 id、`data-cmd` 按钮与命令行契约不变 | 839 pass / 0 fail（gui-main 20、gui-renderer 17；共 48 条 GUI 用例） |
 | 1.0.0 | 10 个引擎 + 能力矩阵 + 便携 exe（图标、无控制台、最近游戏） | 双击 exe 可用 |
 
 ## 10. 风险

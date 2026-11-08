@@ -402,6 +402,8 @@ pending decisions in docs/dev/DEVLOG.md` 都是新文案，脚本不应依赖 `m
 
 **0.71 只改 CLI 行为，不改载荷。** RGSS 的普通 `install` 现在自动选择原生注入器（0.18–0.70 必须显式给 `--native`，否则报 `E_USAGE`）；`--native` 仍被接受为兼容别名，其他引擎上显式给仍是 `E_USAGE`；RGSS 上 `--embed` 的用法错误文案改为 `install --embed cannot be used with RGSS: the injector reads dictionary.txt at run time`。信封、退出码、命令表、13 个错误码与所有载荷键不变。
 
+**0.72 只改 GUI，不涉及命令层契约。** 界面重做与 toast/运行日志都发生在 Electron 外壳内：toast 只消费既有信封，JSONL 日志文件（`%APPDATA%\yakusha\logs\gui.log`）不是命令输出，也没有新增 CLI 旗标或载荷键。信封、退出码、命令表、13 个错误码与所有载荷键不变。
+
 **0.61 只改输入校验。** `translate --limit` 现在要求至少 1 的整数：`0`（0.60 及之前退出 0、一条不翻）、负数（负的 `slice` 会静默从尾部丢条目）与非整数（`2.5` 被静默截断）都报 `E_USAGE` `translate --limit must be a whole number of entries (at least 1), not <value>`。`verify` / `speaker` / `terms` 的 `--limit` 是纯展示截断、载荷始终带全量，不受影响。载荷键、信封与错误码不变。
 
 **0.63 只改读取错误与提示。** `translate --glossary` 指向目录时从 `E_USAGE`（消息里带裸 errno）改为 `E_IO` / `cannot read glossary: <abs> (is a directory)`，其它读取失败改为 `E_IO` / `cannot read glossary: <abs> (<code>)`；`import --from` 指向目录时从 `cannot read <abs>: EISDIR` 改为 `cannot read <abs>: is a directory`。`translate --context` 过滤掉全部待翻条目时在 stderr 打 `warning: no pending entries match --context <names>`，退出码仍是 0（信封与载荷键不变）。

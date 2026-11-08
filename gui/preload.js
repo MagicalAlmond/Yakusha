@@ -34,6 +34,10 @@ contextBridge.exposeInMainWorld(WORLD, {
   /** Open the native directory picker; resolves to a path or null. */
   pickDirectory: () => ipcRenderer.invoke("gui:pick-directory"),
 
+  /** The GUI log file: where full command envelopes and warnings are written. */
+  logPath: () => ipcRenderer.invoke("gui:log-path"),
+  openLog: () => ipcRenderer.invoke("gui:open-log"),
+
   /** Credentials (docs/config.md §8): the key crosses IPC once on save and
    *  is only read back inside the main process; the renderer never stores it. */
   saveApiKey: (key) => ipcRenderer.invoke("gui:save-key", key),

@@ -23,9 +23,10 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { app, BrowserWindow, dialog, ipcMain, safeStorage } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, safeStorage, shell } from "electron";
 
 import { GUI_COMMANDS, runGuiCommand } from "./handlers.js";
+import { appendGuiLog, ensureGuiLog, guiLogPath, sanitizeFlags } from "./log.js";
 import {
   clearApiKey,
   credentialsFile,
@@ -55,6 +56,17 @@ function credentialsPath() {
   }
 }
 
+/** The GUI log follows the config directory; fall back to Electron's profile. */
+function logFilePath() {
+  const configured = guiLogPath(process.env);
+  if (configured) return configured;
+  try {
+    return path.join(app.getPath("userData"), "logs", "gui.log");
+  } catch {
+    return null;
+  }
+}
+
 /**
  * @param {Electron.BrowserWindow} win
  * @param {string} command
@@ -68,12 +80,31 @@ async function runInWindow(win, command, args, flags, runId, signal) {
   const send = (channel, body) => {
     if (!win.isDestroyed()) win.webContents.send(channel, body);
   };
+  const logFile = logFilePath();
+  const startedAt = Date.now();
+  appendGuiLog(logFile, {
+    event: "run.start",
+    command,
+    args,
+    flags: sanitizeFlags(flags),
+    runId,
+  });
   try {
     const envelope = await runGuiCommand(command, args, {
       flags,
       onProgress: (progress) => send("gui:progress", { runId, command, progress }),
-      onWarning: (line) => send("gui:warning", { runId, command, line }),
+      onWarning: (line) => {
+        appendGuiLog(logFile, { event: "run.warning", command, line, runId });
+        send("gui:warning", { runId, command, line });
+      },
       signal: signal || null,
+    });
+    appendGuiLog(logFile, {
+      event: "run.result",
+      command,
+      runId,
+      durationMs: Date.now() - startedAt,
+      envelope,
     });
     send("gui:result", { runId, command, envelope });
     return envelope;
@@ -87,6 +118,13 @@ async function runInWindow(win, command, args, flags, runId, signal) {
       outcome: "error",
       error: { code: "E_INTERNAL", message: String(error && error.message ? error.message : error) },
     };
+    appendGuiLog(logFile, {
+      event: "run.result",
+      command,
+      runId,
+      durationMs: Date.now() - startedAt,
+      envelope,
+    });
     send("gui:result", { runId, command, envelope });
     return envelope;
   }
@@ -161,6 +199,18 @@ function registerIpc() {
     if (activeRun && activeRun.controller) activeRun.controller.abort();
     return true;
   });
+  ipcMain.handle("gui:log-path", () => logFilePath());
+  ipcMain.handle("gui:open-log", async () => {
+    const file = logFilePath();
+    if (!file) {
+      return { ok: false, path: null, error: "no configuration directory is available" };
+    }
+    if (!ensureGuiLog(file)) {
+      return { ok: false, path: file, error: "could not create the log file" };
+    }
+    const error = await shell.openPath(file);
+    return error ? { ok: false, path: file, error } : { ok: true, path: file };
+  });
   // The one file-system affordance the renderer gets: a native open dialog.
   // It returns a path string; every other check stays in the runner (the path
   // is untrusted input like any other).
@@ -229,9 +279,14 @@ function winOf() {
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1024,
-    height: 728,
+    width: 1180,
+    height: 820,
+    minWidth: 980,
+    minHeight: 700,
     show: false,
+    title: "Yakusha",
+    backgroundColor: "#f5f1e9",
+    autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(HERE, "preload.js"),
       contextIsolation: true,

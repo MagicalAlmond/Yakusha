@@ -7,12 +7,137 @@ const $ = (id) => document.getElementById(id);
 let currentDir = null;
 let runSeq = 0;
 
-function showEnvelope(envelope) {
-  $("payload").textContent = JSON.stringify(envelope, null, 2);
+const COMMAND_LABELS = {
+  scan: "Scan",
+  extract: "Extract",
+  status: "Status",
+  translate: "Translate",
+  verify: "Verify",
+  speaker: "Speaker fix",
+  terms: "Mine terms",
+  install: "Install",
+  uninstall: "Uninstall",
+  export: "Export",
+  import: "Import",
+  launch: "Launch",
+  doctor: "Doctor",
+  config: "Config",
+};
+
+/** Short, one-line summaries for the toast; full envelopes go to the log file. */
+function brief(value, max = 120) {
+  const text = String(value === undefined || value === null ? "" : value).replace(/\s+/g, " ").trim();
+  return text.length > max ? text.slice(0, max - 1) + "…" : text;
+}
+
+function baseName(value) {
+  const text = String(value || "").replace(/[\\/]+$/, "");
+  const parts = text.split(/[\\/]/);
+  return parts[parts.length - 1] || text;
+}
+
+function summaryFor(command, envelope) {
+  if (!envelope || (!envelope.ok && envelope.outcome === "error")) {
+    const error = envelope && envelope.error;
+    return error ? error.code + " · " + brief(error.message) : "failed";
+  }
+  const e = envelope;
+  if (command === "scan") {
+    const bits = [];
+    if (e.engine) bits.push(e.engine + (e.engineVersion ? " " + e.engineVersion : ""));
+    if (e.gameTitle) bits.push(brief(e.gameTitle, 60));
+    if (e.dataFiles !== undefined) bits.push(e.dataFiles + " data files");
+    if (e.uniqueStrings !== undefined) bits.push(e.uniqueStrings + " strings");
+    return bits.join(" · ") || "project detected";
+  }
+  if (command === "extract") {
+    return (e.added !== undefined ? e.added + " added" : "dictionary updated") +
+      (e.total !== undefined ? " · " + e.total + " total" : "");
+  }
+  if (command === "status" || command === "translate") {
+    const head = e.translated !== undefined && e.total !== undefined
+      ? e.translated + "/" + e.total + " translated"
+      : "translation updated";
+    const tail = e.pending !== undefined ? " · " + e.pending + " pending" : "";
+    return head + tail;
+  }
+  if (command === "verify") {
+    return (e.translated !== undefined ? e.translated + "/" + e.total + " translated" : "verification complete") +
+      (e.rejected ? " · " + e.rejected + " rejected" : "");
+  }
+  if (command === "install") {
+    if (e.native) {
+      const files = e.native.files ? e.native.files.length : 0;
+      return "native layer · " + files + " files" +
+        (e.native.dictionaryEntries !== undefined ? " · " + e.native.dictionaryEntries + " strings" : "");
+    }
+    if (e.patch) return "patch layer · " + (e.patch.entries || 0) + " strings in " + (e.patch.files || 0) + " files";
+    return "delivery layer installed";
+  }
+  if (command === "uninstall") return e.restored ? "delivery layer removed and original restored" : "delivery layer removed";
+  if (command === "export") return (e.entries !== undefined ? e.entries + " entries" : "exported") +
+    (e.format ? " · " + e.format : "");
+  if (command === "import") {
+    return (e.read !== undefined ? e.read + " read" : "imported") +
+      (e.applied !== undefined ? " · " + e.applied + " applied" : "") +
+      (e.skipped !== undefined ? " · " + e.skipped + " skipped" : "");
+  }
+  if (command === "launch") return e.pid ? "game started · pid " + e.pid : "game started";
+  if (command === "doctor") return e.verdict ? "verdict: " + e.verdict : "check complete";
+  if (command === "speaker") return e.entries !== undefined ? (e.names || 0) + " names across " + e.entries + " entries" : "speaker names updated";
+  if (command === "terms") return e.names !== undefined ? e.names + " names mined" : "terms mined";
+  if (command === "config") return e.values ? "configuration loaded" : "configuration";
+  return "completed";
+}
+
+let toastNodes = [];
+
+function dismissToast(node) {
+  if (!node) return;
+  if (node._toastTimer) {
+    clearTimeout(node._toastTimer);
+    node._toastTimer = null;
+  }
+  if (typeof node.remove === "function") node.remove();
+  else node.hidden = true;
+  const index = toastNodes.indexOf(node);
+  if (index >= 0) toastNodes.splice(index, 1);
+}
+
+function scheduleToastDismiss(node, timeout) {
+  if (!timeout) return;
+  if (node._toastTimer) clearTimeout(node._toastTimer);
+  node._toastTimer = setTimeout(() => dismissToast(node), timeout);
+  if (node._toastTimer && typeof node._toastTimer.unref === "function") node._toastTimer.unref();
+}
+
+function showToast({ title, detail, kind = "info", timeout = 4200 }) {
+  const node = document.createElement("div");
+  node.className = "toast toast-" + kind;
+  node.textContent = detail ? title + " — " + detail : title;
+  node.title = detail || title;
+  node.addEventListener("click", () => dismissToast(node));
+  const stack = $("toasts");
+  if (stack) stack.appendChild(node);
+  toastNodes.push(node);
+  while (toastNodes.length > 4) dismissToast(toastNodes[0]);
+  scheduleToastDismiss(node, timeout);
+  return { node };
+}
+
+function updateToast(handle, { title, detail, kind = "success", timeout = 4200 }) {
+  if (!handle || !handle.node) return showToast({ title, detail, kind, timeout });
+  const node = handle.node;
+  node.className = "toast toast-" + kind;
+  node.textContent = detail ? title + " — " + detail : title;
+  node.title = detail || title;
+  scheduleToastDismiss(node, timeout);
+  return handle;
 }
 
 function setProjectLine(text) {
   $("project-line").textContent = text;
+  $("project-line").title = text;
 }
 
 async function run(command, args, flags) {
@@ -32,10 +157,33 @@ async function run(command, args, flags) {
   }
   if (command === "translate") $("cancel").disabled = false;
   const useStoredKey = command === "translate" && $("key-use").checked;
-  const envelope = await window.yakusha.run(command, args || (currentDir ? [currentDir] : []), flags, runId, useStoredKey);
+  const target = args && args[0] ? baseName(args[0]) : currentDir ? baseName(currentDir) : "";
+  const pending = showToast({
+    title: COMMAND_LABELS[command] || command,
+    detail: target ? "working on " + target : "working…",
+    kind: "busy",
+    timeout: 0,
+  });
+  let envelope;
+  try {
+    envelope = await window.yakusha.run(command, args || (currentDir ? [currentDir] : []), flags, runId, useStoredKey);
+  } catch (error) {
+    updateToast(pending, {
+      title: COMMAND_LABELS[command] || command,
+      detail: brief(error && error.message ? error.message : error),
+      kind: "error",
+      timeout: 8000,
+    });
+    throw error;
+  }
   $("cancel").disabled = true;
   $("progress").hidden = true;
-  showEnvelope(envelope);
+  updateToast(pending, {
+    title: COMMAND_LABELS[command] || command,
+    detail: summaryFor(command, envelope),
+    kind: envelope.ok ? "success" : envelope.outcome === "findings" ? "warning" : "error",
+    timeout: envelope.ok ? 4200 : 8000,
+  });
   if (command === "config" && envelope.ok && envelope.values) {
     const text = (entry) => (entry && entry.value !== undefined && entry.value !== null ? entry.value : "(unset)");
     $("config-summary").textContent =
@@ -221,8 +369,34 @@ window.yakusha.onProgress(({ runId, progress }) => {
 });
 
 window.yakusha.onWarning(({ line }) => {
-  const pre = $("payload");
-  pre.textContent = line + "\n" + pre.textContent;
+  showToast({ title: "Warning", detail: brief(line, 180), kind: "warning", timeout: 6000 });
+});
+
+// The detailed command output (including full envelopes) lives in the log
+// file; the window only links to it. Keep this defensive so an older preload
+// still loads the rest of the renderer.
+async function initLogSummary() {
+  if (typeof window.yakusha.logPath !== "function") return;
+  try {
+    const file = await window.yakusha.logPath();
+    if (file) $("log-summary").textContent = "Detailed output: " + file;
+  } catch {
+    // The summary line is a convenience; the controls still work without it.
+  }
+}
+initLogSummary();
+
+$("log-open").addEventListener("click", async () => {
+  if (typeof window.yakusha.openLog !== "function") return;
+  const result = await window.yakusha.openLog();
+  if (!result || result.ok === false) {
+    showToast({
+      title: "Log",
+      detail: result && result.error ? result.error : "could not open the log file",
+      kind: "error",
+      timeout: 8000,
+    });
+  }
 });
 
 // Drag & drop: the File object must go through webUtils in preload; the

@@ -12,7 +12,7 @@ const IDS = [
   "project-line", "engine-badge", "pick", "launch-run", "cancel", "progress",
   "bar-fill", "progress-text", "dict-load", "dict-summary", "dict-key",
   "dict-text", "dict-save", "import-run", "config-summary", "key-input",
-  "key-save", "key-clear", "key-use", "key-state", "payload",
+  "key-save", "key-clear", "key-use", "key-state", "toasts", "log-summary", "log-open",
 ];
 const COMMANDS = ["scan", "extract", "status", "translate", "verify", "install",
   "uninstall", "export", "speaker", "terms", "doctor", "config"];
@@ -47,7 +47,15 @@ class FakeElement {
     await Promise.all(handlers.map((fn) => fn(event)));
   }
   click() { return this.dispatch("click"); }
-  appendChild(child) { this.children.push(child); }
+  appendChild(child) { child.parent = this; this.children.push(child); }
+  remove() {
+    this.removed = true;
+    this.hidden = true;
+    if (this.parent) {
+      const at = this.parent.children.indexOf(this);
+      if (at >= 0) this.parent.children.splice(at, 1);
+    }
+  }
   set innerHTML(value) { this._innerHTML = value; if (value === "") this.children = []; }
   get innerHTML() { return this._innerHTML; }
 }
@@ -100,6 +108,8 @@ function makeDom() {
       saveEntry: async () => ({ ok: true, translated: 0, pendingCount: 0 }),
       pickDirectory: async () => null,
       pathForFile: () => "",
+      logPath: async () => "C:/logs/yakusha/gui.log",
+      openLog: async () => ({ ok: true, path: "C:/logs/yakusha/gui.log" }),
     },
   };
   const context = vm.createContext({
@@ -335,15 +345,56 @@ test("progress updates the bar and stale run ids are ignored", async () => {
   assert.equal(dom.elements.get("progress-text").textContent, "3/6 entries, 2 translated");
 });
 
-test("warning lines are prepended to the output pane", async () => {
+test("warning lines become warning toasts", async () => {
   const dom = makeDom();
   await scan(dom, {
     ok: true, outcome: "ok", engine: "mz", root: "C:/games/alpha", gameTitle: "Alpha",
     capabilities: { runtime: "plugin", launch: true },
   });
   assert.equal(dom.warningFns.length, 1);
-  const payload = dom.elements.get("payload");
-  const before = payload.textContent;
-  await dom.warningFns[0]({ line: "warn: glossary miss" });
-  assert.equal(payload.textContent, "warn: glossary miss\n" + before);
+  const stack = dom.elements.get("toasts");
+  const before = stack.children.length;
+  dom.warningFns[0]({ line: "warn: glossary miss" });
+  assert.equal(stack.children.length, before + 1);
+  const toast = stack.children.at(-1);
+  assert.match(toast.className, /toast-warning/);
+  assert.match(toast.textContent, /^Warning — warn: glossary miss/);
+});
+
+test("a command shows its result as one short toast instead of the raw envelope", async () => {
+  const dom = makeDom();
+  dom.envelopes.push({
+    ok: true, outcome: "ok", translated: 10, total: 20, pending: 10,
+  });
+  await action(dom, "translate").click();
+  await flush();
+  const stack = dom.elements.get("toasts");
+  assert.equal(stack.children.length, 1);
+  const toast = stack.children[0];
+  assert.match(toast.className, /toast-success/);
+  assert.equal(toast.textContent, "Translate — 10/20 translated · 10 pending");
+  assert.equal(dom.elements.has("payload"), false);
+});
+
+test("a failed command turns the toast into the error code and message", async () => {
+  const dom = makeDom();
+  dom.envelopes.push({
+    ok: false, outcome: "error",
+    error: { code: "E_EXTRACT", message: "the data folder is missing" },
+  });
+  await action(dom, "extract").click();
+  await flush();
+  const toast = dom.elements.get("toasts").children.at(-1);
+  assert.match(toast.className, /toast-error/);
+  assert.equal(toast.textContent, "Extract — E_EXTRACT · the data folder is missing");
+});
+
+test("the log panel shows the host log path and opens it", async () => {
+  const dom = makeDom();
+  await flush();
+  assert.equal(dom.elements.get("log-summary").textContent, "Detailed output: C:/logs/yakusha/gui.log");
+  let opened = 0;
+  dom.window.yakusha.openLog = async () => { opened += 1; return { ok: true, path: "C:/logs/yakusha/gui.log" }; };
+  await dom.elements.get("log-open").click();
+  assert.equal(opened, 1);
 });

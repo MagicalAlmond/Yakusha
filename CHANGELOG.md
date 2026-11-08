@@ -6,7 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-## [0.71.0] - 2026-11-08
+## [0.72.0] - 2026-11-08
+
+### Added
+
+- **Every action in the window now reports itself with a toast.** Clicking Scan, Extract, Translate, Install or any other command shows a busy toast immediately, then replaces it with one line of result: a green success with the engine and the key number (for a scan, the file and string counts), an amber warning when the command finished with findings, or a red error with the sanitized message. Up to four toasts stack in the bottom-right corner; successes fade after 4.2 seconds, failures stay 8 seconds and can be dismissed. The page no longer makes the user scroll to the bottom to find out whether a button did anything.
+- **The detailed run log moved to a JSONL file.** Every command appends `run.start` (command, arguments, flags with `api-key` / `token` / `secret` / `authorization` redacted), each `run.warning` and the final `run.result` with its duration and complete envelope to `%APPDATA%\\yakusha\\logs\\gui.log` (or `<YAKUSHA_CONFIG_DIR>\\logs\\gui.log`). Logging is best effort: a missing profile folder or a full disk never turns a command result into a GUI failure. An `Open log file…` button in Settings opens the file, creating it if the session has not logged anything yet.
+- GUI contract tests: `test/gui-main.test.js` grew to 20 cases (secret redaction, `gui:log-path`, `gui:open-log`) and `test/gui-renderer.test.js` to 17 (busy / success / warning / error toasts, one toast per command, dismissal).
+
+### Changed
+
+- **The GUI was rebuilt around the actual workflow instead of a wall of buttons.** A dark sidebar anchors five sections (Overview, Workflow, Dictionary, Settings, Log); the main column shows the current project, then three numbered stages — Prepare (Scan, Extract, Status), Translate (Translate, Verify) and Deliver (Install, Launch, Uninstall) — with Doctor, Speaker fix, Mine terms and Export JSON in an inspector strip. Every existing element id and all twelve `data-cmd` buttons are unchanged, so the handler seam, capability gating and keyboard behaviour keep working; the window opens at 1180×820 with a 980×700 minimum.
+- The old Activity and Raw response panels are gone from the window; their content now lives in the log file rather than in a scrolling pane.
+
+### Unchanged
+
+- No CLI or core change: envelope, exit codes, the 14 commands, all 13 error codes, the dictionary format (`yakusha/1`) and every payload key are untouched. No new dependency; the GUI still runs only as an Electron dev shell. 839 pass.
+
 
 ### Changed
 
@@ -888,7 +904,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.71.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.72.0...HEAD
+[0.72.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.71.0...v0.72.0
 [0.71.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.70.0...v0.71.0
 [0.70.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.69.0...v0.70.0
 [0.69.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.68.0...v0.69.0

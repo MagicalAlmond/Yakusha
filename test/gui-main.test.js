@@ -20,6 +20,13 @@ await register(new URL("./helpers/electron-hook.mjs", HERE));
 const stub = await import("./helpers/electron-stub.mjs");
 const handlersStub = await import("./helpers/gui-handlers-stub.mjs");
 
+// Keep every GUI log line in one scratch folder: the main process writes the
+// real log file on each run, and a contract test must not touch the user's
+// configuration directory.
+const TEST_CONFIG = fs.mkdtempSync(path.join(os.tmpdir(), "yakusha-gui-log-"));
+process.env.YAKUSHA_CONFIG_DIR = TEST_CONFIG;
+const LOG_FILE = path.join(TEST_CONFIG, "logs", "gui.log");
+
 const settle = () => new Promise((resolve) => setTimeout(resolve, 10));
 const okEnvelope = (command) => ({ schema: 1, command, ok: true, outcome: "ok" });
 
@@ -29,6 +36,8 @@ const IPC_CHANNELS = [
   "gui:dict-load",
   "gui:dict-save",
   "gui:has-key",
+  "gui:log-path",
+  "gui:open-log",
   "gui:pick-directory",
   "gui:run",
   "gui:save-key",
@@ -224,6 +233,38 @@ test("gui-main: progress, warnings and the result reach the window", async () =>
   assert.equal(result[1].runId, 9);
   assert.equal(result[1].envelope.ok, true);
   handlersStub.__setImpl(null);
+});
+
+test("gui-main: the log file keeps the redacted request and the full result", async () => {
+  fs.rmSync(LOG_FILE, { force: true });
+  handlersStub.__setImpl((command) => Promise.resolve(okEnvelope(command)));
+  const envelope = await stub.ipcMain.__invoke("gui:run", null, {
+    command: "translate",
+    args: ["D:/games/logged"],
+    flags: { "api-key": "sk-secret", provider: "openai" },
+    runId: 31,
+  });
+  assert.equal(envelope.ok, true);
+  handlersStub.__setImpl(null);
+  const entries = fs.readFileSync(LOG_FILE, "utf8").trim().split("\n").map((line) => JSON.parse(line));
+  const start = entries.find((entry) => entry.event === "run.start" && entry.runId === 31);
+  assert.ok(start, "run.start is in the log");
+  assert.equal(start.command, "translate");
+  assert.deepEqual(start.flags, { "api-key": "[redacted]", provider: "openai" });
+  const result = entries.find((entry) => entry.event === "run.result" && entry.runId === 31);
+  assert.ok(result, "run.result is in the log");
+  assert.equal(result.envelope.ok, true);
+  assert.ok(Number.isInteger(result.durationMs));
+});
+
+test("gui-main: gui:log-path names the file and gui:open-log reveals it", async () => {
+  const file = await stub.ipcMain.__invoke("gui:log-path");
+  assert.equal(file, LOG_FILE);
+  const result = await stub.ipcMain.__invoke("gui:open-log");
+  assert.equal(result.ok, true);
+  assert.equal(result.path, LOG_FILE);
+  assert.ok(fs.existsSync(LOG_FILE));
+  assert.deepEqual(stub.__state().openPathCalls.at(-1), LOG_FILE);
 });
 
 test("gui-main: a thrown handler error still answers with one E_INTERNAL envelope", async () => {
