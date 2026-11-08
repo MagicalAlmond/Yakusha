@@ -195,7 +195,7 @@ KiriKiri、Naninovel、NScripter、LiveMaker、SRPG Studio 等仍是缺口。
 | `src/core/textkey.js` | MZ 转义码 tokenizer | Ren'Py/KRKR/Wolf 的文本语法完全不同 |
 | `src/pipeline/translate.js:142` | system prompt 明写 “RPG Maker MZ ... Japanese” | 新引擎的提示词/控制符说明要改 pipeline |
 | `src/pipeline/verify.js` | 假名、RM 控制符、`%1`、说话人规则 | 新引擎需要自己的校验规则，不能全塞进 verify |
-| `src/core/doctor.js:130` | 输出 “RPG Maker ...” | 新引擎的诊断项不同 |
+| `src/services/doctor.js:65` | `diagnose()` 接受 `engineLabel`，具体诊断事实由 adapter 的 `diagnostics()` 提供 | 新引擎要实现自己的 `diagnostics()` |
 | `src/plugin/YAKUSHA_Translator.js:526` | 运行时只包 `DataManager` | 新引擎需要新的运行时载体 |
 | `src/engines/mz/adapter.js:66` | 声明 `rules:{controlCodes,maxColumns}` | 该字段目前没有被 core/pipeline/CLI 读取，声明了也不生效 |
 | `bin/yakusha.js` | 只有 scan/extract/install/uninstall/launch 走 adapter；status/verify/speaker/terms/translate/doctor/export 直接调 core | 新引擎即使有 adapter，这些命令也绕过它 |
@@ -590,6 +590,7 @@ TextGrammar = {
 | 0.70 | `YAKUSHA_DRAW_TRACE=1` 绘制钩子观测开关；第二款真机样本 `RGSS301.dll` + 2.0 GB 归档实测，确认自绘位图字体是钩子的边界（**已交付**） | — | 844 pass / 58 个文件；rgss-native-source +1 |
 | 0.71 | `install` 按引擎自动选择唯一交付方式（RGSS 普通 `install` 直接装原生注入器），`--native` 保留为兼容别名；GUI 去掉 RGSS 特判（**已交付**） | — | 844 pass / 58 个文件（行为变、用例数不变） |
 | 0.72 | GUI 重做为侧栏 + 三阶段工作台；命令反馈改为右下角 toast 摘要，完整请求/警告/结果写入 JSONL 运行日志（`%APPDATA%\yakusha\logs\gui.log`，密钥类旗标脱敏），界面提供 `Open log file…`（**已交付**） | — | 839 pass / 58 个文件（gui-main 20、gui-renderer 17；共 48 条 GUI 用例） |
+| 0.73 | 架构拆分：engine 纯契约 + RPG Maker 实现、engine-neutral doctor 服务、引擎语法 × 语言对 profile、GUI 全命令 worker 线程、native prepack/CI 打包校验（**已交付**） | — | 856 pass / 60 个文件（native-package +13、gui-worker +4） |
 | 1.0 | 10 个引擎目标 + 能力矩阵 + 便携 exe | — | 每个引擎有 L4 证据；不达标的明确标 experimental |
 
 说明：

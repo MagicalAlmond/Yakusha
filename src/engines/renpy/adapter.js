@@ -14,7 +14,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { capabilities, detectFail, detectOk, notImplemented } from "../adapter.js";
+import { capabilities, detectFail, detectOk, notImplemented } from "../contract.js";
 import { dictionaryPath, emptyDictionary, loadDictionary, saveDictionary, stats, translatedOnly, mergeExtracted } from "../../core/dict.js";
 import { launchProject } from "../launch.js";
 import { renpyProfile } from "./profile.js";

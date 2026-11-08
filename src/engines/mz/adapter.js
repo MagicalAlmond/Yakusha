@@ -7,16 +7,16 @@
  * @module engines/mz/adapter
  */
 
+import { capabilities, notImplemented } from "../contract.js";
 import {
-  capabilities,
   detectFor,
   extractIntoDictionary,
   installRuntime as installRuntimeCore,
-  notImplemented,
   scanProject,
   uninstallRuntime as uninstallRuntimeCore,
-} from "../adapter.js";
+} from "../rm/base.js";
 import { rmProfile } from "../profile.js";
+import { rmDiagnostics } from "../rm/diagnostics.js";
 import { launchProject } from "../launch.js";
 
 export const adapter = {
@@ -61,6 +61,10 @@ export const adapter = {
 
   attach() {
     throw notImplemented("attach");
+  },
+
+  diagnostics(project, options = {}) {
+    return rmDiagnostics(project, options);
   },
 
   rules: { controlCodes: true, maxColumns: 0 },

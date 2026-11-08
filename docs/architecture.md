@@ -52,8 +52,9 @@ Kirikiri 与 Unity / Wolf 仍停在等这一步。
 
 ## 3. EngineAdapter 契约
 
-每个引擎导出同一个形状（`src/engines/adapter.js` 只放类型注释与辅助函数，
-具体实现放 `src/engines/<id>/adapter.js`）：
+每个引擎导出同一个形状（`src/engines/contract.js` 只放纯契约与辅助函数，
+`src/engines/rm/base.js` 放 RPG Maker 的共享实现，具体实现放 `src/engines/<id>/adapter.js`；
+`src/engines/adapter.js` 是给旧深路径的兼容 re-export）：
 
 ```js
 export default {
@@ -184,15 +185,17 @@ hook 改的是 `kernel32!GetProcAddress` 的 IAT 槽，借此在 `RGSSGameMain` 
 
 ## 6. GUI 与 core 的边界
 
-- `gui/main.js` 直接 `import` core 模块（同一进程），不 `spawn` CLI：
-  `gui/handlers.js` 包住 `src/cli/runner.js` 的 `runCommand`（CLI 同一个缝），
-  并把每个结果归一成与 `--json` 逐键一致的信封；`gui/main.js` 只做窗口与 IPC。
+- `gui/main.js` 不 `spawn` CLI：命令层 `gui/handlers.js` 包住 `src/cli/runner.js` 的
+  `runCommand`（CLI 同一个缝），并把每个结果归一成与 `--json` 逐键一致的信封。
+  0.73 起 `gui/worker-host.js` 把每条命令交给 `gui/worker.js` 的 worker 线程执行，
+  主进程只保留窗口、IPC、单飞与取消转发；worker 仍 import 同一份 core。
   这满足"CLI 为主、GUI 隐藏控制台"。
 - 渲染进程不开 `nodeIntegration`；`contextIsolation: true`，preload 只暴露白名单方法
   （`run`/`cancel`/`pickDirectory`/`saveApiKey`/`hasApiKey`/`clearApiKey`/`onProgress`/
   `onWarning`/`onResult`/`pathForFile` + 命令清单）。
-- 长任务（翻译）在主进程跑，进度通过 `webContents.send` 推给渲染进程；
-  需要强隔离时再挪到 `worker_threads`，接口不变。
+- 长任务（翻译等所有命令）跑在 `worker_threads` 里，进度与警告经 `gui/worker-host.js`
+  转给主进程，再由 `webContents.send` 推给渲染进程；取消是 main→worker 的一条
+  `{type:"cancel"}` 消息，最终仍落到 runner 的 `AbortSignal`。接口与 0.72 相同。
 - 拖拽取真实路径用 Electron 的 `webUtils.getPathForFile`（浏览器拿不到绝对路径，
   这也是选 Electron 而不是本地网页版的根本原因）。
 - 字典编辑器走两条专用通道 `gui:dict-load` / `gui:dict-save`（不是 CLI 命令，不在命令白名单）：
@@ -219,9 +222,12 @@ src/engines/
   krkr/                  project（XP3 归档发现）、xp3（归档解包）、ks（KAG 脚本行解析）、extract、profile
 src/pipeline/            provider、translate、glossary、verify、wrap、terms、speaker、report
 gui/
-  handlers.js            主进程命令层：runCommand 包装 + CLI 一致信封 + IPC 白名单
-  credentials.js         safeStorage 凭据信封（读/存/清，config.md §8 契约）
+  commands.js            IPC 命令白名单（14 项，不 import runner）
+  handlers.js            命令层：runCommand 包装 + CLI 一致信封
 dictionary.js          字典编辑器数据层：core/dict 的读/写一条，CLI 同一套校验
+  worker.js              worker 线程入口：执行一条命令并回传 progress/warning/result
+  worker-host.js         主进程侧 worker 宿主：单飞、取消、错误信封与消息转发
+  credentials.js         safeStorage 凭据信封（读/存/清，config.md §8 契约）
   main.js preload.js renderer/
 native/                  rgss-hook/（Rust cdylib）、injector/（Rust bin）、build.mjs；prebuilt/ 随 npm 包分发（gitignore，CI 构建）
 test/engine-contract.test.js  适配器契约测试（平铺，npm test 只收 test/*.test.js）
@@ -321,6 +327,7 @@ test/fixtures/           各引擎最小夹具（mini-mz、mini-mv、renpy-*、r
 | 0.70.0 | **已交付**：`YAKUSHA_DRAW_TRACE=1` 把实际经过 `Bitmap#draw_text` 的前 50 个字符串写进日志，用来区分「钩子没生效」与「游戏自绘位图字体」；第二款真机样本（`RGSS301.dll` + 2.0 GB 归档）全链路跑通 | 844 pass / 0 fail（rgss-native-source +1） |
 | 0.71.0 | **已交付**：`install` 按引擎自动选择唯一交付方式（RGSS 普通 `install` 直接装原生注入器），`--native` 保留为兼容别名；GUI 不再对 RGSS 特判；doctor 与各引擎的「重装」提示统一为 `yakusha install <game>` | 844 pass / 0 fail（行为变、用例数不变） |
 | 0.72.0 | **已交付**：GUI 重做为侧栏 + 三阶段工作台；命令反馈改为右下角 toast 摘要（busy / success / warning / error），完整请求、警告与结果写入 `%APPDATA%\yakusha\logs\gui.log`（JSONL，密钥类旗标脱敏），界面提供 `Open log file…`；元素 id、`data-cmd` 按钮与命令行契约不变 | 839 pass / 0 fail（gui-main 20、gui-renderer 17；共 48 条 GUI 用例） |
+| 0.73.0 | **已交付**：引擎适配器拆成纯契约（`src/engines/contract.js`）+ RPG Maker 实现（`src/engines/rm/`）；`doctor` 移入 `src/services/doctor.js` 并由 adapter 供诊断事实；profile 拆成引擎语法 × 语言对（`src/languages/ja.js` / `en.js`）；GUI 所有命令移入 worker 线程；native 预编译包增加 `prepack` 校验与 CI 打包断言 | 856 pass / 0 fail（native-package +13、gui-worker +4） |
 | 1.0.0 | 10 个引擎 + 能力矩阵 + 便携 exe（图标、无控制台、最近游戏） | 双击 exe 可用 |
 
 ## 10. 风险

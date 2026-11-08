@@ -9,6 +9,7 @@
  * @module engines/registry
  */
 
+import { DETECT_REASONS } from "./contract.js";
 import { adapter as mzAdapter } from "./mz/adapter.js";
 import { adapter as mvAdapter } from "./mv/adapter.js";
 import { adapter as renpyAdapter } from "./renpy/adapter.js";
@@ -18,10 +19,10 @@ import { adapter as krkrAdapter } from "./krkr/adapter.js";
 const ADAPTERS = [mzAdapter, mvAdapter, renpyAdapter, rgssAdapter, krkrAdapter];
 
 /**
- * Prefixes of the "nothing here" message every adapter writes.
+ * Legacy "nothing here" prefixes for adapters that do not set `reason`.
  *
- * Kept as a list so a new engine only adds its own wording: an unrecognised
- * E_NOT_PROJECT means the search should keep going instead of stopping.
+ * Kept only as a compatibility fallback; built-in adapters classify failures
+ * with `DETECT_REASONS` so a wording change cannot alter detection order.
  */
 const NOT_PROJECT_PREFIXES = [
   "not an RPG Maker project",
@@ -30,10 +31,17 @@ const NOT_PROJECT_PREFIXES = [
   "not a Kirikiri project",
 ];
 
-/** True for the generic "nothing here" failure, false for a diagnosed root. */
+/**
+ * True for the generic "nothing here" failure, false for a diagnosed root.
+ *
+ * New adapters set `reason`; the prefix check remains as a compatibility path
+ * for third-party adapters written before the typed field existed.
+ */
 function isGenericNotProject(result) {
+  if (result.code !== "E_NOT_PROJECT") return false;
+  if (result.reason === DETECT_REASONS.NOT_PROJECT) return true;
   return (
-    result.code === "E_NOT_PROJECT" &&
+    result.reason === undefined &&
     NOT_PROJECT_PREFIXES.some((prefix) => result.message.startsWith(prefix))
   );
 }
@@ -66,7 +74,7 @@ export function getAdapter(engine) {
  * already know.
  *
  * @param {string} startDir
- * @returns {{ ok: true, project: import("../core/mzproject.js").Project, adapter: typeof mzAdapter } | { ok: false, code: string, message: string, candidates?: string[] }}
+ * @returns {{ ok: true, project: import("../core/mzproject.js").Project, adapter: typeof mzAdapter } | { ok: false, code: string, message: string, candidates?: string[], reason?: string }}
  */
 export function detectProject(startDir) {
   let generic = null;

@@ -267,7 +267,7 @@
 
 `engine` / `locator` 是 0.17 加进字典条目的可选字段：`engine` 是引擎 id，`locator` 是精确定位数组（`<文件>#<JSON Pointer>`，行式引擎为 `file:line`）。旧字典没有它们照常读；`export` / `import --format json` 会原样带上，TSV / CSV 表格不带。
 
-Kirikiri 的 `doctor` 走 `src/core/doctor.js:212` 的 `delivery.pending` 分支（它的 `capabilities.runtime` 是 `null`）：
+Kirikiri 的 `doctor` 走 `src/services/doctor.js:174` 的 `delivery.pending` 分支（它的 `capabilities.runtime` 是 `null`）：
 `install` 检查固定是 `warn`、`runtime` 检查固定是 `info`，所以 `verdict` 只可能是 `usable`
 或 `broken`，不会是 `not-installed`，也不会是 `ready`。RGSS 从 0.18 起走真实的 delivery 检查：
 装前 `install` / `runtime` 都是 `info`、`verdict` 是 `not-installed`；装后两行都变 `ok`，没有其它 warning 时 `verdict` 是 `ready`。
@@ -401,6 +401,8 @@ pending decisions in docs/dev/DEVLOG.md` 都是新文案，脚本不应依赖 `m
 **0.60 只改输入校验。** 三个报告写路径（`verify --write-report`、`speaker --write-names`、`terms --write`）把 `-` 视为非法路径（`E_USAGE`，如 `verify --write-report must be a file path, not -`），把已存在的目录目标从带出底层 `EPERM` 改为 `E_IO ... (is a directory)`。0.59 及之前 `-` 会退出 0 并写出一个名为 `-` 的文件；现在退出 2、不写任何文件。载荷键与错误码不变（`E_USAGE` / `E_IO` 都是既有码）。
 
 **0.71 只改 CLI 行为，不改载荷。** RGSS 的普通 `install` 现在自动选择原生注入器（0.18–0.70 必须显式给 `--native`，否则报 `E_USAGE`）；`--native` 仍被接受为兼容别名，其他引擎上显式给仍是 `E_USAGE`；RGSS 上 `--embed` 的用法错误文案改为 `install --embed cannot be used with RGSS: the injector reads dictionary.txt at run time`。信封、退出码、命令表、13 个错误码与所有载荷键不变。
+
+**0.73 只重构内部模块边界与 GUI 线程模型，不涉及命令层契约。**
 
 **0.72 只改 GUI，不涉及命令层契约。** 界面重做与 toast/运行日志都发生在 Electron 外壳内：toast 只消费既有信封，JSONL 日志文件（`%APPDATA%\yakusha\logs\gui.log`）不是命令输出，也没有新增 CLI 旗标或载荷键。信封、退出码、命令表、13 个错误码与所有载荷键不变。
 

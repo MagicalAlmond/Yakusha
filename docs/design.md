@@ -212,7 +212,7 @@ RGSS profile 与 MZ/MV profile 的差别只有措辞和语言判定：`prompt.ta
 XP / VX / VX Ace 的游戏文本从日文翻成 X”（`src/engines/rgss/profile.js:72-78`），
 `escapeExamples` 只列对白里真的会出现的 13 个码（`src/engines/rgss/profile.js:41`、
 `src/engines/rgss/profile.js:79`）。校验与复查用的 `%1` 一类槽位正则、假名/汉字/繁体判定
-也都和 MZ/MV 共用（`src/engines/rgss/profile.js:84-94`）。
+也都和 MZ/MV 共用（`src/engines/rgss/profile.js:84`）。
 
 实测样本里 2,063 条文本带控制码、共 23 种，数量最多的是 `\i[n]`、`\c[n]`、`\v[n]`；
 这说明“共用一套 tokenizer”不是省事，而是这个家族的文本本来就长这样。
@@ -220,17 +220,17 @@ XP / VX / VX Ace 的游戏文本从日文翻成 X”（`src/engines/rgss/profile
 ### Kirikiri 控制码
 
 Kirikiri 又换了一族：KAG 的控制码是**方括号标签**，不是反斜杠——`[r]` 换行、`[er]` 清屏、
-`[emb exp=...]` 嵌值，转义是 `[[`（显示成一个 `[`）（`src/engines/krkr/profile.js:130-153`）。
+`[emb exp=...]` 嵌值，转义是 `[[`（显示成一个 `[`）（`src/engines/krkr/profile.js:110-115`）。
 所以 `src/core/textkey.js` 这次**没有复用**：Kirikiri 带了自己的 tokenizer
-（`src/engines/krkr/profile.js:41-74`），按方括号切分——`[[` 出现时是字面 `[`，`[...]` 在
+（`src/engines/krkr/profile.js:31-64`），按方括号切分——`[[` 出现时是字面 `[`，`[...]` 在
 换行前闭合的是 code token，落单未闭合的 `[` 按普通文字处理。`plainText()` / `visibleText()`
 的语义与 MZ 一致（剥标签后的可读文本），`isUntranslated` 的假名判定也作用在剥标签后的
-文本上，所以标签里的假名不会把回显误判成未翻（`src/engines/krkr/profile.js:111-113`）。
+文本上，所以标签里的假名不会把回显误判成未翻（`src/engines/krkr/profile.js:117-119`）。
 
 槽位同样是 `%1` 一族的 `/ %[0-9]+/`：KAG 用 `[emb]` 标签嵌值而不是内联占位符，实际文本里
-能见到的只有 `%` 形式，校验只报它（`src/engines/krkr/profile.js:115-123`）。`prompt.task()`
+能见到的只有 `%` 形式，校验只报它（`src/engines/krkr/profile.js:100`）。`prompt.task()`
 说的是“把 Kirikiri KAG 的游戏文本从日文翻成 X”，`escapeExamples` 列 `[r]`、`[er]`、
-`[emb exp=...]`、`[[` 四个（`src/engines/krkr/profile.js:130-153`）。
+`[emb exp=...]`、`[[` 四个（`src/engines/krkr/profile.js:110-115`）。
 
 ## data/ 的编码
 

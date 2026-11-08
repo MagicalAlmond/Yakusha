@@ -30,6 +30,22 @@ jobs:
           node-version: 22
       - name: Build the native components
         run: node native/build.mjs --llvm-mingw C:\Tools\llvm-mingw-20261020-msvcrt-x86_64
+      - name: Verify the staged native package
+        shell: pwsh
+        run: |
+          node native/verify.mjs
+          $manifest = npm pack --dry-run --json --ignore-scripts | ConvertFrom-Json
+          $paths = @($manifest[0].files | ForEach-Object { $_.path })
+          foreach ($required in @(
+            "native/prebuilt/manifest.json",
+            "native/prebuilt/yakusha_rgss_hook.dll",
+            "native/prebuilt/libunwind.dll",
+            "native/prebuilt/yakusha_injector.exe",
+            "native/prebuilt/bootstrap.rb",
+            "gui/main.js"
+          )) {
+            if ($paths -notcontains $required) { throw "npm package is missing $required" }
+          }
       - uses: actions/upload-artifact@v4
         with:
           name: native-prebuilt

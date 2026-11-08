@@ -13,28 +13,16 @@
 
 import { runCommand } from "../src/cli/runner.js";
 import { buildErrorEnvelope, buildEnvelope, failureFor } from "../src/cli/envelope.js";
+import { GUI_COMMANDS } from "./commands.js";
 
 /**
  * Commands the renderer may invoke. The list doubles as the IPC allowlist:
- * gui/main.js refuses every channel not in it, so adding a command here is
- * the single place a new GUI capability opens up.
+ * gui/main.js refuses every channel not in it, so adding a command there is
+ * the single place a new GUI capability opens up. Re-exported here so existing
+ * importers keep working; the canonical definition is `gui/commands.js`, which
+ * the main process can load without pulling in the runner.
  */
-export const GUI_COMMANDS = [
-  "scan",
-  "extract",
-  "status",
-  "verify",
-  "speaker",
-  "terms",
-  "translate",
-  "install",
-  "uninstall",
-  "export",
-  "import",
-  "launch",
-  "doctor",
-  "config",
-];
+export { GUI_COMMANDS };
 
 /**
  * Run one command and resolve to the same envelope the CLI prints.

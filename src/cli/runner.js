@@ -21,7 +21,7 @@ import process from "node:process";
 import * as dict from "../core/dict.js";
 import { stats as dictStats, translatedOnly } from "../core/dict.js";
 import { writeFileAtomic } from "../core/atomic.js";
-import { diagnose } from "../core/doctor.js";
+import { diagnose } from "../services/doctor.js";
 import { detectProject } from "../engines/registry.js";
 import { createProvider } from "../pipeline/provider.js";
 import { translateDictionary } from "../pipeline/translate.js";
@@ -1221,9 +1221,8 @@ async function commandDoctor(dir, flags, sink) {
     }
   }
   // The adapter owns the engine-specific bits doctor needs: its extractor, its
-  // file count and, for engines without a plugin registry, the state of the
-  // delivered translation file.
-  const own = typeof adapter.diagnostics === "function" ? adapter.diagnostics(project) : {};
+  // file count and the state of whatever it delivers. The service asks for
+  // those facts after it has read the dictionary and checked plugins.js.
   const result = diagnose(project, {
     dictionary: data,
     dictionaryFile: file,
@@ -1231,14 +1230,7 @@ async function commandDoctor(dir, flags, sink) {
     engineLabel: adapter.name,
     profile: adapter.profile,
     versions: adapter.versions || null,
-    extract: own.extract,
-    dataFiles: own.dataFiles,
-    sourceLabel: own.sourceLabel,
-    // `translation` is the Ren'Py file state; `delivery` is the generic slot an
-    // adapter uses when it wants to describe delivery itself (including "there
-    // is no delivery layer yet"). Adapters that only set `translation` keep
-    // working unchanged.
-    delivery: own.delivery || own.translation || null,
+    diagnostics: adapter.diagnostics || null,
   });
   const game = result.game;
   sink.out(

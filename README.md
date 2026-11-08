@@ -318,13 +318,13 @@ node bin/yakusha.js launch "/games/MyGame"
 `yakusha_injector.exe`，输出仍是 `launched:` / `pid:` 两行；没装时照常启动项目根的 exe。
 `attach` 调试注入仍是桩，能力表里 `attach: false`，没有 CLI 入口。
 
-## 图形界面（0.14 起步；0.72 重做）
+## 图形界面（0.14 起步；0.72 重做；0.73 全命令 worker）
 
 仓库自带一个 Electron 外壳，代码在 `gui/`。它与 CLI 调用同一份命令实现
 （`src/cli/runner.js`），每个按钮对应一条文档化的命令，`--json` 载荷逐键一致。0.72 把界面重做成
 侧栏 + 三阶段工作台（Prepare / Translate / Deliver）：每次点击先在右下角弹一条 toast 摘要，
 完整请求、警告与结果写进 `%APPDATA%\yakusha\logs\gui.log`（JSONL，密钥类旗标脱敏），
-Settings 里的 `Open log file…` 可以直接打开它：
+Settings 里的 `Open log file…` 可以直接打开它。0.73 起每条命令都在 `gui/worker.js` 的 worker 线程里执行，主进程只负责窗口、IPC 与取消转发，界面与信封不变：
 
 ```bash
 pnpm install          # 开发依赖含 electron；运行时仍是零依赖

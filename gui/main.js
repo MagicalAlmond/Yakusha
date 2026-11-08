@@ -10,9 +10,10 @@
  * - the renderer gets no Node: `contextIsolation: true`, no nodeIntegration,
  *   a preload with an explicit allowlist, and no remote content is loaded;
  * - every IPC channel is in one allowlist, keyed to the documented commands;
- * - translate runs here (long task), progress is pushed with
- *   `webContents.send`, cancellation is an AbortController owned by the main
- *   process — the renderer can only request a cancel;
+ * - every command runs on the worker thread from gui/worker.js, so the main
+ *   process keeps pumping events while translate streams; progress is pushed
+ *   with `webContents.send`, cancellation is an AbortController owned by the
+ *   main process — the renderer can only request a cancel;
  * - drag-and-drop resolves real paths in the renderer through
  *   `webUtils.getPathForFile` (exposed by preload), never from untrusted
  *   event data.
@@ -25,7 +26,8 @@ import { fileURLToPath } from "node:url";
 
 import { app, BrowserWindow, dialog, ipcMain, safeStorage, shell } from "electron";
 
-import { GUI_COMMANDS, runGuiCommand } from "./handlers.js";
+import { GUI_COMMANDS } from "./commands.js";
+import { runGuiCommandInWorker } from "./worker-host.js";
 import { appendGuiLog, ensureGuiLog, guiLogPath, sanitizeFlags } from "./log.js";
 import {
   clearApiKey,
@@ -90,7 +92,7 @@ async function runInWindow(win, command, args, flags, runId, signal) {
     runId,
   });
   try {
-    const envelope = await runGuiCommand(command, args, {
+    const envelope = await runGuiCommandInWorker(command, args, {
       flags,
       onProgress: (progress) => send("gui:progress", { runId, command, progress }),
       onWarning: (line) => {
@@ -150,15 +152,19 @@ function registerIpc() {
         error: { code: "E_USAGE", message: "unknown command: " + command },
       });
     }
-    // One long task at a time: translate owns the single AbortController, and
-    // a second translate while one runs is refused instead of racing.
-    if (activeRun && activeRun.command === "translate" && command === "translate") {
+    // One command at a time: the worker thread is a single writer to the same
+    // dictionary, so a second run is refused instead of racing. Translate also
+    // owns the single AbortController that gui:cancel aborts.
+    if (activeRun) {
+      const message = activeRun.command === command
+        ? "a " + command + " run is already in progress"
+        : "another command is already in progress: " + activeRun.command;
       return Promise.resolve({
         schema: 1,
         command,
         ok: false,
         outcome: "error",
-        error: { code: "E_USAGE", message: "a translate run is already in progress" },
+        error: { code: "E_USAGE", message },
       });
     }
     if (command === "translate") {
@@ -193,7 +199,10 @@ function registerIpc() {
         activeRun = null;
       });
     }
-    return runInWindow(winOf(), command, args, flags, runId);
+    activeRun = { command, controller: null };
+    return runInWindow(winOf(), command, args, flags, runId).finally(() => {
+      activeRun = null;
+    });
   });
   ipcMain.handle("gui:cancel", () => {
     if (activeRun && activeRun.controller) activeRun.controller.abort();

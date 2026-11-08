@@ -17,23 +17,7 @@
  * @module engines/renpy/profile
  */
 
-import { TRADITIONAL_JOINED } from "../../data/traditional.js";
-
-/** Traditional-only characters, built once from the flat pair table. */
-const TRADITIONAL = (() => {
-  const set = new Set();
-  for (let i = 0; i + 1 < TRADITIONAL_JOINED.length; i += 2) set.add(TRADITIONAL_JOINED[i]);
-  return set;
-})();
-
-/**
- * Kana that marks an untranslated audit finding.
- *
- * U+30FB (・) and U+30FC (ー) are excluded for the same reason as in the RPG
- * Maker profile: both are ordinary Chinese punctuation, so a correct
- * translation would otherwise be reported as untranslated.
- */
-const VERIFY_KANA = /[\u3041-\u3096\u30a1-\u30fa]/;
+import { japaneseToChinese } from "../../languages/ja.js";
 
 /** Doubling escapes: source pair, and the single character it displays. */
 const DOUBLED = new Map([
@@ -139,19 +123,6 @@ export function plainText(text) {
 }
 
 /**
- * Decide that a source line was echoed back without being translated.
- *
- * Same rule as the RPG Maker profile, applied to the visible text so that a
- * variable name full of kana cannot mark a correct translation as an echo.
- *
- * @param {string} text
- * @returns {boolean}
- */
-function isUntranslated(text) {
-  return /[\u3040-\u30ff]/.test(plainText(text));
-}
-
-/**
  * Placeholder pattern for a Ren'Py line.
  *
  * Ren'Py interpolates [name]; the RPG Maker validator looks for %1. Reporting
@@ -191,17 +162,7 @@ export const renpyProfile = {
 
   grammar: { tokenize, controlCodes, plainText, visibleText: plainText },
 
-  validate: {
-    isUntranslated,
-    slots: SLOTS,
-  },
-
-  verify: {
-    kana: VERIFY_KANA,
-    han: /[\u4e00-\u9fff]/,
-    traditional: TRADITIONAL,
-    slots: SLOTS,
-  },
+  ...japaneseToChinese({ tokenize, controlCodes, plainText, visibleText: plainText }, SLOTS),
 };
 
 export default renpyProfile;

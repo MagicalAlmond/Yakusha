@@ -21,3 +21,14 @@ tests use a fixture with real hashes — but `npm pack` and a manual
 
 The binaries are unsigned; the CLI verifies the manifest SHA-256 before
 copying anything into a game.
+
+Before publishing, `npm pack` runs `native/verify.mjs` (the `prepack`
+script). It checks the manifest schema, requires exactly the four files,
+rejects unexpected or path-escaping entries, and recomputes every SHA-256.
+The CI build runs the same check and confirms the tarball contains both the
+staged native files and the GUI:
+
+```
+node native/verify.mjs
+node native/verify.mjs --dir native/prebuilt
+```

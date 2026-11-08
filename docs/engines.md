@@ -90,11 +90,12 @@ src/index.js        公共门面（见 §10）
 用户给的是一个装了多款游戏的目录，换引擎试没有意义。Ren'Py、RGSS 与 Kirikiri 的
 `E_MULTI_ROOT` 只出现在各自的搜索里，候选集不会与 RPG Maker 混在一起。
 
-registry 把四句 `not a … project`（RPG Maker、Ren'Py、RGSS、Kirikiri 各一句，
-`src/engines/registry.js:26-31` 的 `NOT_PROJECT_PREFIXES`）当成“这个引擎不匹配，
-继续试下一个”；其余 `E_NOT_PROJECT`（缺 `data/`、缺 `js/plugins.js`）立即返回——
-那说明引擎已经认出来、只是项目不完整，不该再拿别的引擎去猜。五个都不匹配时返回第一句
-通用文案，也就是 RPG Maker 那句（见 §4.2）。
+registry 不再用错误文案猜语义：`detectFail` 返回带 `reason` 的类型化结果，
+`reason: "not-project"` 表示“这个引擎不匹配，继续试下一个”；
+`reason: "incomplete-project"`（缺 `data/`、缺 `js/plugins.js`）立即返回——
+那说明引擎已经认出来、只是项目不完整，不该再拿别的引擎去猜。四个通用前缀
+（`src/engines/registry.js:27-32` 的 `NOT_PROJECT_PREFIXES`）只保留给没有 `reason` 的
+第三方 adapter 做兼容回退。五个都不匹配时返回第一句通用文案，也就是 RPG Maker 那句（见 §4.2）。
 
 RGSS 的 detect 先向上找（`src/engines/rgss/adapter.js:65-74` 的 `containingRoot`，
 最多 3 层），再向下 BFS；用户点的是“装了游戏的文件夹”还是“游戏里的 `Data/`”，
@@ -200,7 +201,7 @@ RGSS 同样用这个形状，带着 `dataUnit: "data files"` 与一个 `diagnost
 - `runtime: "inject"` 是 0.18 的**诚实取值**：XP / VX / VX Ace 没有插件系统，也没有
   可加载的官方扩展，翻译只能靠向运行中的游戏注入原生 hook 交付（见 §7.7 与
   `src/engines/rgss/native.js`）。能力默认值仍是 `runtime: null`
-  （`src/engines/adapter.js:53-64`），RGSS 现在显式覆盖成 `"inject"`。
+  （`src/engines/contract.js:31-42`），RGSS 现在显式覆盖成 `"inject"`。
 - `diagnostics()` 返回 `{extract, dataFiles, delivery, sourceLabel}`，其中
   `sourceLabel` 是 `"Data/"`，`delivery` 是
   `{path, exists, mode: "inject", language: null, entries, intact, problems, dictionaryStale}`：
@@ -439,8 +440,8 @@ adapter 只是把“装哪个插件、怎么探测”变成统一接口，不改
 | 卸载 | 删文件还原 / Ren'Py 删一个文件 / **无** | **无**（`uninstall` 抛 `E_NOT_IMPLEMENTED`） |
 | 备份 | `js/plugins.js.yakusha-backup` / 不需要 / **无** | **无**（不改任何原有文件） |
 | 计数单位 | data files / scripts / data files（RGSS 是解码成功的文档数） | data files，含义是**成功打开的 XP3 归档数**（`src/engines/krkr/extract.js:96`） |
-| 控制码 | 反斜杠转义 / `{b}` 文本标签 / 反斜杠转义 | `[r]`、`[er]`、`[emb exp=...]` 等 KAG 方括号标签；`[[` 转义出字面 `[`（`src/engines/krkr/profile.js:29`） |
-| 占位符校验 | `%1` / `[...]` / 反斜杠槽位 | `%N` 形式的数字槽（`src/engines/krkr/profile.js:123`）；方括号标签已按控制码比较，不重复报 |
+| 控制码 | 反斜杠转义 / `{b}` 文本标签 / 反斜杠转义 | `[r]`、`[er]`、`[emb exp=...]` 等 KAG 方括号标签；`[[` 转义出字面 `[`（`src/engines/krkr/profile.js:31-64`） |
+| 占位符校验 | `%1` / `[...]` / 反斜杠槽位 | `%N` 形式的数字槽（`src/engines/krkr/profile.js:100`）；方括号标签已按控制码比较，不重复报 |
 | 说话人 | 不追踪（speaker 命令靠字典键形态） | `.ks` 里 `[name_set name=...]` 被逐行跟踪（`src/engines/krkr/ks.js:121-134`，含 `@name_set` 单行形式），但 0.13 的字典不存说话人 |
 | 只读来源 | 不读插件 / 跳过 `game/tl/` / 跳过 `@note` 与资源字段 | `.tjs` 脚本**只计数不解析**——TJS 是编程语言，不懂代码就翻字符串不安全（`src/engines/krkr/extract.js:98-102`） |
 
@@ -908,8 +909,8 @@ export { VERSION } from "./version.js";
   Ren'Py 时 bin 只多了一个 `adapter.dataUnit === "scripts"` 的分支（`scan` 与 `doctor`
   的行标）和一个 `runtime === "translation"` 的分支（`install` 的三行文本），
   没有出现 `if (engine === "renpy")`。0.12 接 RGSS 时只多了 `doctor` 的一个分支：
-  把 `own.delivery || own.translation || null` 交给诊断器（`src/cli/runner.js:1216`），
-  让各引擎自己的交付状态走 `src/core/doctor.js` 的同一套分支（RGSS 装没装、
+  把 `own.delivery || own.translation || null` 交给诊断器（`src/cli/runner.js:1233`），
+  让各引擎自己的交付状态走 `src/services/doctor.js` 的同一套分支（RGSS 装没装、
   Kirikiri 的 `pending` 都从这条路过）；同样没有出现 `if (engine === "rgss")`。0.13 接 Kirikiri 时 bin **什么都没加**：
   `dataUnit` 是 `data files`、`diagnostics.delivery` 走同一个分支，全库搜不到
   `engine === "krkr"`。0.18 接 RGSS 原生注入器时，`bin/yakusha.js` 只多了 usage 里的
@@ -1330,7 +1331,7 @@ CLI 侧（`test/rgss-cli.test.js`，17 条）走真实的 `bin/yakusha.js`：sca
 - `[iscript]` 开启的 TJS 代码块到 `[endscript]` 为止整行跳过（两种拼写都认，未闭合就跳到文件尾，0.54 起）：那些行是引擎执行的代码，从来不会当台词显示；说话人跨脚本块保留。
 - 行内标签（`[r]`、`[er]`、`[emb exp=...]`……）从存下的字符串里剥掉；`[[` 转义出
   字面 `[`（`src/engines/krkr/ks.js:72-120`；引号属性值里的 `]` 不截断标签，0.55 起；`[[` 的加倍规则在
-  `src/engines/krkr/profile.js:29`）。
+  `src/engines/krkr/profile.js:31-64`）。
 - `[name_set name=...]` 逐行跟踪说话人（`src/engines/krkr/ks.js:121-134`，含 `@name_set` 单行形式，测试
   `test/krkr-ks.test.js:69-80` 与 :104-135）；**0.13 的字典不存说话人**，speaker / terms 命令照旧
   靠共享 pipeline 在字典键上工作。

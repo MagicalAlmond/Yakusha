@@ -13,6 +13,11 @@ export function runGuiCommand(command, args, opts = {}) {
   return Promise.resolve({ schema: 1, command, ok: true, outcome: "ok" });
 }
 
+/** The seam gui/main.js imports; the worker protocol is not part of these tests. */
+export function runGuiCommandInWorker(command, args, opts = {}) {
+  return runGuiCommand(command, args, opts);
+}
+
 export function __setImpl(fn) {
   impl = fn;
 }

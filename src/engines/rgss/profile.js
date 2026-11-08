@@ -20,7 +20,7 @@
  */
 
 import { controlCodes, plainText, tokenize, visibleText } from "../../core/textkey.js";
-import { TRADITIONAL, VERIFY_KANA, isUntranslated } from "../profile.js";
+import { japaneseToChinese } from "../../languages/ja.js";
 
 /**
  * @typedef {object} EngineProfile
@@ -81,17 +81,7 @@ export const rgssProfile = {
 
   grammar: { tokenize, controlCodes, plainText, visibleText },
 
-  validate: {
-    isUntranslated,
-    slots: /%[0-9]+/g,
-  },
-
-  verify: {
-    kana: VERIFY_KANA,
-    han: /[\u4e00-\u9fff]/,
-    traditional: TRADITIONAL,
-    slots: /%[0-9]+/g,
-  },
+  ...japaneseToChinese({ tokenize, controlCodes, plainText, visibleText }, /%[0-9]+/g),
 };
 
 export default rgssProfile;

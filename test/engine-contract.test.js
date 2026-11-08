@@ -121,6 +121,7 @@ test("detect: an empty directory is E_NOT_PROJECT for every engine", () => {
     const result = adapter.detect(empty);
     assert.equal(result.ok, false);
     assert.equal(result.code, "E_NOT_PROJECT");
+    assert.equal(result.reason, "not-project", "generic misses must stay typed");
     assert.match(result.message, expected[adapter.id]);
   }
 });
@@ -131,6 +132,7 @@ test("detect: a root missing data/ or plugins.js keeps the old message", () => {
     fs.rmSync(path.join(missingData, "data"), { recursive: true, force: true });
     const dataResult = getAdapter(engine.id).detect(missingData);
     assert.equal(dataResult.code, "E_NOT_PROJECT");
+    assert.equal(dataResult.reason, "incomplete-project", "a recognised but incomplete project must stop the search");
     assert.match(dataResult.message, /^missing data\/ directory in /);
     const viaRegistry = detectProject(missingData);
     assert.equal(viaRegistry.code, "E_NOT_PROJECT");
@@ -140,6 +142,7 @@ test("detect: a root missing data/ or plugins.js keeps the old message", () => {
     fs.rmSync(path.join(missingPlugins, "js", "plugins.js"), { force: true });
     const pluginsResult = getAdapter(engine.id).detect(missingPlugins);
     assert.equal(pluginsResult.code, "E_NOT_PROJECT");
+    assert.equal(pluginsResult.reason, "incomplete-project");
     assert.match(pluginsResult.message, /^missing js\/plugins\.js in /);
     const viaRegistryPlugins = detectProject(missingPlugins);
     assert.equal(viaRegistryPlugins.code, "E_NOT_PROJECT");

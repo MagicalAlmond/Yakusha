@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.73.0] - 2026-11-09
+
+### Changed
+
+- **Engine adapters now have a pure contract and engine-specific implementations.** `src/engines/contract.js` holds the shared capability, detect and not-implemented helpers without importing an engine; RPG Maker detection, scan, extraction, install and diagnostics moved to `src/engines/rm/base.js` and `src/engines/rm/diagnostics.js`. MZ/MV and the Ren'Py/RGSS/Kirikiri adapters no longer import a module that also carries another engine's filesystem logic. `src/engines/adapter.js` stays as a compatibility re-export for deep imports.
+- **`doctor` is engine-neutral.** The generic checks live in `src/services/doctor.js`, and each adapter supplies its own diagnostics facts. `src/core/doctor.js` remains a facade for the old import path and injects RPG Maker diagnostics when called directly, so existing callers keep their behaviour.
+- **Profiles are composed from an engine grammar and a language pair.** `src/languages/ja.js` owns Japanese-source detection, the traditional-Chinese audit set and the `japaneseToChinese` validator/verifier composition; `src/languages/en.js` owns English-source detection. The four engine profiles now only declare their grammar and prompt; the duplicated kana and traditional tables are gone.
+- **Every GUI command runs on a worker thread.** `gui/worker-host.js` starts `gui/worker.js` for each command and relays progress, warnings, results and cancellation; `gui/main.js` keeps the window and IPC only. The command whitelist moved to `gui/commands.js`. All commands now share the single-flight guard (one at a time), not just translate; the envelope and renderer contract are unchanged.
+- **The native prebuilt package is verified before packing.** `native/verify.mjs` checks `manifest.json` (`schema: 1`), the exact file set, SHA-256 digests and path safety; `prepack` runs it, and the native CI job also asserts `npm pack --dry-run` contains `native/prebuilt/*` and `gui/main.js`.
+
+### Added
+
+- `test/native-package.test.js` (13 cases) and `test/gui-worker.test.js` (4 cases).
+
+### Unchanged
+
+- No CLI or contract change: envelope, exit codes, the 14 commands, all 13 error codes, the dictionary format (`yakusha/1`) and every payload key are untouched. No new dependency. 856 pass.
+
 ## [0.72.0] - 2026-11-08
 
 ### Added
@@ -23,6 +41,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - No CLI or core change: envelope, exit codes, the 14 commands, all 13 error codes, the dictionary format (`yakusha/1`) and every payload key are untouched. No new dependency; the GUI still runs only as an Electron dev shell. 839 pass.
 
+## [0.71.0] - 2026-11-07
 
 ### Changed
 
@@ -904,7 +923,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.72.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.73.0...HEAD
+[0.73.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.72.0...v0.73.0
 [0.72.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.71.0...v0.72.0
 [0.71.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.70.0...v0.71.0
 [0.70.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.69.0...v0.70.0
