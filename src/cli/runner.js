@@ -902,16 +902,21 @@ async function commandInstall(dir, flags, sink) {
     throw new CliError("E_USAGE", "install --embed cannot be used with RGSS: the injector reads dictionary.txt at run time");
   }
   // --embed compiles the dictionary into the RPG Maker plugin file. The Ren'Py
-  // translation script always contains its translations inline, so the flag has
-  // no separate delivery to select there; like --native outside RGSS (0.18) it
-  // is a usage error instead of a silently ignored flag. Kirikiri keeps
-  // answering from its adapter and reports E_NOT_IMPLEMENTED without reading a
-  // dictionary for a delivery that cannot exist.
+  // translation script and the Kirikiri patch archive always contain their
+  // translations inline, so the flag has no separate delivery to select there;
+  // like --native outside RGSS (0.18) it is a usage error instead of a
+  // silently ignored flag.
   let embed = null;
   if (flags.embed && adapter.capabilities && adapter.capabilities.runtime === "translation") {
     throw new CliError(
       "E_USAGE",
       "install --embed applies to RPG Maker games only: the Ren'Py translation script already contains the translations"
+    );
+  }
+  if (flags.embed && adapter.capabilities && adapter.capabilities.runtime === "patch") {
+    throw new CliError(
+      "E_USAGE",
+      "install --embed applies to RPG Maker games only: the Kirikiri patch archive already contains the translations"
     );
   }
   if (flags.embed && adapter.capabilities && adapter.capabilities.runtime === "plugin") {
@@ -943,6 +948,11 @@ async function commandInstall(dir, flags, sink) {
     sink.out("translation: " + result.pluginPath);
     sink.out("strings    : " + (result.entries || 0) + " (" + (result.language || "unknown") + ")");
     sink.out("uninstall  : yakusha uninstall \"" + project.root + "\"");
+  } else if (adapter.capabilities && adapter.capabilities.runtime === "patch") {
+    // Kirikiri: one archive the engine loads after the game's own data.
+    sink.out("patch      : " + result.patch.path);
+    sink.out("strings    : " + (result.patch.entries || 0) + " in " + (result.patch.files || 0) + " files");
+    sink.out("uninstall  : yakusha uninstall \"" + project.root + "\"");
   } else {
     sink.out("plugin    : " + result.pluginPath);
     sink.out("registered: " + (result.registered ? "yes" : "already present"));
@@ -962,6 +972,7 @@ async function commandInstall(dir, flags, sink) {
   // The native layer is one optional object, not a different envelope: a
   // consumer that does not know RGSS keeps reading the six keys above.
   if (result.native) payload.native = result.native;
+  if (result.patch) payload.patch = result.patch;
   return { payload };
 }
 
@@ -980,6 +991,8 @@ async function commandUninstall(dir, flags, sink) {
     sink.out(result.removed ? "native components removed" : "the native components are not installed");
   } else if (adapter.capabilities && adapter.capabilities.runtime === "translation") {
     sink.out(result.removed ? "translation removed" : "translation file was not installed");
+  } else if (adapter.capabilities && adapter.capabilities.runtime === "patch") {
+    sink.out(result.removed ? "patch removed" : "patch was not installed");
   } else {
     sink.out(result.removed ? "plugin removed" : "plugin was not installed");
     if (result.restored) {
@@ -998,6 +1011,7 @@ async function commandUninstall(dir, flags, sink) {
     keptBackup: result.keptBackup,
   };
   if (result.native) payload.native = result.native;
+  if (result.patch) payload.patch = result.patch;
   return { payload };
 }
 

@@ -122,7 +122,7 @@ export function diagnose(project, options = {}) {
 
   let sync = null;
   if (dictionary) {
-    const sourceLabel = options.sourceLabel || "data/";
+    const sourceLabel = own.sourceLabel || options.sourceLabel || "data/";
     try {
       const extract = options.extract || own.extract;
       if (typeof extract !== "function") throw new Error("no extractor was supplied for this engine");
@@ -191,7 +191,11 @@ export function diagnose(project, options = {}) {
     const deliveryPath = delivery.path || null;
     const present = Boolean(delivery.exists);
     const relPath = deliveryPath && project.root ? path.relative(project.root, deliveryPath).split(path.sep).join("/") : deliveryPath;
-    const damaged = present && delivery.intact === false;
+    // A delivery can be damaged while its main file is gone: a Kirikiri manifest
+    // whose patch archive was deleted must fail the install check, not read as
+    // "not installed". Engines that have never been installed report no
+    // problems, so they still land on the info branch below.
+    const damaged = delivery.intact === false && (present || (Array.isArray(delivery.problems) && delivery.problems.length > 0));
     const stale = present && !damaged && delivery.dictionaryStale === true;
     const reinstall = "yakusha install <game>";
     installCheck = damaged
@@ -212,7 +216,9 @@ export function diagnose(project, options = {}) {
         "warn",
         delivery.mode === "inject"
           ? "the injector keeps using the dictionary from install time until it is reinstalled"
-          : "the game keeps using the translation file written at install time until it is reinstalled"
+          : delivery.mode === "patch"
+            ? "the game keeps loading the patch archive written at install time until it is reinstalled"
+            : "the game keeps using the translation file written at install time until it is reinstalled"
       );
     } else if (present && !damaged) {
       const language = delivery.language || null;
@@ -224,12 +230,26 @@ export function diagnose(project, options = {}) {
       );
     } else if (damaged) {
       runtime = { embedded: false, entries: delivery.entries || 0, path: relPath, found: deliveryPath };
-      add("runtime", "fail", "the injector cannot start until the native components are repaired");
+      add(
+        "runtime",
+        "fail",
+        delivery.mode === "inject"
+          ? "the injector cannot start until the native components are repaired"
+          : delivery.mode === "patch"
+            ? "the patch layer cannot load until the archive and manifest are repaired"
+            : "the delivery file cannot be read until it is repaired"
+      );
     } else {
       runtime = { embedded: false, entries: 0, path: relPath, found: null };
-      add("runtime", "info", delivery.mode === "inject"
-        ? "the injector loads " + relPath + " when the game starts"
-        : "the game reads " + relPath + " at startup once installed");
+      add(
+        "runtime",
+        "info",
+        delivery.mode === "inject"
+          ? "the injector loads " + relPath + " when the game starts"
+          : delivery.mode === "patch"
+            ? "the game loads the patch archive at startup once installed"
+            : "the game reads " + relPath + " at startup once installed"
+      );
     }
     installPayload = {
       pluginFile: deliveryPath,

@@ -14,7 +14,8 @@
 
 - 多引擎只接了 MZ / MV / Ren'Py / RGSS / Kirikiri 五个适配器；Unity、Godot、Wolf
   不在当前版本内。0.12 注册的 RGSS 在 0.18 补上了注入交付层（`install` 自动选择原生注入器；`--native` 是兼容别名），
-  0.13 注册的 Kirikiri 仍只到 L1–L3（识别 / 盘点 / 提取 / 翻译 / 校验 / 导出），没有交付层。
+  0.13 注册的 Kirikiri 在 0.74 补上了 patch 覆盖归档交付层（`runtime: "patch"`），
+  五个引擎至此都有交付层。
 
 ## 交付快照
 
@@ -70,9 +71,10 @@
 
 ## Kirikiri（KRKR）
 
-- 本版没有交付层：`install` 与 `uninstall` 报 `E_NOT_IMPLEMENTED`（退出码 2），
-  一个文件都不写，游戏仍然显示原文。引擎没有翻译资源目录可填，交付意味着把改过的
-  `.ks` 写回 XP3 归档，路线未拍板（见 `docs/dev/DEVLOG.md` 待拍板表）。
+- 0.74 起有 patch 覆盖归档交付层：`install` 写 `data/patch.xp3`（只含已译 `.ks`）与
+  `yakusha/krkr-patch.json`，`uninstall` 只删这两个文件，游戏自己的 `data.xp3` 一个字节都不改。
+  引擎按 `data.xp3` → `patch.xp3` → `patch2.xp3` 的顺序加载，后加载的同名文件覆盖前面的。
+  只支持标准未加密 XP3；krkr2 / krkrz 的加密变体读不出来，也不在交付范围内。
 - 只读标准 XP3 索引；被外部工具改过索引的归档（Hxv4 形态）报
   `E_UNSUPPORTED`，不猜测、不重建索引。
 - 损坏或恶意归档有尺寸上限：索引流与单个条目最多解到 64 MiB，索引或段的位置必须

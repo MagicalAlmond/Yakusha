@@ -4,12 +4,14 @@
  * Kirikiri / KAG games keep their content in .xp3 archives (the game root or
  * its data/ directory hold the archives directly); scenario text lives in KAG
  * scripts (.ks) inside them. There is no plugin directory, no js/plugins.js
- * and no data document the tool can rewrite without touching the game's own
- * files - and unlike Ren'Py, the engine has no translation-resource folder the
- * tool could fill. This module wires the engine into the same shape the other
+ * and no translation-resource folder the engine reads on its own. Delivery
+ * therefore uses the engine's own override rule: a `patch.xp3` (then
+ * `patch2.xp3`, ...) is loaded after `data.xp3`, and a same-named script in it
+ * wins. Yakusha writes one such archive and never edits the game's archives;
+ * see ./patch.js. This module wires the engine into the same shape the other
  * adapters expose, so `scan`, `extract`, `translate`, `verify`, `speaker`,
- * `terms`, `export` and `doctor` all work without knowing which engine they
- * are talking to. The runtime tier is deliberately absent: see `capabilities`.
+ * `terms`, `export`, `install`, `uninstall` and `doctor` all work without
+ * knowing which engine they are talking to.
  *
  * @module engines/krkr/adapter
  */
@@ -22,6 +24,7 @@ import { dictionaryPath, emptyDictionary, loadDictionary, saveDictionary, stats,
 import { launchProject } from "../launch.js";
 import { krkrProfile } from "./profile.js";
 import { extractKrkrProject } from "./extract.js";
+import { installPatch, patchStatus, uninstallPatch } from "./patch.js";
 import { MAX_SEARCH_DEPTH, findKrkrRoot, findKrkrRoots, looksLikeKrkrProject, openKrkrProject } from "./project.js";
 
 const MULTI_ROOT = /^found \d+ Kirikiri projects under /;
@@ -166,24 +169,6 @@ function coded(code, message) {
   return error;
 }
 
-/**
- * The runtime tier is not implemented, and says so in its own words.
- *
- * `notImplemented()` from ../adapter.js is the shared wording for features that
- * were never planned for this release; Kirikiri delivery *is* planned and only
- * pending, so it gets a message that points at the decision instead of claiming
- * the feature does not exist.
- *
- * @param {string} what
- * @returns {Error}
- */
-function pending(what) {
-  return coded(
-    "E_NOT_IMPLEMENTED",
-    what + " is not implemented for Kirikiri yet - see the pending decisions in docs/dev/DEVLOG.md"
-  );
-}
-
 export const adapter = {
   id: "krkr",
   name: "Kirikiri",
@@ -191,11 +176,9 @@ export const adapter = {
   capabilities: capabilities({
     extract: true,
     export: true,
-    // Kirikiri text is packed inside the game's own archives and the engine
-    // offers no translation-resource slot: delivering a translation would mean
-    // writing archives back. That layer is not built in 0.13 (see the module
-    // comment), which is why the tier is null rather than a guess.
-    runtime: null,
+    // A patch archive is the engine's own override mechanism, so this tier
+    // writes a new file and leaves every archive the game shipped untouched.
+    runtime: "patch",
     launch: true,
     debuggable: false,
   }),
@@ -229,26 +212,65 @@ export const adapter = {
   },
 
   /**
-   * Delivery: writing a translation back into the game.
+   * Write the patch archive from the translated dictionary.
    *
-   * Kirikiri offers no translation-resource directory the engine reads on its
-   * own, so delivery would mean rewriting the game's .xp3 archives with
-   * modified .ks files. That is a write path through an archive format whose
-   * encrypted variants (krkr2 per-file keys, krkrz cxdec) this project
-   * deliberately does not touch, and it is recorded as a pending decision
-   * rather than guessed.
+   * The six payload keys are the ones every runtime tier returns; `state` and
+   * `patch` are additive and only Kirikiri fills them. `state` is "updated"
+   * when an archive already existed but its bytes or the dictionary hash
+   * changed, which is what a second install after a translation edit reports.
    *
-   * @returns {never}
+   * @param {{ root: string, dataDir: string, archives: string[] }} project
+   * @param {{ dryRun?: boolean }} [options]
+   * @returns {{ pluginPath: string, registered: boolean, backupPath: null, createdBackup: boolean, staleBackup: boolean, state: "added"|"updated"|"unchanged", patch: object }}
    */
-  installRuntime() {
-    throw pending("install");
+  installRuntime(project, options = {}) {
+    const file = dictionaryPath(project.root);
+    if (!fs.existsSync(file)) {
+      throw coded("E_NO_DICTIONARY", "no dictionary yet: " + file + " - run: yakusha extract <game>");
+    }
+    const result = installPatch(project, loadDictionary(file), options);
+    return {
+      pluginPath: result.path,
+      registered: true,
+      backupPath: null,
+      createdBackup: false,
+      staleBackup: false,
+      state: result.created ? "added" : result.changed ? "updated" : "unchanged",
+      patch: {
+        path: result.path,
+        archive: result.archive,
+        entries: result.entries,
+        files: result.files,
+        created: result.created,
+        changed: result.changed,
+        skipped: result.skipped,
+        ...(result.dryRun === true ? { dryRun: true } : {}),
+      },
+    };
   },
 
   /**
-   * @returns {never}
+   * Delete the archive and manifest Yakusha wrote. A game archive is never
+   * touched, and a second run reports removed:false.
+   *
+   * @param {{ root: string, dataDir: string }} project
+   * @param {{ dryRun?: boolean }} [options]
    */
-  uninstallRuntime() {
-    throw pending("uninstall");
+  uninstallRuntime(project, options = {}) {
+    const result = uninstallPatch(project, options);
+    return {
+      removed: result.removed,
+      restored: false,
+      backupPath: null,
+      drifted: false,
+      keptBackup: null,
+      patch: {
+        path: result.path,
+        archive: result.archive,
+        entries: result.entries,
+        ...(result.dryRun === true ? { dryRun: true } : {}),
+      },
+    };
   },
 
   launch(project, options = {}) {
@@ -276,8 +298,8 @@ export const adapter = {
    * the XP3 reader rejects lands in undecodable, so it must be missing here
    * too, or doctor would print a size the user never saw.
    *
-   * @param {{ root: string }} project
-   * @returns {{ extract: () => object, dataFiles: number, delivery: { pending: true, message: string }, sourceLabel: string }}
+   * @param {{ root: string, dataDir: string }} project
+   * @returns {{ extract: () => object, dataFiles: number, delivery: object, sourceLabel: string }}
    */
   diagnostics(project) {
     let extracted = null;
@@ -289,13 +311,8 @@ export const adapter = {
       extract,
       dataFiles: extract().documents,
       // Doctor's delivery question - "is what install wrote still there?" -
-      // has no answer for an engine that cannot write yet. Returning null
-      // would fall through to the RPG Maker branch, which reads pluginsFile
-      // (null here) and throws; "pending" is the branch that tells the truth.
-      delivery: {
-        pending: true,
-        message: "Kirikiri has no delivery layer yet, so nothing is written back into the game",
-      },
+      // is answered by the manifest and archive, not by re-reading the game.
+      delivery: patchStatus(project),
       sourceLabel: "xp3 archives",
     };
   },

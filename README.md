@@ -13,10 +13,10 @@
 - **inject 档（RGSS，0.18 起）**：`install` 把注入器与 hook DLL 装进
   `yakusha/native/`，`launch` 通过 `yakusha_injector.exe` 启动游戏；游戏文件一个字节都不改，
   `uninstall` 只删这个目录。只构建了 32 位 Windows 组件。
-- **Kirikiri 本版没有交付层**：`scan`、`extract`、`translate`、`verify`、`terms`、`speaker`、
-  `export`、`doctor` 都能跑，但 `install` 与 `uninstall` 会明确报 `E_NOT_IMPLEMENTED`
-  （退出码 2）并且不写任何文件，游戏仍然显示原文。Kirikiri 的文本在 XP3 归档内的 KAG 脚本里。
-  原因与路线状态见下面 install 一节和 [docs/limitations.md](docs/limitations.md)。
+- **patch 档（Kirikiri，0.74 起）**：`install` 写一个 `data/patch.xp3` 覆盖归档
+  （只含已译 `.ks`）与清单 `yakusha/krkr-patch.json`，引擎按 `data.xp3` → `patch.xp3` 的顺序
+  加载、同名文件覆盖；游戏自己的归档一个字节都不改，`uninstall` 只删这两个文件。
+  只支持标准未加密 XP3，见 [docs/limitations.md](docs/limitations.md)。
 
 每一档对游戏文件的实际影响写在该档的文档里（[docs/limitations.md](docs/limitations.md)、
 [docs/engines.md](docs/engines.md)），没有"整个产品都绝对可逆"的说法。
@@ -143,9 +143,10 @@ node bin/yakusha.js uninstall "/games/MyGame"   # 摘掉插件那一行并还原
 **不会**拿旧备份盖掉这些改动，只摘掉自己那条、把备份留在原地给你核对。
 细节见 [docs/design.md](docs/design.md)。
 
-三个能装的引擎都支持 `install --dry-run`：只算不写，屏幕上多一行 `dry run   : nothing written`。
-插件层与 Ren'Py 层从 0.42 起也严格如此（不再创建插件、备份或译文文件）；Kirikiri 仍然直接报
-`E_NOT_IMPLEMENTED`。`uninstall --dry-run`（0.43 起）同样只报告将要删除或还原的内容，不碰磁盘。
+四个能装的引擎都支持 `install --dry-run`：只算不写，屏幕上多一行 `dry run   : nothing written`。
+插件层与 Ren'Py 层从 0.42 起也严格如此（不再创建插件、备份或译文文件）；RGSS 与 KRKR
+从各自交付层落地起同样不写盘。`uninstall --dry-run`（0.43 起）同样只报告将要删除或还原
+的内容，不碰磁盘。
 
 **Ren'Py** 只写一个文件：`game/yakusha_translation.rpy`。它内含 `translate schinese strings:`
 块，每条把字典里的原文映射到译文；游戏自己的脚本、`options.rpy` 一个字节都不改。
@@ -186,17 +187,18 @@ uninstall : yakusha uninstall "/games/MyGame"
 SHA-256 对不上会报 `E_IO` 并拒绝安装；`--embed` 只对 RPG Maker 插件层有意义，在 RGSS 上报
 `E_USAGE`（退出码 2）。
 
-**Kirikiri 本版装不进去**：没有交付层，`install` 与 `uninstall` 都以 `E_NOT_IMPLEMENTED`
-失败、退出码 2、一个文件都不写：
+**Kirikiri** 从 0.74 起也能装：`install` 把已译 `.ks` 打包成 `data/patch.xp3`，
+再写一份清单 `yakusha/krkr-patch.json`。引擎启动时按 `data.xp3` → `patch.xp3` → `patch2.xp3`
+的顺序加载，后加载的同名文件覆盖前面的，所以不需要解密或重写 `data.xp3`：
 
-```
-error: install is not implemented for Kirikiri yet - see the pending decisions in docs/dev/DEVLOG.md
+```bash
+node bin/yakusha.js install "/games/MyGame"   # 写 data/patch.xp3 与清单
+node bin/yakusha.js uninstall "/games/MyGame" # 只删这两个文件
 ```
 
-原因很直接：Kirikiri 没有可填的翻译资源目录，文本在 XP3 归档内的 KAG 脚本里，
-"写回"意味着重写归档，路线仍未拍板（待定清单见 `docs/dev/DEVLOG.md`），所以它停在字典：
-`translate` 之后游戏仍然显示原文，`doctor` 会把 `install` 报成 warning、`runtime` 报成 info。
-`export` 仍然是拿到译文的出口。
+`install` 需要字典里已有译文，否则报 `E_NO_DICTIONARY`；`--embed` 在 patch 档上报 `E_USAGE`
+（覆盖归档本身就含译文）。行匹配靠抽取时记录的 `archive.xp3:path/file.ks:line` locator，
+改写前校验源文本，游戏更新后旧字典不会静默覆盖错行。krkr2 / krkrz 的加密归档仍不在范围内。
 
 ### 5. verify / doctor：自检
 
@@ -260,10 +262,13 @@ verdict   : not-installed
 verdict   : ready
 ```
 
-Kirikiri 的 doctor 输出同一形态：`install` 一行换成
-`Kirikiri has no delivery layer yet, so nothing is written back into the game`，
-`sync` 一行是 `every dictionary key still appears in xp3 archives`；项目标题不解析，
-game 摘要行显示 `(untitled)`，verdict 同样停在上限 `usable`。
+Kirikiri 的 doctor 输出同一形态：`sync` 一行是
+`every dictionary key still appears in xp3 archives`；未装时 `install` 是
+`info not installed - run: yakusha install <game>`、`runtime` 是
+`info the game loads the patch archive at startup once installed`，verdict 为
+`not-installed`；装完变成 `ok data/patch.xp3 (written by install)` 与
+`ok data/patch.xp3 (N strings)`，verdict 为 `ready`。项目标题不解析，game 摘要行显示
+`(untitled)`。
 
 ### 可选：export 导出译文
 
@@ -340,7 +345,7 @@ npm start             # 等价于 npx electron gui/main.js
 speaker、terms 与 `config list`。API key 可以显式勾选"记住"（Windows DPAPI 加密
 存盘，CLI 不读它），也可以照旧用环境变量或 `--api-key`；`launch` 也在外壳里（与 CLI 同一条
 启动路径，`--exe` 歧义时展示候选）；最小字典编辑器也在外壳里（逐条改 pending
-译文，批量仍走 export/import）。0.16 起按钮可用性由引擎能力位驱动：没有交付层的引擎（本版是 Kirikiri）把 install/uninstall 置灰并写明原因，不再让用户点了才知道报错；RGSS 从 0.18 起有注入档，0.71 起普通 `install` 自动选择，按钮正常可用。设计与验收清单见 [docs/gui.md](docs/gui.md)。
+译文，批量仍走 export/import）。按钮可用性由引擎能力位驱动：未实现的能力灰掉并写明原因，不再让用户点了才知道报错；RGSS 从 0.18 起有注入档、KRKR 从 0.74 起有 patch 档，五个引擎的 install/uninstall 都可用。设计与验收清单见 [docs/gui.md](docs/gui.md)。
 
 ## 命令一览
 
@@ -353,9 +358,9 @@ speaker、terms 与 `config list`。API key 可以显式勾选"记住"（Windows
 | `verify` | 体检字典（发布前自检） |
 | `speaker` | 按本作自己的写法修复说话人名 |
 | `terms` | 挖人名/术语的主流译法，报出漂移 |
-| `install` | 装进游戏：MZ/MV 装插件，Ren'Py 写 `game/yakusha_translation.rpy`，RGSS 装注入器；Kirikiri 报 `E_NOT_IMPLEMENTED` |
-| `uninstall` | 卸载并还原：删插件与注册行、删那个翻译文件，或删 `yakusha/native/`；Kirikiri 未实现 |
-| `doctor` | 查安装产物、备份（Ren'Py 无）、字典是否还与这版游戏对得上；Kirikiri 只报「没有交付层」 |
+| `install` | 装进游戏：MZ/MV 装插件，Ren'Py 写 `game/yakusha_translation.rpy`，RGSS 装注入器，KRKR 写 `data/patch.xp3` 覆盖归档 |
+| `uninstall` | 卸载并还原：删插件与注册行、删那个翻译文件、删 `yakusha/native/`，或删 patch 归档与清单 |
+| `doctor` | 查安装产物、备份（Ren'Py 无）、字典是否还与这版游戏对得上 |
 | `export` | 把已翻译条目导出成 JSON 快照，或 TSV / CSV / JSONL |
 | `import` | 把导出的表格或快照回灌进字典；JSONL + `--create` 接外部内容 |
 | `config` | 读写用户级配置（`provider` / `model` / `baseUrl`，不存密钥） |
@@ -401,10 +406,10 @@ message 保证是单行、不含堆栈与密钥。`YAKUSHA_DEBUG=1` 时堆栈只
 ```
 bin/yakusha.js            CLI 薄壳，当前十四个命令
 src/cli/                  JSON 信封、严格参数解析、用户级配置、导出与表格读写
-src/engines/              适配器与 registry（MZ/MV 插件档、Ren'Py translation 档、RGSS inject 档、Kirikiri 仅 L1–L3）
+src/engines/              适配器与 registry（MZ/MV plugin、Ren'Py translation、RGSS inject、KRKR patch 四档）
   src/engines/renpy/      .rpy / .rpyc 解析、身份读取、translation 文件生成与状态
   src/engines/rgss/       .rxdata / .rvdata / .rvdata2 的 Ruby Marshal 读写、三版本归档解密、抽取、注入器组件安装与启动
-  src/engines/krkr/       XP3 归档解包、KAG 脚本（.ks）行解析、抽取
+  src/engines/krkr/       XP3 归档解包、KAG 脚本（.ks）行解析、抽取、patch 覆盖归档安装
 native/                   注入器与 hook 的 Rust 源码、构建脚本；native/prebuilt 随 npm 包分发
 src/index.js              库门面（与 CLI 共用同一套实现）
 src/core/                 项目发现、数据解码、文本抽取、字典、安装、doctor（引擎无关）
@@ -425,8 +430,9 @@ docs/                     设计说明、命令参考、契约、实测记录、
   **Kirikiri**。RGSS 0.18 起有运行时交付（原生注入器），但只在 32 位 Windows 上、
   只在一款 VX Ace 商业游戏上做过真机验收：XP / VX（RGSS1 / RGSS2）未测，RGSS301 只有
   同族兼容性推断；未签名的注入器与 DLL 可能被杀软误报；加壳样本不在范围内。
-  **Kirikiri** 这一版只有「识别 / 盘点 / 提取 / 翻译 / 校验 / 导出」，**没有运行时交付**：
-  `install` 与 `uninstall` 报 `E_NOT_IMPLEMENTED`，游戏里看不到中文。
+  **Kirikiri** 0.74 起有 patch 覆盖归档交付层：只支持标准未加密 XP3，只写
+  `.ks`（`.tjs` 只计数），krkr2 / krkrz 的加密变体不碰；交付层只在合成夹具上覆盖，
+  还没有真实商业游戏的运行时验收。
   Unity、Godot、Wolf 仍然不支持；多引擎路线与每一档的验收标准见
   [docs/dev/ENGINE-STRATEGY.md](docs/dev/ENGINE-STRATEGY.md)。
 - Ren'Py 只投 `schinese` 一种语言（命令行没有选语言的入口）；`game/tl/` 下已有的

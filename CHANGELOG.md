@@ -6,6 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.74.0] - 2026-11-12
+
+### Added
+
+- **Kirikiri games get a delivery layer.** `install` now writes a `data/patch.xp3` override archive plus a `yakusha/krkr-patch.json` manifest; `uninstall` removes exactly those two files. KiriKiri loads `data.xp3`, then `patch.xp3`, then `patch2.xp3`, with later archives overriding files of the same name, so the game's own archive is never modified. The archive contains only `.ks` files that have translated lines; each rewritten line is matched through the `archive.xp3:path/file.ks:line` locator recorded at extraction time and its source text is verified before writing.
+- `scan` reports `capabilities.runtime: "patch"` for Kirikiri, so capability-aware clients enable install and uninstall for the engine.
+- `install` payload gains an optional `patch` object: `{path, archive, entries, files, created, changed, skipped, dryRun?}`. `uninstall` gains `{path, archive, entries, dryRun?}`. Both are additive keys.
+
+### Changed
+
+- `install` on Kirikiri requires a dictionary with translated entries and reports `E_NO_DICTIONARY` otherwise. `install --embed` is a usage error on this engine because the patch archive already contains the translations.
+- `doctor` now checks the patch layer through `patchStatus()`: `install` / `runtime` report `info` before install, `ok` after install, `warn` when the dictionary changed since install, and `fail` when the manifest exists but the archive is missing. KRKR diagnostics use the adapter-supplied `xp3 archives` label instead of `data/`.
+- `extract` skips the patch archive that Yakusha itself installed, so a later extraction does not pick up its own translated output.
+
+### Fixed
+
+- The uninstalled patch runtime line no longer reads `the game loads null at startup once installed`.
+
+### Unchanged
+
+- Envelope, exit codes, the 14 commands, all 13 error codes and the dictionary format (`yakusha/1`) are untouched. `E_NOT_IMPLEMENTED` now has no CLI trigger path; only the library-level `attach` still returns it. No new dependency. 865 pass.
 ## [0.73.0] - 2026-11-09
 
 ### Changed
@@ -924,6 +945,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
 [Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.73.0...HEAD
+[0.74.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.73.0...v0.74.0
 [0.73.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.72.0...v0.73.0
 [0.72.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.71.0...v0.72.0
 [0.71.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.70.0...v0.71.0

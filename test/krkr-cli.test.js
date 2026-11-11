@@ -98,51 +98,96 @@ test("cli: extract writes a dictionary with script-line contexts", () => {
   assert.equal(dictionary.entries["あおい「朝のせりふ」"].contexts[0], "scenario/s1.ks:2");
 });
 
-test("cli: install says the delivery layer is pending, and writes nothing", () => {
+test("cli: install without a dictionary reports E_NO_DICTIONARY and writes nothing", () => {
   const game = tempGame();
-  assert.equal(run(["extract", game, "--json"]).code, 0);
   const before = fs.readdirSync(game);
   const result = run(["install", game, "--json"]);
   assert.equal(result.code, 2);
   const payload = envelope(result);
   assert.equal(payload.ok, false);
   assert.equal(payload.outcome, "error");
-  assert.equal(payload.error.code, "E_NOT_IMPLEMENTED");
-  assert.match(payload.error.message, /^install is not implemented for Kirikiri yet/);
+  assert.equal(payload.error.code, "E_NO_DICTIONARY");
+  assert.match(payload.error.message, /^no dictionary yet: /);
   // Nothing new appeared in the game directory.
   assert.deepEqual(fs.readdirSync(game), before);
 });
 
-test("cli: install on a game with no dictionary reports the same pending layer", () => {
-  const result = run(["install", tempGame(), "--json"]);
-  assert.equal(result.code, 2);
-  const payload = envelope(result);
-  assert.equal(payload.error.code, "E_NOT_IMPLEMENTED");
-  assert.match(payload.error.message, /docs\/dev\/DEVLOG\.md$/);
+test("cli: install writes the patch archive and uninstall removes only that archive", () => {
+  const game = tempGame();
+  assert.equal(run(["extract", game, "--json"]).code, 0);
+  const dictionaryFile = path.join(game, "yakusha", "dictionary.json");
+  const dictionary = JSON.parse(fs.readFileSync(dictionaryFile, "utf8"));
+  dictionary.entries["あおい「朝のせりふ」"].text = "Aoi「早晨的台词」";
+  fs.writeFileSync(dictionaryFile, JSON.stringify(dictionary, null, 2) + "\n");
+
+  const installed = run(["install", game, "--json"]);
+  assert.equal(installed.code, 0, installed.stderr);
+  const payload = envelope(installed);
+  assert.equal(payload.ok, true);
+  assert.equal(payload.command, "install");
+  assert.equal(payload.state, "added");
+  assert.equal(payload.patch.archive, "patch.xp3");
+  assert.equal(payload.patch.entries, 1);
+  assert.equal(payload.patch.files, 1);
+  assert.equal(fs.existsSync(path.join(game, "data", "patch.xp3")), true);
+  assert.equal(fs.existsSync(path.join(game, "yakusha", "krkr-patch.json")), true);
+
+  const again = run(["install", game, "--json"]);
+  assert.equal(again.code, 0, again.stderr);
+  assert.equal(envelope(again).state, "unchanged");
+
+  const removed = run(["uninstall", game, "--json"]);
+  assert.equal(removed.code, 0, removed.stderr);
+  const uninstalled = envelope(removed);
+  assert.equal(uninstalled.removed, true);
+  assert.equal(uninstalled.patch.archive, "patch.xp3");
+  assert.equal(fs.existsSync(path.join(game, "data", "patch.xp3")), false);
+  assert.equal(fs.existsSync(path.join(game, "yakusha", "krkr-patch.json")), false);
+
+  const second = run(["uninstall", game, "--json"]);
+  assert.equal(second.code, 0, second.stderr);
+  assert.equal(envelope(second).removed, false);
 });
 
-test("cli: uninstall reports the same pending layer", () => {
+test("cli: install --embed is a usage error on the patch tier", () => {
+  const game = tempGame();
+  assert.equal(run(["extract", game, "--json"]).code, 0);
+  const result = run(["install", game, "--embed", "--json"]);
+  assert.equal(result.code, 2);
+  const payload = envelope(result);
+  assert.equal(payload.error.code, "E_USAGE");
+  assert.match(payload.error.message, /patch archive already contains the translations/);
+  assert.equal(fs.existsSync(path.join(game, "data", "patch.xp3")), false);
+});
+
+test("cli: uninstall on a game with no patch reports it was not installed", () => {
   const result = run(["uninstall", tempGame(), "--json"]);
-  assert.equal(result.code, 2);
+  assert.equal(result.code, 0, result.stderr);
   const payload = envelope(result);
-  assert.equal(payload.error.code, "E_NOT_IMPLEMENTED");
-  assert.match(payload.error.message, /^uninstall is not implemented for Kirikiri yet/);
+  assert.equal(payload.ok, true);
+  assert.equal(payload.removed, false);
+  assert.equal(payload.patch.archive, null);
 });
 
-test("cli: doctor reports the game as usable and names the pending layer", () => {
+test("cli: doctor reports the patch layer as not installed and says what to run", () => {
   const game = tempGame();
   assert.equal(run(["extract", game, "--json"]).code, 0);
   const result = run(["doctor", game, "--json"]);
   assert.equal(result.code, 0, result.stderr);
   const payload = envelope(result);
   assert.equal(payload.ok, true);
-  assert.equal(payload.verdict, "usable");
+  assert.equal(payload.verdict, "not-installed");
   assert.equal(payload.game.engine, "krkr");
   assert.equal(payload.game.dataFiles, 1);
   const levels = Object.fromEntries(payload.checks.map((check) => [check.id, check.level]));
-  assert.equal(levels.install, "warn");
+  assert.equal(levels.install, "info");
+  assert.equal(levels.runtime, "info");
   const install = payload.checks.find((check) => check.id === "install");
-  assert.match(install.message, /no delivery layer yet/);
+  assert.match(install.message, /^not installed - run: yakusha install /);
+  const runtime = payload.checks.find((check) => check.id === "runtime");
+  assert.equal(runtime.message, "the game loads the patch archive at startup once installed");
+  const sync = payload.checks.find((check) => check.id === "sync");
+  assert.match(sync.message, /every dictionary key still appears in xp3 archives$/);
 });
 
 test("cli: doctor on a game with no dictionary is broken, and says what to run", () => {
@@ -153,8 +198,8 @@ test("cli: doctor on a game with no dictionary is broken, and says what to run",
   assert.equal(payload.verdict, "broken");
   const dictionary = payload.checks.find((check) => check.id === "dictionary");
   assert.equal(dictionary.level, "fail");
-  // Even then the pending delivery layer is reported, not hidden.
-  assert.equal(payload.checks.find((check) => check.id === "install").level, "warn");
+  // The delivery layer is reported honestly even when nothing is installed.
+  assert.equal(payload.checks.find((check) => check.id === "install").level, "info");
 });
 
 test("cli: verify reads the dictionary the extractor wrote", () => {

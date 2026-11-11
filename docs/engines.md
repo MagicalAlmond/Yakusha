@@ -1,4 +1,4 @@
-# 引擎适配器契约（0.64 契约）
+# 引擎适配器契约（0.74 契约）
 
 > **状态：0.47 覆盖五个引擎——RPG Maker MZ、RPG Maker MV、Ren'Py、RGSS（XP / VX / VX Ace）、Kirikiri。**
 > 0.14 交付 GUI 外壳，0.15 加 JSONL 导入，0.16 起 `scan` 载荷带引擎能力位（GUI 据此灰显按钮），
@@ -10,8 +10,9 @@
 > 0.63 只改命令层的读取错误与提示：`translate --glossary` 与 `import --from` 指向目录时改报 `E_IO`（此前分别是 `E_USAGE` + 裸 errno 与裸 `EISDIR`），`translate --context` 零匹配时打 stderr 警告（退出码不变，adapter 契约不变）。
 > 0.10 把 MZ 与 MV 包进统一的 adapter，**不搬文件、不重写算法**；0.11 用同一套
 > contract 接入 Ren'Py，作为第三个 adapter 挂在 registry 末位；0.12 接入 RGSS，排在
-> 第四位，只做到 L1–L3（detect / scan / extract），**没有交付层**；0.13 接入
-> Kirikiri，排在第五位，同样只做到 L1–L3，也没有交付层。本文冻结 adapter 的形状、
+> 第四位，只做到 L1–L3（detect / scan / extract），交付层到 0.18 才补上；0.13 接入
+> Kirikiri，排在第五位，同样先只做到 L1–L3；0.74 给它接上 patch 归档交付层
+> （`runtime: "patch"`），五引擎至此都有交付层。本文冻结 adapter 的形状、
 > 能力矩阵、安装/启动契约与契约测试的落点；引擎之间真正的差异（文本形态、投递方式、
 > 控制码语法）下沉到 adapter 与 profile 数据里，不进 `src/pipeline`。
 
@@ -26,11 +27,10 @@
 
 非目标：
 
-- Kirikiri（0.13）只到 L1–L3（detect / scan / extract + 既有 pipeline），**没有
-  交付层**：`capabilities.runtime` 是 `null`，`install` / `uninstall` 抛
-  `E_NOT_IMPLEMENTED`（见 §7.8）。RGSS 从 0.18 起有交付层（`runtime: "inject"`，
-  原生注入器，见 §7.7），不再是 `null`。本版不实现 Unity / Wolf；原生注入只做了
-  RGSS 这一个引擎。
+- 五个引擎从 0.74 起都有交付层：MZ / MV 是插件档，Ren'Py 是翻译资源档，RGSS 是原生
+  注入档（`runtime: "inject"`，见 §7.7），Kirikiri 是覆盖归档档（`runtime: "patch"`，见 §7.8）。
+  没有 `runtime: null` 的引擎，也没有 CLI 可达的 `E_NOT_IMPLEMENTED`。本版不实现
+  Unity / Wolf；原生注入只做了 RGSS 这一个引擎。
   Ren'Py 走引擎自带的 translation 资源档，不是注入档，理由见 [design.md](design.md)。
 - 不搬 `src/core` 的文件。RPG Maker 的 adapter 是薄包装，`core` 仍可被库用户直接使用。
 - 不实现 `attach`（CDP 调试注入），只登记能力与接口；五个引擎的 `attach` 都是 `false`。
@@ -214,14 +214,14 @@ RGSS 同样用这个形状，带着 `dataUnit: "data files"` 与一个 `diagnost
 - `pluginDir` / `pluginsFile` / `indexPath` 全为 `null`，`version` 是字符串
   `"1"` / `"2"` / `"3"`（不是 MZ 那样的 `"1.7.0"`），读不到就是 `null`。
 
-Kirikiri（0.13，第五位）也用这个形状，带着 `dataUnit: "data files"` 与一个
-`diagnostics()`（`src/engines/krkr/adapter.js:280-299`）：
+Kirikiri（0.13 接入，0.74 补交付层，第五位）也用这个形状，带着
+`dataUnit: "data files"` 与一个 `diagnostics()`（`src/engines/krkr/adapter.js:304-317`）：
 
 ```js
 {
   id: "krkr",
   name: "Kirikiri",
-  capabilities: { extract: true, export: true, runtime: null, launch: true,
+  capabilities: { extract: true, export: true, runtime: "patch", launch: true,
                   debuggable: false },   // attach / liveReload 为 false
   dataUnit: "data files",              // scan 的行标仍是 data files（数的是归档）
   profile: krkrProfile,                // KAG 标签语法，见 §13.4
@@ -229,10 +229,16 @@ Kirikiri（0.13，第五位）也用这个形状，带着 `dataUnit: "data files
 }
 ```
 
-- `runtime: null` 是**诚实取值**：交付意味着把归档写回去（重打包
-  XP3），0.13 没做这一层（`src/engines/krkr/adapter.js:232-243` 的注释明说）。
+- `runtime: "patch"` 是 0.74 的**诚实取值**：Kirikiri 启动时按
+  `data.xp3` → `patch.xp3` → `patch2.xp3` 的顺序加载同名覆盖文件，所以交付不需要
+  改游戏自己的归档，只要写一个新的覆盖归档（`src/engines/krkr/patch.js`）。
 - `diagnostics()` 的 `sourceLabel` 是 `"xp3 archives"`，`delivery` 是
-  `{pending: true, message: "Kirikiri has no delivery layer yet, so nothing is written back into the game"}`。
+  `patchStatus()` 的返回值
+  `{path, exists, entries, files, mode: "patch", intact, problems, dictionaryStale, archive?}`：
+  `path` 是清单 `yakusha/krkr-patch.json` 的绝对路径（未安装时 `null`），`exists`
+  只看清单在不在，`intact` 表示清单可读且它指向的归档也在，`problems` 是给人看的
+  问题列表（如 `the patch archive is missing`），`entries` / `files` 是安装时的
+  字符串数与文件数，`dictionaryStale` 表示安装之后项目字典又被改过。
 - `gameTitle` / `version` 恒为 `null`：标题与版本住在加密或可选的配置文件里，
   0.13 不解析（`src/engines/krkr/project.js:117-145` 的注释）；scan 因此显示
   `(untitled)`，engine 行没有版本后缀。
@@ -326,21 +332,21 @@ adapter 只负责给 `code` + `message`；CLI 负责把它塞进错误信封（`
 | --- | --- | --- | --- | --- | --- | --- |
 | `extract` | true | true | true | true | true | RM：`data/*.json`，明文或单字节 XOR；Ren'Py：`game/` 下的 `.rpy` / `.rpyc`；RGSS：`Data/*.rxdata` / `.rvdata` / `.rvdata2` 或 `RGSSAD` 家族归档里的同一批文档；Kirikiri：`data/`（或根目录本身）下 `.xp3` 归档里的 `.ks` 脚本 |
 | `export` | true | true | true | true | true | 0.10 起只有 JSON 导出 |
-| `runtime` | `plugin` | `plugin` | `translation` | **`inject`** | **`null`** | RM 装 JS 插件（MZ 包 `onXhrLoad`，MV 包 `loadDataFile` + `onLoad`）；Ren'Py 生成一个翻译脚本；RGSS 注入原生 hook（`install` 自动选择）；Kirikiri 本版没有交付层 |
+| `runtime` | `plugin` | `plugin` | `translation` | **`inject`** | **`patch`** | RM 装 JS 插件（MZ 包 `onXhrLoad`，MV 包 `loadDataFile` + `onLoad`）；Ren'Py 生成一个翻译脚本；RGSS 注入原生 hook（`install` 自动选择）；Kirikiri 写一个 `patch.xp3` 覆盖归档 |
 | `launch` | true | true | true | true | true | 项目根唯一 `.exe`（Ren'Py 发行版的根目录通常就是启动器所在处） |
 | `debuggable` | true | **false** | false | false | false | MZ 可被 `--remote-debugging-port` + CDP 驱动；MV 的旧 nw.js 不吃这个参数；Ren'Py 是 Python 引擎，没有 CDP；RGSS 是闭源 C++ 运行时；Kirikiri 的 exe 同样没有 CDP |
 | `attach` | false | false | false | false | false | 从 0.10 起就没有实现 |
 | `liveReload` | false | false | false | false | false | RM 插件有 `window.__YAKUSHA.reload()`，但没有文件监听；Ren'Py 每次启动重读翻译文件；RGSS 只在启动时读一次 `dictionary.txt`；Kirikiri 没有可重读的文件 |
 
 RGSS 与 Kirikiri 两列的值由 `src/engines/rgss/adapter.js:180-190` 与
-`src/engines/krkr/adapter.js:189-200` 固定，并在
+`src/engines/krkr/adapter.js:176-183` 固定，并在
 `test/engine-contract.test.js:71-94` 里对五个引擎逐个断言
 （`ALL_ENGINES = ["mz","mv","renpy","rgss","krkr"]`、
-`RUNTIME_TIERS = { mz:"plugin", mv:"plugin", renpy:"translation", rgss:"inject", krkr:null }`）。
+`RUNTIME_TIERS = { mz:"plugin", mv:"plugin", renpy:"translation", rgss:"inject", krkr:"patch" }`）。
 
 三个概念必须分开，否则 GUI 会显示一个点了就报错的按钮：
 
-- `runtime`：**已经实现**的投递方式，0.11 有两档，0.18 的 RGSS 是第三档，0.13 的 Kirikiri 仍是 `null`：
+- `runtime`：**已经实现**的投递方式，0.74 起四档全部落地，没有 `null`：
   - `plugin`（MZ、MV）——装一个 JS 插件，运行时由插件读字典替换显示文本；删掉插件
     条目即还原。
   - `translation`（Ren'Py）——生成引擎自带的翻译资源
@@ -349,11 +355,13 @@ RGSS 与 Kirikiri 两列的值由 `src/engines/rgss/adapter.js:180-190` 与
   - `inject`（RGSS，0.18 起）——`install` 把四个原生组件与 `dictionary.txt`
     写进 `game/yakusha/native/`，`launch` 用 `yakusha_injector.exe` 把 hook DLL 注入游戏进程；
     删掉 `yakusha/native/` 即还原，游戏自己的文件一个都不改（见 §7.7）。
-  - `null`（Kirikiri）——**没有**交付层。译文要写回去就得重打包 XP3 归档，这条路还没做，
-    所以这个格子必须是 `null` 而不是随便猜一个档位。`doctor` 的 `install` 检查因此是
-    warn、`runtime` 检查是 info（见 §7.8）。
-  - 三档已实现的共同点都是“加文件 / 加目录、删掉即还原”，区别在谁执行替换：`plugin` 是
-    yakusha 的插件，`translation` 是引擎本身，`inject` 是注入进进程的 native hook。
+  - `patch`（Kirikiri，0.74 起）——`install` 写一个只含已译 `.ks` 的覆盖归档
+    （默认 `data/patch.xp3`）与清单 `yakusha/krkr-patch.json`；引擎按归档顺序加载，
+    后加载的同名文件覆盖 `data.xp3` 里的原件。删掉这两个文件即还原，游戏自己的归档
+    一个都不改（见 §7.8）。
+  - 四档的共同点都是“加文件 / 加目录、删掉即还原”，区别在谁执行替换：`plugin` 是
+    yakusha 的插件，`translation` 是引擎本身，`inject` 是注入进进程的 native hook，
+    `patch` 是引擎自己的归档覆盖顺序。
     `debug` 仍是预留枚举。
 - `debuggable`：**引擎本身**是否支持 CDP。MZ 为 true，是实测结论；不代表工具能用。
 - `attach`：**工具是否实现** attach。从 0.10 起所有引擎都为 false，RGSS 与 Kirikiri 也一样
@@ -436,10 +444,10 @@ adapter 只是把“装哪个插件、怎么探测”变成统一接口，不改
 | 数据形态 | `data/*.json` 明文或单字节 XOR；Ren'Py 是 `.rpy` / `.rpyc`；RGSS 是 Ruby Marshal 文档与 `RGSSAD` 家族归档 | XP3 容器归档（`data/` 直接下层，或根目录本身），里面的 `.ks` 脚本承载文本 |
 | 识别依据 | core 文件 / `game/` 下脚本 / `Game.ini` 与 RGSSAD 家族 / `Data/` | `data/`（或根目录本身）直接下层存在 `.xp3`（`src/engines/krkr/project.js:49-51`） |
 | 引擎版本来源 | core 文件 / `options.rpy` / `Game.ini` 的 `Library=` | **恒为 `null`**：版本住在加密或可选的配置文件里，0.13 不解析 |
-| 投递 | 装插件 / 生成翻译资源 / **无** | **无**（`runtime: null`，写回意味着重打包 XP3，见 §7.8） |
-| 卸载 | 删文件还原 / Ren'Py 删一个文件 / **无** | **无**（`uninstall` 抛 `E_NOT_IMPLEMENTED`） |
-| 备份 | `js/plugins.js.yakusha-backup` / 不需要 / **无** | **无**（不改任何原有文件） |
-| 计数单位 | data files / scripts / data files（RGSS 是解码成功的文档数） | data files，含义是**成功打开的 XP3 归档数**（`src/engines/krkr/extract.js:96`） |
+| 投递 | 装插件 / 生成翻译资源 / 注入原生 hook | **写 `patch.xp3` 覆盖归档**（只含已译 `.ks`，外加清单 `yakusha/krkr-patch.json`，见 §7.8） |
+| 卸载 | 删文件还原 / Ren'Py 删一个文件 / 删 `yakusha/native/` | **删归档与清单**（游戏自己的归档不动） |
+| 备份 | `js/plugins.js.yakusha-backup` / 不需要 / 无（清单认领） | **无**（不改任何原有文件；清单认领自己写的归档） |
+| 计数单位 | data files / scripts / data files（RGSS 是解码成功的文档数） | data files，含义是**成功打开的 XP3 归档数**（`src/engines/krkr/extract.js:94-104`；自身 patch 归档被跳过） |
 | 控制码 | 反斜杠转义 / `{b}` 文本标签 / 反斜杠转义 | `[r]`、`[er]`、`[emb exp=...]` 等 KAG 方括号标签；`[[` 转义出字面 `[`（`src/engines/krkr/profile.js:31-64`） |
 | 占位符校验 | `%1` / `[...]` / 反斜杠槽位 | `%N` 形式的数字槽（`src/engines/krkr/profile.js:100`）；方括号标签已按控制码比较，不重复报 |
 | 说话人 | 不追踪（speaker 命令靠字典键形态） | `.ks` 里 `[name_set name=...]` 被逐行跟踪（`src/engines/krkr/ks.js:121-134`，含 `@name_set` 单行形式），但 0.13 的字典不存说话人 |
@@ -449,8 +457,8 @@ adapter 只是把“装哪个插件、怎么探测”变成统一接口，不改
 
 安装的产物按 `capabilities.runtime` 分档，载荷键名相同（6 个 / 5 个），只是 Ren'Py
 与 RGSS 下部分键恒为 `null` / `false`。下面 7.1–7.4 是插件档（MZ / MV），7.5–7.6 是
-translation 档（Ren'Py），7.7 是 inject 档（RGSS，原生注入器），7.8 是 Kirikiri——
-`runtime` 为 `null`，`install` / `uninstall` 只抛 `E_NOT_IMPLEMENTED`。
+translation 档（Ren'Py），7.7 是 inject 档（RGSS，原生注入器），7.8 是 patch 档
+（Kirikiri，覆盖归档）。四个能装的档位都接受 `--dry-run`，也都不写游戏自己的文件。
 
 ### 7.1 写哪些文件（插件档）
 
@@ -749,25 +757,52 @@ DLL 搜索路径（Windows 解析 DLL 自己的导入表时走的是**应用程�
 交付层路线在 2026-10-27 拍板为原生注入器（[dev/DEVLOG.md](dev/DEVLOG.md) §8.1 第 10 条）；
 纯 JS 写回保留为历史备选，`marshal.js` / `archive.js` 的写能力仍在，但 0.18 的交付不走那条路。
 
-### 7.8 Kirikiri：本版没有交付层
+### 7.8 Kirikiri：patch 归档交付层（0.74 起）
 
-与 RGSS（§7.7）同一条路，0.13 只做到 L1–L3：
+Kirikiri 的引擎启动时按 `data.xp3` → `patch.xp3` → `patch2.xp3` 的顺序加载，
+后加载归档里的同名文件覆盖前面的。Yakusha 用这个既有机制交付译文，**不改游戏自己的
+任何归档**：
 
-- `install` / `uninstall` 抛 `E_NOT_IMPLEMENTED`，消息
-  `install is not implemented for Kirikiri yet - see the pending decisions in docs/dev/DEVLOG.md`
-  （`uninstall` 换个动词），退出 2（`src/engines/krkr/adapter.js:181-186` 的 `pending()`，
-  `installRuntime` / `uninstallRuntime` 在 :238-240 / :245-247 调它）。
-- **不写任何文件**。交付层缺位意味着写回就得重打包 XP3 归档，0.13 没做，也留下
-  两个待拍板项（`src/engines/krkr/adapter.js:232-243` 的注释）。
-- **`--embed` 不改变结论（0.50 起）**：`--embed` 的字典前置检查只在 RPG Maker 插件层
-  （`runtime === "plugin"`）执行，Kirikiri 的 `runtime` 是 `null`，所以带不带 `--embed`
-  都直接报 pending 那句 `E_NOT_IMPLEMENTED`，与有没有字典无关（`src/cli/runner.js:892-899`）。
-  0.11–0.49 时 `--embed` 会先撞 CLI 那层字典校验，缺字典报 `E_NO_DICTIONARY`，
-  把「这个引擎没有交付层」的事实盖住。
-- 测试钉住：`test/krkr-adapter.test.js:150`（install/uninstall 指向待拍板清单）、
-  `test/krkr-cli.test.js:101` / :116 / :124（CLI 侧 install 与 uninstall 不写盘）、
-  `test/engine-contract.test.js:412`（attach 共享历史措辞）。待拍板清单见
-  [dev/DEVLOG.md](dev/DEVLOG.md) §8.1。
+- `install` 读项目字典，只挑出「有译文且 locator 能对上」的 `.ks` 行，重写整份 `.ks`
+  文件，打包成一个新的覆盖归档（默认 `<dataDir>/patch.xp3`），再写清单
+  `<root>/yakusha/krkr-patch.json`（`src/engines/krkr/patch.js:473-542`）。
+- 归档名由 `chooseArchive()` 决定（`src/engines/krkr/patch.js:312-333`）：已有清单就复用它
+  记录的 `archive`；否则从 `patch.xp3`、`patch2.xp3`……里取第一个不存在的名字
+  （`PATCH_NAME = /^patch(\d*)\.xp3$/i`）。游戏自带的 `data.xp3` 永远不会被当作目标。
+- 清单记录 `schema`、`engine: "krkr"`、`archive`、`entries`、`files`（完整文件名数组）、
+  `dictionaryHash`、`archiveHash`。`patchStatus()` 用这两个哈希回答「装完之后字典/归档
+  有没有被改过」（`src/engines/krkr/patch.js:581-629`）。
+- **行匹配靠 locator**：抽取时记录的 `archive.xp3:path/file.ks:line` 指明行在哪份归档、
+  哪个文件、第几行；改写前会校验该行的源文本仍等于字典键，游戏更新后旧字典不会
+  静默覆盖错行（`src/engines/krkr/patch.js:98-156`）。
+- `install` 载荷是 6 个通用键加一个 `patch` 子对象
+  `{path, archive, entries, files, created, changed, skipped, dryRun?}`；
+  `pluginPath` 是覆盖归档的绝对路径，`registered` 恒为 `true`，`backupPath` 恒为 `null`；
+  `state` 是 `added`（首次写入）/ `updated`（归档或字典变了）/ `unchanged`
+  （`src/engines/krkr/adapter.js:226-250`）。
+- 没有字典时 `install` 报 `E_NO_DICTIONARY`：
+  `no dictionary yet: <file> - run: yakusha extract <game>`；`uninstall` 不读字典
+  （`src/engines/krkr/adapter.js:227-230`）。
+- `install --embed` 在 patch 档报 `E_USAGE`：
+  `install --embed applies to RPG Maker games only: the Kirikiri patch archive already contains the translations`
+  （`src/cli/runner.js:916-920`）——patch 归档本身已经装的是译文，没有「把字典嵌进插件」
+  这回事。
+- `uninstall` 只删清单与它记录的归档（`src/engines/krkr/patch.js:544-575`），返回
+  `{removed, restored: false, backupPath: null, drifted: false, keptBackup: null, patch:{path, archive, entries, dryRun?}}`；
+  没装过时 `removed: false`、`patch.archive: null`。游戏自己的文件一个都不动。
+- `doctor` 的 `install` / `runtime` 两行由 `patchStatus()` 驱动：未装时都是 `info`
+  （`not installed - run: yakusha install <game>` /
+  `the game loads the patch archive at startup once installed`），装好后是 `ok`
+  （`data/patch.xp3 (written by install)` / `data/patch.xp3 (N strings)`）；字典变了是
+  `warn`（`... is out of date ... - run: yakusha install <game>`），清单在而归档缺失或
+  哈希不符是 `fail`（`the patch layer cannot load until the archive and manifest are repaired`）。
+- 限制：只支持标准未加密 XP3；只写 `.ks`（`.tjs` 只计数不解析）；krkr2 / krkrz 的
+  加密归档变体不在范围内；交付依赖引擎的归档覆盖顺序，若游戏自己也有 `patch.xp3`，
+  `chooseArchive()` 会避开它，但用户之后自行新增同名归档仍可能盖住译文。
+- 测试钉住：`test/krkr-adapter.test.js`（install/uninstall 真链路、二次 install
+  `unchanged`、doctor 三种状态）、`test/krkr-cli.test.js`（成功载荷、缺字典、
+  `--embed` 冲突、uninstall 未安装）、`test/krkr-patch.test.js`（dry-run 不写盘、
+  清单在而归档缺失、抽取跳过自身归档）。
 
 ## 8. 启动契约（`launch`，0.10 已实现，0.11–0.18 不变）
 
@@ -1073,31 +1108,36 @@ RGSS 专属（`test/rgss-adapter.test.js` 28 条 + `test/rgss-cli.test.js` 17 �
 - profile：`\C[n]` / `\N[n]` 这类转义码被 `grammar.controlCodes` 认出来，译文里的
   同类码也要被保留（`profile: RGSS keeps the escape codes the generator renders`）。
 
-Kirikiri 专属（`test/krkr-adapter.test.js` 11 条 + `test/krkr-cli.test.js` 13 条）：
+Kirikiri 专属（`test/krkr-adapter.test.js` 11 条 + `test/krkr-cli.test.js` 14 条 +
+`test/krkr-patch.test.js` 8 条）：
 
-- registry 里排第五、带自己的 profile、`runtime` 为 `null`、`dataUnit` 为
+- registry 里排第五、带自己的 profile、`runtime` 为 `"patch"`、`dataUnit` 为
   `data files`、有 `diagnostics`（`test/krkr-adapter.test.js:45` 的
-  `the registry ships Kirikiri fifth, with its own profile and no runtime tier`）。
+  `the registry ships Kirikiri fifth, with its own profile and the patch runtime tier`）。
 - detect：从 root 与 `data/` 都能找到项目（指到 `data/` 本身时 root 就是它）；
   空目录报 Kirikiri 那句 `E_NOT_PROJECT`（:76）；两个同级项目报 `E_MULTI_ROOT`
   且候选排序（:85）。
 - scan：载荷保持那 11 个键（:98）；解不开的归档按“一行一条”进 `undecodable`（:116）。
-- extract：写出的字典译文为空、同名文本合并 contexts（:127）；已翻译的条目不覆盖（:137）。
-- install / uninstall：抛 `E_NOT_IMPLEMENTED` 指向待拍板清单（:150）；install 前后
-  目录逐项相同，**不写任何文件**。
-- attach：走共享的 `notImplemented()`（:171）。
-- doctor：`delivery.pending` 让 install 记 warn、runtime 记 info，verdict 仍是
-  `usable`；`diagnostics.dataFiles` 是成功打开的归档数（:183）。
+- extract：写出的字典译文为空、同名文本合并 contexts、locator 带归档名
+  （`data.xp3:scenario/s1.ks:2`，:128）；已翻译的条目不覆盖（:143）。
+- install / uninstall：没有字典报 `E_NO_DICTIONARY`（:156 起的真链路）；写一条译文后
+  install 生成覆盖归档与清单，二次 install 报 `unchanged`，uninstall 只删这两个文件，
+  再 uninstall 报 `removed:false`。
+- attach：走共享的 `notImplemented()`（:200）。
+- doctor：`delivery` 是 `patchStatus()` 形状（未装 `exists:false`、`intact:true`；
+  装后 `exists:true`、`entries/files` 与清单一致）；`diagnostics.dataFiles` 是成功打开的
+  归档数（:212）。
 - profile：`[r]` / `[emb exp=...]` 这类 KAG 标签被 `grammar.controlCodes` 认出来；
   `[[` 转义出字面 `[`。
 
-CLI 侧（`test/krkr-cli.test.js`，13 条）走真实的 `bin/yakusha.js`：scan 文本模式打
+CLI 侧（`test/krkr-cli.test.js`，14 条）走真实的 `bin/yakusha.js`：scan 文本模式打
 `data files:` 与 `encodings : xp3 N`（engine 行没有版本后缀，game 行显示 `(untitled)`）；
-extract 写出字典且 context 指回 `.ks` 行（如 `scenario/first.ks:2`）；install /
-uninstall 退出码 2 且不写盘；doctor 有字典时 `usable` 并点名 pending 的交付层，无字典
-`broken` 且退出码 1；verify / speaker / terms / export 在同一套 pipeline 上跑通；
-非游戏目录报 RPG Maker 那句（registry 第一个 adapter 的文案，Kirikiri 自己的措辞由
-adapter 测试覆盖）。
+extract 写出字典且 context 指回 `.ks` 行（如 `scenario/first.ks:2`）；install 无字典报
+`E_NO_DICTIONARY`，有译文时写 `data/patch.xp3` 与清单并回报 `patch` 载荷，二次 install
+`unchanged`，`--embed` 报 `E_USAGE`；uninstall 删文件并回报 `patch`，没装过时退出 0 且
+`removed:false`；doctor 装前 `not-installed`、装后 `ready`、无字典 `broken` 且退出码 1；
+verify / speaker / terms / export 在同一套 pipeline 上跑通；非游戏目录报 RPG Maker 那句
+（registry 第一个 adapter 的文案，Kirikiri 自己的措辞由 adapter 测试覆盖）。
 
 CLI 侧（`test/rgss-cli.test.js`，17 条）走真实的 `bin/yakusha.js`：scan 文本模式打
 `data files:`、`rgss 3`；extract 写出字典且 context 指回 `Map001.rvdata2:101`；
@@ -1368,7 +1408,7 @@ contexts 合并（`src/engines/krkr/extract.js:74`）。
 | RPG Maker MV | `data/*.json` | `plugin`（L4-plugin） | 0.10 已实现 |
 | Ren'Py | `.rpy` 明文 / `.rpyc` 编译 | `translation`（L4-resource） | 0.11 实现：L2–L4 |
 | RGSS (XP/VX/VX Ace) | Ruby Marshal：`Data/*.rxdata` / `.rvdata` / `.rvdata2`，或 `RGSSAD` 家族归档 | `inject`（L4-inject，原生注入器） | 0.12 接 L1–L3；0.18 补上 L4 注入器，0.71 起普通 `install` 自动选择 |
-| Kirikiri | XP3 归档里的 `.ks` 脚本（KAG 标签） | **无**（`runtime: null`） | 0.13 已接 L1–L3：detect / scan / extract，交付层未做 |
+| Kirikiri | XP3 归档里的 `.ks` 脚本（KAG 标签） | `patch`（L4-patch，覆盖归档） | 0.13 接 L1–L3；0.74 补上 L4：写 `patch.xp3` 覆盖归档 |
 
 RGSS 的 L1–L4 是这么算的：L1 是识别（`Game.ini` / 归档 / `Data/`，版本 `"1"`–`"3"` 判得出来），
 L2 是真实游戏提取（§13.3 末尾那款商业样本 394 个文档、31,730 条唯一串、0 条解码失败），
@@ -1382,7 +1422,9 @@ uninstall 前后目录还原”覆盖。它不是“完全支持 RGSS”：注�
 Kirikiri 的 L1–L3 同理：L1 是识别（`data/` 或根下的 `.xp3`，BFS 最多 3 层），
 L2 是真实归档提取（§13.4 末尾：开发期样本全部条目校验通过），L3 是翻译与校验
 （`translate` / `verify` / `speaker` / `terms` / `export` 跑同一套 pipeline，profile
-带 KAG 方括号标签的 grammar 与判据）。**L4 同样没有**（§7.8）。
+带 KAG 方括号标签的 grammar 与判据）。L4 是 0.74 的覆盖归档交付：`install` 写
+`data/patch.xp3` 与 `yakusha/krkr-patch.json`，引擎按自己的归档顺序加载后覆盖
+`data.xp3` 的同名脚本（§7.8）；L5 同样由“install → uninstall 前后游戏归档不变”覆盖。
 
 还没做的（只记边界，不排期）：
 
@@ -1394,7 +1436,8 @@ L2 是真实归档提取（§13.4 末尾：开发期样本全部条目校验通�
 L4-plugin / L4-resource / L4-inject / L4-patch 是
 [dev/ENGINE-STRATEGY.md](dev/ENGINE-STRATEGY.md) §5.5 的四档交付术语：plugin 是
 “加插件、删文件即还原”，resource 是“生成引擎自带的资源、删文件即还原”，inject 是
-“注入原生 hook、删掉注入目录即还原”（RGSS 走这一档），patch 是直接改归档。
+“注入原生 hook、删掉注入目录即还原”（RGSS 走这一档），patch 是“写一个引擎会加载的
+覆盖归档、删掉即还原”（Kirikiri 走这一档，不改游戏自己的归档）。
 Ren'Py 做到了 L2（真实游戏提取）、L3（翻译与校验）、L4（运行时交付），
 **L5（卸载验证）由契约测试里的“install + uninstall 前后脚本逐字节不变”覆盖**。
 不要说“完全支持 Ren'Py”：三档里每一档的实际含义都以战略稿的定义为准。
@@ -1445,7 +1488,9 @@ Kirikiri 照抄了这个模式：`src/engines/krkr/` 五个模块、`test/krkr-f
   `E_UNSUPPORTED` 不猜（`test/krkr-project.test.js` / `test/krkr-xp3.test.js`）。
 - [x] Kirikiri：`.ks` 按 UTF-8 严格解码、Shift_JIS 兜底；文本行收进字典、行内标签剥掉、
   `[name_set]` 逐行跟踪说话人但不进字典（`test/krkr-ks.test.js` / `test/krkr-extract.test.js`）；`[iscript]` 代码块与 `@` 标签行不进字典（0.54 起）；0.55 起行首 `[` 的标签行里剥掉标签后的可见文本进字典，行内标签扫描感知引号属性（`[「]text」` 这类宏引用对白不再整行丢失）。
-- [x] Kirikiri：`install` / `uninstall` 抛 `E_NOT_IMPLEMENTED` 且不写任何文件；
-  `doctor` 的 install 是 warn、runtime 是 info，verdict 仍 `usable`。
-- [x] Kirikiri：`runtime` 为 `null` 在契约测试里被断言，排第五由 adapter 测试钉住。
+- [x] Kirikiri：`install` 写 `data/patch.xp3` 与 `yakusha/krkr-patch.json`，只含已译
+  `.ks`；二次 install 报 `unchanged`；`uninstall` 只删这两个文件，重复调用幂等；
+  `--dry-run` 不写盘；无字典报 `E_NO_DICTIONARY`；`--embed` 报 `E_USAGE`。
+- [x] Kirikiri：`doctor` 装前 `not-installed`、装后 `ready`；清单在而归档缺失时
+  `broken`；`runtime` 为 `"patch"` 在契约测试里被断言，排第五由 adapter 测试钉住。
 - [ ] `npm test` 在 `windows-latest` Node 22/24 全绿（推送后由 CI 验证）。

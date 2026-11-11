@@ -40,7 +40,7 @@ GUI 版本只做壳与它需要的接口（能力矩阵、原生组件向导、�
 
 八个分区。每区列出驱动的 CLI 命令、消费的 JSON 载荷、失败时用户看到什么
 （退出码与错误码遵循 [json-contract.md](json-contract.md)，GUI 按 `outcome` + `error.code` 分支，
-不解析 `message` 文案）。按钮可不可点由 adapter 的 `capabilities` 决定，未实现能力灰掉并写明原因（0.16 已交付：能力位随 `scan` 载荷下发，`runtime: null` 的引擎灰掉 install/uninstall、`launch: false` 灰掉启动；0.18 起 `runtime: "inject"` 的 RGSS 可以安装（0.71 起普通 `install` 自动选择，不需要 `--native`）。
+不解析 `message` 文案）。按钮可不可点由 adapter 的 `capabilities` 决定，未实现能力灰掉并写明原因（0.16 起能力位随 `scan` 载荷下发，当时 `runtime: null` 的引擎灰掉 install/uninstall、`launch: false` 灰掉启动；0.74 起五个引擎都有 runtime 档位，没有 `null` 引擎，KRKR 的 `runtime: "patch"` 也启用 install/uninstall；RGSS 从 0.18 起有注入档，0.71 起普通 `install` 自动选择）。
 
 | 分区 | 驱动的命令 / 库调用 | 消费的载荷 | 失败时用户看到 |
 | --- | --- | --- | --- |

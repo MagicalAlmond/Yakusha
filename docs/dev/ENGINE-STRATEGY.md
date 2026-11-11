@@ -426,7 +426,7 @@ TextGrammar = {
 | Maker JS | MZ、MV | `data/*.json` + JS 插件 | `plugin` | 已做到 L4，维护版本矩阵 |
 | Maker RGSS | XP、VX、VX Ace | `Data/*.rxdata`（Ruby Marshal）+ 脚本 | `inject`（原生注入器 + hook DLL，**0.18 已交付；0.71 起普通 `install` 自动选择**） | 高：Ruby Marshal 解析 + RGSS hook + 原生组件分发/签名（0.18 只做了 SHA-256 manifest 校验；分发渠道与签名仍未做） |
 | Ren'Py | Ren'Py | `.rpy` 明文 + `.rpyc` 编译（**两者都要**） | `translation-file` | 已做到 L4-resource（0.11 交付，`src/engines/renpy/`，契约见 [engines.md](../engines.md) §13.2）；屏幕语言 UI 文本仍是已知边界 |
-| TJS 系 | KiriKiri | `.xp3` 归档 + `.ks`/`.tjs` | `patch` 或 `inject` | 高：归档格式/加密、脚本 hook |
+| TJS 系 | KiriKiri | `.xp3` 归档 + `.ks`/`.tjs` | `patch`（覆盖归档，**0.74 已交付**） | 中：标准 XP3 读写 + KAG 解析；加密变体仍不碰 |
 | JS 视觉小说 | TyranoScript（可选） | `.ks` / `.js` | `plugin` 或 `patch` | 中：脚本结构相对简单，归档/编码要处理 |
 | NScripter | NScripter | `.nscript` / `.nsa` | `patch` | 中：文本简单，归档和编码要处理 |
 | Wolf RPG | Wolf RPG | `.wolf` 二进制 | `inject` 或 `patch` | 很高：无公开稳定格式，版本差异大 |
@@ -441,8 +441,8 @@ TextGrammar = {
 3. **RGSS 家族第三**：XP/VX/VX Ace 共享 Ruby Marshal 和 RGSS 运行时，一次覆盖 3 个；
    交付方式已拍板为 **inject + 原生 helper**（见 4.8 与 5.4），因此它同时也是“原生组件
    分发/签名/崩溃恢复”这套基础设施的第一个真实用户。
-4. **KRKR / NScripter 第四**：TJS/KAG 脚本和归档是日系游戏的大头；KRKR 走 inject（原生组件
-   第二个用户），NScripter 先做文件型 patch，不引进原生代码。
+4. **KRKR / NScripter 第四**：TJS/KAG 脚本和归档是日系游戏的大头；KRKR 0.74 已用
+   `patch` 覆盖归档交付（不引原生代码），NScripter 仍先做文件型 patch。
 5. **Wolf / SRPG Studio 第五**：Wolf 最难，放到后面；SRPG Studio 先做 spike，
    确认文本面和插件机制后再排期。
 6. **Godot 作为备选**：Tyrano 可在 TJS 之后按 JS 系评估；两者都只在前面家族稳定后才考虑，不要为了凑数先上。
@@ -450,8 +450,8 @@ TextGrammar = {
 ### 5.3 原先的三个能力问题（已拍板）
 
 - **RGSS（XP/VX/VX Ace）**：接受 inject，不做“只提取/导出”。所以这 3 个引擎的 L4 依赖原生组件。
-- **Wolf/KRKR**：接受分发原生注入组件；相应承担杀软误报、签名、崩溃恢复、反作弊/法律风险，
-  并通过“按引擎下载 + 签名 + 明确风险说明”控制。
+- **Wolf**：接受分发原生注入组件；相应承担杀软误报、签名、崩溃恢复、反作弊/法律风险，
+  并通过“按引擎下载 + 签名 + 明确风险说明”控制。**KRKR** 走 patch 覆盖归档，不引原生代码。
 - **“可逆”的边界**：不再把“可逆”当卖点。分档说明：plugin = 逐字节可还原；
   translation-file = 删资源即恢复；inject = 退出/卸载后进程恢复，不改游戏文件；
   patch = 有备份但文件已被改。用户只需要知道“删掉 Yakusha 的痕迹后游戏能不能照常跑”，
@@ -490,7 +490,8 @@ TextGrammar = {
 | --- | --- | --- |
 | L4-plugin | 加插件即可，删文件即还原 | MZ、MV |
 | L4-resource | 生成/替换引擎自带的翻译资源 | Ren'Py（0.11 已交付） |
-| L4-inject | 需要下载原生组件，启动时注入 | RGSS（0.18 已交付；0.71 起 `install` 自动选择）、KRKR（路线未定） |
+| L4-inject | 需要下载原生组件，启动时注入 | RGSS（0.18 已交付；0.71 起 `install` 自动选择） |
+| L4-patch | 写一个引擎会加载的覆盖归档，删文件即还原 | KRKR（0.74 已交付：`data/patch.xp3` + 清单） |
 | L3-only | 只能提取/翻译/校验，交付靠用户自己 | 未做运行时的家族 |
 
 ## 6. 路线图建议
@@ -591,6 +592,7 @@ TextGrammar = {
 | 0.71 | `install` 按引擎自动选择唯一交付方式（RGSS 普通 `install` 直接装原生注入器），`--native` 保留为兼容别名；GUI 去掉 RGSS 特判（**已交付**） | — | 844 pass / 58 个文件（行为变、用例数不变） |
 | 0.72 | GUI 重做为侧栏 + 三阶段工作台；命令反馈改为右下角 toast 摘要，完整请求/警告/结果写入 JSONL 运行日志（`%APPDATA%\yakusha\logs\gui.log`，密钥类旗标脱敏），界面提供 `Open log file…`（**已交付**） | — | 839 pass / 58 个文件（gui-main 20、gui-renderer 17；共 48 条 GUI 用例） |
 | 0.73 | 架构拆分：engine 纯契约 + RPG Maker 实现、engine-neutral doctor 服务、引擎语法 × 语言对 profile、GUI 全命令 worker 线程、native prepack/CI 打包校验（**已交付**） | — | 856 pass / 60 个文件（native-package +13、gui-worker +4） |
+| 0.74 | KRKR patch 覆盖归档交付层：`runtime: "patch"`、`install` 写 `data/patch.xp3` 与 `yakusha/krkr-patch.json`、`uninstall` 只删这两个文件、`extract` 跳过自身归档、doctor 用 `patchStatus()`（**已交付**） | — | 865 pass / 60 个文件（krkr-patch +3；adapter/CLI 改写旧 pending 用例） |
 | 1.0 | 10 个引擎目标 + 能力矩阵 + 便携 exe | — | 每个引擎有 L4 证据；不达标的明确标 experimental |
 
 说明：
@@ -618,7 +620,7 @@ TextGrammar = {
   > 勘察注记（2026-10-27）：NScripter 本机 0 款、无验收目标；Unity 本机 27 款
   （18 Mono / 9 IL2CPP；另有 1 款嵌套在子目录下，含嵌套口径 28），Mono+TextAsset
   子集的 L1–L3 纯 JS 可行，但 L4 写回与 RGSS/Kirikiri 同属交付层路线问题（RGSS 已拍板
-  走原生注入器并于 0.18 交付，Kirikiri 与 Unity 仍未定；见 DEVLOG §8.1 #10 与 Unity 勘察补记）。
+  走原生注入器并于 0.18 交付；KRKR 0.74 走 patch 覆盖归档交付；Unity 仍未定；见 DEVLOG §8.1 #10 与 Unity 勘察补记）。
   其余无已支持引擎形状的目录的普查记录见 DEVLOG「剩余 34 目录的引擎普查」段。
   在拍板前，引擎清单不新增成员。
 - 每个版本以一个家族为主；其他家族最多做提取（L1–L3），不承诺运行时。
@@ -691,8 +693,8 @@ TextGrammar = {
    才敢标 supported？0.18 已在单款 VX Ace（RGSS300.dll）与一款 RGSS301.dll 样本上走查，XP/VX 未测；
    2026-11-07 已整理 14 款 DLsite XP/VX 候选（XP 6 / VX 8，均有体验版），待购买后实测。
 2. ~~**`install --native` 的命名是否保留**~~（0.71 已解决：普通 `install` 按引擎自动选择，`--native` 保留为兼容别名，不新增命令）。
-3. **Kirikiri 交付层路线**：仍停在 L1–L3，`install` / `uninstall` 报 `E_NOT_IMPLEMENTED`；
-   XP3 写回还是注入未定。
+3. ~~**Kirikiri 交付层路线**~~（0.74 已解决：不改 `data.xp3`，写 `data/patch.xp3`
+   覆盖归档 + `yakusha/krkr-patch.json` 清单；`install` / `uninstall` / doctor 全部接通）。
 
 ### 9.3 Windows 代码签名的实际工作与成本
 

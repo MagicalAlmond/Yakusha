@@ -170,23 +170,24 @@ UTF-8 严格解码、失败再按 Shift_JIS 兜底，仍解不开的字节记 `u
 XP3 索引只读标准格式：索引体以 `File` 开头的是标准索引；本地化发行版里见到的修改版
 索引（`Hxv4`）明确不支持，报 `E_UNSUPPORTED` 而不是猜（`src/engines/krkr/xp3.js:76-84`）。
 加密变体（krkr2 的逐文件密钥、krkrz 的 cxdec）同样不碰，见 [design.md](design.md) 的
-「Kirikiri 为什么没有交付层」。
+「Kirikiri 的 patch 覆盖归档」。
 
 `.ks` 的文本面规则见 [design.md](design.md) 的「文本面覆盖」；行内控制码是方括号 KAG
 标签（`[r]`、`[er]`、`[emb exp=...]`），转义是 `[[`，与 MZ/MV 的反斜杠一族完全不同，
 所以 Kirikiri 带了自己的 tokenizer（见 [design.md](design.md) 的「Kirikiri 控制码」）。
 
-**Kirikiri 没有运行时交付。** `capabilities.runtime` 是 `null`，`install` / `uninstall` 直接以
-`E_NOT_IMPLEMENTED` 退出（退出码 2），一个文件都不写；`doctor` 里 `install` 检查是 warning、
-`runtime` 检查是 info。Kirikiri 仍然只到“读得到、翻得了、校验得了”。
+**Kirikiri 0.74 起有 patch 覆盖归档交付层。** `capabilities.runtime` 是 `"patch"`；
+`install` 写 `data/patch.xp3` 与 `yakusha/krkr-patch.json`，`uninstall` 只删这两个文件；
+`doctor` 装前 `install info` / verdict `not-installed`，装后 `install ok` / `runtime ok` / verdict `ready`。
+游戏自己的 `data.xp3` 从不修改。
 
 根目录形状是目录里（或其 `data/` 子目录里）放着 `.xp3` 归档；`findKrkrRoot` 往下最多 3 层
 找这个形状，同层出现多个项目报 `E_MULTI_ROOT` 并列出候选（`src/engines/krkr/project.js:99-114`），
 `detect` 同样先往上找最多 3 层。游戏标题与引擎版本 0.13 都不解析——它们在被加密或可选的
 配置文件里（`src/engines/krkr/project.js:116-145`），`scan` 的表头里只有条目数。
 
-**这不等于对 Kirikiri 游戏的运行时验收**：抽取用的是真实归档，但交付层不存在，游戏里的
-文字不会变。
+**抽取验收与交付验收要分开看**：抽取用的是真实归档，交付层的 install/uninstall/doctor 目前
+只在合成夹具上覆盖，还没有在真实商业游戏上做「装完启动看到中文」的运行时验收。
 
 0.16 复查时用真实商业归档复核了读取器：修复了索引容器头与条目起点的两处
 0.13 误读（读取器现按 zlib 头特征自动判位 9 / 17 字节两种布局），并给 `.ks` 解码补上

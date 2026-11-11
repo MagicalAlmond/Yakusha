@@ -90,22 +90,28 @@ RGSS（XP / VX / VX Ace）是本项目接的第四种引擎。它没有可以挂
 文件不在范围内。版本上只在一款 VX Ace 商业游戏的副本上实测过（RGSS300.dll），XP / VX
 （RGSS1 / RGSS2）未测，RGSS301 只按同族推断。
 
-## Kirikiri 为什么没有交付层
+## Kirikiri 的 patch 覆盖归档
 
-Kirikiri（KAG）是第五种引擎，也是目前唯一只做到 L1–L3 的：`capabilities.runtime` 是 `null`
-（`src/engines/krkr/adapter.js:189-200`）。它没有插件目录、没有 `js/plugins.js`，也不像
-Ren'Py 那样自带一个可以放翻译资源的目录（`src/engines/krkr/adapter.js:1-15`）。文本烧在
-`.xp3` 归档里的 `.ks` / `.tjs` 脚本中，换掉文字等于**把归档写回去**。
+Kirikiri（KAG）没有插件目录、没有 `js/plugins.js`，也不像 Ren'Py 那样自带一个
+可以放翻译资源的目录。文本烧在 `.xp3` 归档里的 `.ks` / `.tjs` 脚本中，换掉文字看起来
+只能**把归档写回去**——但 Kirikiri 的加载顺序给了第三条路：引擎先读
+`data.xp3`，再读 `patch.xp3`、`patch2.xp3`……后加载归档里的同名文件覆盖前面的。所以
+Yakusha 从不改游戏自己的归档，只写一个**新的覆盖归档**（默认 `data/patch.xp3`），里面
+放重写过的、有译文的 `.ks` 文件；引擎启动时自然会用它盖住 `data.xp3` 里的原件
+（`src/engines/krkr/patch.js:1-20`、`src/engines/krkr/adapter.js:226-250`）。
 
-把归档写回去这条路本身还有一道墙：发行版常用加密变体。krkr2 引入逐文件密钥，krkrz
-引入 cxdec 解密，两者都需要游戏自己的密钥数据；本项目**刻意不碰**这些加密变体，写回
-路线在支持它们之前不成立（`src/engines/krkr/adapter.js:232-243`）。另一条路线是原生注入器
-+ hook DLL（RGSS 已拍板走这条），Kirikiri 自己的两条路线都还没有拍板，所以交付层记成
-**待拍板**（[dev/DEVLOG.md](dev/DEVLOG.md) 的待拍板清单），
-`install` / `uninstall` 报指向决策记录的 `E_NOT_IMPLEMENTED`（`install is not implemented for
-Kirikiri yet - see the pending decisions in docs/dev/DEVLOG.md`，`src/engines/krkr/adapter.js:181-186`），
-`doctor` 的 install 检查是 warning、runtime 检查是 info。`src/index.js` 只导出
-`openKrkrProject` / `extractKrkrProject`（`src/index.js:19-20`），同样没有 install 入口。
+这条路同时避开了加密变体最麻烦的部分：不需要解密 `data.xp3`、也不需要把译文重新
+加密回去，只要游戏是标准未加密 XP3，就能读源文件、写一个明文覆盖归档。krkr2 的逐文件
+密钥与 krkrz 的 cxdec 解密仍然**刻意不碰**——它们的 `data.xp3` 本身读不出来，覆盖归档
+能否被引擎按同样方式加载也没有验证，所以这两类变体不在交付范围内
+（见 [engines.md](engines.md) §7.8 的限制）。
+
+安装只写两个文件：覆盖归档与清单 `yakusha/krkr-patch.json`；清单记录归档名、条目数、
+文件列表、字典哈希与归档哈希。`uninstall` 只删这两个文件，游戏自己的归档一个字节不改。
+`install` 用抽取时记录的 locator（`archive.xp3:path/file.ks:line`）定位行，并在改写前
+校验源文本，所以游戏更新后旧字典不会静默覆盖错行。`src/index.js` 仍只导出
+`openKrkrProject` / `extractKrkrProject`（`src/index.js:19-20`），安装入口走 adapter 的
+`installRuntime`。
 
 ## 文本面覆盖
 
@@ -263,10 +269,10 @@ Kirikiri 又换了一族：KAG 的控制码是**方括号标签**，不是反斜
   + 按字典生成的 `dictionary.txt` + 记录组件 SHA-256 的 `manifest.json`；游戏自身文件一个字节
   不改，`uninstall` 删掉这个目录即还原。注入器是 32 位 Windows 程序；装了 native 层后
   `launch` 先经过 `yakusha_injector.exe`，没装则照旧直接启动 `Game.exe`。
-- **Kirikiri 也只到 L1–L3**：`capabilities.runtime` 是 `null`，`install` /
-  `uninstall` 抛指向决策记录的 `E_NOT_IMPLEMENTED`。写回 `.xp3` 还多一道墙——发行版常用的
-  krkr2 / krkrz 加密变体刻意不碰（`src/engines/krkr/adapter.js:232-243`），所以 0.13 同样
-  **不往游戏里写回任何一个字节**，交付路线定了才有下一步。
+- **Kirikiri 的交付只写一个覆盖归档**：`install` 写 `data/patch.xp3` 与
+  `yakusha/krkr-patch.json`，引擎按 `data.xp3` → `patch.xp3` 的顺序加载，后加载的同名
+  脚本覆盖原件；游戏自己的 `data.xp3` 一个字节不改，`uninstall` 删掉这两个文件即还原。
+  标准未加密 XP3 之外的 krkr2 / krkrz 加密变体不在范围内（`src/engines/krkr/patch.js`）。
 - **字典 key = 原文**：不做语言检测、不改写原文，hash 之类的方案会让译文无法人工校对。
 - **校验在写之前**：宁可留原文，也不留一条会显示成乱码的译文。
 - **规则单一来源**：`src/core/fields.js` 是唯一真源，插件里的 `RULES` 由 `install` 生成，

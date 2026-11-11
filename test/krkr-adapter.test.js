@@ -4,7 +4,7 @@
  * The adapter is the engine-facing surface the CLI and doctor read, so the
  * tests pin what the rest of the code may rely on: detection wording, the
  * eleven scan keys, dictionary extraction that never touches existing
- * translations, and a runtime tier that refuses instead of pretending.
+ * translations, and a runtime tier that writes an override archive.
  */
 
 import test, { after } from "node:test";
@@ -42,13 +42,13 @@ function projectFor() {
   return { root, project: adapter.detect(root).project };
 }
 
-test("the registry ships Kirikiri fifth, with its own profile and no runtime tier", () => {
+test("the registry ships Kirikiri fifth, with its own profile and the patch runtime tier", () => {
   assert.deepEqual(getAdapters().map((item) => item.id).indexOf("krkr"), 4);
   assert.equal(adapter.name, "Kirikiri");
   assert.equal(adapter.profile.id, "krkr");
   assert.notEqual(adapter.profile.id, "rm");
   assert.equal(adapter.rules.controlCodes, true);
-  assert.equal(adapter.capabilities.runtime, null, "no delivery layer in 0.13");
+  assert.equal(adapter.capabilities.runtime, "patch");
   assert.equal(adapter.capabilities.extract, true);
   assert.equal(adapter.capabilities.export, true);
   assert.equal(adapter.capabilities.launch, true);
@@ -136,7 +136,7 @@ test("extract: writes a dictionary with empty targets and merged contexts", () =
     text: "",
     contexts: ["scenario/s1.ks:2"],
     engine: "krkr",
-    locator: ["scenario/s1.ks:2"],
+    locator: ["data.xp3:scenario/s1.ks:2"],
   });
 });
 
@@ -153,25 +153,48 @@ test("extract: never overwrites existing translations", () => {
   assert.equal(after.entries["あおい「せりふ」"].text, "既存の訳", "the translation survives re-extraction");
 });
 
-test("install/uninstall: E_NOT_IMPLEMENTED pointing at the pending decisions", () => {
-  const { project } = projectFor();
-  assert.equal(adapter.capabilities.runtime, null);
+test("install/uninstall: writes a patch archive and removes only that archive", () => {
+  const { root, project } = projectFor();
+  assert.equal(adapter.capabilities.runtime, "patch");
   assert.throws(
     () => adapter.installRuntime(project, {}),
     (error) => {
-      assert.equal(error.code, "E_NOT_IMPLEMENTED");
-      assert.equal(error.message, "install is not implemented for Kirikiri yet - see the pending decisions in docs/dev/DEVLOG.md");
+      assert.equal(error.code, "E_NO_DICTIONARY");
+      assert.match(error.message, /^no dictionary yet: /);
       return true;
     }
   );
-  assert.throws(
-    () => adapter.uninstallRuntime(project),
-    (error) => {
-      assert.equal(error.code, "E_NOT_IMPLEMENTED");
-      assert.equal(error.message, "uninstall is not implemented for Kirikiri yet - see the pending decisions in docs/dev/DEVLOG.md");
-      return true;
-    }
-  );
+
+  adapter.extract(project);
+  const file = dictionaryPath(root);
+  const dictionary = loadDictionary(file);
+  dictionary.entries["あおい「せりふ」"].text = "Aoi「台词」";
+  fs.writeFileSync(file, JSON.stringify(dictionary, null, 2) + "\n");
+
+  const first = adapter.installRuntime(project, {});
+  assert.equal(first.registered, true);
+  assert.equal(first.state, "added");
+  assert.equal(first.pluginPath, path.join(root, "data", "patch.xp3"));
+  assert.equal(first.patch.archive, "patch.xp3");
+  assert.equal(first.patch.entries, 1);
+  assert.equal(first.patch.files, 1);
+  assert.equal(fs.existsSync(path.join(root, "data", "patch.xp3")), true);
+  assert.equal(fs.existsSync(path.join(root, "yakusha", "krkr-patch.json")), true);
+
+  // A fresh detection sees the archive we just wrote. Install must skip it as
+  // a source and report the same content as unchanged, not translate it again.
+  const reopened = adapter.detect(root).project;
+  const second = adapter.installRuntime(reopened, {});
+  assert.equal(second.state, "unchanged");
+  assert.equal(second.patch.entries, 1);
+
+  const removed = adapter.uninstallRuntime(reopened);
+  assert.equal(removed.removed, true);
+  assert.equal(removed.restored, false);
+  assert.equal(removed.patch.archive, "patch.xp3");
+  assert.equal(fs.existsSync(path.join(root, "data", "patch.xp3")), false);
+  assert.equal(fs.existsSync(path.join(root, "yakusha", "krkr-patch.json")), false);
+  assert.equal(adapter.uninstallRuntime(reopened).removed, false);
 });
 
 test("attach: the shared not-implemented error", () => {
@@ -186,16 +209,37 @@ test("attach: the shared not-implemented error", () => {
   );
 });
 
-test("diagnostics: doctor input reports the pending delivery and the archive count", () => {
+test("diagnostics: doctor input reports the patch delivery and the archive count", () => {
   const { root, project } = projectFor();
   const diagnostics = adapter.diagnostics(project);
   assert.equal(diagnostics.dataFiles, 1);
   assert.equal(diagnostics.sourceLabel, "xp3 archives");
   assert.deepEqual(diagnostics.delivery, {
-    pending: true,
-    message: "Kirikiri has no delivery layer yet, so nothing is written back into the game",
+    path: null,
+    exists: false,
+    entries: 0,
+    files: 0,
+    mode: "patch",
+    intact: true,
+    problems: [],
+    dictionaryStale: false,
   });
   const extracted = diagnostics.extract();
   assert.equal(extracted.documents, 1);
   assert.ok(fs.existsSync(dictionaryPath(root)) === false, "diagnostics does not write a dictionary");
+
+  adapter.extract(project);
+  const file = dictionaryPath(root);
+  const dictionary = loadDictionary(file);
+  dictionary.entries["あおい「せりふ」"].text = "Aoi「台词」";
+  fs.writeFileSync(file, JSON.stringify(dictionary, null, 2) + "\n");
+  const installed = adapter.installRuntime(project, {});
+  const delivery = adapter.diagnostics(project).delivery;
+  assert.equal(delivery.exists, true);
+  assert.equal(delivery.path, installed.patch.path);
+  assert.equal(delivery.entries, 1);
+  assert.equal(delivery.files, 1);
+  assert.equal(delivery.mode, "patch");
+  assert.equal(delivery.intact, true);
+  assert.deepEqual(delivery.problems, []);
 });

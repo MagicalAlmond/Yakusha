@@ -8,7 +8,7 @@
 > （`install --native` / `uninstall` 的 `native` 子对象与 `runtime: "inject"`）；0.19 把
 > `verify --kind` 的未知值从静默过滤改为 `E_USAGE`（输入校验，信封与载荷不变）；0.20 只修
 > GUI 渲染层的扫描状态；0.21 让 `doctor`/`launch` 识别损坏的原生组件；0.22 让 `doctor` 报出安装后又被改过的原生字典；0.23 把同一检查推广到 Ren'Py 译文文件与 MZ/MV `--embed` 插件（都只是检查结论变化，载荷键与错误码不变）；0.24 只优化 translate 内部的术语表匹配，载荷键与错误码不变；0.25 修复字典被清空后 Ren'Py 译文文件未判过期（诊断结果变化，载荷键与错误码不变）；0.26 只加固字典键的读写（`__proto__` 等原型名按普通条目处理）；0.27 只加固 XP3 读取器对损坏归档的尺寸检查，载荷键与错误码不变；0.28 给 `doctor` 的 `checks` 增加可选的 `version` 项（版本矩阵异常时才出现），`checks` 的形状与所有载荷键不变；0.29 只优化 `data/` 的 XOR 探测，所有载荷键与错误码不变；0.30 只把字典与 GUI 凭据写盘改为同目录临时文件加 rename，所有载荷键与错误码不变；0.31 只给 RGSS 原生安装/卸载加路径包含检查与原子复制，所有载荷键与错误码不变；0.32 只把安装状态文件与 report/names/glossary 输出改为原子写，所有载荷键与错误码不变；0.33 给 `verify --write-report` 增加可选 `--report-format sarif` 与配套的 `reportFormat` 载荷键；0.34 给 `export` 增加 `jsonl` 输出格式（只是 `format` 的取值增加，载荷键与错误码不变）；0.35 给 `verify` 增加 `--fail-on error|warning`（只改 findings 的判定阈值，载荷键与错误码不变）；0.36 给 `verify` 增加 `--require-complete`（还有 pending 条目就 findings/1，载荷键与错误码不变）；0.37 只改 markdown 报告的表格转义（载荷与错误码不变）；0.38 给 `verify` 的 `problems[]` 追加可选的 `locator` 数组（仅当字典条目带 0.17 的 provenance 时出现，新增字段，旧消费者忽略）；0.39 只改 `import --dry-run --create` 的 CLI 行为（不再写字典文件），0.40 只给 `verify --write-report`、`speaker --write-names`、`terms --write` 加字典目标守卫（非法路径报 `E_EXISTS`/2），所有载荷键与错误码不变；0.41 只让 `terms` 把 RGSS 的 `.rvdata2` / `.rvdata` / `.rxdata` 名表条目计入 `nameEntries`（判定细节变化，载荷键与错误码不变）；0.42 只修 `install --dry-run` 的写盘行为（插件层与 Ren'Py 层不写盘，RGSS 的 `--native --dry-run` 不变），所有载荷键与错误码不变；0.43 只给 `uninstall` 增加 `--dry-run`（只改 CLI 行为，不删不写，所有载荷键与错误码不变）；0.44 只修 `launch` 对 MV `www/` 布局的启动目录（载荷键与错误码不变）；0.45 只修 `scan` 文本模式下列对齐（超过 24 字符的文件名后补一个空格），0.46 只修 RGSS `install --native --dry-run` 的 `state` 预测（首次安装报 `added`，重装报 `unchanged`），0.47 只修 Kirikiri `scan` 的 `undecodable` 归档级错误重复归档名（元素仍是字符串，载荷键与错误码不变），0.49 只让 `verify --kind width` 在没给 `--max-length` 时报 `E_USAGE`（输入校验，信封与载荷不变）；0.50 只让 `install --embed` 在非 RPG Maker 引擎上报 `E_USAGE`（输入校验，信封与载荷不变）；0.51 只把空字符串的选项值当缺值（`E_USAGE`，信封与载荷不变）；0.52 给 `extract` 增加 `--prune` 与载荷键 `stale` / `pruned`（不带 `--prune` 且 `stale` 为 0 时输出与 0.51 逐字节相同，见 §7）；0.53 只改 `import` 的输入校验：`engine` / `locator` / `contexts` 的类型错误从静默丢弃改为 `E_DICTIONARY` / 2（信封与载荷键不变）；0.54 只改 Kirikiri KS 抽取的过滤（`@` 单行标签按标签行处理、`[iscript]` 代码块跳过），所有载荷键与错误码不变；0.55 只改 Kirikiri KS 抽取的过滤（行首 `[` 的标签行里剥掉标签后的可见文本也进字典，行内标签扫描感知引号属性），所有载荷键与错误码不变；0.60 只把三个报告写路径（`verify --write-report` / `speaker --write-names` / `terms --write`）的 `-` 与目录目标改为显式报错（复用 `E_USAGE` / `E_IO`，载荷键不变）；0.61 只让 `translate --limit` 拒绝 0、负数与非整数（`E_USAGE`，载荷键不变）；0.62 把同一口径推广到 `--batch-size` / `--char-budget` / `--concurrency` / `--timeout` / `--max-tokens`（都是至少 1 的整数，`E_USAGE`）。
-> 0.63 只改命令层的读取错误与提示：`translate --glossary` 与 `import --from` 指向目录时改报 `E_IO`，`translate --context` 零匹配时在 stderr 打警告（错误码清单、载荷键与退出码规则都不变）。0.71 只改 CLI 行为：RGSS 的普通 `install` 自动选择原生注入器，`--native` 变为兼容别名（载荷键、错误码与退出码规则都不变）。
+> 0.63 只改命令层的读取错误与提示：`translate --glossary` 与 `import --from` 指向目录时改报 `E_IO`，`translate --context` 零匹配时在 stderr 打警告（错误码清单、载荷键与退出码规则都不变）。0.71 只改 CLI 行为：RGSS 的普通 `install` 自动选择原生注入器，`--native` 变为兼容别名（载荷键、错误码与退出码规则都不变）。0.74 给 Kirikiri 补上 `patch.xp3` 交付层：`scan.capabilities.runtime` 多一个取值 `"patch"`，`install` / `uninstall` 各多一个可选的 `patch` 子对象（新增字段，旧消费者忽略）。
 > 这些都是只增不改：不新增保留键约束、不改字段类型、已有载荷键一个没动。
 > 本文冻结的形状自 0.10 起不再变化，实际输出以 [commands.md](commands.md) 为准。
 
@@ -150,14 +150,14 @@
 | `E_USAGE` | 未知命令 / 未知选项 / 缺参数 / 值非法 / 缺 `--out` / 拒绝 `config set apiKey` | 全部 |
 | `E_NOT_PROJECT` | 路径不存在（`no such directory: <abs>`）或不是目录（`not a directory: <abs>`）；目录存在时，在它及其上下 3 层内找不到 MZ/MV、Ren'Py、RGSS 或 Kirikiri 项目；检测顺序是 MZ → MV → Ren'Py → RGSS → Kirikiri（`src/engines/registry.js:18`），空目录报的是 RPG Maker 措辞 | 除 `config` 外全部 |
 | `E_MULTI_ROOT` | 同层有多个项目，必须让用户指定其中一个；文案按引擎不同（`found 2 RPG Maker projects under…` / `found 2 Ren'Py projects under…` / `found 2 RGSS projects under…` / `found 2 Kirikiri projects under…`），候选路径只拼进 `message`，CLI 不输出 `details` | 除 `config` 外全部 |
-| `E_NO_DICTIONARY` | 命令需要字典，但 `yakusha/dictionary.json` 不存在（`doctor` 不报此码，它把缺字典记成 `dictionary: fail` / `verdict: broken` / 退出 1）；Ren'Py 的 `install` 另有「字典存在但一条都没译」的第二种情形 | status/translate/verify/speaker/terms/export；`install` 只在带 `--embed`（读译文编译进插件）、Ren'Py（安装时就要写译文）或 RGSS（安装原生层时要写 `dictionary.txt`）时报，RPG Maker 的普通 `install` 不读字典、缺字典也能装成功；RGSS 的 `uninstall` 与 Kirikiri 的 `install` / `uninstall` 不读字典（Kirikiri 仍报 `E_NOT_IMPLEMENTED`） |
+| `E_NO_DICTIONARY` | 命令需要字典，但 `yakusha/dictionary.json` 不存在（`doctor` 不报此码，它把缺字典记成 `dictionary: fail` / `verdict: broken` / 退出 1）；Ren'Py 的 `install` 另有「字典存在但一条都没译」的第二种情形；Kirikiri 的 `install` 需要字典（patch 归档在安装时就要写译文） | status/translate/verify/speaker/terms/export；`install` 只在带 `--embed`（读译文编译进插件）、Ren'Py（安装时就要写译文）、RGSS（安装原生层时要写 `dictionary.txt`）或 Kirikiri（安装 patch 归档时要写 `.ks`）时报，RPG Maker 的普通 `install` 不读字典、缺字典也能装成功；RGSS 与 Kirikiri 的 `uninstall` 不读字典 |
 | `E_DICTIONARY` | 字典存在但无法解析（`message` 就是解析器原文），或 `format` 不是 `yakusha/1` | status/translate/verify/speaker/terms/export。`extract` 遇到坏字典会重建、`doctor` 记成 `dictionary: fail` 并走 findings/1；RPG Maker 的 `install` 不读字典；Ren'Py 的 `install` 要读，坏字典时退出 2，但 `code` 是 `E_INTERNAL`（解析器原文直接冒到捕获不到该码的地方），脚本不要指望这时拿到 `E_DICTIONARY` |
 | `E_EXISTS` | `export` 目标已存在且没有 `--force`，或目标就是项目字典 | export |
 | `E_EXE` | `launch` 在项目根找不到唯一的 `.exe`，或 `--exe` 不合法 | launch |
 | `E_PROVIDER` | provider 名字不认识（`unknown provider: …`）。单条请求的失败（网络错误、非 2xx、响应无法解析）不进这个码：它们被 `translate` 记进载荷的 `rejected`，命令仍是 `ok` | translate |
 | `E_CONFIG` | 配置文件损坏、目录不可写、`APPDATA` 缺失、RGSS native 组件的 `manifest.json` 缺失或不可读 | config、translate（读配置时）、RGSS `install` |
 | `E_IO` | 读写文件失败、路径逃出项目根、权限不足 | 全部 |
-| `E_NOT_IMPLEMENTED` | 能力已声明但没实现。0.10 引入时只有 `attach`（库调用，没有 CLI 入口）；0.18 起只剩 Kirikiri 的 `install` / `uninstall` 会报，`message` 是 `install is not implemented for Kirikiri yet - see the pending decisions in docs/dev/DEVLOG.md`（`uninstall` 同形），退出 2 且不写任何文件 | Kirikiri 的 install / uninstall |
+| `E_NOT_IMPLEMENTED` | 能力已声明但没实现。0.10 引入时只有 `attach`（库调用，没有 CLI 入口）；0.74 起五个引擎都有交付层，CLI 上已没有触发路径，只剩库层 `attach` | 无（仅库调用） |
 | `E_UNSUPPORTED_PLATFORM` | 该操作只支持 Windows，当前不是 Windows（目前只有 `launch`） | launch |
 | `E_INTERNAL` | 未预期异常（bug） | 全部 |
 
@@ -214,15 +214,15 @@
 
 | 命令 | 默认 outcome | 载荷（稳定字段） | 备注 |
 | --- | --- | --- | --- |
-| `scan` | ok | `root, engine, engineVersion, gameTitle, dataFiles, uniqueStrings, totalStrings, stringsWithControlCodes, encodings, undecodable, perFile, capabilities` | 原 `version` 改名 `engineVersion`，避免与工具版本混淆；Ren'Py 与 RGSS 下的取值差异见 §7.1。0.16 新增 `capabilities`（该引擎的能力位对象：`extract` / `export` / `runtime`（`"plugin"` / `"translation"` / `"inject"` / `null`）/ `launch` / `debuggable` / `attach` / `liveReload`），GUI 据此禁用不支持的操作，脚本按 §7 开头的约定可忽略 |
+| `scan` | ok | `root, engine, engineVersion, gameTitle, dataFiles, uniqueStrings, totalStrings, stringsWithControlCodes, encodings, undecodable, perFile, capabilities` | 原 `version` 改名 `engineVersion`，避免与工具版本混淆；Ren'Py 与 RGSS 下的取值差异见 §7.1。0.16 新增 `capabilities`（该引擎的能力位对象：`extract` / `export` / `runtime`（`"plugin"` / `"translation"` / `"inject"` / `"patch"`）/ `launch` / `debuggable` / `attach` / `liveReload`），GUI 据此禁用不支持的操作，脚本按 §7 开头的约定可忽略 |
 | `extract` | ok | `file, added, total, translated, pending, stale, pruned` | 默认只增不删；0.52 起 `stale` 计本次抽取不再产出的键，`prune` 时才删并计入 `pruned` |
 | `status` | ok | `file, total, translated, pending, withError` | `withError > 0` 仍是 ok |
 | `translate` | ok | `file, provider, elapsedMs, total, translated, seeded, overwritten, rejected, failedBatches, rewrapped, cancelled, progress` | `seeded`（0.69，只增）是 `--glossary-only` 从词表播种的新条目数；`rejected > 0` 仍是 ok；`cancelled` 是协作式取消标记（CLI 恒 `false`，GUI 的取消按钮走同一接口，翻译中的请求自然结束、已翻条目保留）；`--dry-run` 时载荷为 `dryRun, provider, total, translated, seeded, rejected`，不写文件 |
 | `verify` | ok / findings | `file, maxColumns, report, reportFormat, total, translated, pending, errors, warnings, counts, problems` | `errors > 0` → findings / 1；只有 warning → ok / 0；0.35 起 `--fail-on warning` 时 warning 也 → findings / 1；0.36 起 `--require-complete` 时 `pending > 0` 也 → findings / 1（此时 `problems` 可以是空数组）；`report` 与 `reportFormat` 仅在 `--write-report` 时出现（格式为 `markdown` 或 `sarif`） |
 | `speaker` | ok | `file, includeDrift, dryRun, supplied, saved, entries, tags, names, namesFile, namesNeeded, errorsBefore, errorsAfter, warningsBefore, warningsAfter` | 修复类命令，残留 error 仍是 ok |
 | `terms` | ok | `file, names, nameEntries, skipped, holdersMin, supportMin, mined, listed, drift, missing, glossary, written, terms` | `--write` 只是建议 |
-| `install` | ok | `pluginPath, registered, backupPath, createdBackup, staleBackup, state`（RGSS 另有可选的 `native`） | 幂等；`--embed` 额外写插件内嵌字典；Ren'Py 下仍是这 6 键，含义见 §7.1；RGSS 的 `install` 在这 6 键之外多一个 `native` 子对象（`{dir, files, dictionaryEntries, dryRun}`），0.71 起普通 `install` 自动选择原生层；Kirikiri 上命令直接失败（`E_NOT_IMPLEMENTED` / 2），没有任何载荷 |
-| `uninstall` | ok | `removed, restored, backupPath, drifted, keptBackup`（RGSS 另有 `native`） | 漂移时不还原；Ren'Py 下 `restored` 恒 `false`、`backupPath` 与 `keptBackup` 恒 `null`；RGSS 卸载原生组件，载荷 5 键加 `native: {dir, removed}`；Kirikiri 上仍是 `E_NOT_IMPLEMENTED` / 2，没有载荷 |
+| `install` | ok | `pluginPath, registered, backupPath, createdBackup, staleBackup, state`（RGSS 另有可选的 `native`，Kirikiri 另有可选的 `patch`） | 幂等；`--embed` 额外写插件内嵌字典；Ren'Py 下仍是这 6 键，含义见 §7.1；RGSS 的 `install` 在这 6 键之外多一个 `native` 子对象（`{dir, files, dictionaryEntries, dryRun}`），0.71 起普通 `install` 自动选择原生层；Kirikiri 多一个 `patch` 子对象（`{path, archive, entries, files, created, changed, skipped, dryRun?}`），`pluginPath` 是 patch 归档绝对路径，`state` 可为 `added` / `updated` / `unchanged` |
+| `uninstall` | ok | `removed, restored, backupPath, drifted, keptBackup`（RGSS 另有 `native`，Kirikiri 另有 `patch`） | 漂移时不还原；Ren'Py 下 `restored` 恒 `false`、`backupPath` 与 `keptBackup` 恒 `null`；RGSS 卸载原生组件，载荷 5 键加 `native: {dir, removed}`；Kirikiri 卸载 patch 归档与清单，载荷 5 键加 `patch: {path, archive, entries}`，没装过时 `removed:false`、`patch.archive:null` |
 | `doctor` | ok / findings | `verdict, checks, failure, game{title, engine, engineVersion, root, dataFiles}, dictionary, sync, install, runtime, verify` | `broken` → findings / 1；`game.version` 改名 `game.engineVersion`；Ren'Py 与 RGSS 下 `checks` 少 `plugins.js` 与 `backup` 两项，`install` / `runtime` 子对象见 §7.1 |
 | `config` | ok | `action, ...` | 子命令字段见 [config.md](config.md) |
 | `export` | ok | `out, format, flat, entries, bytes` | 0.13 起 `format` 可为 `json` / `tsv` / `csv`，0.34 起还可为 `jsonl`（载荷里是实际格式名）；字段见 [export-format.md](export-format.md) |
@@ -237,12 +237,11 @@
 - `verify` 的 `problems` 结构不变（0.38 起仅当条目带 provenance 时多个可选 `locator` 数组）；`report` 只给路径，报告内容在文件里。
 - `install` / `uninstall` 的路径字段必须是命令自己解析出的绝对路径。
 
-### 7.1 按引擎的语义（0.11 起；0.18 更新 RGSS）
+### 7.1 按引擎的语义（0.11 起；0.18 更新 RGSS；0.74 更新 Kirikiri）
 
-0.11 支持 Ren'Py、0.12 支持 RGSS、0.13 支持 Kirikiri、0.18 给 RGSS 接上原生注入器之后，同一批键名在四个引擎上含义略有不同。**没有新增或改名任何键**，
+0.11 支持 Ren'Py、0.12 支持 RGSS、0.13 支持 Kirikiri、0.18 给 RGSS 接上原生注入器、0.74 给 Kirikiri 接上 patch 交付层之后，同一批键名在四个引擎上含义略有不同。**没有新增或改名任何键**，
 消费者按下面的表理解取值即可；需要区分引擎时读 `scan` 的 `engine`（`"mz"` / `"mv"` / `"renpy"` / `"rgss"` / `"krkr"`）
-或 `doctor` 的 `game.engine`。Kirikiri 列只覆盖能跑通的命令——它的 `install` / `uninstall`
-直接报 `E_NOT_IMPLEMENTED`、退出 2，没有载荷可读；RGSS 从 0.18 起有交付层，见 §7.7 与下表。
+或 `doctor` 的 `game.engine`。RGSS 从 0.18 起有交付层，Kirikiri 从 0.74 起有 patch 交付层，见 §7.7、§7.8 与下表。
 
 | 字段 | RPG Maker（MZ/MV） | Ren'Py | RGSS（XP/VX/VX Ace） | Kirikiri（KAG） |
 | --- | --- | --- | --- | --- |
@@ -252,25 +251,24 @@
 | `scan.undecodable` | 字符串数组，元素是文件名 | 字符串数组，元素是 `"<相对路径>: <解码错误>"` | 字符串数组，元素是 `"<文件名>: <解码错误>"`（`src/engines/rgss/adapter.js:120`） | 字符串数组，元素是 `"<归档名>:<文件名>: <错误>"`（`src/engines/krkr/adapter.js:114-118`） |
 | `scan.perFile` / 字典 `contexts` | `Items.json:description` | `game/script.rpy:12`（`.rpyc` 无行号时只有路径） | `Map001.rvdata2:401`（事件指令号）、`Actors.rvdata2:name`、`System.rvdata2:terms.params` | `scene1.ks:2`（归档内路径加 1 起始行号） |
 | 字典条目的 `engine` / `locator`（0.17） | `mz` / `mv`；`Items.json#/3/description`、`CommonEvents.json#/1/list/1/parameters/0` | `renpy`；`game/script.rpy:12`（与 context 同形） | `rgss`；`Map001.rvdata2#/@events/1/@pages/0/@list/1/@parameters/0`、`Actors.rvdata2#/1/@name` | `krkr`；`scene1.ks:2`（与 context 同形） |
-| `install.pluginPath` | `js/plugins/YAKUSHA_Translator.js` 绝对路径 | `game/yakusha_translation.rpy` 绝对路径 | `<game>/yakusha/native` 绝对路径 | 无载荷：命令失败 `E_NOT_IMPLEMENTED` / 2 |
-| `install.registered` | 插件是否已写进 `js/plugins.js` | 恒 `true`（文件写成就等于注册） | 恒 `true`（组件写完即注册） | 无载荷 |
-| `install.backupPath` / `createdBackup` / `staleBackup` | 备份 `js/plugins.js`，可能为 `null` | 恒 `null` / `false` / `false`（没有要备份的原文件） | 恒 `null` / `false` / `false`（原生组件不覆盖游戏文件） | 无载荷 |
-| `install.state` | `added` / `enabled` / `unchanged` | `added` / `unchanged` | `added` / `unchanged` | 无载荷 |
-| `uninstall.restored` / `backupPath` / `keptBackup` | 真值视备份情况而定 | 恒 `false` / `null` / `null` | 恒 `false` / `null` / `null`；另有 `native: {dir, removed}` | 无载荷 |
+| `install.pluginPath` | `js/plugins/YAKUSHA_Translator.js` 绝对路径 | `game/yakusha_translation.rpy` 绝对路径 | `<game>/yakusha/native` 绝对路径 | `data/patch.xp3`（或 `patchN.xp3`）绝对路径 |
+| `install.registered` | 插件是否已写进 `js/plugins.js` | 恒 `true`（文件写成就等于注册） | 恒 `true`（组件写完即注册） | 恒 `true`（归档与清单写完即注册） |
+| `install.backupPath` / `createdBackup` / `staleBackup` | 备份 `js/plugins.js`，可能为 `null` | 恒 `null` / `false` / `false`（没有要备份的原文件） | 恒 `null` / `false` / `false`（原生组件不覆盖游戏文件） | 恒 `null` / `false` / `false`（patch 归档不覆盖游戏归档） |
+| `install.state` | `added` / `enabled` / `unchanged` | `added` / `unchanged` | `added` / `unchanged` | `added` / `updated` / `unchanged` |
+| `uninstall.restored` / `backupPath` / `keptBackup` | 真值视备份情况而定 | 恒 `false` / `null` / `null` | 恒 `false` / `null` / `null`；另有 `native: {dir, removed}` | 恒 `false` / `null` / `null`；另有 `patch: {path, archive, entries}` |
 | `doctor.game.dataFiles` | 数据文件数 | 脚本数 | Marshal 文档数 | 打开的 `.xp3` 归档数 |
-| `doctor.install.pluginFile` | 插件绝对路径 | 翻译脚本绝对路径 | `<game>/yakusha/native` 绝对路径 | 恒 `null`（没有交付层） |
-| `doctor.install.pluginFilePresent` | 插件文件是否存在 | 翻译脚本是否存在 | `yakusha/native` 目录是否存在 | 恒 `false` |
-| `doctor.install.entryPresent` | `js/plugins.js` 里是否有自己的条目 | 与 `pluginFilePresent` 同值 | 与 `pluginFilePresent` 同值 | 恒 `false` |
+| `doctor.install.pluginFile` | 插件绝对路径 | 翻译脚本绝对路径 | `<game>/yakusha/native` 绝对路径 | patch 归档绝对路径（未装时 `null`） |
+| `doctor.install.pluginFilePresent` | 插件文件是否存在 | 翻译脚本是否存在 | `yakusha/native` 目录是否存在 | patch 归档与清单是否都在 |
+| `doctor.install.entryPresent` | `js/plugins.js` 里是否有自己的条目 | 与 `pluginFilePresent` 同值 | 与 `pluginFilePresent` 同值 | 与 `pluginFilePresent` 同值 |
 | `doctor.install.entryParameters` | `{dictionaryPath, strictCodes, debug}` | `{"language": "<lang>"}`，语言从生成的翻译脚本里读回 | 恒 `null` | 恒 `null` |
 | `doctor.install.backup` | `{path, stale}` 或 `null` | 恒 `null` | 恒 `null` | 恒 `null` |
-| `doctor.runtime` | `{embedded, entries, path, found}`，`path` 是 `yakusha/dictionary.json` | 同四键，`path` 是 `game/yakusha_translation.rpy`，`found` 是它的绝对路径 | `{embedded:false, entries:N, path:"yakusha/native", found:<abs>}`（未装时 `entries:0`、`found:null`） | 恒 `{embedded:false, entries:0, path:null, found:null}` |
+| `doctor.runtime` | `{embedded, entries, path, found}`，`path` 是 `yakusha/dictionary.json` | 同四键，`path` 是 `game/yakusha_translation.rpy`，`found` 是它的绝对路径 | `{embedded:false, entries:N, path:"yakusha/native", found:<abs>}`（未装时 `entries:0`、`found:null`） | `{embedded:false, entries:N, path:"data/patch.xp3", found:<abs>}`（未装时 `entries:0`、`path:null`、`found:null`） |
 
 `engine` / `locator` 是 0.17 加进字典条目的可选字段：`engine` 是引擎 id，`locator` 是精确定位数组（`<文件>#<JSON Pointer>`，行式引擎为 `file:line`）。旧字典没有它们照常读；`export` / `import --format json` 会原样带上，TSV / CSV 表格不带。
 
-Kirikiri 的 `doctor` 走 `src/services/doctor.js:174` 的 `delivery.pending` 分支（它的 `capabilities.runtime` 是 `null`）：
-`install` 检查固定是 `warn`、`runtime` 检查固定是 `info`，所以 `verdict` 只可能是 `usable`
-或 `broken`，不会是 `not-installed`，也不会是 `ready`。RGSS 从 0.18 起走真实的 delivery 检查：
-装前 `install` / `runtime` 都是 `info`、`verdict` 是 `not-installed`；装后两行都变 `ok`，没有其它 warning 时 `verdict` 是 `ready`。
+Kirikiri 从 0.74 起走真实的 delivery 检查（patch 清单与归档）：
+装前 `install` / `runtime` 都是 `info`、`verdict` 是 `not-installed`；装后两行都变 `ok`，没有其它 warning 时 `verdict` 是 `ready`；
+清单在而归档缺失时 `install` / `runtime` 都是 `fail`、`verdict` 是 `broken`。RGSS 从 0.18 起同样走真实 delivery 检查。
 
 **Ren'Py 的 `install` 不多带任何键。** 文本模式会打印 `strings    : 7 (schinese)`，那两段信息
 来自 adapter 的返回值，CLI 只把上表那 6 个键放进信封——`--json` 实测没有 `entries`，
@@ -282,7 +280,15 @@ Kirikiri 的 `doctor` 走 `src/services/doctor.js:174` 的 `delivery.pending` �
 {"schema":1,"command":"install","ok":true,"outcome":"ok","pluginPath":"<abs>/yakusha/native","registered":true,"backupPath":null,"createdBackup":false,"staleBackup":false,"state":"added","native":{"dir":"<abs>/yakusha/native","files":["yakusha_rgss_hook.dll","libunwind.dll","yakusha_injector.exe","bootstrap.rb"],"dictionaryEntries":29,"dryRun":false}}
 ```
 
-`--dry-run` 时同形，`native.dryRun` 是 `true`；`state` 按真实安装预测（目录不存在时 `added`，已装过时 `unchanged`）。0.71 起 RGSS 的普通 `install` 自动装原生层，`--native` 只是兼容别名；`uninstall` 的载荷是 5 个通用键加 `native: {dir, removed}`。Kirikiri 的 `install` / `uninstall` 仍是 `E_NOT_IMPLEMENTED` 错误信封。
+`--dry-run` 时同形，`native.dryRun` 是 `true`；`state` 按真实安装预测（目录不存在时 `added`，已装过时 `unchanged`）。0.71 起 RGSS 的普通 `install` 自动装原生层，`--native` 只是兼容别名；`uninstall` 的载荷是 5 个通用键加 `native: {dir, removed}`。
+
+**Kirikiri 的 `install` 是正常成功载荷。** 它在 6 个通用键之外多一个 `patch` 子对象；`pluginPath` 与 `patch.path` 都是 patch 归档的绝对路径，`backupPath` / `createdBackup` / `staleBackup` 恒 `null` / `false` / `false`：
+
+```json
+{"schema":1,"command":"install","ok":true,"outcome":"ok","pluginPath":"<abs>/data/patch.xp3","registered":true,"backupPath":null,"createdBackup":false,"staleBackup":false,"state":"added","patch":{"path":"<abs>/data/patch.xp3","archive":"patch.xp3","entries":1,"files":1,"created":true,"changed":true,"skipped":0}}
+```
+
+`--dry-run` 时同形，`patch.dryRun` 是 `true`，且不写任何文件；`state` 按真实安装预测（没有清单时 `added`，已有清单时按内容判断 `updated` / `unchanged`）。`uninstall` 的载荷是 5 个通用键加 `patch: {path, archive, entries}`。
 
 ## 8. 兼容性与 0.10 的破坏变更
 
@@ -328,7 +334,7 @@ pending decisions in docs/dev/DEVLOG.md` 都是 0.12 新引擎带来的新文案
 **0.13 同样没有破坏性变更。** `schema` 仍是 `1`；13 个错误码一个没增没删；§7 的既有载荷键名一个没动。
 真正新增的只有三件事：命令清单多了 `import`（13 → 14 个）、`export` 的 `--format` 接受 `tsv` / `csv`
 （载荷 `format` 字段随之可以是这两个值）、`engine` 多了第五个取值 `"krkr"`。Kirikiri 项目上
-`install` / `uninstall` 返回 `E_NOT_IMPLEMENTED` / 2（RGSS 在 0.12 时也是这个边界，0.18 起已有 native 交付层）；
+`install` / `uninstall` 返回 `E_NOT_IMPLEMENTED` / 2（RGSS 在 0.12 时也是这个边界，0.18 起已有 native 交付层；Kirikiri 在 0.74 起已有 patch 交付层）；
 `found 2 Kirikiri projects under…` 与 `install is not implemented for Kirikiri yet - see the
 pending decisions in docs/dev/DEVLOG.md` 都是新文案，脚本不应依赖 `message` 原文。
 
@@ -402,6 +408,8 @@ pending decisions in docs/dev/DEVLOG.md` 都是新文案，脚本不应依赖 `m
 
 **0.71 只改 CLI 行为，不改载荷。** RGSS 的普通 `install` 现在自动选择原生注入器（0.18–0.70 必须显式给 `--native`，否则报 `E_USAGE`）；`--native` 仍被接受为兼容别名，其他引擎上显式给仍是 `E_USAGE`；RGSS 上 `--embed` 的用法错误文案改为 `install --embed cannot be used with RGSS: the injector reads dictionary.txt at run time`。信封、退出码、命令表、13 个错误码与所有载荷键不变。
 
+**0.74 给 Kirikiri 增加 patch 交付层，只增不改。** `scan.capabilities.runtime` 多一个取值 `"patch"`；`install` / `uninstall` 在既有 6 / 5 个通用键之外各多一个可选的 `patch` 子对象；`E_NOT_IMPLEMENTED` 在 CLI 上不再有触发路径。信封、退出码、命令表、13 个错误码与既有载荷键不变。
+
 **0.73 只重构内部模块边界与 GUI 线程模型，不涉及命令层契约。**
 
 **0.72 只改 GUI，不涉及命令层契约。** 界面重做与 toast/运行日志都发生在 Electron 外壳内：toast 只消费既有信封，JSONL 日志文件（`%APPDATA%\yakusha\logs\gui.log`）不是命令输出，也没有新增 CLI 旗标或载荷键。信封、退出码、命令表、13 个错误码与所有载荷键不变。
@@ -445,4 +453,4 @@ pending decisions in docs/dev/DEVLOG.md` 都是新文案，脚本不应依赖 `m
 - [x] `scan.version` / `doctor.game.version` 不再出现；`engineVersion` 有测试（三条断言分别覆盖 `scan`、`doctor` 和 `scan` 的 `version` 缺席）。
 - [x] 0.9.0 的既有断言按 §7 的改名表迁移，`npm test` 全绿（346 个用例）。
 - [x] 0.18 的 RGSS native 交付走同一套信封，没有另开一套：`test/rgss-cli.test.js` 覆盖 `install` 的成功载荷（含 `native` 子对象）、`--dry-run`、`--embed` 冲突与缺字典，`uninstall` 的 `native: {dir, removed}`，以及 `doctor` 的 `not-installed` / `usable` / `broken`；`test/rgss-adapter.test.js` 覆盖 native 安装、篡改组件拦截、`uninstall` 的 manifest 保护与 `doctor`。整个 `test/rgss-*.test.js` 六个文件全部通过。
-- [x] 0.13 的 Kirikiri 同样走同一套信封：`test/krkr-*.test.js` 六个文件共 46 个用例（xp3 5、ks 6、project 6、extract 5、adapter 11、cli 13），`krkr-cli` 覆盖 `--json` 信封、`install` / `uninstall` 的 `E_NOT_IMPLEMENTED` / 2 与 `doctor` 的 `usable` / `broken`；TSV / CSV 导出与 `import` 在 `test/export.test.js`（23 个用例），含 BOM / CRLF / RFC 4180 引用、TSV 往返字节等价、坏表头与行格数的 `E_DICTIONARY`。
+- [x] 0.13 的 Kirikiri 同样走同一套信封；0.74 起 `test/krkr-*.test.js` 覆盖 patch 交付层：`krkr-cli` 断言 `--json` 信封、`install` 的成功载荷（含 `patch` 子对象）、`--dry-run`、`--embed` 冲突、缺字典 `E_NO_DICTIONARY`、`uninstall` 的 `patch: {path, archive, entries}` 与 `doctor` 的 `not-installed` / `ready` / `broken`；`krkr-patch` 覆盖 dry-run、清单在而归档缺失、抽取跳过自身 patch 归档。TSV / CSV 导出与 `import` 在 `test/export.test.js`（23 个用例），含 BOM / CRLF / RFC 4180 引用、TSV 往返字节等价、坏表头与行格数的 `E_DICTIONARY`。

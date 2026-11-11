@@ -23,6 +23,7 @@ import path from "node:path";
 import { openKrkrProject } from "./project.js";
 import { openXp3 } from "./xp3.js";
 import { collectKsStrings, decodeKs } from "./ks.js";
+import { readPatchManifest } from "./patch.js";
 
 /** File extension of a stored name, lowercased without the dot. */
 function extensionOf(name) {
@@ -47,6 +48,10 @@ function errorLine(error) {
  * One damaged archive or one undecodable index must not cost the user the
  * rest of the game, so failures land in `undecodable` and the walk continues.
  *
+ * The archive Yakusha itself installed is skipped: it holds the translated
+ * lines, and scanning it would feed Chinese back into the dictionary as new
+ * source strings after the first install.
+ *
  * @param {string} projectRoot project root, the directory holding the archives
  * @returns {{entries: Map<string, {text: string, contexts: Set<string>, locators: Set<string>, count: number}>,
  *   perFile: Record<string, number>, totalStrings: number,
@@ -68,7 +73,7 @@ export function extractKrkrProject(projectRoot) {
   let totalStrings = 0;
   let documents = 0;
 
-  const add = (value, context) => {
+  const add = (value, context, locator) => {
     if (typeof value !== "string" || value.length === 0) return;
     totalStrings += 1;
     perFile[context.split(":")[0]] = (perFile[context.split(":")[0]] || 0) + 1;
@@ -76,16 +81,19 @@ export function extractKrkrProject(projectRoot) {
     if (known !== undefined) {
       known.count += 1;
       known.contexts.add(context);
-      known.locators.add(context);
+      known.locators.add(locator);
       return;
     }
-    // A Kag scenario line is addressed by file and line, so the locator is the
-    // context itself: the position a writer would rewrite.
-    entries.set(value, { text: value, contexts: new Set([context]), locators: new Set([context]), count: 1 });
+    // A KAG scenario line is addressed by archive, file and line: the archive
+    // name matters because a later patch archive can override an earlier one.
+    entries.set(value, { text: value, contexts: new Set([context]), locators: new Set([locator]), count: 1 });
   };
 
+  const manifest = readPatchManifest({ root: project.root });
+  const ownArchive = manifest ? manifest.archive.toLowerCase() : null;
   for (const archivePath of project.archives) {
     const archiveName = path.basename(archivePath);
+    if (ownArchive !== null && archiveName.toLowerCase() === ownArchive) continue;
     let archive;
     try {
       archive = openXp3(archivePath);
@@ -118,7 +126,7 @@ export function extractKrkrProject(projectRoot) {
       }
       const { strings } = collectKsStrings(decoded.text, name);
       for (const unit of strings) {
-        add(unit.text, name + ":" + unit.line);
+        add(unit.text, name + ":" + unit.line, archiveName + ":" + name + ":" + unit.line);
       }
     }
   }

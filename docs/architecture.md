@@ -10,9 +10,9 @@
 2. **交付按引擎分档，每档写清卸载后的状态**：MZ/MV 走插件（插件档：删掉插件与 `plugins.js` 那一行即还原）；
    Ren'Py 走翻译脚本（translation 档：删掉 `game/yakusha_translation.rpy` 即还原）；
    RGSS（XP / VX / VX Ace）0.12 接入、0.18 补上注入档（原生注入器 + hook DLL：装进
-   `<游戏>/yakusha/native/`，不改游戏文件，卸载删目录）；Kirikiri 0.13 只做到识别、盘点、
-   提取、翻译、校验、导出，**没有交付层**：`capabilities.runtime` 是 `null`，`install` /
-   `uninstall` 报 `E_NOT_IMPLEMENTED` 且不写任何文件；Unity / Wolf 都还没接。
+   `<游戏>/yakusha/native/`，不改游戏文件，卸载删目录）；Kirikiri 0.13 接入、0.74 补上
+   patch 档（写一个 `data/patch.xp3` 覆盖归档，引擎按自己的加载顺序用它盖住 `data.xp3`
+   的同名脚本，卸载只删归档与清单）；Unity / Wolf 都还没接。五个引擎至此都有交付层。
    没有"全局可逆"这个产品承诺，只有每一档对玩家可验证的实际影响，见
    [dev/ENGINE-STRATEGY.md](dev/ENGINE-STRATEGY.md) §5.5。
 3. **模型不可信**：译文先过校验再写字典；任何新引擎的接入都不能绕过这条流水线。
@@ -70,8 +70,8 @@ export default {
   capabilities: {
     extract: true,
     export: true,
-    runtime: "plugin",      // plugin（MZ/MV）| translation（Ren'Py）| inject（RGSS）| debug
-                            // 还没有交付层时是 null——Kirikiri 就是这样，见 §4
+    runtime: "plugin",      // plugin（MZ/MV）| translation（Ren'Py）| inject（RGSS）| patch（KRKR）| debug
+                            // 0.74 起五个引擎都有档位，没有 null，见 §4
     launch: true,
     debuggable: false,      // 引擎本身是否支持 CDP（MZ true，MV false）
     attach: false,          // 工具是否实现 attach；到 0.18 全为 false
@@ -81,7 +81,7 @@ export default {
   scan(project) { ... },               // 文本量统计
   extract(project) { ... },            // 生成字典条目（带 context）
 
-  // 装插件 / 写翻译脚本 / 装注入器（opts.native）/ 准备钩子；没有交付层的引擎直接抛 E_NOT_IMPLEMENTED
+  // 装插件 / 写翻译脚本 / 装注入器 / 写覆盖归档；CLI 上已没有 E_NOT_IMPLEMENTED 路径
   installRuntime(project, opts) { ... },
   uninstallRuntime(project) { ... },       // 卸载后必须回到原版可运行状态（四档见战略稿 §5.5）
 
@@ -97,22 +97,22 @@ export default {
 放子目录会静默不执行）：每个 adapter 都要过同一套用例——错误目录返回判别式而不抛、
 detect 幂等、install 后状态可读回、uninstall 后回到安装前（RPG Maker 逐字节还原，Ren'Py 删掉
 自己写的那一个文件）、launch 只 spawn 不接管、attach 到 0.18 仍明确报 not-implemented。
-测试里有一张 `RUNTIME_TIERS` 表逐引擎断言 `capabilities.runtime`（`rgss` 是 `inject`、`krkr` 是 `null`），
-所以"某个引擎其实有交付层"这种事不会悄悄发生。
+测试里有一张 `RUNTIME_TIERS` 表逐引擎断言 `capabilities.runtime`（`rgss` 是 `inject`、`krkr` 是
+`patch`），所以"某个引擎其实有交付层"这种事不会悄悄发生。
 用例清单见 [engines.md](engines.md) §12；Ren'Py、RGSS 与 Kirikiri 各有自己的用例文件
 （`test/renpy-adapter.test.js`、`test/rgss-adapter.test.js`、`test/krkr-*.test.js`）；
 RGSS 的注入器有独立夹具 `test/rgss-native-fixture.js`（真 SHA-256 造四组件），GUI 链路有
 `test/gui-e2e.test.js` 走 `install`（RGSS 自动选原生层）。
 
-## 4. 运行时模式：四档，外加"无投递"
+## 4. 运行时模式：五档（其中 `debug` 仍是预留）
 
 | 模式 | 适用 | 机制 | 卸载后 | 现状 |
 | --- | --- | --- | --- | --- |
 | `plugin` | MZ / MV | 装一个 JS 插件，包装 `DataManager.onXhrLoad`（MZ）或 `onLoad`（MV） | 逐字节还原 | **已实现**，4 款游戏验收 |
 | `translation` | Ren'Py | 在 `game/` 下写一个 `yakusha_translation.rpy`，里面是 `translate <lang> strings:` 块 | 删掉这一个文件即恢复 | **已实现**（0.11），Ren'Py SDK 自带的两个示例游戏跑通五步（见 [games.md](games.md)） |
-| `debug` | NW.js / Electron / Chromium 系（含某些多引擎工具自带的运行时、部分 Unity WebGL 壳） | 启动参数 `--remote-debugging-port`，用 CDP `Runtime.evaluate` 注入钩子 | 结束即恢复 | **机制已实机验证**：MZ 加参数后可读 `SceneManager`、可改写 `startMessage`；但 `attach` 命令到 0.18 仍未实现（能力表 `attach:false`），MV 旧版不吃该参数 |
-| `inject` | RGSS（XP / VX / VX Ace）；Unity / Godot / Wolf / KRKR 等仍只预留契约 | 原生注入器 + 引擎钩子 DLL：装进 `yakusha/native/`，挂起启动游戏后载入 hook | 删 `yakusha/native/`，游戏文件从未改 | **已实现**（0.18）：一款 VX Ace 商业游戏真机验收 |
-| 无投递（`runtime: null`） | Kirikiri | 只做 L1–L3：识别、盘点、提取，再走翻译 / 校验 / 导出；不往游戏里写任何东西 | 本来就没装，无需卸载 | **接入已实现**（0.13，纯 JS）；交付层未实现，`install` / `uninstall` 报 `E_NOT_IMPLEMENTED` |
+| `inject` | RGSS（XP / VX / VX Ace）；Unity / Godot / Wolf 等仍只预留契约 | 原生注入器 + 引擎钩子 DLL：装进 `yakusha/native/`，挂起启动游戏后载入 hook | 删 `yakusha/native/`，游戏文件从未改 | **已实现**（0.18）：一款 VX Ace 商业游戏真机验收 |
+| `patch` | Kirikiri | 写一个 `data/patch.xp3` 覆盖归档（只含已译 `.ks`）与清单 `yakusha/krkr-patch.json`；引擎按 `data.xp3` → `patch.xp3` 的顺序加载 | 删归档与清单，游戏自己的归档从未改 | **已实现**（0.74）：合成夹具覆盖 install/uninstall/doctor |
+| `debug` | NW.js / Electron / Chromium 系（含某些多引擎工具自带的运行时、部分 Unity WebGL 壳） | 启动参数 `--remote-debugging-port`，用 CDP `Runtime.evaluate` 注入钩子 | 结束即恢复 | **机制已实机验证**：MZ 加参数后可读 `SceneManager`、可改写 `startMessage`；但 `attach` 命令仍未实现（能力表 `attach:false`），MV 旧版不吃该参数 |
 
 注意 `debug` 这一档很值钱：它证明"注入类目标"里有一整类可以**不写一行 C** 就拿下来。
 未来排引擎优先级时，先做能用 `translation` / `debug` 吃掉的，再动 `inject`。
@@ -122,14 +122,14 @@ RGSS 的注入器有独立夹具 `test/rgss-native-fixture.js`（真 SHA-256 造
 引擎启动时自己就会读它。它比 `plugin` 档更"干净"（只有加法、没有修改），但也更弱：
 只能做**整串替换**，一句台词里改一半做不到。
 
-最后一行的"无投递"是 0.12 引入的手段（RGSS 当时只做到 L1–L3），0.13 的 Kirikiri 加入同一行。
-它不是第五种运行时模式，而是**把"引擎接进来"和"把译文送进去"拆开**：Kirikiri 的文本在
-XP3 归档内的 KAG 脚本里，引擎没有可填的翻译资源目录；它用纯 JS 把"读懂"这一半做完——
-XP3 解包、KAG 行解析——所以 `scan` / `extract` / `translate` / `verify` / `terms` /
-`speaker` / `export` / `doctor` 全部可用，能力表里 `runtime: null`。"写回"那一半没做：
-要重写 XP3 归档（krkr2 / krkrz 的加密变体刻意不碰），路线仍未拍板。
-`install` 现在是明确拒绝，不是静默无操作——见 `src/engines/krkr/adapter.js` 里
-`installRuntime` 的注释与 [limitations.md](limitations.md)。
+`patch` 档是 0.74 加的，专门解决"没有插件目录、也没有翻译资源目录"的引擎：Kirikiri
+的文本在 XP3 归档内的 KAG 脚本里，引擎会按 `data.xp3` → `patch.xp3` → `patch2.xp3` 的顺序
+加载、后加载的同名文件覆盖前面的。Yakusha 因此不需要解密或重写 `data.xp3`，只写一个
+新的覆盖归档，里面是重写过的、有译文的 `.ks` 文件；`install` 同时写清单记录归档名、
+条目数、字典哈希与归档哈希，`uninstall` 只删这两个文件。行匹配靠抽取时记录的
+`archive.xp3:path/file.ks:line` locator，改写前校验源文本，所以游戏更新后旧字典不会
+静默覆盖错行。krkr2 / krkrz 的加密归档变体读不出来，仍不在范围内
+（`src/engines/krkr/patch.js` 与 [engines.md](engines.md) §7.8）。
 
 RGSS 在 0.18 补上了"送进去"这一半，选的是 `inject`：`install` 把四个原生组件
 （注入器、hook DLL、`libunwind.dll`、`bootstrap.rb`）、按当前字典生成的 `dictionary.txt`
@@ -172,16 +172,17 @@ hook 改的是 `kernel32!GetProcAddress` 的 IAT 槽，借此在 `RGSSGameMain` 
 
 | 通道 | 谁用 | 特点 |
 | --- | --- | --- |
-| 静态文件 | MZ/MV 插件、Ren'Py 翻译脚本、RGSS 的 `dictionary.txt` | 现在就是这样；`install --embed` 可把译文嵌进 MZ/MV 插件；RGSS 0.18 起由注入器读 `yakusha/native/dictionary.txt`。Kirikiri 没有这一格：归档要么重写要么注入，两件都没做 |
+| 静态文件 | MZ/MV 插件、Ren'Py 翻译脚本、RGSS 的 `dictionary.txt`、Kirikiri 的 `patch.xp3` | 现在就是这样；`install --embed` 可把译文嵌进 MZ/MV 插件；RGSS 0.18 起由注入器读 `yakusha/native/dictionary.txt`；KRKR 0.74 起把已译 `.ks` 打成引擎会加载的覆盖归档 |
 | 本地 HTTP | 注入钩子 / 调试会话 | GUI 改一条、游戏里立刻变；支持热重载 |
 | 共享内存 / IPC | 原生 hook | 最低延迟，实现最重 |
 
 **载荷形状就是字典文件本身**（`format` + `entries`）：`rules`（转义码、行宽、说话人判定）由插件/引擎适配器持有，**不进 payload**。以后加投递通道不用改游戏侧钩子。
 
 三种通道都是"运行时"通道，前提是引擎里有一层能被我们喂数据的代码。RGSS 0.18 起有了这一层
-（注入器 + hook，走静态文件）；Kirikiri 目前没有：它的 `runtime` 是 `null`，字典写完就停在磁盘上。
-哪天"重写归档"这条路线拍板了，它也不属于这三种通道里的任何一种——那是把译文**编译回游戏自己的资源**，
-形态更接近 `plugin` 档的"装进去"，只是没有插件可装。
+（注入器 + hook，走静态文件）；Kirikiri 0.74 起也有——它不喂字典，而是把译文**编译回
+引擎会加载的资源**：`install` 把已译 `.ks` 写进 `data/patch.xp3`，引擎按归档覆盖顺序
+自然读到。形态上它仍算静态文件（卸载删文件即还原），但内容不是字典而是完整的脚本；
+这也是它没有 `dictionary.txt` 可热重载的原因。
 
 ## 6. GUI 与 core 的边界
 
@@ -328,6 +329,7 @@ test/fixtures/           各引擎最小夹具（mini-mz、mini-mv、renpy-*、r
 | 0.71.0 | **已交付**：`install` 按引擎自动选择唯一交付方式（RGSS 普通 `install` 直接装原生注入器），`--native` 保留为兼容别名；GUI 不再对 RGSS 特判；doctor 与各引擎的「重装」提示统一为 `yakusha install <game>` | 844 pass / 0 fail（行为变、用例数不变） |
 | 0.72.0 | **已交付**：GUI 重做为侧栏 + 三阶段工作台；命令反馈改为右下角 toast 摘要（busy / success / warning / error），完整请求、警告与结果写入 `%APPDATA%\yakusha\logs\gui.log`（JSONL，密钥类旗标脱敏），界面提供 `Open log file…`；元素 id、`data-cmd` 按钮与命令行契约不变 | 839 pass / 0 fail（gui-main 20、gui-renderer 17；共 48 条 GUI 用例） |
 | 0.73.0 | **已交付**：引擎适配器拆成纯契约（`src/engines/contract.js`）+ RPG Maker 实现（`src/engines/rm/`）；`doctor` 移入 `src/services/doctor.js` 并由 adapter 供诊断事实；profile 拆成引擎语法 × 语言对（`src/languages/ja.js` / `en.js`）；GUI 所有命令移入 worker 线程；native 预编译包增加 `prepack` 校验与 CI 打包断言 | 856 pass / 0 fail（native-package +13、gui-worker +4） |
+| 0.74.0 | **已交付**：Kirikiri patch 覆盖归档交付层——`capabilities.runtime` 增加 `"patch"`，`install` 写 `data/patch.xp3` 与 `yakusha/krkr-patch.json`，`uninstall` 只删这两个文件，`extract` 跳过自身归档，doctor 改用 `patchStatus()`；`install --embed` 在 patch 档报 `E_USAGE`，缺字典报 `E_NO_DICTIONARY`；五引擎至此都有交付层 | 865 pass / 0 fail（krkr-patch 新增 3 条，adapter/CLI 改写旧 pending 用例） |
 | 1.0.0 | 10 个引擎 + 能力矩阵 + 便携 exe（图标、无控制台、最近游戏） | 双击 exe 可用 |
 
 ## 10. 风险
@@ -339,8 +341,9 @@ test/fixtures/           各引擎最小夹具（mini-mz、mini-mv、renpy-*、r
   "送进去"在 0.18 选了原生注入器（写回二进制文档保留为备选），是唯一需要原生组件的引擎，
   验收只覆盖一款 VX Ace 商业游戏。
   Kirikiri 的提取同样走公开格式（XP3 归档 + KAG 脚本，0.13 纯 JS 拿下 L1–L3，
-  覆盖来自合成夹具）；写回意味着重写归档，krkr2 / krkrz 的加密变体刻意不碰。
-  Unity 要面对 Mono/IL2CPP 两条路线；Wolf/KRKR 有成熟 hook 可参考。
+  覆盖来自合成夹具）；0.74 的交付层不重写 `data.xp3`，而是写一个引擎会按加载顺序
+  覆盖上去的 `patch.xp3`，krkr2 / krkrz 的加密变体仍刻意不碰。
+  Unity 要面对 Mono/IL2CPP 两条路线；Wolf 有成熟 hook 可参考。
 - **Electron 体积与杀软**：便携包约 120–180 MB，首次运行可能被 Defender 拦一下；
   这是壳的成本，不影响 CLI 用户。
 - **版本碎片**：MZ 已锁定 1.3.2–1.9.0；RGSS 分 XP / VX / VX Ace 三代，数据扩展名、归档格式、
