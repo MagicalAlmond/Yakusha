@@ -431,8 +431,9 @@ docs/                     设计说明、命令参考、契约、实测记录、
   只在一款 VX Ace 商业游戏上做过真机验收：XP / VX（RGSS1 / RGSS2）未测，RGSS301 只有
   同族兼容性推断；未签名的注入器与 DLL 可能被杀软误报；加壳样本不在范围内。
   **Kirikiri** 0.74 起有 patch 覆盖归档交付层：只支持标准未加密 XP3，只写
-  `.ks`（`.tjs` 只计数），krkr2 / krkrz 的加密变体不碰；交付层只在合成夹具上覆盖，
-  还没有真实商业游戏的运行时验收。
+  `.ks`（`.tjs` 只计数），krkr2 / krkrz 的加密变体不碰；交付层除合成夹具外，已在一个
+  真实商业归档的副本上完成写入/回读验收（`patch.xp3` 条目 adler-32 通过、`data.xp3`
+  SHA-256 不变、`uninstall` 后复原），但还没有启动游戏看画面的运行时验收。
   Unity、Godot、Wolf 仍然不支持；多引擎路线与每一档的验收标准见
   [docs/dev/ENGINE-STRATEGY.md](docs/dev/ENGINE-STRATEGY.md)。
 - Ren'Py 只投 `schinese` 一种语言（命令行没有选语言的入口）；`game/tl/` 下已有的

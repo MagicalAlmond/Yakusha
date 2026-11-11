@@ -111,7 +111,7 @@ RGSS 的注入器有独立夹具 `test/rgss-native-fixture.js`（真 SHA-256 造
 | `plugin` | MZ / MV | 装一个 JS 插件，包装 `DataManager.onXhrLoad`（MZ）或 `onLoad`（MV） | 逐字节还原 | **已实现**，4 款游戏验收 |
 | `translation` | Ren'Py | 在 `game/` 下写一个 `yakusha_translation.rpy`，里面是 `translate <lang> strings:` 块 | 删掉这一个文件即恢复 | **已实现**（0.11），Ren'Py SDK 自带的两个示例游戏跑通五步（见 [games.md](games.md)） |
 | `inject` | RGSS（XP / VX / VX Ace）；Unity / Godot / Wolf 等仍只预留契约 | 原生注入器 + 引擎钩子 DLL：装进 `yakusha/native/`，挂起启动游戏后载入 hook | 删 `yakusha/native/`，游戏文件从未改 | **已实现**（0.18）：一款 VX Ace 商业游戏真机验收 |
-| `patch` | Kirikiri | 写一个 `data/patch.xp3` 覆盖归档（只含已译 `.ks`）与清单 `yakusha/krkr-patch.json`；引擎按 `data.xp3` → `patch.xp3` 的顺序加载 | 删归档与清单，游戏自己的归档从未改 | **已实现**（0.74）：合成夹具覆盖 install/uninstall/doctor |
+| `patch` | Kirikiri | 写一个 `data/patch.xp3` 覆盖归档（只含已译 `.ks`）与清单 `yakusha/krkr-patch.json`；引擎按 `data.xp3` → `patch.xp3` 的顺序加载 | 删归档与清单，游戏自己的归档从未改 | **已实现**（0.74）：合成夹具覆盖 install/uninstall/doctor，另在真实商业归档副本上验过写入/回读与可逆性 |
 | `debug` | NW.js / Electron / Chromium 系（含某些多引擎工具自带的运行时、部分 Unity WebGL 壳） | 启动参数 `--remote-debugging-port`，用 CDP `Runtime.evaluate` 注入钩子 | 结束即恢复 | **机制已实机验证**：MZ 加参数后可读 `SceneManager`、可改写 `startMessage`；但 `attach` 命令仍未实现（能力表 `attach:false`），MV 旧版不吃该参数 |
 
 注意 `debug` 这一档很值钱：它证明"注入类目标"里有一整类可以**不写一行 C** 就拿下来。
@@ -341,8 +341,9 @@ test/fixtures/           各引擎最小夹具（mini-mz、mini-mv、renpy-*、r
   "送进去"在 0.18 选了原生注入器（写回二进制文档保留为备选），是唯一需要原生组件的引擎，
   验收只覆盖一款 VX Ace 商业游戏。
   Kirikiri 的提取同样走公开格式（XP3 归档 + KAG 脚本，0.13 纯 JS 拿下 L1–L3，
-  覆盖来自合成夹具）；0.74 的交付层不重写 `data.xp3`，而是写一个引擎会按加载顺序
-  覆盖上去的 `patch.xp3`，krkr2 / krkrz 的加密变体仍刻意不碰。
+  覆盖来自合成夹具，0.16 起补过真实归档读取复核）；0.74 的交付层不重写 `data.xp3`，而是写一个
+  引擎会按加载顺序覆盖上去的 `patch.xp3`，并在一个真实商业归档副本上验过写入/回读与可逆性，
+  krkr2 / krkrz 的加密变体仍刻意不碰。
   Unity 要面对 Mono/IL2CPP 两条路线；Wolf 有成熟 hook 可参考。
 - **Electron 体积与杀软**：便携包约 120–180 MB，首次运行可能被 Defender 拦一下；
   这是壳的成本，不影响 CLI 用户。

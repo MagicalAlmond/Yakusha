@@ -1437,7 +1437,7 @@ RangeError），全量 657 绿。
 - [x] doctor：修两个既有 bug——`sourceLabel` 被 `options.sourceLabel` 盖住（KRKR 的 `xp3 archives` 被吞成 `data/`）、未安装时 patch runtime 文案拼出 `null`（改为固定 "the game loads the patch archive at startup once installed"）；stale/damaged 文案按 patch 档给出。
 - [x] 测试：`test/krkr-patch.test.js` 新增 dry-run、清单缺归档、抽取跳过自身归档 3 条；`krkr-adapter` 与 `krkr-cli` 的旧 pending 用例改写成真实 install/uninstall/doctor 三态；全量 **865 pass / 0 fail**（60 个测试文件），`node bin/yakusha.js --version` 为 `yakusha 0.74.0`。
 - [x] 文档：`commands.md`、`json-contract.md`、`engines.md`、`design.md`、`architecture.md`、`limitations.md`、`games.md`、`gui.md`、`README.md`、`CHANGELOG.md`、`ENGINE-STRATEGY.md` 与本文件同步；`docs/engines.md` 标题改 0.74 契约，§7.8 整节重写为 patch 交付层。
-- **限制**：只支持标准未加密 XP3；只写 `.ks`（`.tjs` 只计数）；krkr2 / krkrz 的加密变体不碰；依赖引擎的归档覆盖顺序；交付层只在合成夹具上覆盖，尚未做真实商业游戏的「装完启动看到中文」验收。
+- **限制**：只支持标准未加密 XP3；只写 `.ks`（`.tjs` 只计数）；krkr2 / krkrz 的加密变体不碰；依赖引擎的归档覆盖顺序；交付层除合成夹具外，已在一个真实商业归档的副本上做写入/回读验收（`patch.xp3` 条目 adler-32 通过、`data.xp3` SHA-256 不变、`uninstall` 后复原）；尚未做启动游戏看画面的运行时验收。
 - **教训**：①「交付」不等于「改游戏文件」——引擎已有的覆盖加载顺序就是一条正规交付通道；②locator 必须在写回前校验源文本，否则游戏更新后会静默覆盖错行；③doctor 的引擎专属文案（`sourceLabel`）必须由 adapter 提供，不能在 core 里写死。
 
 ## 7. 已知限制

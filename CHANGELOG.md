@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **Kirikiri games get a delivery layer.** `install` now writes a `data/patch.xp3` override archive plus a `yakusha/krkr-patch.json` manifest; `uninstall` removes exactly those two files. KiriKiri loads `data.xp3`, then `patch.xp3`, then `patch2.xp3`, with later archives overriding files of the same name, so the game's own archive is never modified. The archive contains only `.ks` files that have translated lines; each rewritten line is matched through the `archive.xp3:path/file.ks:line` locator recorded at extraction time and its source text is verified before writing.
 - `scan` reports `capabilities.runtime: "patch"` for Kirikiri, so capability-aware clients enable install and uninstall for the engine.
 - `install` payload gains an optional `patch` object: `{path, archive, entries, files, created, changed, skipped, dryRun?}`. `uninstall` gains `{path, archive, entries, dryRun?}`. Both are additive keys.
+- Verified the writer on a copy of a real commercial XP3 archive: the generated patch archive passes adler-32, the rewritten line reads back, the source `data.xp3` SHA-256 is unchanged before and after install, and uninstall restores the original file set.
 
 ### Changed
 
