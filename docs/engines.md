@@ -1517,4 +1517,5 @@ Kirikiri 照抄了这个模式：`src/engines/krkr/` 五个模块、`test/krkr-f
   变成 English（`test/cli-source-lang.test.js`）。
 - [x] GUI 的源语言选择器只在 Translate 与 Verify 生效，两者都显式下发 `--source-lang`
   （`test/gui-renderer.test.js`）。
+- [ ] 用一款真实英文游戏跑通 en → zh 的 scan → extract → translate → verify → install / uninstall，全程不改动游戏文件；`verify` 的拉丁词残留只记 `source` 并 warn。
 - [ ] `npm test` 在 `windows-latest` Node 22/24 全绿（推送后由 CI 验证）。

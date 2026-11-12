@@ -1455,6 +1455,18 @@ RangeError），全量 657 绿。
 - **限制**：只注册 `ja` 与 `en` 两个源语言；en 的残留判据是「4 个以上拉丁字母的连续词」，对短标签（`OK`、`HP`）不敏感；`source` 只 warn 不阻断，英文残留要显式 `--fail-on warning` 才会让 `verify` 退出 1；目标语言仍固定简体中文。
 - **教训**：①「默认值不变」要靠返回同一个对象来证明，而不是靠逐字段相等——`sourceProfile(profile, "ja") === profile` 让日文路径在结构上不可能被改动；②枚举型 CLI 值的新成员要追加在末尾，因为测试锁的是报错文案的连续子串；③判据的「单位」决定夹具怎么写——en 用拉丁词、ja 用假名，mock provider 加「译:」前缀时只能用「无假名」断言，不能用「无拉丁」。
 
+### BR 阶段（0.76.0，已完成）
+
+- **动机**：0.75 之后原计划直接进入 RGSS XP/VX、NScripter、Wolf、SRPG 四个新引擎，但这台机器上没有这四个引擎的真实游戏可做验收——合成夹具只能证明适配器形状，证明不了「识别 → 抽取 → 翻译 → 校验 → 交付」在真实目录上成立。0.76 因此改为真实游戏语料批量回归：把已支持的五个引擎在 22 款真实游戏上跑一遍，修掉真实目录结构暴露的问题，并把五引擎 × 七能力兼容性矩阵写进 `docs/games.md`；四个新引擎顺延到后续里程碑。
+- [x] `tools/corpus.mjs`：外部 JSON manifest 驱动（manifest 不进仓库）；默认只对真实游戏目录跑只读 `scan`，`--deep` 用「真实目录 + 硬链接」搭薄镜像，让 `extract` / `translate` / `verify` / `install` 全在镜像里执行，绝不写真实游戏目录；退出码 0 全 match、1 有 mismatch、2 用法或 manifest 错误。
+- [x] 22 款真实游戏批量回归：18 款走完 `scan` → `extract` → `translate`（`mock`）→ `verify`，4 款 Kirikiri 因索引加密记 findings；经 junction / symbolic link 的 7 款 MZ/MV 在修好根发现后转为通过；未改动任何真实游戏文件。
+- [x] `src/core/mzproject.js`：新增 `isDirectoryThroughLink()`（`fs.statSync` 判断链接目标是目录）与 `claimRealDirectory()`（`fs.realpathSync` 去重），`findProjectRoots()` 跟随 junction / symbolic link 且每个真实目录只走一次——修复经链接目录不可读的 MZ/MV 游戏。
+- [x] `src/cli/runner.js`：`scan` 在全部 data 文件被拒（`uniqueStrings === 0 && rejected.length > 0`）时逐条打印 `UNDECODED`，再打印 `WARNING   : nothing readable - N data files rejected`，以 outcome `findings` / 退出码 1 结束，不再静默报成功。
+- [x] `src/engines/krkr/xp3.js`：加密索引错误带出 scheme 标记（如 `Hxv4`），说明这份归档读不了且不会改动游戏文件。
+- [x] `docs/games.md`：新增五引擎 × 七能力兼容性矩阵与批量回归运行说明；`CHANGELOG.md`、`docs/architecture.md`、`docs/engines.md` 与 `docs/dev/ENGINE-STRATEGY.md` 同步更新。
+- **限制**：manifest 指向运行者本机的真实游戏目录，不能进仓库，回归结果依赖自备语料；薄镜像只覆盖文本类资源，不验证启动画面与运行时渲染；22 款样本不代表全量兼容性。
+- **教训**：①真实目录里的 junction / symlink 不是边缘情况，项目根发现必须同时处理链接并去重；②「所有文件都读不了」不能算成功，scan 的退出码要对「零可读文本」负责；③加密归档的报错必须带 scheme 名称，否则用户无法判断是哪个变体。
+
 ## 7. 已知限制
 
 1. 只处理 `data/` 里的文本；插件 `js/plugins/*.js` 里硬编码的 UI 文案不动。

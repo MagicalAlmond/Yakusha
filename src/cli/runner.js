@@ -279,8 +279,24 @@ async function commandScan(dir, sink) {
   if (encodings.length > 1 || (encodings.length === 1 && encodings[0][0] !== "json")) {
     sink.out("encodings : " + encodings.map(([k, v]) => k + " " + v).join(", "));
   }
-  if (payload.undecodable && payload.undecodable.length > 0) {
-    sink.out("UNDECODED : " + payload.undecodable.join(", "));
+  const rejected = payload.undecodable || [];
+  if (rejected.length > 0) {
+    // One line per rejection. A packed game whose archive indexes are
+    // encrypted rejects every archive it opens, and joining those into a
+    // single comma separated line made the only evidence unreadable.
+    // Continuation lines indent to the value column of the label lines.
+    rejected.forEach((item, index) => {
+      sink.out((index === 0 ? "UNDECODED : " : " ".repeat(12)) + item);
+    });
+  }
+  // Rejections with nothing readable in return means the scan never really read
+  // the game: the failures are the finding, so this is not a clean run. A scan
+  // that reads some strings keeps its historical outcome even with rejections,
+  // and a game that simply has no strings is still ok (nothing was rejected).
+  const unreadable = payload.uniqueStrings === 0 && rejected.length > 0;
+  if (unreadable) {
+    const unit = adapter.dataUnit === "scripts" ? "scripts" : "data files";
+    sink.out("WARNING   : nothing readable - " + rejected.length + " " + unit + " rejected");
   }
   const top = Object.entries(payload.perFile)
     .sort((a, b) => b[1] - a[1])
@@ -288,7 +304,7 @@ async function commandScan(dir, sink) {
   // padEnd(24) alone glues the count to names that are 24 characters or
   // longer; keep at least one space so the columns stay readable.
   for (const [file, count] of top) sink.out("  " + file.padEnd(24) + (file.length >= 24 ? " " : "") + count);
-  return { payload };
+  return unreadable ? { payload, outcome: "findings" } : { payload };
 }
 
 /**

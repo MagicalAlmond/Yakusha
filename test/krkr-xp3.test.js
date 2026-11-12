@@ -4,8 +4,8 @@
  * Archives are built in memory by test/krkr-fixture.js, which writes the
  * standard ("File"-index) container this reader supports. The negative cases
  * cover the two rejections the reader owes its callers: a file that is not an
- * archive at all, and an index in a format yakusha does not read (faked here
- * with a magic swap, not by implementing anyone's encryption).
+ * archive at all, and an archive whose index is encrypted (faked here with a
+ * magic swap, not by implementing anyone's encryption).
  */
 
 import test, { after } from "node:test";
@@ -137,17 +137,49 @@ test("a file that is not an archive is E_IO, not a crash", () => {
   );
 });
 
-test("an unsupported index format is E_UNSUPPORTED and names the format", () => {
+test("an encrypted index is E_UNSUPPORTED and says why the archive is unreadable", () => {
   const file = path.join(tempDir(), "magic.xp3");
   fs.writeFileSync(file, buildXp3([{ name: "a.ks", data: KS }], { indexMagic: "Hxv4" }));
   assert.throws(
     () => openXp3(file),
     (error) => {
       assert.equal(error.code, "E_UNSUPPORTED");
-      assert.match(error.message, /unsupported format \("Hxv4"\)/);
+      // The marker is a property of the protection scheme, not a yakusha gap,
+      // so the message names it and says the game files stay untouched.
+      assert.equal(
+        error.message,
+        'magic.xp3: the XP3 index is encrypted with an unknown scheme ("Hxv4")' +
+          " - yakusha cannot read this archive and leaves the game files untouched"
+      );
+      assert.equal(error.message.includes("\n"), false, "the CLI joins undecodable lines, so this stays one line");
       return true;
     }
   );
+});
+
+test("a non-printable index marker is reported as hex, not as raw bytes", () => {
+  const file = path.join(tempDir(), "binary-magic.xp3");
+  fs.writeFileSync(file, buildXp3([{ name: "a.ks", data: KS }], { indexMagic: "\x01\x02\x03\x04" }));
+  assert.throws(
+    () => openXp3(file),
+    (error) => {
+      assert.equal(error.code, "E_UNSUPPORTED");
+      assert.equal(
+        error.message,
+        "binary-magic.xp3: the XP3 index is encrypted with an unknown scheme (0x01020304)" +
+          " - yakusha cannot read this archive and leaves the game files untouched"
+      );
+      return true;
+    }
+  );
+});
+
+test("a standard index still parses after the diagnostic change", () => {
+  const file = path.join(tempDir(), "plain.xp3");
+  fs.writeFileSync(file, buildXp3([{ name: "a.ks", data: KS }]));
+  const archive = openXp3(file);
+  assert.deepEqual(archive.entries.map((entry) => entry.name), ["a.ks"]);
+  assert.equal(archive.entry("a.ks").read().toString("utf8"), "[test]\nhello\n");
 });
 
 test("a transformed header is E_UNSUPPORTED, not a crash", () => {

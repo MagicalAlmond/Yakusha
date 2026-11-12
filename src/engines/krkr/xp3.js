@@ -76,6 +76,22 @@ function readU64(buffer, offset) {
 }
 
 /**
+ * Render the four-byte marker of an index that does not start with "File".
+ *
+ * Protected archives replace the standard tag with their own bytes. Printable
+ * tags are quoted so the message stays readable; anything else becomes hex,
+ * because JSON.stringify of a binary tag would put control characters or lone
+ * surrogates into CLI output.
+ *
+ * @param {Buffer} marker the first four bytes of the decompressed index
+ * @returns {string} the quoted tag, or "0x" plus its hex bytes
+ */
+function describeMarker(marker) {
+  const tag = marker.toString("latin1");
+  return /^[\x20-\x7e]{4}$/.test(tag) ? JSON.stringify(tag) : "0x" + marker.toString("hex");
+}
+
+/**
  * Parse the decompressed index body into entries.
  * @param {Buffer} body decompressed index stream
  * @param {string} archiveName for error messages
@@ -83,11 +99,11 @@ function readU64(buffer, offset) {
  */
 function parseIndex(body, archiveName) {
   if (body.length < 4 || body.toString("latin1", 0, 4) !== "File") {
-    const seen = body.length >= 4 ? body.toString("latin1", 0, 4) : "";
+    const marker = body.length >= 4 ? describeMarker(body.subarray(0, 4)) : "";
     throw unsupportedError(
-      archiveName + ": the XP3 index uses an unsupported format" +
-      (seen ? " (" + JSON.stringify(seen) + ")" : "") +
-      " - yakusha only reads standard XP3 indexes"
+      archiveName + ": the XP3 index is encrypted with an unknown scheme" +
+      (marker ? " (" + marker + ")" : "") +
+      " - yakusha cannot read this archive and leaves the game files untouched"
     );
   }
   // Two index shapes exist. Real archives start the entry list at the

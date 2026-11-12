@@ -1,9 +1,9 @@
 # Yakusha
 
-**非侵入式游戏运行时翻译工具，支持 RPG Maker MZ / MV、Ren'Py、RPG Maker XP / VX / VX Ace（RGSS，原生注入）与 Kirikiri（只到提取与翻译）。**
+**非侵入式游戏运行时翻译工具，支持 RPG Maker MZ / MV、Ren'Py、RPG Maker XP / VX / VX Ace（RGSS，原生注入）与 Kirikiri（patch 覆盖归档）。**
 
-把游戏文本抽出来交给任意 LLM 翻译，再让游戏**在运行时**显示中文。当前覆盖三档交付，
-外加一个只做到提取与翻译的引擎：
+把游戏文本抽出来交给任意 LLM 翻译，再让游戏**在运行时**显示中文。当前覆盖四档交付，
+按引擎自动选择：
 
 - **插件档（MZ / MV）**：游戏目录只多一个插件文件、`js/plugins.js` 里多一行注册，
   `uninstall` 会把这两处还原到安装前。
@@ -26,10 +26,11 @@ scan  →  extract  →  translate  →  install
 看有多少   建字典      LLM 填译文    装进游戏
 ```
 
-本版最后一步对 MZ / MV / Ren'Py / RGSS 都有效（`install` 按引擎自动选交付方式）；Kirikiri 的流程停在
-`translate`，`install` 会拒绝而不是假装装好。
+本版最后一步对 MZ / MV / Ren'Py / RGSS / Kirikiri 都有效（`install` 按引擎自动选交付方式）：
+插件、translation 脚本、原生注入器或 `patch.xp3` 覆盖归档。
 
 运行时效果不在仓库里放截图；支持范围、匿名实测数据与编号见 [docs/games.md](docs/games.md)。
+五个引擎逐项的能力矩阵、实测范围与未测项见 [docs/games.md](docs/games.md#兼容性矩阵076-起)。
 
 ## 安装
 
@@ -458,7 +459,7 @@ docs/                     设计说明、命令参考、契约、实测记录、
 
 | 文件 | 内容 |
 | --- | --- |
-| [docs/commands.md](docs/commands.md) | 所有命令的完整选项、`verify` 十类判据、`terms`/`speaker` 算法说明 |
+| [docs/commands.md](docs/commands.md) | 所有命令的完整选项、`verify` 十一类判据、`terms`/`speaker` 算法说明 |
 | [docs/architecture.md](docs/architecture.md) | 三层结构（CLI 内核 / Electron 壳 / 引擎适配器）、引擎能力分档、载荷契约、分批计划 |
 | [docs/dev/ENGINE-STRATEGY.md](docs/dev/ENGINE-STRATEGY.md) | 多引擎战略稿（内部）：竞品适配方法、目标架构、四档交付、版本顺序、质量门禁、代码签名成本 |
 | [docs/json-contract.md](docs/json-contract.md) | `--json` 信封、错误码、退出码、严格参数解析、破坏性变更（0.10 冻结；后续版本只加字段与命令，信封不变） |

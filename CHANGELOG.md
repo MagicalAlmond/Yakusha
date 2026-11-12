@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.76.0] - 2026-11-12
+
+### Added
+
+- `tools/corpus.mjs` is a batch regression harness driven by an external JSON manifest (the manifest stays outside the repository). It scans real game directories read-only by default; `--deep` builds a thin hard-link mirror so `extract`, `translate`, `verify` and `install` never touch the real game directory.
+- `docs/games.md` documents a compatibility matrix for the five engines across seven capabilities — detect, scan / extract, translate, verify, install delivery, launch and doctor — plus a batch-regression section describing how to run the corpus.
+
+### Fixed
+
+- MZ/MV project-root discovery now walks junction and symbolic-link directories; 7 of the 22 corpus games were previously unreadable through links.
+- `scan` now ends with outcome `findings` and exit 1 when every data file was rejected, instead of silently exiting 0.
+- The encrypted XP3 index diagnostic now names the detected scheme (for example `Hxv4`).
+
+### Unchanged
+
+- The JSON envelope, exit codes and every payload key are untouched. No new dependency. 927 pass.
+
 ## [0.75.0] - 2026-11-12
 
 ### Added

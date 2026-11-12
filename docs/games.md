@@ -83,6 +83,43 @@ node bin/yakusha.js status "/games/SomeGame"
 `game/yakusha_translation.rpy`：只有字典里已翻译的条目会进这个文件，没翻的条目引擎照读原文，
 玩家看到的同样是官中原文。
 
+## 兼容性矩阵（0.76 起）
+
+下表把五个引擎从识别到交付各走一遍。✅ 是 0.76 上有实测或测试覆盖，⚠️ 是能力在、但有范围限制或未测项，❌ 是没做。每个 ⚠️ 都能在 [limitations.md](limitations.md) 的对应小节里找到同一句话。
+
+| 引擎 | 识别 | scan / extract | translate | verify | install 交付 | launch | doctor |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| RPG Maker MZ | ✅ `game.rmmzproject`，或 `data/*.json` | ✅ 明文或单字节 XOR 的 JSON | ✅ 任意 OpenAI 兼容端点或 `mock` | ✅ 十条判据 | ✅ 插件档：一个插件文件，加 `js/plugins.js` 里一行 | ✅ 根目录的 `Game.exe` | ✅ 版本区间 1.3.2–1.9.0，区间外只 `warn` |
+| RPG Maker MV | ✅ 同上，`www/` 布局也认 | ✅ 同上 | ✅ | ✅ | ✅ 插件档：改写 `loadDataFile`，在 `onLoad` 里回填 | ✅ `www/` 布局下从上一层启动 `Game.exe`（0.44） | ✅ 版本区间 1.6.1–1.6.2 |
+| Ren'Py | ✅ `game/` 目录加 `.rpy` / `.rpyc` | ⚠️ 只用 SDK 的两个官方示例验收，未测真实商业游戏 | ✅ | ✅ | ✅ translation 档：`game/yakusha_translation.rpy` | ✅ 发行版根目录的启动器 | ⚠️ `versions: none`，`config.version` 是游戏版本，没有可比矩阵 |
+| RGSS（XP / VX / VX Ace） | ✅ `.rvproj2` / `.rvproj`，或 `RGSSAD` 家族归档 | ✅ `Data/` 下的 `.rxdata` / `.rvdata` / `.rvdata2` | ✅ | ✅ | ⚠️ inject 档，只有 32 位 Windows 组件；实测两款 VX Ace，XP / VX 未测 | ✅ 经 `yakusha_injector.exe` 启动 | ✅ `versions` 1 / 2 / 3，实测 3 |
+| Kirikiri | ✅ `data/` 或根目录下的 `.xp3` | ⚠️ 只读标准未加密 XP3；加密变体进 `undecodable`，改版索引（Hxv4 形态）报 `E_UNSUPPORTED`；`.tjs` 只计数不读内容 | ✅ | ✅ | ⚠️ patch 档：只写 `data/patch.xp3`（只含已译 `.ks`）与清单；没有运行时全量翻译实测 | ✅ 根目录的 `Game.exe` | ⚠️ 标题与版本读不出时显示 `(untitled)`，`versions: none` |
+
+还有三件事不分引擎：`attach`（接管运行中的进程）五个引擎都是 ❌，从 0.10 起就是桩，没有 CLI 入口；MV 不能挂 `--remote-debugging-port`（`debuggable: false`），MZ 可以，这是引擎本身的差别；只在 Windows 10/11 x64 上支持与验收，Linux、macOS、WSL、Wine、Proton 都不在范围内。
+
+### 批量回归怎么跑
+
+0.76 的回归清单和结果都在仓库外，仓库里只留这份匿名汇总：
+
+- 清单是一份外部 JSON，逐条给路径与引擎。仓库里不写真实路径、游戏名和游戏文本。
+- 每款先只跑 `scan`，只读，不写游戏目录；记下 `ok` / `outcome` / `undecodable` 三项。
+- 要读归档或脚本原文时，在同一个卷上做一份硬链接薄镜像再读。硬链接与源文件是同一份字节，不额外占空间，也不需要管理员权限；不用 junction（要权限，部分工具还不认），也不用整份复制（几十 GB 的归档不现实）。镜像跑完即删。
+- `translate` 一律用 `mock` provider。它验证的是 `scan` → `extract` → `translate` → `verify` → `install` 这条链在真实数据上能不能走通，不是译文质量；译文质量只能人工看。
+- 全程不写游戏目录，`install` 只在镜像里做，做完连镜像一起删。
+
+## 0.76 批量回归结果
+
+口径：一款游戏跑一次 `scan`，`ok` 记成功，`findings` 记整款一条可读串都没读到（见 [limitations.md](limitations.md) 的 Kirikiri 一节），`error` 记进程报错。读得出的 18 款接着在同一卷的硬链接镜像里跑 `extract` → `translate`（`mock`）→ `verify`，四步都过才记进下表；`findings` 的 4 款在 `scan` 之后就停，不建字典。
+
+| 引擎 | 款数 | scan ok | findings | error | 备注 |
+| --- | --- | --- | --- | --- | --- |
+| RPG Maker MZ | 7 | 7 | 0 | 0 | 唯一串 58,256 到 2,295 |
+| RPG Maker MV | 8 | 8 | 0 | 0 | 唯一串 36,203 到 159；0.76 之前其中 7 款因根搜索不认目录链接而整款读不出 |
+| Ren'Py | 0 | 0 | 0 | 0 | 本机没有真实游戏，验收用的是 SDK 示例，见下一节 |
+| RGSS | 1 | 1 | 0 | 0 | VX Ace，唯一串 31,730 |
+| Kirikiri | 6 | 2 | 4 | 0 | 4 款整款读不出：索引加密（Hxv4 形态），见 [limitations.md](limitations.md) |
+| 合计 | 22 | 18 | 4 | 0 | 18 款走完 `scan` → `extract` → `translate`（`mock`）→ `verify` |
+
 ## Ren'Py
 
 本机没有真实 Ren'Py 游戏，Ren'Py 的验收用的是 Ren'Py 8.5.3 SDK 自带的两个官方示例游戏

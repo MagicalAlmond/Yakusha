@@ -5,6 +5,10 @@
  * points at, so `openProject` walks down a bounded number of levels. These
  * tests pin that behaviour, including the "several games under one folder"
  * case, which must fail loudly instead of silently picking one.
+ *
+ * Games are also often linked into a launcher folder instead of copied, so the
+ * walk follows directory links (a Windows junction is reported as a link, not
+ * a directory) and must not loop when one points back at its own parent.
  */
 
 import test from "node:test";
@@ -17,6 +21,23 @@ import { openProject, findProjectRoots, MAX_SEARCH_DEPTH } from "../src/core/mzp
 /** Create an empty directory tree and return its root. */
 function sandbox() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "yakusha-proj-"));
+}
+
+/**
+ * Link `target` into place as a directory and report whether the OS allowed it.
+ *
+ * Junctions need no elevation on Windows but some environments still refuse
+ * them, and the tests must skip rather than fail there.
+ */
+function linkDirectory(target, linkPath) {
+  const type = process.platform === "win32" ? "junction" : "dir";
+  try {
+    fs.symlinkSync(target, linkPath, type);
+    return true;
+  } catch (err) {
+    if (err.code === "EPERM" || err.code === "EACCES") return false;
+    throw err;
+  }
 }
 
 /** Lay down the minimum a project root needs to be recognised. */
@@ -97,4 +118,45 @@ test("a shallow root wins over a nested one", () => {
   makeRoot(path.join(base, "www"), { engine: "mv" });
   assert.equal(findProjectRoots(base).length, 1);
   assert.equal(openProject(base).engine, "mz");
+});
+
+test("a game behind a directory junction is found", (t) => {
+  const base = sandbox();
+  const target = path.join(base, "link-target");
+  makeRoot(path.join(target, "www"), { engine: "mv" });
+  const entry = path.join(base, "entry");
+  if (!linkDirectory(target, entry)) return t.skip("directory links are not permitted here");
+  const roots = findProjectRoots(entry);
+  assert.equal(roots.length, 1);
+  assert.equal(roots[0].depth, 1);
+  assert.equal(roots[0].root, path.join(entry, "www"));
+  assert.equal(openProject(entry).engine, "mv");
+});
+
+test("a junction loop is walked once, not repeatedly", (t) => {
+  const base = sandbox();
+  const game = path.join(base, "x");
+  makeRoot(game);
+  const loop = path.join(base, "loop");
+  if (!linkDirectory(base, loop)) return t.skip("directory links are not permitted here");
+  // Without a realpath guard the loop reports base/x, base/loop/x and
+  // base/loop/loop/x, which makes openProject fail with "found 3".
+  const roots = findProjectRoots(base);
+  assert.equal(roots.length, 1);
+  assert.equal(roots[0].depth, 1);
+  assert.equal(roots[0].root, path.resolve(game));
+  assert.equal(openProject(base).root, path.resolve(game));
+});
+
+test("a broken directory link is skipped without failing the walk", (t) => {
+  const base = sandbox();
+  const target = path.join(base, "gone");
+  fs.mkdirSync(target, { recursive: true });
+  const dangling = path.join(base, "dangling");
+  if (!linkDirectory(target, dangling)) return t.skip("directory links are not permitted here");
+  fs.rmSync(target, { recursive: true, force: true });
+  makeRoot(path.join(base, "game"));
+  const roots = findProjectRoots(base);
+  assert.equal(roots.length, 1);
+  assert.equal(roots[0].root, path.resolve(path.join(base, "game")));
 });

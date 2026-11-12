@@ -54,6 +54,49 @@ const SKIP_DIRS = new Set([
 export const MAX_SEARCH_DEPTH = 3;
 
 /**
+ * True when `fullPath` is a directory once links are followed.
+ *
+ * A Windows directory junction shows up in `readdir` as a symbolic link, so a
+ * plain `dirent.isDirectory()` test would skip a game that is only reachable
+ * through one. `statSync` follows the link; a broken link throws and is
+ * skipped, exactly like an unreadable directory.
+ *
+ * @param {string} fullPath
+ * @returns {boolean}
+ */
+function isDirectoryThroughLink(fullPath) {
+  try {
+    return fs.statSync(fullPath).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Record the canonical path of `dir` and report whether it is new.
+ *
+ * Without this, a junction loop reaches the same real directory again under a
+ * longer path and reports duplicate roots at increasing depths. `realpathSync`
+ * collapses those paths. A path that cannot be resolved is left to the walk,
+ * which already tolerates directories it cannot read.
+ *
+ * @param {Set<string>} seen canonical paths already walked
+ * @param {string} dir
+ * @returns {boolean} true when `dir` should be walked
+ */
+function claimRealDirectory(seen, dir) {
+  let real;
+  try {
+    real = fs.realpathSync(dir);
+  } catch {
+    return true;
+  }
+  if (seen.has(real)) return false;
+  seen.add(real);
+  return true;
+}
+
+/**
  * Every game root at or below `start`, shallowest first.
  *
  * Deployed games are not always at the top of the folder a user points at:
@@ -62,17 +105,24 @@ export const MAX_SEARCH_DEPTH = 3;
  * breadth-first walk finds all of them in one pass and lets the caller decide
  * what to do when there is more than one.
  *
+ * Links are followed: a game is often reached through a Windows directory
+ * junction (the launcher folder links to the real one), and `readdir` reports
+ * such a junction as a link rather than a directory. Each real directory is
+ * walked once, so a junction loop cannot make the walk repeat itself.
+ *
  * @param {string} start
  * @returns {Array<{ root: string, depth: number }>}
  */
 export function findProjectRoots(start) {
   const resolved = path.resolve(start);
   const found = [];
+  const seen = new Set();
   let frontier = [{ dir: resolved, depth: 0 }];
   let depth = 0;
   while (frontier.length > 0 && depth <= MAX_SEARCH_DEPTH) {
     const next = [];
     for (const item of frontier) {
+      if (!claimRealDirectory(seen, item.dir)) continue;
       if (looksLikeProject(item.dir)) {
         found.push({ root: item.dir, depth: item.depth });
         continue; // a real root is the shallowest match; no need to descend
@@ -85,10 +135,14 @@ export function findProjectRoots(start) {
         continue;
       }
       for (const entry of entries) {
-        if (!entry.isDirectory()) continue;
+        const full = path.join(item.dir, entry.name);
+        if (!entry.isDirectory()) {
+          // Only links pay for the stat: junctions are links, plain files are not.
+          if (!entry.isSymbolicLink() || !isDirectoryThroughLink(full)) continue;
+        }
         if (SKIP_DIRS.has(entry.name.toLowerCase())) continue;
         if (entry.name.startsWith(".")) continue;
-        next.push({ dir: path.join(item.dir, entry.name), depth: item.depth + 1 });
+        next.push({ dir: full, depth: item.depth + 1 });
       }
     }
     frontier = next;

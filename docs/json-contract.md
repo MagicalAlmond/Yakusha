@@ -9,6 +9,10 @@
 > `verify --kind` 的未知值从静默过滤改为 `E_USAGE`（输入校验，信封与载荷不变）；0.20 只修
 > GUI 渲染层的扫描状态；0.21 让 `doctor`/`launch` 识别损坏的原生组件；0.22 让 `doctor` 报出安装后又被改过的原生字典；0.23 把同一检查推广到 Ren'Py 译文文件与 MZ/MV `--embed` 插件（都只是检查结论变化，载荷键与错误码不变）；0.24 只优化 translate 内部的术语表匹配，载荷键与错误码不变；0.25 修复字典被清空后 Ren'Py 译文文件未判过期（诊断结果变化，载荷键与错误码不变）；0.26 只加固字典键的读写（`__proto__` 等原型名按普通条目处理）；0.27 只加固 XP3 读取器对损坏归档的尺寸检查，载荷键与错误码不变；0.28 给 `doctor` 的 `checks` 增加可选的 `version` 项（版本矩阵异常时才出现），`checks` 的形状与所有载荷键不变；0.29 只优化 `data/` 的 XOR 探测，所有载荷键与错误码不变；0.30 只把字典与 GUI 凭据写盘改为同目录临时文件加 rename，所有载荷键与错误码不变；0.31 只给 RGSS 原生安装/卸载加路径包含检查与原子复制，所有载荷键与错误码不变；0.32 只把安装状态文件与 report/names/glossary 输出改为原子写，所有载荷键与错误码不变；0.33 给 `verify --write-report` 增加可选 `--report-format sarif` 与配套的 `reportFormat` 载荷键；0.34 给 `export` 增加 `jsonl` 输出格式（只是 `format` 的取值增加，载荷键与错误码不变）；0.35 给 `verify` 增加 `--fail-on error|warning`（只改 findings 的判定阈值，载荷键与错误码不变）；0.36 给 `verify` 增加 `--require-complete`（还有 pending 条目就 findings/1，载荷键与错误码不变）；0.37 只改 markdown 报告的表格转义（载荷与错误码不变）；0.38 给 `verify` 的 `problems[]` 追加可选的 `locator` 数组（仅当字典条目带 0.17 的 provenance 时出现，新增字段，旧消费者忽略）；0.39 只改 `import --dry-run --create` 的 CLI 行为（不再写字典文件），0.40 只给 `verify --write-report`、`speaker --write-names`、`terms --write` 加字典目标守卫（非法路径报 `E_EXISTS`/2），所有载荷键与错误码不变；0.41 只让 `terms` 把 RGSS 的 `.rvdata2` / `.rvdata` / `.rxdata` 名表条目计入 `nameEntries`（判定细节变化，载荷键与错误码不变）；0.42 只修 `install --dry-run` 的写盘行为（插件层与 Ren'Py 层不写盘，RGSS 的 `--native --dry-run` 不变），所有载荷键与错误码不变；0.43 只给 `uninstall` 增加 `--dry-run`（只改 CLI 行为，不删不写，所有载荷键与错误码不变）；0.44 只修 `launch` 对 MV `www/` 布局的启动目录（载荷键与错误码不变）；0.45 只修 `scan` 文本模式下列对齐（超过 24 字符的文件名后补一个空格），0.46 只修 RGSS `install --native --dry-run` 的 `state` 预测（首次安装报 `added`，重装报 `unchanged`），0.47 只修 Kirikiri `scan` 的 `undecodable` 归档级错误重复归档名（元素仍是字符串，载荷键与错误码不变），0.49 只让 `verify --kind width` 在没给 `--max-length` 时报 `E_USAGE`（输入校验，信封与载荷不变）；0.50 只让 `install --embed` 在非 RPG Maker 引擎上报 `E_USAGE`（输入校验，信封与载荷不变）；0.51 只把空字符串的选项值当缺值（`E_USAGE`，信封与载荷不变）；0.52 给 `extract` 增加 `--prune` 与载荷键 `stale` / `pruned`（不带 `--prune` 且 `stale` 为 0 时输出与 0.51 逐字节相同，见 §7）；0.53 只改 `import` 的输入校验：`engine` / `locator` / `contexts` 的类型错误从静默丢弃改为 `E_DICTIONARY` / 2（信封与载荷键不变）；0.54 只改 Kirikiri KS 抽取的过滤（`@` 单行标签按标签行处理、`[iscript]` 代码块跳过），所有载荷键与错误码不变；0.55 只改 Kirikiri KS 抽取的过滤（行首 `[` 的标签行里剥掉标签后的可见文本也进字典，行内标签扫描感知引号属性），所有载荷键与错误码不变；0.60 只把三个报告写路径（`verify --write-report` / `speaker --write-names` / `terms --write`）的 `-` 与目录目标改为显式报错（复用 `E_USAGE` / `E_IO`，载荷键不变）；0.61 只让 `translate --limit` 拒绝 0、负数与非整数（`E_USAGE`，载荷键不变）；0.62 把同一口径推广到 `--batch-size` / `--char-budget` / `--concurrency` / `--timeout` / `--max-tokens`（都是至少 1 的整数，`E_USAGE`）。
 > 0.63 只改命令层的读取错误与提示：`translate --glossary` 与 `import --from` 指向目录时改报 `E_IO`，`translate --context` 零匹配时在 stderr 打警告（错误码清单、载荷键与退出码规则都不变）。0.71 只改 CLI 行为：RGSS 的普通 `install` 自动选择原生注入器，`--native` 变为兼容别名（载荷键、错误码与退出码规则都不变）。0.74 给 Kirikiri 补上 `patch.xp3` 交付层：`scan.capabilities.runtime` 多一个取值 `"patch"`，`install` / `uninstall` 各多一个可选的 `patch` 子对象（新增字段，旧消费者忽略）。
+> 0.76 让 `scan` 也能报 findings：一个可读字符串都没抽到、且确实有归档或脚本被拒绝解码时，
+> outcome 是 `findings`、退出 1；文本模式把每个 `undecodable` 元素打成一行 `UNDECODED :`，
+> 再用一行 `WARNING   : nothing readable - N data files rejected` 收尾（Ren'Py 下是
+> `N scripts rejected`）。载荷键一个没动，`uniqueStrings === 0` 且没有拒绝时仍是 `ok`。
 > 这些都是只增不改：不新增保留键约束、不改字段类型、已有载荷键一个没动。
 > 本文冻结的形状自 0.10 起不再变化，实际输出以 [commands.md](commands.md) 为准。
 
@@ -104,23 +108,27 @@
 - `outcome` 区分“成功”“检查发现问题”“命令失败”三态；只看 `ok` 的脚本会把
   `findings` 和 `error` 混在一起，新脚本应看 `outcome`。
 - `findings` 时 `error` 为 `null`：检查确实跑完了，问题在数据里，不在命令执行上。
+- `scan` 从 0.76 起也可能给出 `findings`：一个可读字符串都没抽到、却有归档或脚本被拒绝
+  解码时，它表达的不是“扫描失败”，而是“这份数据读不出来”，所以 `error` 仍是 `null`。
 
 ## 3. 三种结局与退出码
 
 | outcome | 含义 | 退出码 | 哪些命令会出现 |
 | --- | --- | --- | --- |
 | `ok` | 命令完成，没有需要阻断的问题 | 0 | 全部 |
-| `findings` | 命令完成，但被检查的对象有缺陷 | 1 | 只有 `verify`（有达到 `--fail-on` 阈值的问题，默认 error 级）与 `doctor`（verdict 为 `broken`） |
+| `findings` | 命令完成，但被检查的对象有缺陷 | 1 | 只有 `verify`（有达到 `--fail-on` 阈值的问题，默认 error 级）、`doctor`（verdict 为 `broken`）与 `scan`（0.76 起：`uniqueStrings === 0` 且 `undecodable` 非空） |
 | `error` | 命令没完成：用法、环境、输入或内部错误 | 2 | 全部 |
 
 规则：
 
 1. **只有“检查类”命令用 `findings`。** `verify` 的职责就是判断译文能不能发布；
-   `doctor` 的职责就是判断安装是否健康。它们发现缺陷时退出 1，CI 能直接拦。
+   `doctor` 的职责就是判断安装是否健康；`scan` 从 0.76 起也算：一条字符串都没抽到、
+   却有归档或脚本被拒绝解码时退出 1，脚本不必再自己去数 `undecodable` 的长度。
 2. **“修复类 / 转换类”命令不用 `findings`。** `translate` 有 `rejected > 0`、
    `speaker` 跑完仍有 `errorsAfter > 0`、`status` 有 `withError > 0` 时仍是 `ok`：
    这些命令的职责是产出或修复，不是判决。用 `verify` 做发布闸门，不要逼用户
-   在 `translate && verify` 之间猜哪个退出码算失败。
+   在 `translate && verify` 之间猜哪个退出码算失败。`scan` 同理只在“有东西被拒绝”时
+   报 findings：0 字符串但 `undecodable` 为空仍是 `ok`（例如只有 `.tjs` 的归档）。
 3. **error 优先于 findings。** 例如 `verify --write-report` 发现 1 条 error，但报告文件
    写不进去：outcome 是 `error`（`E_IO`），退出 2，不交付半份结果。
 4. 退出码在文本模式下完全相同。
@@ -182,6 +190,10 @@
 - **JSON 模式：stdout 只有一个 JSON 对象加一个换行。** 进度、警告、调试信息全部走 stderr；
   stderr 的警告以 `warning: ` 开头，不要求 JSON。
 - **文本模式：** 结果摘要走 stdout，错误与警告走 stderr。
+- **文本模式的 `scan`（0.76 起）：** 每个 `undecodable` 元素单独一行，第一行前缀
+  `UNDECODED : `，后续行缩进 12 个空格对齐到值列；一个可读字符串都没抽到时再追加一行
+  `WARNING   : nothing readable - N data files rejected`（Ren'Py 下是 `N scripts rejected`），
+  并以 `findings` / 1 退出。部分可读时只打 `UNDECODED`，不打 `WARNING`。
 - **`--help` / `-h`：** 永远向 stdout 打印文本帮助并退出 0，**即使同时传了 `--json`**。
   帮助不是命令结果，不套信封。
 - **`--version`：** 永远向 stdout 打印 `yakusha <version>` 并退出 0，**优先于任何命令和其它选项**；
@@ -214,7 +226,7 @@
 
 | 命令 | 默认 outcome | 载荷（稳定字段） | 备注 |
 | --- | --- | --- | --- |
-| `scan` | ok | `root, engine, engineVersion, gameTitle, dataFiles, uniqueStrings, totalStrings, stringsWithControlCodes, encodings, undecodable, perFile, capabilities` | 原 `version` 改名 `engineVersion`，避免与工具版本混淆；Ren'Py 与 RGSS 下的取值差异见 §7.1。0.16 新增 `capabilities`（该引擎的能力位对象：`extract` / `export` / `runtime`（`"plugin"` / `"translation"` / `"inject"` / `"patch"`）/ `launch` / `debuggable` / `attach` / `liveReload`），GUI 据此禁用不支持的操作，脚本按 §7 开头的约定可忽略 |
+| `scan` | ok / findings | `root, engine, engineVersion, gameTitle, dataFiles, uniqueStrings, totalStrings, stringsWithControlCodes, encodings, undecodable, perFile, capabilities` | 原 `version` 改名 `engineVersion`，避免与工具版本混淆；Ren'Py 与 RGSS 下的取值差异见 §7.1。0.16 新增 `capabilities`（该引擎的能力位对象：`extract` / `export` / `runtime`（`"plugin"` / `"translation"` / `"inject"` / `"patch"`）/ `launch` / `debuggable` / `attach` / `liveReload`），GUI 据此禁用不支持的操作，脚本按 §7 开头的约定可忽略；0.76 起 `uniqueStrings === 0` 且 `undecodable` 非空时 → findings / 1，文本模式的逐行 `UNDECODED` 与 `WARNING` 见 §5 |
 | `extract` | ok | `file, added, total, translated, pending, stale, pruned` | 默认只增不删；0.52 起 `stale` 计本次抽取不再产出的键，`prune` 时才删并计入 `pruned` |
 | `status` | ok | `file, total, translated, pending, withError` | `withError > 0` 仍是 ok |
 | `translate` | ok | `file, provider, elapsedMs, total, translated, seeded, overwritten, rejected, failedBatches, rewrapped, cancelled, progress` | `seeded`（0.69，只增）是 `--glossary-only` 从词表播种的新条目数；`rejected > 0` 仍是 ok；`cancelled` 是协作式取消标记（CLI 恒 `false`，GUI 的取消按钮走同一接口，翻译中的请求自然结束、已翻条目保留）；`--dry-run` 时载荷为 `dryRun, provider, total, translated, seeded, rejected`，不写文件 |
@@ -248,7 +260,7 @@
 | `scan.dataFiles` | `data/` 下的 `.json` 数据文件数 | `game/` 下的脚本数（`.rpy` 或 `.rpyc`；同 stem 的 `.rpy` 优先） | 读过的 Marshal 文档数（`result.documents`）；打包版一块 `.rgss3a` 里读出多个文档，所以不等于磁盘文件数 | 打开的 `.xp3` 归档数（`result.documents`），不是磁盘文件数 |
 | `scan.engineVersion` | MZ/MV 的引擎版本 | `game/options.rpy` 里 `define config.version` 的值，没有就是 `null` | 字符串 `"1"` / `"2"` / `"3"` 或 `null`，判定顺序见 [commands.md](commands.md) 的 scan 一节（`src/engines/rgss/project.js:309` 的 `detectVersion`） | 恒 `null`（不解析加密或可选的配置文件） |
 | `scan.encodings` | `{"json": N}` | `{"rpy": N, "rpyc": N}`，脚本格式计数 | 磁盘版按扩展名 `{"rvdata2": N}`（`.rxdata` / `.rvdata` 各自计数）；打包版 `{"marshal": N}` | `{"xp3": N}`，0.13 只有这一个键 |
-| `scan.undecodable` | 字符串数组，元素是文件名 | 字符串数组，元素是 `"<相对路径>: <解码错误>"` | 字符串数组，元素是 `"<文件名>: <解码错误>"`（`src/engines/rgss/adapter.js:120`） | 字符串数组，元素是 `"<归档名>:<文件名>: <错误>"`（`src/engines/krkr/adapter.js:114-118`） |
+| `scan.undecodable` | 字符串数组，元素是文件名 | 字符串数组，元素是 `"<相对路径>: <解码错误>"` | 字符串数组，元素是 `"<文件名>: <解码错误>"`（`src/engines/rgss/adapter.js:120`） | 字符串数组，元素是 `"<归档名>:<文件名>: <错误>"`（`src/engines/krkr/adapter.js:114-118`）。0.76 起文本模式每个元素一行 `UNDECODED :`，元素本身形状不变 |
 | `scan.perFile` / 字典 `contexts` | `Items.json:description` | `game/script.rpy:12`（`.rpyc` 无行号时只有路径） | `Map001.rvdata2:401`（事件指令号）、`Actors.rvdata2:name`、`System.rvdata2:terms.params` | `scene1.ks:2`（归档内路径加 1 起始行号） |
 | 字典条目的 `engine` / `locator`（0.17） | `mz` / `mv`；`Items.json#/3/description`、`CommonEvents.json#/1/list/1/parameters/0` | `renpy`；`game/script.rpy:12`（与 context 同形） | `rgss`；`Map001.rvdata2#/@events/1/@pages/0/@list/1/@parameters/0`、`Actors.rvdata2#/1/@name` | `krkr`；`scene1.ks:2`（与 context 同形） |
 | `install.pluginPath` | `js/plugins/YAKUSHA_Translator.js` 绝对路径 | `game/yakusha_translation.rpy` 绝对路径 | `<game>/yakusha/native` 绝对路径 | `data/patch.xp3`（或 `patchN.xp3`）绝对路径 |
@@ -447,10 +459,14 @@ pending decisions in docs/dev/DEVLOG.md` 都是新文案，脚本不应依赖 `m
 
 - [x] 13 个命令都在 JSON 模式下有测试；没有任何命令往 stdout 写第二个对象（`test/json-contract.test.js` 的 `envelope()` 断言 stdout 恰好一行并以换行结尾；`config` 在 `test/config.test.js`，`launch` 在 `test/launch.test.js`）。0.13 起是 14 个：`import` 的载荷与错误断言在 `test/export.test.js`。
 - [x] `ok === (outcome === "ok")` 与 `error` 的非空条件在测试里逐条断言（`assertShape()`，每个用例都过一遍）。
-- [x] 退出码只有 0/1/2；`verify` / `doctor` 的 findings 退出 1（`EXPECTED_CODE` 映射 + 两条 findings 用例 + doctor broken 用例）。
+- [x] 退出码只有 0/1/2；`verify` / `doctor` 的 findings 退出 1（`EXPECTED_CODE` 映射 + 两条 findings 用例 + doctor broken 用例）；0.76 起 `scan` 的 findings 也退出 1（`test/cli-scan.test.js`）。
 - [x] 所有错误出口经过 `sanitizeMessage()`；错误里没有 stack、密钥、provider 响应体（`sk-`、`Bearer`、userinfo、home→`~`、500 字符截断都有用例；响应体从不打印，见 §4.2）。
 - [x] `--help` 与 `--version` 的行为与本文一致，且有测试（`test/json-contract.test.js` 的 help 用例 + `test/version.test.js` 的 5 条）。
 - [x] `scan.version` / `doctor.game.version` 不再出现；`engineVersion` 有测试（三条断言分别覆盖 `scan`、`doctor` 和 `scan` 的 `version` 缺席）。
 - [x] 0.9.0 的既有断言按 §7 的改名表迁移，`npm test` 全绿（346 个用例）。
 - [x] 0.18 的 RGSS native 交付走同一套信封，没有另开一套：`test/rgss-cli.test.js` 覆盖 `install` 的成功载荷（含 `native` 子对象）、`--dry-run`、`--embed` 冲突与缺字典，`uninstall` 的 `native: {dir, removed}`，以及 `doctor` 的 `not-installed` / `usable` / `broken`；`test/rgss-adapter.test.js` 覆盖 native 安装、篡改组件拦截、`uninstall` 的 manifest 保护与 `doctor`。整个 `test/rgss-*.test.js` 六个文件全部通过。
 - [x] 0.13 的 Kirikiri 同样走同一套信封；0.74 起 `test/krkr-*.test.js` 覆盖 patch 交付层：`krkr-cli` 断言 `--json` 信封、`install` 的成功载荷（含 `patch` 子对象）、`--dry-run`、`--embed` 冲突、缺字典 `E_NO_DICTIONARY`、`uninstall` 的 `patch: {path, archive, entries}` 与 `doctor` 的 `not-installed` / `ready` / `broken`；`krkr-patch` 覆盖 dry-run、清单在而归档缺失、抽取跳过自身 patch 归档。TSV / CSV 导出与 `import` 在 `test/export.test.js`（23 个用例），含 BOM / CRLF / RFC 4180 引用、TSV 往返字节等价、坏表头与行格数的 `E_DICTIONARY`。
+- [x] 0.76 的 `scan` findings 与文本告警有独立用例（`test/cli-scan.test.js` 6 条）：全部归档被拒 →
+  findings / 1、每个 `undecodable` 元素一行 `UNDECODED`、拒绝时的载荷键与可读项目一致、
+  0 字符串但没有拒绝仍是 ok / 0、至少一个归档可读时仍是 ok 且只打 `UNDECODED` 不打 `WARNING`、
+  Ren'Py 的 `N scripts rejected` 措辞；既有用例一条都没有因此改动。

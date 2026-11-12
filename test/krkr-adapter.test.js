@@ -14,6 +14,7 @@ import os from "node:os";
 import path from "node:path";
 
 import { getAdapter, getAdapters, detectProject } from "../src/engines/registry.js";
+import { scanKrkr } from "../src/engines/krkr/adapter.js";
 import { dictionaryPath, loadDictionary } from "../src/core/dict.js";
 import { writeKrkrProject, buildXp3 } from "./krkr-fixture.js";
 
@@ -123,6 +124,28 @@ test("scan: undecodable items are strings the CLI can join", () => {
   assert.equal(typeof scan.undecodable[0], "string");
   assert.match(scan.undecodable[0], /^broken\.xp3: not an XP3 archive/);
   assert.doesNotMatch(scan.undecodable[0], /^broken\.xp3: broken\.xp3:/);
+});
+
+test("scan: an encrypted archive lands in undecodable with the reason", () => {
+  const parent = tempDir();
+  fs.writeFileSync(
+    path.join(parent, "protected.xp3"),
+    buildXp3([{ name: "s.ks", data: KS("[t]\nhi\n") }], { indexMagic: "Hxv4" })
+  );
+  const project = adapter.detect(parent).project;
+  const scan = scanKrkr(project);
+  // The archive is detected but unreadable, so it must not count as a data
+  // file and must not contribute an encoding sample.
+  assert.equal(scan.dataFiles, 0);
+  assert.deepEqual(scan.encodings, {});
+  assert.equal(scan.undecodable.length, 1);
+  assert.equal(
+    scan.undecodable[0],
+    'protected.xp3: the XP3 index is encrypted with an unknown scheme ("Hxv4")' +
+      " - yakusha cannot read this archive and leaves the game files untouched"
+  );
+  // The adapter is a pass-through here: the CLI joins these lines verbatim.
+  assert.deepEqual(adapter.scan(project).undecodable, scan.undecodable);
 });
 
 test("extract: writes a dictionary with empty targets and merged contexts", () => {

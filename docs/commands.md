@@ -1,6 +1,6 @@
 # 命令参考
 
-本文是 yakusha 0.74.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出；0.33 给 `verify` 增加了 SARIF 报告输出（`--report-format sarif`）；0.34 给 `export` 增加 JSONL 输出（`--format jsonl`），0.35 给 `verify` 增加 `--fail-on warning`（warning 也算发布失败），0.36 给 `verify` 增加 `--require-complete`（还有未译条目就失败），0.37 只修 markdown 报告表格里的 `|` 转义，0.38 只让 `verify` 的 problem 带出字典条目的 `locator`，0.39 修 `import --dry-run --create` 会落盘空字典的问题（dry-run 不写盘），0.40 让 `verify --write-report`、`speaker --write-names`、`terms --write` 拒绝把输出写到项目字典上（`E_EXISTS`、退出 2），0.41 只让 `terms` 识别 RGSS 的数据库名表（`.rvdata2` / `.rvdata` / `.rxdata`），0.42 让 `install --dry-run` 在 RPG Maker 插件层与 Ren'Py 译文文件层上真的不写盘（RGSS 的 `--native --dry-run` 0.18 起已如此），0.43 给 `uninstall` 增加 `--dry-run`（MZ/MV、Ren'Py、RGSS 四个引擎都只报告将要删除或还原的内容），0.44 只修 `launch` 在 MV 的 `www/` 布局下从上一层启动 `Game.exe`（项目根仍是 `www/`），0.45 只修 `scan` 文本模式的长文件名与计数间距（载荷不变），0.46 只修 RGSS `install --native --dry-run` 的 `state` 预测（首次安装报 `added`，不是 `unchanged`；不写盘），0.49 只让 `verify --kind width` 在没给 `--max-length`（或给 0）时报用法错误（`E_USAGE`、退出 2），0.47 只让 Kirikiri 的归档级错误不再把归档名重复两遍，0.48 只让 `launch` 在 `data/` 本身是 nw.js 宿主时从 `data/` 启动（项目根仍是 `data/www/`），0.50 只让 `install --embed` 在非 RPG Maker 引擎上报用法错误（此前在 Ren'Py 上被静默忽略，在 Kirikiri 上被字典检查盖住），0.51 只把空字符串的选项值也当缺值（`--write-report ""` 报 `E_USAGE`，不再被当成当前目录去写），0.53 只让 `import` 对 provenance（`engine` / `locator` / `contexts`）的类型错误显式报 `E_DICTIONARY`（此前版本会静默丢弃这些值），0.54 只让 Kirikiri 的 KS 抽取跳过 `[iscript]` 代码块并把行首 `@` 的单行标签当标签行（代码与注释不再混进字典），0.55 又把行首 `[` 的标签行里剥掉标签后的可见文本收进字典（宏引用对白 `[「]text」` 不再整行丢失），0.59 只给 `import` 的同源重复行定下显式语义（同译文只应用第一次、计入新的 `duplicates` 载荷键；冲突译文整体拒绝），其余命令不变。0.71 起 `install` 按引擎自动选择交付方式：RGSS 的普通 `install` 直接装原生注入器，`--native` 保留为兼容别名。0.73 只重构内部模块边界（引擎契约、诊断服务、语言 profile 与 GUI worker），命令行行为、信封、退出码、错误码与所有载荷键不变。0.74 给 KRKR 补上 `patch.xp3` 交付层：`install` 写一个只含已译 `.ks` 文件的覆盖归档与清单，`uninstall` 只删这两样，`capabilities.runtime` 变成 `"patch"`；不新增命令、不改既有信封与退出码。
+本文是 yakusha 0.76.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出；0.33 给 `verify` 增加了 SARIF 报告输出（`--report-format sarif`）；0.34 给 `export` 增加 JSONL 输出（`--format jsonl`），0.35 给 `verify` 增加 `--fail-on warning`（warning 也算发布失败），0.36 给 `verify` 增加 `--require-complete`（还有未译条目就失败），0.37 只修 markdown 报告表格里的 `|` 转义，0.38 只让 `verify` 的 problem 带出字典条目的 `locator`，0.39 修 `import --dry-run --create` 会落盘空字典的问题（dry-run 不写盘），0.40 让 `verify --write-report`、`speaker --write-names`、`terms --write` 拒绝把输出写到项目字典上（`E_EXISTS`、退出 2），0.41 只让 `terms` 识别 RGSS 的数据库名表（`.rvdata2` / `.rvdata` / `.rxdata`），0.42 让 `install --dry-run` 在 RPG Maker 插件层与 Ren'Py 译文文件层上真的不写盘（RGSS 的 `--native --dry-run` 0.18 起已如此），0.43 给 `uninstall` 增加 `--dry-run`（MZ/MV、Ren'Py、RGSS 四个引擎都只报告将要删除或还原的内容），0.44 只修 `launch` 在 MV 的 `www/` 布局下从上一层启动 `Game.exe`（项目根仍是 `www/`），0.45 只修 `scan` 文本模式的长文件名与计数间距（载荷不变），0.46 只修 RGSS `install --native --dry-run` 的 `state` 预测（首次安装报 `added`，不是 `unchanged`；不写盘），0.49 只让 `verify --kind width` 在没给 `--max-length`（或给 0）时报用法错误（`E_USAGE`、退出 2），0.47 只让 Kirikiri 的归档级错误不再把归档名重复两遍，0.48 只让 `launch` 在 `data/` 本身是 nw.js 宿主时从 `data/` 启动（项目根仍是 `data/www/`），0.50 只让 `install --embed` 在非 RPG Maker 引擎上报用法错误（此前在 Ren'Py 上被静默忽略，在 Kirikiri 上被字典检查盖住），0.51 只把空字符串的选项值也当缺值（`--write-report ""` 报 `E_USAGE`，不再被当成当前目录去写），0.53 只让 `import` 对 provenance（`engine` / `locator` / `contexts`）的类型错误显式报 `E_DICTIONARY`（此前版本会静默丢弃这些值），0.54 只让 Kirikiri 的 KS 抽取跳过 `[iscript]` 代码块并把行首 `@` 的单行标签当标签行（代码与注释不再混进字典），0.55 又把行首 `[` 的标签行里剥掉标签后的可见文本收进字典（宏引用对白 `[「]text」` 不再整行丢失），0.59 只给 `import` 的同源重复行定下显式语义（同译文只应用第一次、计入新的 `duplicates` 载荷键；冲突译文整体拒绝），其余命令不变。0.71 起 `install` 按引擎自动选择交付方式：RGSS 的普通 `install` 直接装原生注入器，`--native` 保留为兼容别名。0.73 只重构内部模块边界（引擎契约、诊断服务、语言 profile 与 GUI worker），命令行行为、信封、退出码、错误码与所有载荷键不变。0.74 给 KRKR 补上 `patch.xp3` 交付层：`install` 写一个只含已译 `.ks` 文件的覆盖归档与清单，`uninstall` 只删这两样，`capabilities.runtime` 变成 `"patch"`；不新增命令、不改既有信封与退出码。0.75 把源语言也做成一条接缝：`--source-lang ja|en`（默认 `ja`）只挂在 `translate` / `verify` / `speaker` / `doctor` 上，非法值报 `E_USAGE`、退出 2；`verify` 新增 `source` 判据，只对残留的源语言文本给警告。0.76 用真实游戏语料做批量回归，五引擎 × 七能力的兼容性矩阵与匿名汇总见 [games.md](games.md)（22 款语料：18 ok / 4 findings）。
 
 **RGSS 在 0.18 起有了交付层。** `scan` / `extract` / `status` / `translate` / `verify` / `speaker` / `terms` / `export` / `import` 都能用；0.18 新增原生注入器，把预编译的注入器与 hook DLL 装进 `yakusha/native/`，游戏启动时由注入器加载，译文从 `dictionary.txt` 读。0.71 起普通的 `install` 会自动选择它（`--native` 仍被接受，作为 0.18–0.70 脚本的兼容别名）。安装细节与限制见下文 [install 与 uninstall](#install-与-uninstall)。
 
@@ -18,7 +18,7 @@
 | `extract` | 建立或刷新 `yakusha/dictionary.json`（`contexts` 记录每条串出现在哪；0.17 起另带 `engine` / `locator` 溯源字段；0.52 起 `--prune` 可删掉游戏已不含的键） |
 | `status` | 看翻译进度 |
 | `translate` | 调用模型把字典填满 |
-| `verify` | 按十条判据审计字典里的坏条目 |
+| `verify` | 按十一条判据审计字典里的坏条目 |
 | `speaker` | 用游戏自己的渲染方式修复行内说话人名字 |
 | `terms` | 挖掘名字写法并报告漂移 |
 | `install` | 装运行时：MZ/MV 写插件，Ren'Py 生成翻译脚本，RGSS 装原生注入器，Kirikiri 写 `data/patch.xp3` 覆盖归档 |
@@ -29,7 +29,7 @@
 | `launch` | 启动游戏可执行文件（仅 Windows） |
 | `config` | 读写用户级配置（不接游戏目录） |
 
-除 `config` 与 `import`（后者的对象是 `--from` 指定的文件）外，每个命令接且只接一个 `<game-dir>`：可以是游戏根目录本身，也可以是它上面最多 3 层内的任意目录，项目根会自动发现。`scan` 与 `status` 没有命令专属选项（`doctor` 只有一个 `--max-length`，`--help` 里没有 doctor 段，该选项只写在本文的 doctor 一节）。以下是 `--help` 原文里列出的选项块，逐字照抄。
+除 `config` 与 `import`（后者的对象是 `--from` 指定的文件）外，每个命令接且只接一个 `<game-dir>`：可以是游戏根目录本身，也可以是它上面最多 3 层内的任意目录，项目根会自动发现。`scan` 与 `status` 没有命令专属选项（`doctor` 只有 `--max-length` 与 `--source-lang`，`--help` 里没有 doctor 段，这两个选项只写在本文的 doctor 一节）。以下是 `--help` 原文里列出的选项块，逐字照抄。
 
 命令、选项、信封和退出码在四类引擎上完全通用，只有输出文本与安装产物按引擎不同：
 
@@ -38,12 +38,12 @@
 | `scan` 第 4 行 | `data files: 7` | `scripts   : 2` | `data files: 394` | `data files: 1` |
 | `scan` 的 `encodings` | `{"json": 7}` | `{"rpy": 2, "rpyc": 0}` | `{"rvdata2": 7}`（磁盘版）/ `{"marshal": 7}`（打包版） | `{"xp3": 1}` |
 | `scan` 的 `perFile` / `extract` 的 `contexts` | `Items.json:description` | `game/script.rpy:12` | `Map001.rvdata2:401`、`Actors.rvdata2:name` | `scene1.ks:2` |
-| `install` 文本 | `plugin` / `registered` / `backup` / `dictionary` | `translation` / `strings` / `uninstall` | `native` / `components` / `dictionary` / `uninstall` | 不实现，只有错误行 |
-| `uninstall` 文本 | `plugin removed` | `translation removed` | `native components removed` | 不实现，只有错误行 |
+| `install` 文本 | `plugin` / `registered` / `backup` / `dictionary` | `translation` / `strings` / `uninstall` | `native` / `components` / `dictionary` / `uninstall` | `patch` / `strings` / `uninstall` |
+| `uninstall` 文本 | `plugin removed` | `translation removed` | `native components removed` | `patch removed` / `patch was not installed` |
 | `doctor` 首行 | `(RPG Maker MZ 1.7.0, 51 data files)` | `(Ren'Py, 2 scripts)` | `(RGSS 3, 7 data files)` | `(Kirikiri, 1 data files)` |
 | `doctor` 的 `sync` | `every dictionary key still appears in data/` | `every dictionary key still appears in game/` | `every dictionary key still appears in Data/` | `every dictionary key still appears in xp3 archives` |
 
-载荷的键名四边一致（见 [json-contract.md](json-contract.md) §7.1），脚本不需要按引擎分支——要小心的只有两处：`scan` 的 `dataFiles`，MZ/MV 数 JSON 数据文件、RGSS 数读过的 Marshal 文档、Ren'Py 数脚本、Kirikiri 数打开的 `.xp3` 归档；以及各引擎的 `install` 含义并不相同（Ren'Py 见下文小节；RGSS 在六个通用键之外多带一个 `native` 子对象；Kirikiri 装不上、只有错误信封，没有任何载荷）。
+载荷的键名四边一致（见 [json-contract.md](json-contract.md) §7.1），脚本不需要按引擎分支——要小心的只有两处：`scan` 的 `dataFiles`，MZ/MV 数 JSON 数据文件、RGSS 数读过的 Marshal 文档、Ren'Py 数脚本、Kirikiri 数打开的 `.xp3` 归档；以及各引擎的 `install` 含义并不相同（Ren'Py 见下文小节；RGSS 在六个通用键之外多带一个 `native` 子对象；Kirikiri 在六个通用键之外多带一个 `patch` 子对象，含 `path` / `archive` / `entries` / `files` / `created` / `changed` / `skipped`）。
 
 ### extract
 
@@ -504,14 +504,14 @@ elapsed   : 0.0s
 
 RGSS 与 Ren'Py 都走这同一段代码，没有引擎特判：实测 RGSS 的 29 条串 `--provider mock` 一次翻完，输出四行与上面逐字相同（只是数字是 29）。控制码的识别共用 `src/core/textkey.js` 的 `tokenize()`：它把反斜杠开头的转义码当不透明 token，`\C[n]` 这种带方括号参数的、`\!` `\>` 这种单字符的都是同一套规则，所以 RGSS 的转义码不必另写一份。
 
-## verify：十条判据
+## verify：十一条判据
 
-`verify` 读字典，不调模型、不写字典（除非 `--write-report`）。判据实现是固定的十条：
+`verify` 读字典，不调模型、不写字典（除非 `--write-report`）。判据实现是固定的十一条：
 
 | kind | 级别 | 判据（实现里的 detail 原文） |
 | --- | --- | --- |
 | `kana` | warn | `Japanese kana left in the translation` |
-| `echo` | error | `target is identical to a Japanese source` |
+| `echo` | error | `target is identical to a Japanese source`（`--source-lang en` 时是 `target is identical to an English source`） |
 | `codes` | error | 译文里的控制码集合与原文不一致 |
 | `slots` | error | 译文里的占位符与原文不一致 |
 | `lines` | warn | `line breaks differ: N vs M` |
@@ -520,8 +520,9 @@ RGSS 与 Ren'Py 都走这同一段代码，没有引擎特判：实测 RGSS 的 
 | `trad` | warn | `traditional characters: <chars>` |
 | `speaker` | error / warn | `speaker name left in Japanese: <name>`、`speaker name left untranslated: <name>`、`speaker name rendered as ... , elsewhere ...` |
 | `rejected` | warn | 模型拒答或被校验挡下的条目 |
+| `source` | warn | `English text left in the translation`（只在 `--source-lang en` 下检查残留的源语言文本；`ja` 的同类残留记在 `kana`） |
 
-`echo`、`codes`、`slots`、`speaker` 是阻断级（error），其余只算警告。`--kind` 用逗号分隔可限流，取值必须来自上表这 10 个名字；写错名字按用法错误处理，报 `E_USAGE`、退出 2，消息形如 `unknown verify kind: bogus (expected one of: kana, echo, codes, slots, lines, width, no-text, trad, speaker, rejected)`，不会再静默过滤成空报告。`--kind` 传空串等同于不限制。`--kind` 点名 `width` 时必须同时给 `--max-length`（0.49 起）：宽度判据没有上限就没有可比对象，结果只会是空报告，所以按 0.19 对未知 kind 的同一口径报 `E_USAGE`、退出 2，消息形如 `verify --kind width needs --max-length <columns>: the width check has no limit to compare against`；`--kind kana,width` 这种混合列表同样受此约束，显式 `--max-length 0` 也算没给。默认只有 error 级问题让命令失败；`--fail-on warning` 让 warning 也算失败，见下一节。
+`echo`、`codes`、`slots`、`speaker` 是阻断级（error），其余只算警告（`source` 也永远只是警告，不会阻断）。`--kind` 用逗号分隔可限流，取值必须来自上表这 11 个名字；写错名字按用法错误处理，报 `E_USAGE`、退出 2，消息形如 `unknown verify kind: bogus (expected one of: kana, echo, codes, slots, lines, width, no-text, trad, speaker, rejected, source)`，不会再静默过滤成空报告。`--kind` 传空串等同于不限制。`--kind` 点名 `width` 时必须同时给 `--max-length`（0.49 起）：宽度判据没有上限就没有可比对象，结果只会是空报告，所以按 0.19 对未知 kind 的同一口径报 `E_USAGE`、退出 2，消息形如 `verify --kind width needs --max-length <columns>: the width check has no limit to compare against`；`--kind kana,width` 这种混合列表同样受此约束，显式 `--max-length 0` 也算没给。默认只有 error 级问题让命令失败；`--fail-on warning` 让 warning 也算失败，见下一节。
 
 实测（mock 翻译后的夹具）：32 条已译文本上有 20 条 kana 警告；把一条译文改成与原文相同后变成 21 条、`counts: {"kana": 20, "echo": 1}`，`outcome` 变 `findings`、退出 1：
 

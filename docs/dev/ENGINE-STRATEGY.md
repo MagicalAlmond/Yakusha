@@ -595,6 +595,7 @@ TextGrammar = {
 | 0.72 | GUI 重做为侧栏 + 三阶段工作台；命令反馈改为右下角 toast 摘要，完整请求/警告/结果写入 JSONL 运行日志（`%APPDATA%\yakusha\logs\gui.log`，密钥类旗标脱敏），界面提供 `Open log file…`（**已交付**） | — | 839 pass / 58 个文件（gui-main 20、gui-renderer 17；共 48 条 GUI 用例） |
 | 0.73 | 架构拆分：engine 纯契约 + RPG Maker 实现、engine-neutral doctor 服务、引擎语法 × 语言对 profile、GUI 全命令 worker 线程、native prepack/CI 打包校验（**已交付**） | — | 856 pass / 60 个文件（native-package +13、gui-worker +4） |
 | 0.74 | KRKR patch 覆盖归档交付层：`runtime: "patch"`、`install` 写 `data/patch.xp3` 与 `yakusha/krkr-patch.json`、`uninstall` 只删这两个文件、`extract` 跳过自身归档、doctor 用 `patchStatus()`（**已交付**） | — | 865 pass / 60 个文件（krkr-patch +3；adapter/CLI 改写旧 pending 用例） |
+| 0.76 | 真实游戏语料批量回归 + 兼容性矩阵：`tools/corpus.mjs`（外部 JSON 清单，默认只读 `scan`；`--deep` 建硬链接薄镜像，写步骤不碰真实游戏目录）、`docs/games.md` 五引擎 × 七能力矩阵；MZ/MV 项目根发现跟随 junction / symbolic link，`scan` 全部数据文件被拒时记 findings / exit 1，加密 XP3 索引诊断带出 scheme（**已交付**） | 原计划的新引擎（RGSS XP/VX、NScripter、Wolf、SRPG）因本机无真实游戏可验收而顺延到后续里程碑 | 22 款真实游戏：18 ok / 4 findings（Kirikiri 加密索引） |
 | 1.0 | 10 个引擎目标 + 能力矩阵 + 便携 exe | — | 每个引擎有 L4 证据；不达标的明确标 experimental |
 
 说明：
