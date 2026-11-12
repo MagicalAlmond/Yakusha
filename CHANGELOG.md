@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.77.0] - 2026-11-13
+
+### Added
+
+- `docs/evidence.md` adds a delivery-layer evidence ledger for all five engines across the seven capabilities (`extract`, `export`, `runtime`, `launch`, `debuggable`, `attach`, `liveReload`) plus an end-to-end row per engine. Every cell records one of four evidence levels — L1 detect, L2 read, L3 static delivery, L4 runtime — with a repository pointer or an anonymized external acceptance date, and the remaining gap.
+- `docs/engines.json` is the single source of truth for engine capabilities and the documentation matrix; `test/engines-json.test.js` cross-checks its schema, registry order, capability set and every cell in `docs/games.md`.
+
+### Fixed
+
+- KiriKiri runtime acceptance now covers a real commercial game end to end: `install` writes `patch2.xp3` alongside an existing `patch.xp3`, the game shows translated dialogue at startup, and `uninstall` removes only that archive while the original archives and executable keep their bytes.
+- `docs/games.md` and `docs/limitations.md` are aligned with the 0.77 runtime findings; the earlier "headless cannot open a window" conclusion is explicitly marked as superseded.
+
+### Unchanged
+
+- The JSON envelope, exit codes and every payload key are untouched. No new dependency. 932 pass.
+
 ## [0.76.0] - 2026-11-12
 
 ### Added
@@ -985,6 +1001,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
 [Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.75.0...HEAD
+[0.77.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.76.0...v0.77.0
 [0.75.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.74.0...v0.75.0
 [0.74.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.73.0...v0.74.0
 [0.73.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.72.0...v0.73.0

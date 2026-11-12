@@ -83,9 +83,9 @@ node bin/yakusha.js status "/games/SomeGame"
 `game/yakusha_translation.rpy`：只有字典里已翻译的条目会进这个文件，没翻的条目引擎照读原文，
 玩家看到的同样是官中原文。
 
-## 兼容性矩阵（0.76 起）
+## 兼容性矩阵（0.76 起；0.77 起由 docs/engines.json 互校）
 
-下表把五个引擎从识别到交付各走一遍。✅ 是 0.76 上有实测或测试覆盖，⚠️ 是能力在、但有范围限制或未测项，❌ 是没做。每个 ⚠️ 都能在 [limitations.md](limitations.md) 的对应小节里找到同一句话。
+下表把五个引擎从识别到交付各走一遍。✅ 是 0.76–0.77 上有实测或测试覆盖，⚠️ 是能力在、但有范围限制或未测项，❌ 是没做。每个 ⚠️ 都能在 [limitations.md](limitations.md) 的对应小节里找到同一句话——这条不是口头约定：同一份状态也写在 [engines.json](engines.json) 里，`test/engines-json.test.js` 会逐格比对这张表、代码里每个 adapter 的 `capabilities` 与 limitations.md，⚠️ 的说明句必须逐字出现在 limitations.md 里，三者不一致就红。
 
 | 引擎 | 识别 | scan / extract | translate | verify | install 交付 | launch | doctor |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -93,7 +93,7 @@ node bin/yakusha.js status "/games/SomeGame"
 | RPG Maker MV | ✅ 同上，`www/` 布局也认 | ✅ 同上 | ✅ | ✅ | ✅ 插件档：改写 `loadDataFile`，在 `onLoad` 里回填 | ✅ `www/` 布局下从上一层启动 `Game.exe`（0.44） | ✅ 版本区间 1.6.1–1.6.2 |
 | Ren'Py | ✅ `game/` 目录加 `.rpy` / `.rpyc` | ⚠️ 只用 SDK 的两个官方示例验收，未测真实商业游戏 | ✅ | ✅ | ✅ translation 档：`game/yakusha_translation.rpy` | ✅ 发行版根目录的启动器 | ⚠️ `versions: none`，`config.version` 是游戏版本，没有可比矩阵 |
 | RGSS（XP / VX / VX Ace） | ✅ `.rvproj2` / `.rvproj`，或 `RGSSAD` 家族归档 | ✅ `Data/` 下的 `.rxdata` / `.rvdata` / `.rvdata2` | ✅ | ✅ | ⚠️ inject 档，只有 32 位 Windows 组件；实测两款 VX Ace，XP / VX 未测 | ✅ 经 `yakusha_injector.exe` 启动 | ✅ `versions` 1 / 2 / 3，实测 3 |
-| Kirikiri | ✅ `data/` 或根目录下的 `.xp3` | ⚠️ 只读标准未加密 XP3；加密变体进 `undecodable`，改版索引（Hxv4 形态）报 `E_UNSUPPORTED`；`.tjs` 只计数不读内容 | ✅ | ✅ | ⚠️ patch 档：只写 `data/patch.xp3`（只含已译 `.ks`）与清单；没有运行时全量翻译实测 | ✅ 根目录的 `Game.exe` | ⚠️ 标题与版本读不出时显示 `(untitled)`，`versions: none` |
+| Kirikiri | ✅ `data/` 或根目录下的 `.xp3` | ⚠️ 只读标准未加密 XP3；加密变体进 `undecodable`，改版索引（Hxv4 形态）报 `E_UNSUPPORTED`；`.tjs` 只计数不读内容 | ✅ | ✅ | ✅ patch 档：只写 `data/patch.xp3`（已存在时自动顺延到 `patch2.xp3`，只含已译 `.ks`）与清单；0.77 起在一款商业游戏上做过运行时全量翻译实测——启动后对白显示译文，`uninstall` 只回收该归档 | ✅ 根目录的 `Game.exe` | ⚠️ 标题与版本读不出时显示 `(untitled)`，`versions: none` |
 
 还有三件事不分引擎：`attach`（接管运行中的进程）五个引擎都是 ❌，从 0.10 起就是桩，没有 CLI 入口；MV 不能挂 `--remote-debugging-port`（`debuggable: false`），MZ 可以，这是引擎本身的差别；只在 Windows 10/11 x64 上支持与验收，Linux、macOS、WSL、Wine、Proton 都不在范围内。
 

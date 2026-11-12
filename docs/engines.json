@@ -1,0 +1,258 @@
+{
+  "$comment": "本文件是引擎能力与文档矩阵的唯一事实源；改动必须同时改代码与文档，test/engines-json.test.js 会拦住不一致",
+  "schema": 1,
+  "engines": [
+    {
+      "id": "mz",
+      "name": "RPG Maker MZ",
+      "capabilities": {
+        "extract": true,
+        "export": true,
+        "runtime": "plugin",
+        "launch": true,
+        "debuggable": true,
+        "attach": false,
+        "liveReload": false
+      },
+      "versions": {
+        "kind": "range",
+        "min": "1.3.2",
+        "max": "1.9.0",
+        "tested": [
+          "1.3.2",
+          "1.9.0"
+        ]
+      },
+      "matrix": {
+        "detect": {
+          "status": "ok",
+          "note": "识别 `game.rmmzproject`，或 `data/*.json`"
+        },
+        "scanExtract": {
+          "status": "ok",
+          "note": "明文或单字节 XOR 的 JSON"
+        },
+        "translate": {
+          "status": "ok",
+          "note": "任意 OpenAI 兼容端点或 `mock`"
+        },
+        "verify": {
+          "status": "ok",
+          "note": "十一条判据"
+        },
+        "install": {
+          "status": "ok",
+          "note": "插件档：一个插件文件，加 `js/plugins.js` 里一行"
+        },
+        "launch": {
+          "status": "ok",
+          "note": "根目录的 `Game.exe`"
+        },
+        "doctor": {
+          "status": "ok",
+          "note": "版本区间 1.3.2–1.9.0，区间外只 `warn`"
+        }
+      }
+    },
+    {
+      "id": "mv",
+      "name": "RPG Maker MV",
+      "capabilities": {
+        "extract": true,
+        "export": true,
+        "runtime": "plugin",
+        "launch": true,
+        "debuggable": false,
+        "attach": false,
+        "liveReload": false
+      },
+      "versions": {
+        "kind": "range",
+        "min": "1.6.1",
+        "max": "1.6.2",
+        "tested": [
+          "1.6.1",
+          "1.6.2"
+        ]
+      },
+      "matrix": {
+        "detect": {
+          "status": "ok",
+          "note": "识别 `game.rmmzproject`，`www/` 布局也认"
+        },
+        "scanExtract": {
+          "status": "ok",
+          "note": "明文或单字节 XOR 的 JSON"
+        },
+        "translate": {
+          "status": "ok",
+          "note": "任意 OpenAI 兼容端点或 `mock`"
+        },
+        "verify": {
+          "status": "ok",
+          "note": "十一条判据"
+        },
+        "install": {
+          "status": "ok",
+          "note": "插件档：改写 `loadDataFile`，在 `onLoad` 里回填"
+        },
+        "launch": {
+          "status": "ok",
+          "note": "`www/` 布局下从上一层启动 `Game.exe`"
+        },
+        "doctor": {
+          "status": "ok",
+          "note": "版本区间 1.6.1–1.6.2"
+        }
+      }
+    },
+    {
+      "id": "renpy",
+      "name": "Ren'Py",
+      "capabilities": {
+        "extract": true,
+        "export": true,
+        "runtime": "translation",
+        "launch": true,
+        "debuggable": false,
+        "attach": false,
+        "liveReload": false
+      },
+      "versions": {
+        "kind": "none",
+        "reason": "Ren'Py does not record its runtime version in the project"
+      },
+      "matrix": {
+        "detect": {
+          "status": "ok",
+          "note": "识别 `game/` 目录加 `.rpy` / `.rpyc`"
+        },
+        "scanExtract": {
+          "status": "limited",
+          "note": "图片文字、插件自定义的说话人容器看不到"
+        },
+        "translate": {
+          "status": "ok",
+          "note": "translation 档，只投 `schinese` 一种语言"
+        },
+        "verify": {
+          "status": "ok",
+          "note": "十一条判据"
+        },
+        "install": {
+          "status": "ok",
+          "note": "translation 档：`game/yakusha_translation.rpy`"
+        },
+        "launch": {
+          "status": "ok",
+          "note": "发行版根目录的启动器"
+        },
+        "doctor": {
+          "status": "limited",
+          "note": "`install` / `runtime` 两行"
+        }
+      }
+    },
+    {
+      "id": "rgss",
+      "name": "RGSS",
+      "capabilities": {
+        "extract": true,
+        "export": true,
+        "runtime": "inject",
+        "launch": true,
+        "debuggable": false,
+        "attach": false,
+        "liveReload": false
+      },
+      "versions": {
+        "kind": "values",
+        "values": [
+          "1",
+          "2",
+          "3"
+        ],
+        "tested": [
+          "3"
+        ]
+      },
+      "matrix": {
+        "detect": {
+          "status": "ok",
+          "note": "识别 `.rvproj2` / `.rvproj`，或 `RGSSAD` 家族归档"
+        },
+        "scanExtract": {
+          "status": "ok",
+          "note": "`Data/` 下的 `.rxdata` / `.rvdata` / `.rvdata2`"
+        },
+        "translate": {
+          "status": "ok",
+          "note": "任意 OpenAI 兼容端点或 `mock`"
+        },
+        "verify": {
+          "status": "ok",
+          "note": "十一条判据"
+        },
+        "install": {
+          "status": "limited",
+          "note": "交付层是 32 位 Windows 的原生组件"
+        },
+        "launch": {
+          "status": "ok",
+          "note": "经 `yakusha_injector.exe` 启动"
+        },
+        "doctor": {
+          "status": "ok",
+          "note": "`versions` 1 / 2 / 3，实测 3"
+        }
+      }
+    },
+    {
+      "id": "krkr",
+      "name": "Kirikiri",
+      "capabilities": {
+        "extract": true,
+        "export": true,
+        "runtime": "patch",
+        "launch": true,
+        "debuggable": false,
+        "attach": false,
+        "liveReload": false
+      },
+      "versions": {
+        "kind": "none",
+        "reason": "Kirikiri archives do not record an engine version"
+      },
+      "matrix": {
+        "detect": {
+          "status": "ok",
+          "note": "识别 `data/` 或根目录下的 `.xp3`"
+        },
+        "scanExtract": {
+          "status": "limited",
+          "note": "只支持标准未加密 XP3"
+        },
+        "translate": {
+          "status": "ok",
+          "note": "任意 OpenAI 兼容端点或 `mock`"
+        },
+        "verify": {
+          "status": "ok",
+          "note": "十一条判据"
+        },
+        "install": {
+          "status": "ok",
+          "note": "patch 档：写 `data/patch.xp3`（已存在时顺延 `patch2.xp3`），只含已译 `.ks` 与清单"
+        },
+        "launch": {
+          "status": "ok",
+          "note": "根目录的 `Game.exe`"
+        },
+        "doctor": {
+          "status": "limited",
+          "note": "游戏标题与引擎版本藏在加密或可选配置里"
+        }
+      }
+    }
+  ]
+}
