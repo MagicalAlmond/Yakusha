@@ -334,6 +334,7 @@ test/fixtures/           各引擎最小夹具（mini-mz、mini-mv、renpy-*、r
 | 0.76.0 | **已交付**：真实游戏语料批量回归——新增 `tools/corpus.mjs`（外部 JSON 清单驱动，默认只读 `scan`；`--deep` 建薄硬链接镜像，extract / translate / verify / install 不写真实游戏目录）与 `docs/games.md` 五引擎 × 七能力兼容性矩阵；MZ/MV 项目根发现跟随 junction / symbolic link，`scan` 全部数据文件被拒时记 findings / exit 1，加密 XP3 索引诊断带出 scheme（如 `Hxv4`） | 22 款语料：18 ok / 4 findings（详见 docs/games.md） |
 | 0.77.0 | **已交付**：交付层 L4 证据——`docs/evidence.md` 用四级口径（L1 识别 / L2 读取 / L3 静态交付 / L4 运行时）记录五引擎 × 七能力与端到端证据，`docs/engines.json` 成为能力值与文档矩阵的单一事实源并由 `test/engines-json.test.js` 逐格互校；Kirikiri 在一款真实商业游戏上完成 install → 启动见译文 → uninstall 的运行时验收 | 932 pass / 0 fail（engines-json +5） |
 | 0.78.0 | **已交付**：GUI 交付分档展示与真机验收——`gui/renderer/delivery.js` 用五档文案（L4-plugin / L4-resource / L4-inject / L4-patch / L3-only）说明 install/uninstall 的实际影响，`#delivery` 卡由 `capabilities.runtime` 驱动；`tools/gui-acceptance.mjs` 在 Electron 真窗经 CDP 点击跑通 MZ / MV / Ren'Py / RGSS / Kirikiri 五引擎的 scan → extract → translate → verify → install → uninstall → doctor，并逐字节校验 plugin 档 `js/plugins.js` 与 patch 档原 `data.xp3` | 934 pass / 0 fail（gui-renderer +2；gui-acceptance 为真机工具，不进 npm test） |
+| 0.79.0 | **已交付**：便携 exe 发布工程——`tools/portable-lib.mjs` / `tools/portable.mjs` 从本地 Electron 37 与 `native/prebuilt` 组装 `dist/yakusha-<version>-win-x64`（`Yakusha.exe` + `resources/app` + `build-info.json` + `SHA256SUMS`），非空目录无 `--force` 即拒绝且只替换本工具生成的目录；`--verify` 逐文件重算哈希并拒绝缺失/多余/篡改；`tools/gui-acceptance.mjs --exe` 用便携包跑通五引擎真窗链路；`docs/release.md` 记录构建、校验、签名（不签）与托管边界 | 941 pass / 0 fail（portable +7）；0.79 构建 163 文件 / 307,921,513 字节，五链真机通过 |
 | 1.0.0 | 10 个引擎 + 能力矩阵 + 便携 exe（图标、无控制台、最近游戏） | 双击 exe 可用 |
 
 ## 10. 风险
@@ -349,7 +350,7 @@ test/fixtures/           各引擎最小夹具（mini-mz、mini-mv、renpy-*、r
   引擎会按加载顺序覆盖上去的 `patch.xp3`，并在一个真实商业归档副本上验过写入/回读与可逆性，
   krkr2 / krkrz 的加密变体仍刻意不碰。
   Unity 要面对 Mono/IL2CPP 两条路线；Wolf 有成熟 hook 可参考。
-- **Electron 体积与杀软**：便携包约 120–180 MB，首次运行可能被 Defender 拦一下；
+- **Electron 体积与杀软**：便携包解包后约 308 MB，首次运行可能被 Defender 拦一下；
   这是壳的成本，不影响 CLI 用户。
 - **版本碎片**：MZ 已锁定 1.3.2–1.9.0；RGSS 分 XP / VX / VX Ace 三代，数据扩展名、归档格式、
   `Game.ini` 里的运行时库名都不一样，这一版只在一款 VX Ace 游戏上做过全量实测，

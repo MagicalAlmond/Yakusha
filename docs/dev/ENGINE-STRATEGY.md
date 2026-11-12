@@ -598,6 +598,7 @@ TextGrammar = {
 | 0.76 | 真实游戏语料批量回归 + 兼容性矩阵：`tools/corpus.mjs`（外部 JSON 清单，默认只读 `scan`；`--deep` 建硬链接薄镜像，写步骤不碰真实游戏目录）、`docs/games.md` 五引擎 × 七能力矩阵；MZ/MV 项目根发现跟随 junction / symbolic link，`scan` 全部数据文件被拒时记 findings / exit 1，加密 XP3 索引诊断带出 scheme（**已交付**） | 原计划的新引擎（RGSS XP/VX、NScripter、Wolf、SRPG）因本机无真实游戏可验收而顺延到后续里程碑 | 22 款真实游戏：18 ok / 4 findings（Kirikiri 加密索引） |
 | 0.77 | 交付层 L4 证据：真机运行时验收 + 证据台账 + 能力矩阵单一事实源（**已交付**） | A 项在真实商业游戏上完成运行时验收；B/C 把证据与矩阵做成仓库内可审数据 | Kirikiri 运行时通过、五引擎台账落地、npm test 全绿 |
 | 0.78 | GUI 交付分档展示与真机验收：交付卡按 `capabilities.runtime` 显示 L4-plugin / L4-resource / L4-inject / L4-patch / L3-only，`tools/gui-acceptance.mjs` 在 Electron 真窗跑五引擎 install → uninstall → doctor（**已交付**） | GUI 0.14 后不叠加新引擎适配，这一版只补展示与验收 | 五引擎真机 GUI 走查通过，npm test 934 条全绿 |
+| 0.79 | 便携 exe 发布工程：`tools/portable-lib.mjs` / `tools/portable.mjs` 组装 `Yakusha.exe` + `resources/app` + `build-info.json` + `SHA256SUMS`，`--verify` 全量哈希复核，`tools/gui-acceptance.mjs --exe` 在便携包上跑五链（**已交付**） | 1.0 的发布前置；代码签名按 2026-11-07 决定暂不做，托管方式仍未定 | 0.79 构建 163 文件 / 307,921,513 字节，五链真机通过，npm test 941 条全绿 |
 | 1.0 | 10 个引擎目标 + 能力矩阵 + 便携 exe | — | 每个引擎有 L4 证据；不达标的明确标 experimental |
 
 说明：
@@ -770,13 +771,15 @@ SAC 在“干净安装”的 Win11 上默认是评估/开启状态，**用户关
 - **0.12 起（原生 helper + injector.exe）风险陡增**：注入器本身就是典型的
   “unknown unsigned code”，是第 1/3/4 层拦截的典型对象；hook DLL 做的“往别的进程写代码”
   与恶意软件技术重合，Defender/第三方杀软的启发式误报率显著高于普通 CLI。
-- **1.0（便携 exe）必须有签名**：单文件 exe 是最容易被拦的形态，没有签名等于把安装失败
-  写在脸上。
+- **1.0（便携 exe）与签名**：单文件 exe 是最容易被拦的形态，没有签名等于把安装失败
+  写在脸上；原稿要求 1.0 必须有签名。**2026-11-07 用户拍板暂不做 Windows 代码签名**
+  （见 [DEVLOG](DEVLOG.md) §8.1），因此 1.0 按未签名发布，README、GUI 与
+  [release.md](../release.md) 都显式标注这一点，并把签名与托管方式留作后续决策。
 
-因此结论不变但更明确：**不是“要不要签名”，而是“什么时候必须签”**。可行策略是
-0.10/0.11 先不签（把预算和身份审核留到需要时），0.12 之前 1–2 个月启动证书申请——
-关键路径是身份/资格审核，不是技术接入。若 0.12 赶不上，就必须在 README 与 GUI 里显式
-标注“未签名”，并在 GUI 里给一条“被拦了怎么办”的说明，而不是假装没有这回事。
+因此本节原计划（0.12 前 1–2 个月启动证书申请）已被 2026-11-07 的「暂不签名」决定取代：
+**1.0 按未签名发布**，但必须在 README、GUI 与 [release.md](../release.md) 里显式标注
+“未签名”，并给出一条被 SmartScreen / SAC 拦截后的说明，而不是假装没有这回事。
+若将来重新评估签名，关键路径仍是身份/资格审核，不是技术接入。
 
 ## 10. 参考与证据
 

@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.79.0] - 2026-11-13
+
+### Added
+
+- A portable Windows x64 bundle is now a first-class build artefact. `tools/portable.mjs` (with `tools/portable-lib.mjs`) assembles `dist/yakusha-<version>-win-x64/` from the local Electron distribution and `native/prebuilt`: `Yakusha.exe`, `resources/app/`, `build-info.json`, `SHA256SUMS`, README and LICENSE. It refuses a non-empty output directory unless `--force` proves the directory belongs to this tool, and it never modifies the inputs.
+- `tools/portable.mjs --verify <dir>` re-hashes every file and rejects a missing, extra or modified file, a changed `resources/app/package.json`, or a malformed `SHA256SUMS`; `--json` exposes the same result to scripts.
+- `tools/gui-acceptance.mjs --exe <Yakusha.exe>` runs the same five real-window chains (MZ, MV, Ren'Py, RGSS, Kirikiri) against a portable bundle, so the "double-click the exe" acceptance is repeatable rather than manual guesswork. The 0.79 build (163 files / 307,921,513 bytes, unsigned) passed all five chains on 2026-11-12.
+- `docs/release.md` documents the build, layout, verification, acceptance, signing stance (`signed: false`, per the 2026-11-07 decision), manual-update policy and troubleshooting. `dist/` is gitignored.
+
+### Changed
+
+- The GUI packaging section now states the measured unpacked size (about 308 MB) instead of the earlier 120–180 MB estimate, and links the portable build and acceptance instructions.
+- The 1.0 release gate is split into a checked portable-build item and an open hosting decision; the signing decision is recorded as "not signed".
+
+### Unchanged
+
+- The JSON envelope, exit codes and every payload key are untouched. No new dependency. 941 pass.
+
 ## [0.78.0] - 2026-11-13
 
 ### Added
@@ -1015,7 +1033,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.78.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.79.0...HEAD
+[0.79.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.78.0...v0.79.0
 [0.78.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.77.0...v0.78.0
 [0.77.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.76.0...v0.77.0
 [0.75.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.74.0...v0.75.0

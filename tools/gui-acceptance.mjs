@@ -11,6 +11,7 @@
  *   node tools/gui-acceptance.mjs                 # all five chains
  *   node tools/gui-acceptance.mjs --only mz,renpy
  *   node tools/gui-acceptance.mjs --timeout 60000
+ *   node tools/gui-acceptance.mjs --exe dist/yakusha-0.79.0-win-x64/Yakusha.exe
  *
  * The tool is intentionally not part of `npm test`: it needs an Electron
  * window and is meant for the real-machine walkthrough recorded in
@@ -49,12 +50,16 @@ export function selectChains(only) {
 }
 
 function parseArgs(argv) {
-  const options = { only: null, timeout: 45000, port: null };
+  const options = { only: null, timeout: 45000, port: null, exe: null };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === "--only") options.only = argv[++index];
     else if (arg === "--timeout") options.timeout = Number(argv[++index]);
     else if (arg === "--port") options.port = Number(argv[++index]);
+    else if (arg === "--exe") {
+      options.exe = argv[++index];
+      if (!options.exe) throw new Error("--exe requires a path");
+    }
     else if (arg === "--help" || arg === "-h") options.help = true;
     else throw new Error("unknown argument: " + arg);
   }
@@ -344,11 +349,14 @@ function killTree(child) {
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   if (options.help) {
-    console.log("Usage: node tools/gui-acceptance.mjs [--only mz,mv,renpy,rgss,krkr] [--timeout ms] [--port n]");
+    console.log("Usage: node tools/gui-acceptance.mjs [--only mz,mv,renpy,rgss,krkr] [--timeout ms] [--port n] [--exe path/to/Yakusha.exe]");
     return;
   }
-  if (!fs.existsSync(ELECTRON)) throw new Error("Electron is not installed; run pnpm install first");
-  if (!fs.existsSync(path.join(NATIVE_ASSETS, "manifest.json"))) throw new Error("native/prebuilt/manifest.json is missing");
+  const executable = options.exe ? path.resolve(options.exe) : ELECTRON;
+  if (!fs.existsSync(executable)) {
+    throw new Error(options.exe ? "portable executable is missing: " + executable : "Electron is not installed; run pnpm install first");
+  }
+  if (!options.exe && !fs.existsSync(path.join(NATIVE_ASSETS, "manifest.json"))) throw new Error("native/prebuilt/manifest.json is missing");
   const chains = selectChains(options.only);
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   const artifactDir = path.join(ROOT, ".dsh-scratch", "gui-acceptance-" + stamp + "-" + process.pid);
@@ -360,17 +368,21 @@ async function main() {
   fs.writeFileSync(path.join(config, "config.json"), JSON.stringify({ schema: 1, provider: "mock" }, null, 2));
   const prepared = chains.map((chain) => ({ chain, dir: prepareGame(chain, games) }));
   const port = options.port || await freePort();
-  const env = { ...process.env, YAKUSHA_GUI_PROFILE: profile, YAKUSHA_CONFIG_DIR: config, YAKUSHA_NATIVE_ASSETS: NATIVE_ASSETS };
+  const env = { ...process.env, YAKUSHA_GUI_PROFILE: profile, YAKUSHA_CONFIG_DIR: config };
+  if (!options.exe) env.YAKUSHA_NATIVE_ASSETS = NATIVE_ASSETS;
   delete env.ELECTRON_RUN_AS_NODE;
-  const child = spawn(ELECTRON, ["gui/main.js", "--remote-debugging-port=" + port, "--user-data-dir=" + profile, "--disable-gpu", "--no-sandbox"], {
-    cwd: ROOT,
+  const launchArgs = options.exe
+    ? ["--remote-debugging-port=" + port, "--user-data-dir=" + profile, "--disable-gpu", "--no-sandbox"]
+    : ["gui/main.js", "--remote-debugging-port=" + port, "--user-data-dir=" + profile, "--disable-gpu", "--no-sandbox"];
+  const child = spawn(executable, launchArgs, {
+    cwd: options.exe ? path.dirname(executable) : ROOT,
     env,
     stdio: ["ignore", "pipe", "pipe"],
   });
   let stderr = "";
   child.stderr.on("data", (chunk) => { stderr += chunk; });
   let cdp = null;
-  const summary = { schema: 1, command: "gui-acceptance", ok: false, startedAt: new Date().toISOString(), artifactDir, port, chains: [] };
+  const summary = { schema: 1, command: "gui-acceptance", ok: false, startedAt: new Date().toISOString(), artifactDir, port, executable, mode: options.exe ? "portable" : "dev", chains: [] };
   try {
     const target = await waitForTarget(port, options.timeout);
     cdp = await Cdp.connect(target.webSocketDebuggerUrl);

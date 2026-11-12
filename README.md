@@ -452,8 +452,9 @@ docs/                     设计说明、命令参考、契约、实测记录、
 ## 参与开发
 
 分支模型是 **trunk-based**：只有 `main` 一条长期分支，工作分支当天合回；合并前 `npm test`
-必须全绿，每个工作包走一个 self-PR（以 CI status check 为准）并 squash 合并；发布用
-`vX.Y.Z` annotated tag 标记。完整规则与命令见 [docs/dev/DEVLOG.md](docs/dev/DEVLOG.md) §9。
+必须全绿，每个工作包走一个 self-PR（以 CI status check 为准）并 squash 合并。发布物由
+`node tools/portable.mjs` 在本地组装成可双击的目录，校验与验收见 [docs/release.md](docs/release.md)；
+仓库不打 tag、不推送 release。完整规则与命令见 [docs/dev/DEVLOG.md](docs/dev/DEVLOG.md) §9。
 
 ## 文档
 
@@ -469,6 +470,7 @@ docs/                     设计说明、命令参考、契约、实测记录、
 | [docs/platforms.md](docs/platforms.md) | 平台支持矩阵与决策记录（Windows-only 的原因与重评条件） |
 | [docs/design.md](docs/design.md) | 为什么走运行时钩子、文本面覆盖、转义码、设计约束、作为库用 |
 | [docs/games.md](docs/games.md) | 匿名记录的实测游戏（RPG Maker 15 款、Ren'Py SDK 自带项目、一款 RGSS3 商业游戏）、全量翻译数据、官中游戏的处理方式 |
+| [docs/release.md](docs/release.md) | 便携 exe 的构建、SHA-256 校验、`--exe` 真机验收与签名/分发边界 |
 | [docs/limitations.md](docs/limitations.md) | 已知限制全表 |
 | [docs/dev/DEVLOG.md](docs/dev/DEVLOG.md) | 内部开发日志（阶段、决策、实测、教训） |
 

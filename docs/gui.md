@@ -129,11 +129,11 @@ install 的 `staleBackup: true` 与 uninstall 的 `drifted: true` 都要停下�
 ## 7. 打包与分发
 
 - Electron 只进 devDependencies，core 保持零第三方依赖（architecture.md §1）；
-  便携包体积约 120–180 MB，首次运行可能被 Defender 拦一次——这是壳的成本，写进文档，不掩盖。
+  便携包解包后约 308 MB（Electron 37 运行时占大头；压缩后的分发体积取决于打包方式），首次运行可能被 Defender 拦一次——这是壳的成本，写进文档，不掩盖。构建、校验与发布说明见 [release.md](release.md)。
 - Windows 代码签名：0.10/0.11 不做（纯 JS）；0.18 起已有原生组件（RGSS 注入器与 hook DLL），
-  签名仍未做，完整性靠 SHA-256 manifest；未拍板项见 DEVLOG §8.1（证书路线、成本与
-  SmartScreen 四道拦截见 ENGINE-STRATEGY §9.3/§9.4）。GUI 首发若未签名，安装包和
-  首启动提示里如实说明。
+  2026-11-07 拍板暂不签名，1.0 按未签名发布，完整性靠 SHA-256 manifest；证书路线、成本与
+  SmartScreen 四道拦截见 ENGINE-STRATEGY §9.3/§9.4。GUI 与 [release.md](release.md) 都
+  如实说明未签名与首次运行可能被拦。
 - **首个 GUI 版本不做自动更新**：更新渠道、增量与校验未设计；用户从发布页手动更新。
   这不是省事，是避免在签名问题解决前引入一个未被审计的下载通道。
 
@@ -162,7 +162,7 @@ GUI 永远不做以下事情（与 [limitations.md](limitations.md) 的工具边
 - [x] 在四档测试矩阵上，从 GUI 卸载后游戏回到可运行状态（plugin 档逐字节还原）。（0.78：`tools/gui-acceptance.mjs` 在真窗跑通 MZ/MV（plugin）、Ren'Py（translation）、RGSS（inject）、Kirikiri（patch）的 install → uninstall → doctor；plugin 档 `js/plugins.js` 与 patch 档原 `data.xp3` 均逐字节校验）
 - [x] 密钥只存在于系统凭据存储或内存；`config` 文件、游戏目录、日志与导出文件里都没有。（test/gui-credentials.test.js：文件里只有密文信封）
 - [x] 拖入非项目目录、多项目目录、损坏字典时，错误提示与 CLI 的错误码一一对应。（gui-handlers 对拍）
-- [x] MZ/MV + Ren'Py + RGSS 三条链路都能从 GUI 一键跑通（ENGINE-STRATEGY §6.3 的 0.14 验收）。（`test/gui-e2e.test.js` 已按 GUI 的调用缝 `runGuiCommand` 把三条链路的完整命令序列各走通一遍（RGSS 走普通 `install` 自动选择）；剩下的未验部分只有 Electron 窗口本身的点击与渲染。0.16 复查：`gui/main.js` 能被 Electron 37.2.3 加载、`BrowserWindow` 能创建（隐藏窗口冒烟 exit 0）。0.65 更正：单实例锁创建失败不是进程令牌的宿命，而是浏览器进程写不了默认 profile 目录（未设应用名时为 `%APPDATA%\Electron`，错误框里打印的就是实际目录）（`process_singleton_win.cc:454 Lock file can not be created! Error code: 5`）；把 `--user-data-dir` 指到可写目录后应用能正常起窗（实测窗口句柄非 0），指到不可写目录仍报同一个 error 5。0.65 起锁失败会打 stderr 并弹错误框，指明目录与 `--user-data-dir`，不再静默退出（§10）。0.67 补充：起不来的最后一段也修好了——profile 目录在拿锁前先探测，默认目录写不进去就自动回退到应用目录旁的 `.yakusha-gui-profile`（或 `YAKUSHA_GUI_PROFILE`），仓库内的 Electron 因此能靠回退目录开窗（实测窗口句柄非 0）；剩下未验的仍是真机点击。0.78 用 `tools/gui-acceptance.mjs` 在 Electron 真窗逐链点击跑通五引擎（MZ/MV/Ren'Py/RGSS/Kirikiri）并校验 install/uninstall 产物。）
+- [x] MZ/MV + Ren'Py + RGSS 三条链路都能从 GUI 一键跑通（ENGINE-STRATEGY §6.3 的 0.14 验收）。（`test/gui-e2e.test.js` 已按 GUI 的调用缝 `runGuiCommand` 把三条链路的完整命令序列各走通一遍（RGSS 走普通 `install` 自动选择）；剩下的未验部分只有 Electron 窗口本身的点击与渲染。0.16 复查：`gui/main.js` 能被 Electron 37.2.3 加载、`BrowserWindow` 能创建（隐藏窗口冒烟 exit 0）。0.65 更正：单实例锁创建失败不是进程令牌的宿命，而是浏览器进程写不了默认 profile 目录（未设应用名时为 `%APPDATA%\Electron`，错误框里打印的就是实际目录）（`process_singleton_win.cc:454 Lock file can not be created! Error code: 5`）；把 `--user-data-dir` 指到可写目录后应用能正常起窗（实测窗口句柄非 0），指到不可写目录仍报同一个 error 5。0.65 起锁失败会打 stderr 并弹错误框，指明目录与 `--user-data-dir`，不再静默退出（§10）。0.67 补充：起不来的最后一段也修好了——profile 目录在拿锁前先探测，默认目录写不进去就自动回退到应用目录旁的 `.yakusha-gui-profile`（或 `YAKUSHA_GUI_PROFILE`），仓库内的 Electron 因此能靠回退目录开窗（实测窗口句柄非 0）；剩下未验的仍是真机点击。0.78 用 `tools/gui-acceptance.mjs` 在 Electron 真窗逐链点击跑通五引擎（MZ/MV/Ren'Py/RGSS/Kirikiri）并校验 install/uninstall 产物；0.79 起该工具支持 `--exe dist/yakusha-<version>-win-x64/Yakusha.exe`，同一套五链可直接在便携包上复跑。）
 - [x] 每次命令点击后都有即时 toast 反馈：busy 起始、结束按 `ok`/`outcome` 变 success/warning/error，正文是一行摘要；详细请求与结果只进日志文件，界面提供 `Open log file…`。（0.72：`test/gui-renderer.test.js` 的 toast 三条 + `test/gui-main.test.js` 的日志脱敏与打开通道）
 - [x] 渲染层的扫描状态、能力灰显、字典编辑与密钥输入有 stub-DOM 契约测试（0.20 起 `test/gui-renderer.test.js`；0.56 起补齐拖放（`pathForFile`）、目录选择、取消转发与进度/警告接线；0.72 起 toast 摘要、失败提示与日志面板，0.75 起源语言选择器随 translate/verify 下发的 flags，0.78 起交付卡五档文案与回退，共 21 条；真机窗口交互见上一行）。
 - [x] 主进程（`gui/main.js`）有 stub-Electron 契约测试（0.57 起 `test/gui-main.test.js`，0.72 起 20 条：单实例锁、IPC 白名单、窗口安全参数、取消真达 runner、凭据/字典/目录选择通道、运行日志脱敏与 `gui:log-path`/`gui:open-log`）——随测试修复取消断链与「记住密钥」撞 `const` 崩溃两条接缝缺陷。0.73 起 `test/gui-worker.test.js` 另有 4 条跨线程用例（scan 信封对拍、translate 的进度跨线程、项目错误、未知命令），并验证所有命令共享单飞闸门。
@@ -175,6 +175,8 @@ GUI 永远不做以下事情（与 [limitations.md](limitations.md) 的工具边
 pnpm install            # 开发依赖含 electron；运行时仍是零依赖
 npm start               # 等价于 npx electron gui/main.js
 ```
+
+便携包不经过 npm：双击 `dist/yakusha-<version>-win-x64/Yakusha.exe` 即可；构建、`--verify` 与 `--exe` 验收见 [release.md](release.md)。
 
 窗口不出现时按这个顺序看：
 

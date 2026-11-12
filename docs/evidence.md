@@ -92,7 +92,7 @@
 
 ## 1.0 门禁清单
 
-依据 `docs/dev/ENGINE-STRATEGY.md:599`：每个引擎都要有 L4 证据；不达标的要明确标 experimental。
+依据 [ENGINE-STRATEGY](dev/ENGINE-STRATEGY.md) 的 1.0 行：每个引擎都要有 L4 证据；不达标的要明确标 experimental。
 
 - [x] RPG Maker MZ 达到 L4。
 - [x] RPG Maker MV 达到 L4。
@@ -102,4 +102,5 @@
 - [x] Kirikiri 达到 L4。
 - [x] 五个引擎的 `capabilities` 与 `docs/engines.json`、`docs/games.md`、`docs/limitations.md` 一致（`test/engines-json.test.js` 守住）。
 - [x] GUI 真机走查：`docs/gui.md` 的验收项逐条在真机点过。0.78 用 `tools/gui-acceptance.mjs` 在 Electron 真窗跑通 MZ / MV / Ren'Py / RGSS / Kirikiri 五链的 scan → extract → translate → verify → install → uninstall → doctor，并核对 plugin 档 `js/plugins.js` 与 patch 档原 `data.xp3` 的字节不变（`test/gui-e2e.test.js` 只是 handler 层的自动化覆盖）。
-- [ ] 发布级验收：便携 exe、代码签名与托管方式在 1.0 前定稿（`docs/dev/ENGINE-STRATEGY.md:599` 之外的发布前置）。
+- [x] 便携 exe：0.79 用 `tools/portable.mjs` 构建，`--verify` 重算全部哈希，`tools/gui-acceptance.mjs --exe` 在便携包上跑通五链（2026-11-12 实测 163 文件 / 307,921,513 字节）。
+- [ ] 代码签名与托管方式在 1.0 前定稿（签名按 2026-11-07 决定暂不做，托管方式未定；见 [release.md](release.md) §5）。
