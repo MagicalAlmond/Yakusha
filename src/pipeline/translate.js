@@ -17,6 +17,7 @@
 
 import { addEntry } from "../core/dict.js";
 import { controlCodes, visibleText } from "../core/textkey.js";
+import { sourceProfile } from "../engines/language-pair.js";
 import { buildGlossaryIndex, matchGlossary } from "./glossary.js";
 import { wrapText } from "./wrap.js";
 
@@ -69,6 +70,7 @@ function wrapOptions(options) {
  * @property {(message: string) => void} [log]
  * @property {AbortSignal} [signal]
  * @property {import("../engines/profile.js").EngineProfile} [profile] engine grammar, prompt and validation rules
+ * @property {string} [sourceLanguage] language the source text is written in ("ja" by default)
  */
 
 /**
@@ -500,6 +502,14 @@ async function runBatch(batch, options, glossaryIndex) {
 export async function translateDictionary(dict, options) {
   const provider = options.provider;
   if (!provider || typeof provider.complete !== "function") throw new Error("no provider given");
+
+  // The source language decides the prompt wording and what counts as an
+  // untranslated echo, so it is resolved once, before anything reads the
+  // profile. "ja" hands back the very same object, which keeps every existing
+  // Japanese run byte identical.
+  if (options.profile) {
+    options = { ...options, profile: sourceProfile(options.profile, options.sourceLanguage) };
+  }
 
   const glossary = options.glossary || {};
 

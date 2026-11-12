@@ -28,6 +28,7 @@ import { translateDictionary } from "../pipeline/translate.js";
 import { VERIFY_KINDS, verifyDictionary } from "../pipeline/verify.js";
 import { buildReport, buildSarif, namesNeedingInput } from "../pipeline/report.js";
 import { repairSpeakerNames } from "../pipeline/speaker.js";
+import { SOURCE_LANGUAGES, sourceLanguage } from "../languages/index.js";
 import { mineTerms, toGlossary } from "../pipeline/terms.js";
 import {
   DEFAULT_BASE_URL,
@@ -99,6 +100,31 @@ function requirePositiveIntFlag(flags, name, unit) {
   const value = Number(flags[name]);
   if (!Number.isInteger(value) || value < 1) {
     throw new CliError("E_USAGE", "translate --" + name + " must be a whole number of " + unit + " (at least 1), not " + flags[name]);
+  }
+}
+
+/**
+ * Read --source-lang, the language the game text is written in.
+ *
+ * The value picks the language half of the engine profile: the prompt names
+ * the source language and the audit treats untranslated source text as a
+ * finding. "ja" is the historical default and resolves to the very same
+ * profile object, so existing dictionaries stay byte-identical; an unknown
+ * value is a typo, not a silent fallback.
+ *
+ * @param {Record<string, unknown>} flags
+ * @returns {string|undefined}
+ */
+function sourceLangFlag(flags) {
+  const raw = flags["source-lang"];
+  if (raw === undefined) return undefined;
+  try {
+    return sourceLanguage(raw).ID;
+  } catch {
+    throw new CliError(
+      "E_USAGE",
+      "--source-lang must be one of: " + SOURCE_LANGUAGES.join(", ") + ", not " + String(raw)
+    );
   }
 }
 
@@ -341,7 +367,12 @@ async function commandVerify(dir, flags, sink) {
       "verify --kind width needs --max-length <columns>: the width check has no limit to compare against"
     );
   }
-  const result = verifyDictionary(data, { maxColumns, kinds, profile: adapter.profile });
+  const result = verifyDictionary(data, {
+    maxColumns,
+    kinds,
+    profile: adapter.profile,
+    sourceLanguage: sourceLangFlag(flags),
+  });
   const shown = numberFlag(flags, "limit", 20);
   // An error makes the command fail, so a release script can gate on it
   // ("verify && install"). The report still goes to the out channel: a caller
@@ -480,9 +511,10 @@ async function commandSpeaker(dir, flags, sink) {
       throw new CliError("E_USAGE", "names file must be a JSON map of source name -> Chinese name");
     }
   }
-  const before = verifyDictionary(data, { kinds: ["speaker"], profile: adapter.profile });
+  const sourceLang = sourceLangFlag(flags);
+  const before = verifyDictionary(data, { kinds: ["speaker"], profile: adapter.profile, sourceLanguage: sourceLang });
   const result = repairSpeakerNames(data, { includeDrift, names });
-  const after = verifyDictionary(data, { kinds: ["speaker"], profile: adapter.profile });
+  const after = verifyDictionary(data, { kinds: ["speaker"], profile: adapter.profile, sourceLanguage: sourceLang });
   // The names repair cannot invent a reading, and a name every line leaves in
   // Japanese has nothing to copy. A template is the cheapest way to ask: the
   // user fills in only the names they care about and reruns with --names.
@@ -515,7 +547,9 @@ async function commandSpeaker(dir, flags, sink) {
     } else {
       // Everything left is a name this game never translated, so there is no
       // rendering to copy. Say so, and say what would fix it.
-      const remaining = verifyDictionary(data, { kinds: ["speaker"], profile: adapter.profile }).problems.filter((p) => p.severity === "error");
+      const remaining = verifyDictionary(data, { kinds: ["speaker"], profile: adapter.profile, sourceLanguage: sourceLang }).problems.filter(
+        (p) => p.severity === "error"
+      );
       sink.out("names     : nothing left that this dictionary can fix");
       sink.out("untranslated: " + remaining.length + " line(s) use a name this game never translated");
       for (const problem of remaining.slice(0, shown)) {
@@ -784,6 +818,7 @@ async function commandTranslate(dir, flags, sink, onProgress, opts = {}) {
     profile: adapter.profile,
     signal: opts.signal,
     targetLang: typeof flags["target-lang"] === "string" ? flags["target-lang"] : undefined,
+    sourceLanguage: sourceLangFlag(flags),
     glossary,
     batchSize: numberFlag(flags, "batch-size", undefined),
     charBudget: numberFlag(flags, "char-budget", undefined),
@@ -1243,6 +1278,7 @@ async function commandDoctor(dir, flags, sink) {
     maxColumns: numberFlag(flags, "max-length", 0),
     engineLabel: adapter.name,
     profile: adapter.profile,
+    sourceLanguage: sourceLangFlag(flags),
     versions: adapter.versions || null,
     diagnostics: adapter.diagnostics || null,
   });

@@ -193,7 +193,7 @@ KiriKiri、Naninovel、NScripter、LiveMaker、SRPG Studio 等仍是缺口。
 | `src/core/mzproject.js:17` | `Project` 固定 `root/engine/pluginDir/dataDir/pluginsFile/indexPath/gameTitle/version` | 新引擎的项目形状不同，要么塞进同一结构，要么改所有调用方 |
 | `src/core/extract.js:31` | `extractProject` 硬编码 `data/*.json`、RM 字段/指令 | 新引擎的文档/归档/二进制格式无法复用 |
 | `src/core/textkey.js` | MZ 转义码 tokenizer | Ren'Py/KRKR/Wolf 的文本语法完全不同 |
-| `src/pipeline/translate.js:142` | system prompt 明写 “RPG Maker MZ ... Japanese” | 新引擎的提示词/控制符说明要改 pipeline |
+| `src/pipeline/translate.js:142` | system prompt 明写 “RPG Maker MZ ... Japanese” | 新引擎的提示词/控制符说明要改 pipeline；0.75 起源语言名由 `src/engines/language-pair.js` 的 `sourceProfile()` 改写，profile 只写默认的日文源 |
 | `src/pipeline/verify.js` | 假名、RM 控制符、`%1`、说话人规则 | 新引擎需要自己的校验规则，不能全塞进 verify |
 | `src/services/doctor.js:65` | `diagnose()` 接受 `engineLabel`，具体诊断事实由 adapter 的 `diagnostics()` 提供 | 新引擎要实现自己的 `diagnostics()` |
 | `src/plugin/YAKUSHA_Translator.js:526` | 运行时只包 `DataManager` | 新引擎需要新的运行时载体 |
@@ -345,6 +345,8 @@ TextGrammar = {
 - `verify.js` 拆成“通用检查”+“grammar 检查”；通用检查包括回显、空译文、`U+FFFD`、行数、
   长度比；grammar 检查包括控制符、占位符、行宽、说话人。
 - 目标语言/源语言判定不能写死“日文→中文”；至少把它们变成项目级配置，后续再扩展。
+  （0.75 已做：源语言进 `src/languages/` 注册表，CLI 用 `--source-lang ja|en`（默认 `ja`），
+  `sourceProfile()` 把引擎 profile 与语言对合成；`ja` 路径返回原对象，行为逐字节不变。）
 
 ### 4.5 运行时交付：模式与能力矩阵
 

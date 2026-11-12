@@ -12,7 +12,8 @@ const IDS = [
   "project-line", "engine-badge", "pick", "launch-run", "cancel", "progress",
   "bar-fill", "progress-text", "dict-load", "dict-summary", "dict-key",
   "dict-text", "dict-save", "import-run", "config-summary", "key-input",
-  "key-save", "key-clear", "key-use", "key-state", "toasts", "log-summary", "log-open",
+  "key-save", "key-clear", "key-use", "key-state", "source-lang", "toasts",
+  "log-summary", "log-open",
 ];
 const COMMANDS = ["scan", "extract", "status", "translate", "verify", "install",
   "uninstall", "export", "speaker", "terms", "doctor", "config"];
@@ -397,4 +398,40 @@ test("the log panel shows the host log path and opens it", async () => {
   dom.window.yakusha.openLog = async () => { opened += 1; return { ok: true, path: "C:/logs/yakusha/gui.log" }; };
   await dom.elements.get("log-open").click();
   assert.equal(opened, 1);
+});
+
+test("translate and verify send the source language explicitly, ja by default", async () => {
+  const dom = makeDom();
+  assert.equal(dom.elements.get("source-lang").value, "");
+  dom.envelopes.push({ ok: true, outcome: "ok", translated: 2, total: 4, pending: 2 });
+  await action(dom, "translate").click();
+  await flush();
+  let call = dom.runCalls.at(-1);
+  assert.equal(call[0], "translate");
+  assert.deepEqual({ ...call[2] }, { "source-lang": "ja" });
+  dom.envelopes.push({ ok: true, outcome: "ok" });
+  await action(dom, "verify").click();
+  await flush();
+  call = dom.runCalls.at(-1);
+  assert.equal(call[0], "verify");
+  assert.deepEqual({ ...call[2] }, { "source-lang": "ja" });
+});
+
+test("switching the source language to English reaches translate and verify only", async () => {
+  const dom = makeDom();
+  dom.elements.get("source-lang").value = "en";
+  dom.envelopes.push({ ok: true, outcome: "ok", translated: 0, total: 0, pending: 0 });
+  await action(dom, "translate").click();
+  await flush();
+  assert.deepEqual({ ...dom.runCalls.at(-1)[2] }, { "source-lang": "en" });
+  dom.envelopes.push({ ok: true, outcome: "ok" });
+  await action(dom, "verify").click();
+  await flush();
+  assert.deepEqual({ ...dom.runCalls.at(-1)[2] }, { "source-lang": "en" });
+  // Commands without a source language keep an empty flag set.
+  await scan(dom, {
+    ok: true, outcome: "ok", engine: "mz", root: "C:/games/alpha", gameTitle: "Alpha",
+    capabilities: { runtime: "plugin", launch: true },
+  });
+  assert.deepEqual({ ...dom.runCalls.at(-1)[2] }, {});
 });

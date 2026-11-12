@@ -69,9 +69,11 @@ export const rgssProfile = {
   id: "rgss",
 
   prompt: {
-    task(lang) {
+    task(lang, sourceName = "Japanese") {
       return (
-        "You translate RPG Maker XP, VX and VX Ace game text from Japanese into " +
+        "You translate RPG Maker XP, VX and VX Ace game text from " +
+        sourceName +
+        " into " +
         lang +
         ". These games render text with RGSS escape codes."
       );
@@ -80,6 +82,8 @@ export const rgssProfile = {
   },
 
   grammar: { tokenize, controlCodes, plainText, visibleText },
+
+  slots: /%[0-9]+/g,
 
   ...japaneseToChinese({ tokenize, controlCodes, plainText, visibleText }, /%[0-9]+/g),
 };

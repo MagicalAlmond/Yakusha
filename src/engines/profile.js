@@ -18,8 +18,11 @@ export { TRADITIONAL, VERIFY_KANA, isUntranslated };
 /**
  * @typedef {object} EngineProfile
  * @property {string} id stable identifier, e.g. "rpg-maker"
- * @property {{ task(lang: string): string, escapeExamples: string }} prompt
- *   prompt fragments a request needs from the engine
+ * @property {{ task(lang: string, sourceName?: string): string, escapeExamples: string }} prompt
+ *   prompt fragments a request needs from the engine; sourceName is the
+ *   English name of the source language, defaulting to "Japanese"
+ * @property {RegExp} slots placeholder pattern the profile was built around
+ *   (engines differ: MZ uses "%1", Ren'Py uses "[name]")
  * @property {{
  *   tokenize: (line: string) => Array<{ t: string, v: string }>,
  *   controlCodes: (text: string) => string[],
@@ -28,8 +31,18 @@ export { TRADITIONAL, VERIFY_KANA, isUntranslated };
  * }} grammar the engine's escape-code grammar
  * @property {{ isUntranslated(text: string): boolean, slots: RegExp }} validate
  *   judgements applied to model output before it is stored
- * @property {{ kana: RegExp, han: RegExp, traditional: Set<string>, slots: RegExp }} verify
- *   judgements applied by the dictionary audit
+ * @property {{
+ *   residual?: RegExp,
+ *   residualKind?: string,
+ *   residualDetail?: string,
+ *   echoDetail?: string,
+ *   sourceName?: string,
+ *   kana?: RegExp,
+ *   han: RegExp,
+ *   traditional: Set<string>,
+ *   slots: RegExp,
+ * }} verify judgements applied by the dictionary audit; residual is the
+ *   "source text left behind" pattern, with the Japanese kana defaults
  */
 
 /**
@@ -42,13 +55,15 @@ export const rmProfile = {
   id: "rpg-maker",
 
   prompt: {
-    task(lang) {
-      return "You translate RPG Maker MZ game text from Japanese into " + lang + ".";
+    task(lang, sourceName = "Japanese") {
+      return "You translate RPG Maker MZ game text from " + sourceName + " into " + lang + ".";
     },
     escapeExamples: ["\\C[6]", "\\V[12]", "\\N[1]", "\\G", "\\{", "\\}", "\\>", "\\<", "\\^", "\\!", "\\|", "\\.", "\\$"].join(", "),
   },
 
   grammar: { tokenize, controlCodes, plainText, visibleText },
+
+  slots: /%[0-9]+/g,
 
   ...japaneseToChinese({ tokenize, controlCodes, plainText, visibleText }, /%[0-9]+/g),
 };

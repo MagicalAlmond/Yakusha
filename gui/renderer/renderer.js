@@ -228,6 +228,17 @@ async function run(command, args, flags) {
   return envelope;
 }
 
+/**
+ * Source language for translate/verify. The CLI defaults to ja, but the GUI
+ * sends the selected value explicitly so the payload and the run log always
+ * state which language the project is in (docs/gui.md §9).
+ */
+function sourceLang() {
+  const select = $("source-lang");
+  const value = select ? select.value : "";
+  return value === "en" ? "en" : "ja";
+}
+
 for (const button of document.querySelectorAll("button[data-cmd]")) {
   if (button.dataset.cmd === "export") {
     button.addEventListener("click", doExport);
@@ -237,6 +248,10 @@ for (const button of document.querySelectorAll("button[data-cmd]")) {
     // Every engine has exactly one delivery layer and the command picks it;
     // both buttons send the plain command, like the CLI.
     button.addEventListener("click", () => run(button.dataset.cmd));
+  } else if (button.dataset.cmd === "translate" || button.dataset.cmd === "verify") {
+    // Both commands take --source-lang; send it explicitly even for the
+    // default so the run log records what the GUI assumed.
+    button.addEventListener("click", () => run(button.dataset.cmd, undefined, { "source-lang": sourceLang() }));
   } else {
     button.addEventListener("click", () => run(button.dataset.cmd));
   }

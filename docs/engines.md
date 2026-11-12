@@ -42,7 +42,8 @@ src/engines/
   adapter.js        契约常量、能力默认值、detect 结果形状的辅助函数（无引擎逻辑）
   registry.js       按顺序探测；把 engine id 映射到 adapter
   launch.js         exe 发现与 spawn（五引擎共用，见 §8）
-  profile.js        RPG Maker 的 profile 数据（prompt / grammar / validate / verify）
+  profile.js        RPG Maker 的 profile 数据（prompt / grammar / slots / validate / verify）
+  language-pair.js  把 profile 与源语言合成一份 sourceProfile（0.75 起，见 §14）
   mz/adapter.js     包装 mzproject / extract / install / plugin 模板
   mv/adapter.js     同上，差异只在 detect 的 core 文件与 runtime 能力
   renpy/
@@ -69,6 +70,11 @@ src/engines/
     ks.js           .ks 词法：行分类、行内标签剥离、[name_set] 说话人跟踪、[iscript] 代码块跳过、前置标签行的可见文本
     extract.js      归档里的 .ks 脚本 → 字典条目；.tjs 只计数不解析（见 §13.4）
     profile.js      Kirikiri 的 profile 数据（KAG 标签语法）
+src/languages/
+  index.js          源语言注册表（ja / en）、默认源语言与 pairFor()
+  ja.js             日语源：假名判定、日→中 validate / verify 组合
+  en.js             英语源：拉丁词判定、英→中 validate / verify 组合
+  traditional.js    繁简审计共用的繁体字表（两种源语言都用）
 src/index.js        公共门面（见 §10）
 ```
 
@@ -1446,8 +1452,18 @@ Ren'Py 做到了 L2（真实游戏提取）、L3（翻译与校验）、L4（运
 自己的 profile。不允许把引擎特判写进 `src/pipeline`；引擎专属校验规则挂在 adapter 上——
 0.10.x 起是一份 `profile` 数据（`src/engines/profile.js`、
 `src/engines/renpy/profile.js`、`src/engines/rgss/profile.js` 与
-`src/engines/krkr/profile.js`，含 prompt / grammar / validate / verify），
+`src/engines/krkr/profile.js`，含 prompt / grammar / slots / validate / verify），
 `rules` 三键保持不变。
+
+源语言也走同一条接缝（0.75 起）：profile 不再假定“原文是日文”。引擎 profile 只声明
+grammar / slots / validate / verify，源语言由 `src/languages/` 提供——`ja.js` 是假名
+判定与日→中判据，`en.js` 是拉丁词判定与英→中判据，`traditional.js` 是两种源语言共用
+的繁体字表。`src/engines/language-pair.js` 的 `sourceProfile(profile, sourceLang)`
+把两者合成一份新 profile：`ja` 直接返回原对象（默认路径逐字节不变），其它源语言才替换
+`prompt.task` 的源语言名，并换上该语言的 `validate` / `verify`（残留判据与
+`residualKind`）。所以新引擎只需要写一份“日语源”的 profile，多语言支持由语言层补，
+不用在 `src/pipeline` 里加分支。CLI 的 `--source-lang` 只影响提示词与校验，
+不影响 `scan` / `extract`（提取层不按语言过滤文本）；GUI 在 Settings 里选。
 
 RGSS 接入时这三样都按这个模式落：adapter（`src/engines/rgss/adapter.js`）、fixture
 （`test/rgss-fixture.js` 在 `os.tmpdir()` 里合成，不在 `test/fixtures/` 下）、契约测试
@@ -1461,7 +1477,7 @@ Kirikiri 照抄了这个模式：`src/engines/krkr/` 五个模块、`test/krkr-f
 - [x] registry 按 `mz → mv → renpy → rgss → krkr` 顺序；同目录双 core 取 MZ。
 - [x] MZ / MV 两个 fixture 都过同一套契约测试；MV 的 CDP 能力为 false。
 - [x] 五个 adapter 的 capabilities 七键齐全，`runtime` 分档为 `plugin` / `plugin` /
-  `translation` / `inject` / `null`，`rules` 三键不变（`test/engine-contract.test.js` 逐个断言）。
+  `translation` / `inject` / `patch`，`rules` 三键不变（`test/engine-contract.test.js` 逐个断言）。
 - [x] 安装幂等、卸载逐字节还原、漂移时不还原；路径逃逸被拒。
 - [x] launch 发现规则全测；spawn 参数与 env 用假实现断言；非 Windows 报平台错误。
 - [x] `attach` 桩返回 `E_NOT_IMPLEMENTED`，能力为 false；五个引擎共用同一个桩。
@@ -1493,4 +1509,12 @@ Kirikiri 照抄了这个模式：`src/engines/krkr/` 五个模块、`test/krkr-f
   `--dry-run` 不写盘；无字典报 `E_NO_DICTIONARY`；`--embed` 报 `E_USAGE`。
 - [x] Kirikiri：`doctor` 装前 `not-installed`、装后 `ready`；清单在而归档缺失时
   `broken`；`runtime` 为 `"patch"` 在契约测试里被断言，排第五由 adapter 测试钉住。
+- [x] 源语言只走一条接缝：`--source-lang ja|en`（默认 `ja`）只影响提示词与校验，不影响
+  `scan` / `extract`；`ja` 路径的 profile 对象与旧行为逐字节一致（`test/languages.test.js`）。
+- [x] 四个引擎的英文源夹具各跑一遍 scan → extract → translate（mock）→ verify →
+  install / uninstall；`verify` 把拉丁词残留记成 `source` 且只 warn，不阻断（`test/en-engines.test.js`）。
+- [x] `--source-lang` 非法值报 `E_USAGE`，`doctor` 的「有些行会留原文」文案随源语言
+  变成 English（`test/cli-source-lang.test.js`）。
+- [x] GUI 的源语言选择器只在 Translate 与 Verify 生效，两者都显式下发 `--source-lang`
+  （`test/gui-renderer.test.js`）。
 - [ ] `npm test` 在 `windows-latest` Node 22/24 全绿（推送后由 CI 验证）。

@@ -1,0 +1,37 @@
+{
+ "gameTitle": "Synthetic Quest",
+ "currencyUnit": "G",
+ "terms": {
+  "basic": [
+   "Level",
+   "Lv"
+  ],
+  "commands": [
+   "Fight",
+   "Escape"
+  ],
+  "params": [
+   "Max HP"
+  ],
+  "messages": {
+   "alwaysDash": "Always Dash",
+   "commandRemember": "Command Remember"
+  }
+ },
+ "armorTypes": [
+  "",
+  "Light Armor"
+ ],
+ "elements": [
+  "Physical"
+ ],
+ "skillTypes": [
+  "Special"
+ ],
+ "weaponTypes": [
+  "Sword"
+ ],
+ "equipTypes": [
+  "Weapon"
+ ]
+}

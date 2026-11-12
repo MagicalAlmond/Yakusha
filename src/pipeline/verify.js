@@ -21,6 +21,7 @@
 
 import { controlCodes, plainText, tokenize, visibleText } from "../core/textkey.js";
 import { TRADITIONAL_JOINED } from "../data/traditional.js";
+import { sourceProfile } from "../engines/language-pair.js";
 import { buildSpeakerIndex, houseOf, speakerTags } from "./speaker.js";
 import { displayColumns } from "./wrap.js";
 
@@ -72,11 +73,14 @@ export const VERIFY_KINDS = Object.freeze([
   "trad",
   "speaker",
   "rejected",
+  // Language-pair kinds are appended so the historical list keeps its exact
+  // prefix in CLI error messages ("kana, echo, ... rejected").
+  "source",
 ]);
 
 /**
  * @typedef {object} Problem
- * @property {"kana"|"echo"|"codes"|"slots"|"lines"|"width"|"no-text"|"trad"|"speaker"|"rejected"} kind
+ * @property {"kana"|"source"|"echo"|"codes"|"slots"|"lines"|"width"|"no-text"|"trad"|"speaker"|"rejected"} kind
  * @property {"error"|"warn"} severity
  * @property {string} key source text as stored in the dictionary
  * @property {string} [target] stored translation
@@ -126,9 +130,11 @@ function traditionalOnly(target, source, traditionalSet) {
  * Audit every translated entry of a dictionary.
  *
  * @param {import("../core/dict.js").Dictionary} dictionary
- * @param {{ maxColumns?: number, kinds?: string[] }} [options]
- *   maxColumns  report lines wider than this many display columns (0 = skip)
- *   kinds       restrict the report to these problem kinds
+ * @param {{ maxColumns?: number, kinds?: string[], profile?: import("../engines/profile.js").EngineProfile, sourceLanguage?: string }} [options]
+ *   maxColumns     report lines wider than this many display columns (0 = skip)
+ *   kinds          restrict the report to these problem kinds
+ *   profile        engine grammar and audit rules; sourceLanguage picks the
+ *                  language half ("ja" by default, the historical behaviour)
  * @returns {VerifyResult}
  */
 export function verifyDictionary(dictionary, options = {}) {
@@ -138,8 +144,30 @@ export function verifyDictionary(dictionary, options = {}) {
   // variants) belong to the engine profile, not to this loop: an engine whose
   // source language has no kana injects its own criteria and the RPG Maker
   // defaults stay exactly as they were for every existing caller.
+  if (options.profile) {
+    options = { ...options, profile: sourceProfile(options.profile, options.sourceLanguage) };
+  }
   const checks = (options.profile && options.profile.verify) || null;
-  const kanaRe = checks && checks.kana instanceof RegExp ? checks.kana : KANA;
+  // "Residual source text" is whatever the source language looks like when it
+  // was not translated: kana for Japanese, a run of Latin letters for English.
+  // The profile names the pattern, the problem kind and the wording; the
+  // defaults reproduce the Japanese report byte for byte.
+  const residualRe =
+    checks && checks.residual instanceof RegExp
+      ? checks.residual
+      : checks && checks.kana instanceof RegExp
+        ? checks.kana
+        : KANA;
+  const residualKind = checks && typeof checks.residualKind === "string" ? checks.residualKind : "kana";
+  const residualDetail =
+    checks && typeof checks.residualDetail === "string"
+      ? checks.residualDetail
+      : "Japanese kana left in the translation";
+  const echoDetail =
+    checks && typeof checks.echoDetail === "string"
+      ? checks.echoDetail
+      : "target is identical to a Japanese source";
+  const sourceName = checks && typeof checks.sourceName === "string" ? checks.sourceName : "Japanese";
   const hanRe = checks && checks.han instanceof RegExp ? checks.han : HAN;
   const tradSet = checks && checks.traditional instanceof Set ? checks.traditional : TRADITIONAL;
   const grammar = (options.profile && options.profile.grammar) || null;
@@ -203,11 +231,11 @@ export function verifyDictionary(dictionary, options = {}) {
     translated += 1;
 
     const seen = visibleOf(target);
-    if (kanaRe.test(seen)) {
-      report("kana", "warn", key, target, "Japanese kana left in the translation");
+    if (residualRe.test(seen)) {
+      report(residualKind, "warn", key, target, residualDetail);
     }
-    if (target === key && kanaRe.test(visibleOf(key))) {
-      report("echo", "error", key, target, "target is identical to a Japanese source");
+    if (target === key && residualRe.test(visibleOf(key))) {
+      report("echo", "error", key, target, echoDetail);
     }
 
     const a = codesOf(key);
@@ -249,7 +277,7 @@ export function verifyDictionary(dictionary, options = {}) {
     // "……♡♡♡" is the correct translation, and labels that must stay verbatim
     // ("MAP001", "ＨＰ") are flagged too.
     const seenSource = visibleOf(key);
-    if (hanRe.test(seenSource) && !hanRe.test(seen) && !kanaRe.test(seen)) {
+    if (hanRe.test(seenSource) && !hanRe.test(seen) && !residualRe.test(seen)) {
       report("no-text", "warn", key, target, "no Han characters in the translation");
     }
 
@@ -272,9 +300,9 @@ export function verifyDictionary(dictionary, options = {}) {
         const source = sourceTags[i];
         const rendering = targetTags[i];
         const house = speakerHouse(source);
-        if (kanaRe.test(rendering)) {
+        if (residualRe.test(rendering)) {
           if (house.translated) {
-            report("speaker", "error", key, target, "speaker name left in Japanese: " + source, { name: source });
+            report("speaker", "error", key, target, "speaker name left in " + sourceName + ": " + source, { name: source });
           }
           continue;
         }

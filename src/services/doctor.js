@@ -20,6 +20,7 @@ import path from "node:path";
 import { stats as dictStats } from "../core/dict.js";
 import { parsePluginsJs } from "../core/pluginsfile.js";
 import { checkVersion } from "../core/versions.js";
+import { sourceProfile } from "../engines/language-pair.js";
 import { verifyDictionary } from "../pipeline/verify.js";
 
 export const DEFAULT_DICT_PATH = "yakusha/dictionary.json";
@@ -53,6 +54,7 @@ function deliveryFacts(project, options, dictionary, pluginsOk) {
  *   maxColumns?: number,
  *   engineLabel?: string,
  *   profile?: import("../engines/profile.js").EngineProfile,
+ *   sourceLanguage?: string,
  *   extract?: () => object,
  *   dataFiles?: number,
  *   sourceLabel?: string,
@@ -63,6 +65,12 @@ function deliveryFacts(project, options, dictionary, pluginsOk) {
  * }} [options]
  */
 export function diagnose(project, options = {}) {
+  // The source language picks the audit rules used below; "ja" resolves to the
+  // very same profile object, so the historical output stays byte-identical.
+  if (options.profile) {
+    options = { ...options, profile: sourceProfile(options.profile, options.sourceLanguage) };
+  }
+  const sourceName = (options.profile && options.profile.verify && options.profile.verify.sourceName) || "Japanese";
   const dictionary = options.dictionary || null;
   const dictionaryFile = options.dictionaryFile || path.join(project.root, ...DEFAULT_DICT_PATH.split("/"));
   /** @type {Check[]} */
@@ -273,7 +281,7 @@ export function diagnose(project, options = {}) {
       add(
         "verify",
         "warn",
-        result.errors + " error" + (result.errors === 1 ? "" : "s") + ", " + result.warnings + " warning(s) - some lines will stay Japanese, see: yakusha verify"
+        result.errors + " error" + (result.errors === 1 ? "" : "s") + ", " + result.warnings + " warning(s) - some lines will stay " + sourceName + ", see: yakusha verify"
       );
     } else {
       add("verify", "ok", "0 error, " + result.warnings + " warning(s)");

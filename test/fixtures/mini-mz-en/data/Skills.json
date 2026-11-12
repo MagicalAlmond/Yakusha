@@ -1,0 +1,10 @@
+[
+ null,
+ {
+  "id": 1,
+  "name": "Fire",
+  "description": "Attacks with fire",
+  "message1": " casts Fire!",
+  "message2": ""
+ }
+]

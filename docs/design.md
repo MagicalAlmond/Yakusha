@@ -215,10 +215,14 @@ RGSS 的码又回到反斜杠一族，和 MZ/MV 是同一个语法家族：`\C[n
 仍用同一套切分。
 
 RGSS profile 与 MZ/MV profile 的差别只有措辞和语言判定：`prompt.task()` 说的是“把 RPG Maker
-XP / VX / VX Ace 的游戏文本从日文翻成 X”（`src/engines/rgss/profile.js:72-78`），
+XP / VX / VX Ace 的游戏文本从日文翻成 X”（`src/engines/rgss/profile.js:72-78`；0.75 起
+“日文”是默认源语言，换成英语源时由 `src/engines/language-pair.js` 的 `sourceProfile()`
+改写这句话里的源语言名，profile 自己不再写死），
 `escapeExamples` 只列对白里真的会出现的 13 个码（`src/engines/rgss/profile.js:41`、
 `src/engines/rgss/profile.js:79`）。校验与复查用的 `%1` 一类槽位正则、假名/汉字/繁体判定
-也都和 MZ/MV 共用（`src/engines/rgss/profile.js:84`）。
+也都和 MZ/MV 共用（`src/engines/rgss/profile.js:84`）。语言判定本身从 0.75 起拆到
+`src/languages/ja.js` 与 `src/languages/en.js`，profile 只留一份 `slots` 给两者共用；
+日语源走原 profile（对象不变），英语源才换成拉丁词残留判据。
 
 实测样本里 2,063 条文本带控制码、共 23 种，数量最多的是 `\i[n]`、`\c[n]`、`\v[n]`；
 这说明“共用一套 tokenizer”不是省事，而是这个家族的文本本来就长这样。
@@ -235,7 +239,7 @@ Kirikiri 又换了一族：KAG 的控制码是**方括号标签**，不是反斜
 
 槽位同样是 `%1` 一族的 `/ %[0-9]+/`：KAG 用 `[emb]` 标签嵌值而不是内联占位符，实际文本里
 能见到的只有 `%` 形式，校验只报它（`src/engines/krkr/profile.js:100`）。`prompt.task()`
-说的是“把 Kirikiri KAG 的游戏文本从日文翻成 X”，`escapeExamples` 列 `[r]`、`[er]`、
+说的是“把 Kirikiri KAG 的游戏文本从日文翻成 X”（同样由源语言层改写源语言名），`escapeExamples` 列 `[r]`、`[er]`、
 `[emb exp=...]`、`[[` 四个（`src/engines/krkr/profile.js:110-115`）。
 
 ## data/ 的编码

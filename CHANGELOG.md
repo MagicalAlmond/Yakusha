@@ -6,6 +6,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.75.0] - 2026-11-12
+
+### Added
+
+- **English source text is a first-class language pair.** `--source-lang en` on `translate`, `verify`, `speaker` and `doctor` switches the prompt's source-language name and the validator/verifier to the English-to-Chinese pair: leftover Latin words are reported as kind `source` ("English text left in the translation") and an echoed target as "target is identical to an English source". `ja` stays the default and its profile object is returned unchanged, so the Japanese path is byte-identical to 0.74.
+- `src/languages/index.js` is the source-language registry (`ja`, `en`), `src/languages/traditional.js` holds the traditional-Chinese audit set both pairs share, and `src/engines/language-pair.js` composes a profile with a source language through `sourceProfile()`.
+- The GUI Settings panel gained a source-language selector (Japanese / English). Translate and Verify always send `--source-lang` explicitly, defaulting to `ja`; every other command ignores the selector.
+
+### Changed
+
+- **Engine profiles no longer assume a Japanese source.** Each profile declares its `slots` and `prompt.task(targetLang, sourceName)`, and the language pair supplies `validate` and `verify`. The pipeline gained no source-language branch: `verifyDictionary` and `translateDictionary` resolve `sourceProfile(profile, sourceLanguage)` once at their entry point.
+- `--source-lang` rejects anything but `ja` / `en` with `E_USAGE` (`--source-lang must be one of: ja, en, not <value>`, exit 2); the other commands report it as an unknown option.
+- The `doctor` line "some lines will stay Japanese" follows the source language and reads "some lines will stay English" for `en`.
+- English residue is a `source` warning, so it does not fail the default `--fail-on error` gate; use `--fail-on warning` to gate on it.
+
+### Fixed
+
+- `verify` resolves the residual pattern through `residual`, then `checks.kana`, then the built-in kana table, so a profile that only declares `verify.kana` keeps its behaviour.
+
+### Unchanged
+
+- Envelope, exit codes, the 14 commands, all 13 error codes and every payload key are untouched: `--source-lang` is an option, not a payload field. No new dependency. 884 pass.
 ## [0.74.0] - 2026-11-12
 
 ### Added
@@ -945,7 +967,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.73.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.75.0...HEAD
+[0.75.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.74.0...v0.75.0
 [0.74.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.73.0...v0.74.0
 [0.73.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.72.0...v0.73.0
 [0.72.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.71.0...v0.72.0

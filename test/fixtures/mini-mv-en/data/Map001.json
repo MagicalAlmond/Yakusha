@@ -1,0 +1,49 @@
+{
+ "displayName": "Harbor Town",
+ "width": 2,
+ "height": 2,
+ "data": [
+  0,
+  0,
+  0,
+  0
+ ],
+ "events": [
+  null,
+  {
+   "id": 1,
+   "name": "EV001",
+   "note": "",
+   "pages": [
+    {
+     "conditions": {},
+     "list": [
+      {
+       "code": 101,
+       "indent": 0,
+       "parameters": [
+        "",
+        0,
+        0,
+        2,
+        ""
+       ]
+      },
+      {
+       "code": 401,
+       "indent": 0,
+       "parameters": [
+        "Welcome to the harbor town."
+       ]
+      },
+      {
+       "code": 0,
+       "indent": 0,
+       "parameters": []
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

@@ -10,14 +10,12 @@
  */
 
 import { visibleText as defaultVisibleText } from "../core/textkey.js";
-import { TRADITIONAL_JOINED } from "../data/traditional.js";
+import { TRADITIONAL } from "./traditional.js";
 
-/** Traditional-only characters, built once from the flat pair table. */
-export const TRADITIONAL = (() => {
-  const set = new Set();
-  for (let i = 0; i + 1 < TRADITIONAL_JOINED.length; i += 2) set.add(TRADITIONAL_JOINED[i]);
-  return set;
-})();
+export { TRADITIONAL };
+
+export const ID = "ja";
+export const NAME = "Japanese";
 
 /**
  * Kana that marks an untranslated audit finding.
@@ -60,6 +58,11 @@ export function japaneseToChinese(grammar, slots) {
       slots,
     },
     verify: {
+      residual: VERIFY_KANA,
+      residualKind: "kana",
+      residualDetail: "Japanese kana left in the translation",
+      echoDetail: "target is identical to a Japanese source",
+      sourceName: NAME,
       kana: VERIFY_KANA,
       han: /[\u4e00-\u9fff]/,
       traditional: TRADITIONAL,

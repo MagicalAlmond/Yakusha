@@ -75,7 +75,9 @@
 --overwrite         let --glossary replace entries that are already translated
 ```
 
-白名单里还有 5 个 `--help` 没列出来的选项：`--temperature`（默认 0.3）、`--timeout`、`--max-tokens`、`--target-lang`、`--allow-code-drift`。它们能用，但没有写进帮助，属于内部接线，不要当成稳定接口。
+白名单里还有 6 个 `--help` 没列出来的选项：`--temperature`（默认 0.3）、`--timeout`、`--max-tokens`、`--target-lang`、`--allow-code-drift`、`--source-lang`。它们能用，但没有写进帮助，属于内部接线，不要当成稳定接口。
+
+其中 `--source-lang` 是源语言开关：默认 `ja`，可选 `en`，其它值报 `E_USAGE`，消息是 `--source-lang must be one of: ja, en, not <value>`（退出 2）。只有 `translate`、`verify`、`speaker`、`doctor` 接受它，其余命令按未知选项拒绝（`error: unknown option for scan: --source-lang`，退出 2）。
 
 ### verify
 
@@ -91,6 +93,8 @@
 --require-complete  exit 1 while any dictionary entry is still untranslated
 ```
 
+`verify` 也接受 `--source-lang`（默认 `ja`），换的是「残留源语言」的判据：`ja` 按假名判，问题里的 `kind` 记 `kana`；`--source-lang en` 改按拉丁词判，`kind` 记 `source`，level 是 `warning`，消息 `English text left in the translation`；`echo` 的消息同时变成 `target is identical to an English source`。`source` 只是 warning，所以默认的 `--fail-on error` 不会因为它退出 1，要当发布闸门得加 `--fail-on warning`。
+
 ### speaker
 
 ```text
@@ -102,6 +106,8 @@
 --dry-run           report what would change without writing
 --limit <n>         how many names to print (default 20)
 ```
+
+`speaker` 同样接受 `--source-lang`（默认 `ja`）：它只换判据所用的语言规则（`ja` 看假名、`en` 看拉丁词），输出结构、`--dry-run` 行为与退出码含义都不变。
 
 ### terms
 
@@ -760,7 +766,7 @@ verdict   : not installed yet - run: yakusha install <game>
 
 每行是 `id` / `level` / 消息三列，`level` 取 `ok` / `info` / `warn` / `fail`。0.28 起，引擎版本与 adapter 的 `versions` 矩阵不符时多一条 `version` 检查：区间外记 `warn`、版本读不到或未实测记 `info`；覆盖范围内的版本不加这一行，所以正常输出与以前一样。判定很直接：任何 `fail` → `broken`（`outcome` 转 `findings`、退出 1）；install 检查还是 `info` → `not-installed`（退出 0）；有 `warn` → `usable`；否则 `ready`。载荷：`verdict` / `checks[]` / `failure` / `game` / `dictionary` / `sync` / `install` / `runtime` / `verify`。
 
-注意 `doctor` 的 `verify` 检查把 `verify` 的 error 记成 `warn` 而不是 `fail`（`<N> error, <M> warning(s) - some lines will stay Japanese, see: yakusha verify`），所以译文有阻断级问题也只会让 verdict 变 `usable`、退出 0。要拿发布闸门看 `verify` 自己的退出码（必要时加 `--fail-on warning`；`doctor` 不读这个选项）。
+注意 `doctor` 的 `verify` 检查把 `verify` 的 error 记成 `warn` 而不是 `fail`（`<N> error, <M> warning(s) - some lines will stay Japanese, see: yakusha verify`；`--source-lang en` 时句尾是 `English` 而不是 `Japanese`），所以译文有阻断级问题也只会让 verdict 变 `usable`、退出 0。要拿发布闸门看 `verify` 自己的退出码（必要时加 `--fail-on warning`；`doctor` 不读这个选项）。`doctor` 也接受 `--source-lang`（默认 `ja`），它同时换掉这条文案和 `verify` 检查的判据。
 
 0.23 起，用 `--embed` 装过的插件也会被查快照：插件里的 `EMBEDDED` 块与当前字典不一致时，`install` 与 `runtime` 都记 `warn`，消息提示 `run: yakusha install --embed "<game>"`，`verdict` 仍是 `usable`、退出 0；重装后恢复 `ok`。
 

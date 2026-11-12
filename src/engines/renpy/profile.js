@@ -140,8 +140,8 @@ export const renpyProfile = {
   id: "renpy",
 
   prompt: {
-    task(lang) {
-      return "You translate Ren'Py game text from Japanese into " + lang + ".";
+    task(lang, sourceName = "Japanese") {
+      return "You translate Ren'Py game text from " + sourceName + " into " + lang + ".";
     },
     escapeExamples: [
       "{b}",
@@ -161,6 +161,8 @@ export const renpyProfile = {
   },
 
   grammar: { tokenize, controlCodes, plainText, visibleText: plainText },
+
+  slots: SLOTS,
 
   ...japaneseToChinese({ tokenize, controlCodes, plainText, visibleText: plainText }, SLOTS),
 };

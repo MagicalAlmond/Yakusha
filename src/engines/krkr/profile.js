@@ -108,13 +108,15 @@ export const krkrProfile = {
   id: "krkr",
 
   prompt: {
-    task(lang) {
-      return "You translate Kirikiri KAG game text from Japanese into " + lang + ".";
+    task(lang, sourceName = "Japanese") {
+      return "You translate Kirikiri KAG game text from " + sourceName + " into " + lang + ".";
     },
     escapeExamples: ["[r]", "[er]", "[emb exp=...]", "[["].join(", "),
   },
 
   grammar: { tokenize, controlCodes, plainText, visibleText: plainText },
+
+  slots: SLOTS,
 
   ...japaneseToChinese({ tokenize, controlCodes, plainText, visibleText: plainText }, SLOTS),
 };
