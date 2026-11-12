@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const RENDERER = path.join(ROOT, "gui", "renderer", "renderer.js");
 const DELIVERY = path.join(ROOT, "gui", "renderer", "delivery.js");
+const RECENT = path.join(ROOT, "gui", "renderer", "recent.js");
 
 const IDS = [
   "project-line", "engine-badge", "pick", "launch-run", "cancel", "progress",
@@ -15,7 +16,7 @@ const IDS = [
   "dict-text", "dict-save", "import-run", "config-summary", "key-input",
   "key-save", "key-clear", "key-use", "key-state", "source-lang", "toasts",
   "log-summary", "log-open", "delivery", "delivery-tier", "delivery-title",
-  "delivery-copy", "delivery-caution",
+  "delivery-copy", "delivery-caution", "recent", "recent-list",
 ];
 const COMMANDS = ["scan", "extract", "status", "translate", "verify", "install",
   "uninstall", "export", "speaker", "terms", "doctor", "config"];
@@ -63,7 +64,18 @@ class FakeElement {
   get innerHTML() { return this._innerHTML; }
 }
 
-function makeDom() {
+function makeStorage() {
+  const values = new Map();
+  return {
+    getItem(key) { return values.has(key) ? values.get(key) : null; },
+    setItem(key, value) { values.set(key, String(value)); },
+    removeItem(key) { values.delete(key); },
+    clear() { values.clear(); },
+  };
+}
+
+function makeDom(options = {}) {
+  const storage = options.storage || makeStorage();
   const elements = new Map();
   for (const id of IDS) elements.set(id, new FakeElement(id));
   const actions = COMMANDS.map((cmd) => {
@@ -96,6 +108,7 @@ function makeDom() {
   const envelopes = [];
   const window = {
     prompt: () => null,
+    localStorage: storage,
     yakusha: {
       run: async (...args) => {
         runCalls.push(args);
@@ -117,11 +130,12 @@ function makeDom() {
   };
   const context = vm.createContext({
     window, document, console, JSON, Math, Object, Array, String, Promise, Date,
-    Number, Boolean, Error, RegExp, setTimeout, clearTimeout,
+    Number, Boolean, Error, RegExp, setTimeout, clearTimeout, localStorage: storage,
   });
   vm.runInContext(fs.readFileSync(DELIVERY, "utf8"), context, { filename: "delivery.js" });
+  vm.runInContext(fs.readFileSync(RECENT, "utf8"), context, { filename: "recent.js" });
   vm.runInContext(fs.readFileSync(RENDERER, "utf8"), context, { filename: "renderer.js" });
-  return { elements, actions, runCalls, envelopes, document, window, docListeners, progressFns, warningFns };
+  return { elements, actions, runCalls, envelopes, document, window, storage, docListeners, progressFns, warningFns };
 }
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
@@ -155,6 +169,46 @@ test("scan success shows the engine and enables the install path", async () => {
   const call = dom.runCalls.at(-1);
   assert.equal(call[0], "install");
   assert.deepEqual({ ...call[2] }, {});
+});
+
+test("successful scans fill the recent row and a chip scans that folder again", async () => {
+  const storage = makeStorage();
+  const dom = makeDom({ storage });
+  await scan(dom, {
+    ok: true, outcome: "ok", engine: "mz", root: "C:/games/alpha", gameTitle: "Alpha",
+    capabilities: { runtime: "plugin", launch: true },
+  });
+  const row = dom.elements.get("recent");
+  const list = dom.elements.get("recent-list");
+  assert.equal(row.hidden, false);
+  assert.equal(list.children.length, 1);
+  assert.equal(list.children[0].children[0].textContent, "Alpha");
+  assert.equal(list.children[0].children[1].textContent, "mz");
+
+  await scan(dom, {
+    ok: true, outcome: "ok", engine: "mv", root: "C:/games/beta", gameTitle: "Beta",
+    capabilities: { runtime: "plugin", launch: true },
+  });
+  assert.equal(list.children.length, 2);
+  assert.equal(list.children[0].children[0].textContent, "Beta");
+
+  dom.envelopes.push({
+    ok: true, outcome: "ok", engine: "mz", root: "C:/games/alpha", gameTitle: "Alpha",
+    capabilities: { runtime: "plugin", launch: true },
+  });
+  await list.children[1].click();
+  await flush();
+  assert.equal(dom.runCalls.at(-1)[0], "scan");
+  assert.deepEqual([...dom.runCalls.at(-1)[1]], ["C:/games/alpha"]);
+  assert.equal(dom.elements.get("project-line").textContent, "C:/games/alpha — Alpha");
+});
+
+test("a failed scan never enters the recent row", async () => {
+  const storage = makeStorage();
+  const dom = makeDom({ storage });
+  await scan(dom, { ok: false, outcome: "error", error: { code: "E_NOT_PROJECT", message: "no game" } });
+  assert.equal(dom.elements.get("recent").hidden, true);
+  assert.equal(dom.elements.get("recent-list").children.length, 0);
 });
 
 test("scan success follows capability flags for install and launch", async () => {

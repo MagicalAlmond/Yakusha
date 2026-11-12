@@ -57,6 +57,10 @@
             <p class="section-kicker">Current project</p>
             <p id="project-line" class="project-line" aria-live="polite">Drop a game folder here, or pick one</p>
             <p class="project-meta">Yakusha reads game files locally. Nothing leaves this machine.</p>
+            <div id="recent" class="recent-row" hidden>
+              <span class="recent-label">Recent</span>
+              <div id="recent-list" class="recent-list"></div>
+            </div>
           </div>
           <span id="engine-badge" class="badge" hidden></span>
         </section>
@@ -241,6 +245,7 @@
   </div>
 
   <script src="delivery.js"></script>
+  <script src="recent.js"></script>
   <script src="renderer.js"></script>
 </body>
 </html>

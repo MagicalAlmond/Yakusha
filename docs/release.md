@@ -33,9 +33,9 @@ node tools/portable.mjs
 输出目录的布局：
 
 ```text
-yakusha-0.79.0-win-x64/
-  Yakusha.exe                 # 由 electron.exe 改名，双击即启动 GUI
-  build-info.json             # 版本、Electron 版本、构建时间、原生组件清单、signed:false
+yakusha-0.80.0-win-x64/
+  Yakusha.exe                 # 由 electron.exe 改名，双击即启动 GUI（PE Subsystem=2）
+  build-info.json             # 版本、Electron 版本、构建时间、原生组件清单、subsystem:windows-gui、signed:false
   SHA256SUMS                  # 除自身外每个文件的 SHA-256，排序、两空格分隔
   README.md
   LICENSE
@@ -55,12 +55,13 @@ yakusha-0.79.0-win-x64/
 ## 3. 校验
 
 ```bash
-node tools/portable.mjs --verify dist/yakusha-0.79.0-win-x64
+node tools/portable.mjs --verify dist/yakusha-0.80.0-win-x64
 ```
 
 校验会重新计算每个文件的哈希，并检查：
 
 - `build-info.json` 的 schema、工具名与版本；
+- `Yakusha.exe` 的 PE optional header Subsystem 必须是 2（Windows GUI）；控制台子系统（3）在构建和校验两处都会被拒绝，双击不会出现黑框；
 - `Yakusha.exe`、`resources/app/package.json` 的 `main` / `type` / 版本；
 - `SHA256SUMS` 不含绝对路径、重复项、缺失项，也不漏掉产物里的任何文件；
 - 每个文件的 SHA-256 与清单一致。
@@ -72,13 +73,13 @@ node tools/portable.mjs --verify dist/yakusha-0.79.0-win-x64
 构建后用 GUI 验收工具直接运行便携包（而不是仓库里的 Electron）：
 
 ```bash
-node tools/gui-acceptance.mjs --exe dist/yakusha-0.79.0-win-x64/Yakusha.exe
+node tools/gui-acceptance.mjs --exe dist/yakusha-0.80.0-win-x64/Yakusha.exe
 ```
 
 工具会为 MZ / MV / Ren'Py / RGSS / Kirikiri 五条链准备临时游戏，在真实窗口里点击
 scan → extract → translate → verify → install → uninstall → doctor，并把截图与
-`summary.json` 写到 `.dsh-scratch/gui-acceptance-*`。2026-11-12 的 0.79 构建实测：
-163 个文件 / 307,921,513 字节，五链全部通过。
+`summary.json` 写到 `.dsh-scratch/gui-acceptance-*`。2026-11-12 的 0.80 构建实测：
+167 个文件 / 307,940,398 字节，五链全部通过。
 
 ## 5. 签名、分发与更新
 

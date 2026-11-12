@@ -41,9 +41,13 @@ class FakeBrowserWindow {
     this.events = new Map();
     this.destroyed = false;
     this.minimized = false;
+    this.maximized = false;
+    this.fullScreen = false;
+    this.bounds = { x: 40, y: 40, width: opts.width || 1180, height: opts.height || 820 };
     this.focusCalls = 0;
     this.restoreCalls = 0;
     this.showCalls = 0;
+    this.maximizeCalls = 0;
     this.loadedFile = null;
     state.windows.push(this);
   }
@@ -68,6 +72,22 @@ class FakeBrowserWindow {
   }
   restore() {
     this.restoreCalls += 1;
+  }
+  getBounds() {
+    return { ...this.bounds };
+  }
+  getNormalBounds() {
+    return { ...this.bounds };
+  }
+  isMaximized() {
+    return this.maximized;
+  }
+  isFullScreen() {
+    return this.fullScreen;
+  }
+  maximize() {
+    this.maximized = true;
+    this.maximizeCalls += 1;
   }
   focus() {
     this.focusCalls += 1;

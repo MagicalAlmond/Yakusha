@@ -142,6 +142,7 @@ test("gui-main: the window is created with the hardened security settings", () =
   assert.equal(prefs.nodeIntegration, false);
   assert.match(prefs.preload, /gui[\\/]preload\.js$/);
   assert.match(win.loadedFile, /gui[\\/]renderer[\\/]index\.html$/);
+  assert.match(win.opts.icon, /gui[\\/]assets[\\/]app-icon\.ico$/);
 });
 
 test("gui-main: the window refuses navigation and window.open", () => {
@@ -403,4 +404,34 @@ test("gui-main: closing the window cancels a translate run in flight", async () 
   release();
   await run;
   handlersStub.__setImpl(null);
+});
+
+test("gui-main: the window reopens at its saved size and writes it back on close", async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "yakusha-gui-window-"));
+  const stateFile = path.join(tmp, "window-state.json");
+  fs.writeFileSync(stateFile, JSON.stringify({ width: 1400, height: 900, x: 12, y: 24, maximized: true }) + "\n");
+  stub.__reset({ lock: true, userDataPath: tmp });
+  await import("../gui/main.js?window-state");
+  stub.app.__resolveReady();
+  await settle();
+  const win = stub.__state().windows[0];
+  assert.equal(win.opts.width, 1400);
+  assert.equal(win.opts.height, 900);
+  assert.equal(win.opts.x, 12);
+  assert.equal(win.opts.y, 24);
+  win.emit("ready-to-show");
+  assert.equal(win.maximizeCalls, 1);
+  assert.equal(win.showCalls, 1);
+
+  win.bounds = { x: 30, y: 40, width: 1100, height: 760 };
+  win.maximized = false;
+  win.emit("close");
+  assert.deepEqual(JSON.parse(fs.readFileSync(stateFile, "utf8")), {
+    width: 1100,
+    height: 760,
+    x: 30,
+    y: 40,
+    maximized: false,
+  });
+  fs.rmSync(tmp, { recursive: true, force: true });
 });

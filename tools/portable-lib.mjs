@@ -23,6 +23,9 @@ export const BUILD_INFO_FILE = "build-info.json";
 export const SUMS_FILE = "SHA256SUMS";
 export const APP_PACKAGE_FILE = "resources/app/package.json";
 
+/** PE optional-header Subsystem value for a Windows GUI program. */
+export const PE_SUBSYSTEM_WINDOWS_GUI = 2;
+
 export class PortableError extends Error {
   constructor(code, message) {
     super(message);
@@ -50,6 +53,44 @@ export function walkFiles(dir, base = dir) {
   };
   walk(dir);
   return found.sort((a, b) => a.localeCompare(b, "en"));
+}
+
+/**
+ * Read the PE optional-header Subsystem field from a Windows executable.
+ *
+ * Electron's stock executable is a GUI-subsystem program, so double-clicking a
+ * portable bundle never opens a console window. This check keeps that promise
+ * honest: a replacement or mis-built electron.exe that uses the console
+ * subsystem (3) is rejected instead of quietly shipping a black window.
+ *
+ * @param {string} file
+ * @returns {number} PE subsystem value
+ */
+export function readPeSubsystem(file) {
+  let fd;
+  try {
+    fd = fs.openSync(file, "r");
+    const dos = Buffer.alloc(64);
+    if (fs.readSync(fd, dos, 0, dos.length, 0) < dos.length || dos.readUInt16LE(0) !== 0x5a4d) {
+      throw new PortableError("E_IO", "not a PE executable: " + file);
+    }
+    const peOffset = dos.readUInt32LE(0x3c);
+    const signature = Buffer.alloc(4);
+    if (fs.readSync(fd, signature, 0, 4, peOffset) < 4 || signature.readUInt32LE(0) !== 0x00004550) {
+      throw new PortableError("E_IO", "not a PE executable: " + file);
+    }
+    // PE signature (4) + COFF header (20) + Subsystem at optional-header offset 68.
+    const subsystem = Buffer.alloc(2);
+    if (fs.readSync(fd, subsystem, 0, 2, peOffset + 4 + 20 + 68) < 2) {
+      throw new PortableError("E_IO", "PE executable has no optional header: " + file);
+    }
+    return subsystem.readUInt16LE(0);
+  } catch (error) {
+    if (error instanceof PortableError) throw error;
+    throw new PortableError("E_IO", "cannot read PE executable " + file + ": " + error.message);
+  } finally {
+    if (fd !== undefined) fs.closeSync(fd);
+  }
 }
 
 export function readJson(file) {
@@ -192,6 +233,10 @@ export function buildPortable({ root, electronDir, nativeDir, outDir, force = fa
 
     const executable = path.join(temporary, "electron.exe");
     requireFile(executable, "Electron executable");
+    const subsystem = readPeSubsystem(executable);
+    if (subsystem !== PE_SUBSYSTEM_WINDOWS_GUI) {
+      throw new PortableError("E_IO", "Electron executable is not a Windows GUI program (PE subsystem " + subsystem + "); the portable app would open a console window");
+    }
     fs.renameSync(executable, path.join(temporary, "Yakusha.exe"));
 
     const appDir = path.join(temporary, "resources", "app");
@@ -218,6 +263,7 @@ export function buildPortable({ root, electronDir, nativeDir, outDir, force = fa
       electron: electronVersion,
       builtAt: now.toISOString(),
       executable: "Yakusha.exe",
+      subsystem: "windows-gui",
       signed: false,
       payloadFileCount: payloadFiles.length,
       payloadBytes: totalBytes(temporary, payloadFiles),
@@ -253,7 +299,12 @@ export function verifyPortable(dir) {
   if (info.schema !== PORTABLE_SCHEMA || info.tool !== PORTABLE_TOOL) {
     throw new PortableError("E_VERIFY", "not a portable bundle: " + dir);
   }
-  requireFile(path.join(dir, info.executable || "Yakusha.exe"), "portable executable");
+  const executable = path.join(dir, info.executable || "Yakusha.exe");
+  requireFile(executable, "portable executable");
+  const subsystem = readPeSubsystem(executable);
+  if (subsystem !== PE_SUBSYSTEM_WINDOWS_GUI) {
+    throw new PortableError("E_VERIFY", "portable executable is not a Windows GUI program (PE subsystem " + subsystem + "); double-clicking it would open a console window");
+  }
   const appPkg = readJson(path.join(dir, APP_PACKAGE_FILE));
   if (appPkg.main !== "gui/main.js" || appPkg.type !== "module") {
     throw new PortableError("E_VERIFY", "resources/app/package.json is not the Yakusha GUI entry");

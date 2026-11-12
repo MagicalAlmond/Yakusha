@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.80.0] - 2026-11-13
+
+### Added
+
+- The GUI now remembers recent projects: a successful scan stores up to five roots (deduplicated by path, newest first) in `localStorage` and shows them as one-click chips under the current project; a failed scan never writes one.
+- The window and taskbar now use `gui/assets/app-icon.ico` (a 256x256 PNG inside an ICO container generated from the same orange "Y" mark as the renderer).
+- Window size, position and maximized state persist in `window-state.json` inside the Electron profile folder; a corrupt or unwritable file falls back to the default 1180x820 window instead of blocking startup.
+- Portable builds now check the PE optional-header Subsystem of `Yakusha.exe`: build refuses an Electron distribution whose executable would open a console window, `--verify` repeats the check, and `build-info.json` records `subsystem: "windows-gui"`.
+
+### Changed
+
+- `docs/gui.md` records the 0.80 desktop acceptance items and the updated renderer/main test counts; `docs/release.md` documents the PE subsystem check.
+
+### Unchanged
+
+- The JSON envelope, exit codes, command table and every payload key are untouched. No new dependency. 949 pass.
+
 ## [0.79.0] - 2026-11-13
 
 ### Added
@@ -1033,7 +1050,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.79.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.80.0...HEAD
+[0.80.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.79.0...v0.80.0
 [0.79.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.78.0...v0.79.0
 [0.78.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.77.0...v0.78.0
 [0.77.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.76.0...v0.77.0

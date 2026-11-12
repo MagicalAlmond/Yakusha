@@ -102,5 +102,5 @@
 - [x] Kirikiri 达到 L4。
 - [x] 五个引擎的 `capabilities` 与 `docs/engines.json`、`docs/games.md`、`docs/limitations.md` 一致（`test/engines-json.test.js` 守住）。
 - [x] GUI 真机走查：`docs/gui.md` 的验收项逐条在真机点过。0.78 用 `tools/gui-acceptance.mjs` 在 Electron 真窗跑通 MZ / MV / Ren'Py / RGSS / Kirikiri 五链的 scan → extract → translate → verify → install → uninstall → doctor，并核对 plugin 档 `js/plugins.js` 与 patch 档原 `data.xp3` 的字节不变（`test/gui-e2e.test.js` 只是 handler 层的自动化覆盖）。
-- [x] 便携 exe：0.79 用 `tools/portable.mjs` 构建，`--verify` 重算全部哈希，`tools/gui-acceptance.mjs --exe` 在便携包上跑通五链（2026-11-12 实测 163 文件 / 307,921,513 字节）。
+- [x] 便携 exe：0.79 用 `tools/portable.mjs` 构建，`--verify` 重算全部哈希，`tools/gui-acceptance.mjs --exe` 在便携包上跑通五链（2026-11-12 实测 163 文件 / 307,921,513 字节）。0.80 起构建与 `--verify` 还校验 `Yakusha.exe` 的 PE Subsystem=2（Windows GUI，拒绝控制台黑框），并在 `build-info.json` 记 `subsystem: "windows-gui"`；最近项目与窗口状态见 `docs/gui.md` §9。
 - [ ] 代码签名与托管方式在 1.0 前定稿（签名按 2026-11-07 决定暂不做，托管方式未定；见 [release.md](release.md) §5）。

@@ -38,6 +38,7 @@ import {
 } from "./credentials.js";
 import { readDictionary, writeEntry } from "./dictionary.js";
 import { resolveProfileDir } from "./profile.js";
+import { readWindowState, WINDOW_STATE_FILE, writeWindowState } from "./window-state.js";
 import { configFilePath } from "../src/cli/config.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -286,14 +287,25 @@ function winOf() {
   return /** @type {Electron.BrowserWindow} */ (/** @type {unknown} */ ({}));
 }
 
+/** The saved window state lives beside Electron's other profile files. */
+function windowStatePath() {
+  try {
+    return path.join(app.getPath("userData"), WINDOW_STATE_FILE);
+  } catch {
+    return null;
+  }
+}
+
 function createWindow() {
+  const stateFile = windowStatePath();
+  const saved = stateFile ? readWindowState(stateFile) : null;
   mainWindow = new BrowserWindow({
-    width: 1180,
-    height: 820,
+    ...(saved ? { width: saved.width, height: saved.height, ...(saved.x === undefined ? {} : { x: saved.x }), ...(saved.y === undefined ? {} : { y: saved.y }) } : { width: 1180, height: 820 }),
     minWidth: 980,
     minHeight: 700,
     show: false,
     title: "Yakusha",
+    icon: path.join(HERE, "assets", "app-icon.ico"),
     backgroundColor: "#f5f1e9",
     autoHideMenuBar: true,
     webPreferences: {
@@ -309,7 +321,23 @@ function createWindow() {
   mainWindow.on("will-navigate", (event) => event.preventDefault());
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   mainWindow.loadFile(path.join(HERE, "renderer", "index.html"));
-  mainWindow.once("ready-to-show", () => mainWindow.show());
+  mainWindow.once("ready-to-show", () => {
+    if (saved && saved.maximized) mainWindow.maximize();
+    mainWindow.show();
+  });
+  mainWindow.on("close", () => {
+    if (!stateFile) return;
+    try {
+      if (mainWindow.isFullScreen && mainWindow.isFullScreen()) return;
+      const bounds = typeof mainWindow.getNormalBounds === "function" ? mainWindow.getNormalBounds() : mainWindow.getBounds();
+      writeWindowState(stateFile, {
+        ...bounds,
+        maximized: typeof mainWindow.isMaximized === "function" ? mainWindow.isMaximized() : false,
+      });
+    } catch {
+      // A window that is already gone must not block quitting.
+    }
+  });
   mainWindow.on("closed", () => {
     mainWindow = null;
   });

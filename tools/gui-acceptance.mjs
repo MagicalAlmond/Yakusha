@@ -300,6 +300,10 @@ async function runChain(cdp, chain, dir, logFile, artifacts, timeout) {
   if (tier !== chain.tier) throw new Error(chain.id + " delivery card shows " + JSON.stringify(tier) + ", expected " + chain.tier);
   const cardHidden = await cdp.evaluate('document.getElementById("delivery").hidden');
   if (cardHidden) throw new Error(chain.id + " delivery card is hidden after scan");
+  const recentVisible = await cdp.evaluate(
+    'document.getElementById("recent").hidden === false && document.getElementById("recent-list").children.length > 0',
+  );
+  if (!recentVisible) throw new Error(chain.id + " recent row did not record the scanned project");
   const screenshot = await capture(cdp, path.join(artifacts, chain.id + "-scan.png"));
   steps.push({ command: "scan", ok: scan.ok, engine: scan.engine, uniqueStrings: scan.uniqueStrings, deliveryTier: tier });
 

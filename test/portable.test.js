@@ -14,7 +14,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-import { buildPortable, verifyPortable, PortableError } from "../tools/portable-lib.mjs";
+import { buildPortable, verifyPortable, PortableError, readPeSubsystem } from "../tools/portable-lib.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, "..");
@@ -41,9 +41,21 @@ function sha256(data) {
   return crypto.createHash("sha256").update(data).digest("hex");
 }
 
-function makeElectron() {
+/** A minimal PE32+ image with the requested optional-header subsystem. */
+function makePe(subsystem) {
+  const buffer = Buffer.alloc(0x200);
+  buffer.writeUInt16LE(0x5a4d, 0); // MZ
+  buffer.writeUInt32LE(0x80, 0x3c); // e_lfanew
+  buffer.writeUInt32LE(0x00004550, 0x80); // PE\0\0
+  buffer.writeUInt16LE(0xf0, 0x80 + 4 + 16); // SizeOfOptionalHeader
+  buffer.writeUInt16LE(0x20b, 0x80 + 4 + 20); // PE32+ magic
+  buffer.writeUInt16LE(subsystem, 0x80 + 4 + 20 + 68);
+  return buffer;
+}
+
+function makeElectron(subsystem = 2) {
   const dir = tempDir("yakusha-portable-electron-");
-  write(path.join(dir, "electron.exe"), "synthetic electron bytes\n");
+  write(path.join(dir, "electron.exe"), makePe(subsystem));
   write(path.join(dir, "version"), "37.2.3\n");
   write(path.join(dir, "LICENSE"), "Electron license\n");
   write(path.join(dir, "resources", "default_app.asar"), "default app that must not ship\n");
@@ -85,7 +97,9 @@ test("portable: build lays out the runtime, app, native components and checksums
   assert.equal(result.buildInfo.tool, "yakusha-portable");
   assert.equal(result.buildInfo.version, ROOT_PKG.version);
   assert.equal(result.buildInfo.electron, "37.2.3");
+  assert.equal(result.buildInfo.subsystem, "windows-gui");
   assert.equal(result.buildInfo.signed, false);
+  assert.equal(readPeSubsystem(path.join(outDir, "Yakusha.exe")), 2);
   assert.ok(fs.existsSync(path.join(outDir, "Yakusha.exe")));
   assert.equal(fs.existsSync(path.join(outDir, "electron.exe")), false);
   assert.equal(fs.existsSync(path.join(outDir, "resources", "default_app.asar")), false);
@@ -102,6 +116,17 @@ test("portable: build lays out the runtime, app, native components and checksums
   assert.ok(sums.includes("  Yakusha.exe\n"), sums);
   assert.ok(!sums.includes("SHA256SUMS"), sums);
   assert.deepEqual(verifyPortable(outDir), { ok: true, fileCount: result.fileCount, buildInfo: result.buildInfo });
+});
+
+test("portable: a console-subsystem Electron executable is refused", () => {
+  const electronDir = makeElectron(3);
+  const nativeDir = makeNative();
+  const outDir = path.join(tempDir("yakusha-portable-console-"), "bundle");
+  assert.throws(
+    () => buildPortable({ root: ROOT, electronDir, nativeDir, outDir }),
+    (error) => error instanceof PortableError && error.code === "E_IO" && /console window/.test(error.message),
+  );
+  assert.equal(fs.existsSync(outDir), false);
 });
 
 test("portable: verify rejects a modified file and an unlisted file", () => {

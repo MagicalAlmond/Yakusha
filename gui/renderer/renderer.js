@@ -166,6 +166,66 @@ function hideDelivery() {
   if (card) card.hidden = true;
 }
 
+/** localStorage can throw when the profile is read-only; recent projects are best effort. */
+function recentStorage() {
+  try {
+    return window.localStorage || null;
+  } catch {
+    return null;
+  }
+}
+
+/** Render the last successfully scanned projects as one-click chips. */
+function renderRecent() {
+  const row = $("recent");
+  const list = $("recent-list");
+  if (!row || !list) return;
+  const items = typeof YAKUSHA_RECENT !== "undefined"
+    ? YAKUSHA_RECENT.read(recentStorage())
+    : [];
+  list.innerHTML = "";
+  if (items.length === 0) {
+    row.hidden = true;
+    return;
+  }
+  for (const entry of items) {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "recent-chip";
+    chip.title = entry.root;
+    const name = document.createElement("span");
+    name.className = "recent-name";
+    name.textContent = entry.title || baseName(entry.root) || entry.root;
+    const engine = document.createElement("span");
+    engine.className = "recent-engine";
+    engine.textContent = entry.engine || "";
+    chip.appendChild(name);
+    chip.appendChild(engine);
+    chip.addEventListener("click", () => {
+      currentDir = entry.root;
+      setProjectLine(entry.root);
+      run("scan");
+    });
+    list.appendChild(chip);
+  }
+  row.hidden = false;
+}
+
+/** Remember a successful scan; a failed scan never enters the recent list. */
+function rememberProject(envelope) {
+  if (!envelope || !envelope.root || typeof YAKUSHA_RECENT === "undefined") return;
+  try {
+    YAKUSHA_RECENT.add(recentStorage(), {
+      root: envelope.root,
+      engine: envelope.engine || "",
+      title: envelope.gameTitle || "",
+    });
+  } catch {
+    // Recent projects are a convenience; never fail the scan over storage.
+  }
+  renderRecent();
+}
+
 async function run(command, args, flags) {
   const runId = ++runSeq;
   if (command === "scan") {
@@ -222,6 +282,7 @@ async function run(command, args, flags) {
     badge.hidden = false;
     badge.textContent = (e.engine || "?") + (e.engineVersion ? " " + e.engineVersion : "");
     setProjectLine(e.root + " — " + (e.gameTitle || "(untitled)"));
+    rememberProject(e);
     // Buttons follow the engine's capabilities (docs/gui.md acceptance: a button
     // for an unsupported capability is disabled with the reason shown). The
     // capability facts come from the scan payload — the same object the CLI
@@ -428,6 +489,7 @@ async function initLogSummary() {
   }
 }
 initLogSummary();
+renderRecent();
 
 $("log-open").addEventListener("click", async () => {
   if (typeof window.yakusha.openLog !== "function") return;
