@@ -4,6 +4,8 @@
 
 证据分两类：一类在仓库内，任何人都能用 `npm test` 复核；另一类是仓库外的真机验收，游戏、机器与截图都不入库，只记匿名事实与日期。第二类不可复核，所以写的是「当时看到了什么」，不是「任何机器都能重现」。
 
+只剩人工完成的验收项见 [manual-acceptance.md](manual-acceptance.md)。
+
 四个等级：
 
 - **L1 detect（识别）**：adapter 在真实游戏目录上认出项目，不依赖手工指定引擎。
@@ -56,14 +58,14 @@
 
 | 能力键 | 证据等级 | 证据指针 | 缺什么 |
 | --- | --- | --- | --- |
-| extract | L2 | `test/rgss-extract.test.js`、`test/rgss-archive.test.js`、`test/rgss-marshal.test.js`；`docs/games.md:146-193` | 只有 VX Ace 样本，XP / VX 未测 |
+| extract | L2 | `test/rgss-extract.test.js`、`test/rgss-archive.test.js`、`test/rgss-marshal.test.js`；`docs/games.md:146-193` | 真实游戏只有 VX Ace；XP / VX 的读取由合成夹具覆盖（`test/rgss-extract.test.js`），真实游戏未测 |
 | export | L2 | `test/export.test.js` | 同 extract 的样本缺口；真实游戏导出未单独记录 |
 | runtime | L4 | `test/rgss-native-source.test.js`；`docs/limitations.md:43-44`；`docs/engines.md:1416` | XP / VX 未测；自绘位图字体与图片文字不在钩子覆盖内 |
 | launch | L4 | `test/launch.test.js`；`docs/limitations.md:43-44` | 同 runtime |
 | debuggable | — | `docs/engines.json`（`debuggable: false`）；`src/engines/contract.js` | 未实现 |
 | attach | — | `docs/engines.json`（`attach: false`）；`test/engine-contract.test.js:418-427` | 0.10 起是桩，无 CLI |
 | liveReload | — | `docs/engines.json`（`liveReload: false`）；`src/engines/contract.js` | 未实现 |
-| end-to-end | L4 | `test/rgss-native-source.test.js`；`docs/games.md:146-193` | 只覆盖 VX Ace 样本；XP / VX 未测 |
+| end-to-end | L4 | `test/rgss-native-source.test.js`；`docs/games.md:146-193` | 真实游戏只覆盖 VX Ace；XP / VX 仅合成夹具覆盖，真实未测 |
 
 ## Kirikiri
 

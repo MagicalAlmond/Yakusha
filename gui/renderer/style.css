@@ -147,7 +147,8 @@ h1, h2, h3, p { margin: 0; }
 }
 .sidebar-status div { display: flex; flex-direction: column; gap: 2px; }
 .sidebar-status strong { color: #b8bcc7; font-size: 11px; font-weight: 600; }
-.sidebar-status span:last-child { color: #8a90a0; font-size: 10.5px; }
+.sidebar-status span { color: #8a90a0; font-size: 10.5px; }
+.sidebar-note { max-width: 152px; line-height: 1.35; }
 
 .status-dot {
   display: inline-block;

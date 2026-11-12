@@ -600,6 +600,7 @@ TextGrammar = {
 | 0.78 | GUI 交付分档展示与真机验收：交付卡按 `capabilities.runtime` 显示 L4-plugin / L4-resource / L4-inject / L4-patch / L3-only，`tools/gui-acceptance.mjs` 在 Electron 真窗跑五引擎 install → uninstall → doctor（**已交付**） | GUI 0.14 后不叠加新引擎适配，这一版只补展示与验收 | 五引擎真机 GUI 走查通过，npm test 934 条全绿 |
 | 0.79 | 便携 exe 发布工程：`tools/portable-lib.mjs` / `tools/portable.mjs` 组装 `Yakusha.exe` + `resources/app` + `build-info.json` + `SHA256SUMS`，`--verify` 全量哈希复核，`tools/gui-acceptance.mjs --exe` 在便携包上跑五链（**已交付**） | 1.0 的发布前置；代码签名按 2026-11-07 决定暂不做，托管方式仍未定 | 0.79 构建 163 文件 / 307,921,513 字节，五链真机通过，npm test 941 条全绿 |
 | 0.80 | 桌面收尾：最近项目（localStorage 最多 5 个、按路径去重）、窗口/任务栏图标、窗口大小/位置持久化、便携包 PE Subsystem=GUI 双重校验（**已交付**） | 1.0 路线表里的「图标、无控制台、最近游戏」三项在仓库内全部落地，只剩真实游戏样本与托管决策 | 949 pass / 0 fail（gui-renderer 23、gui-main 21、window-state +4、portable +1）；MZ/MV/Ren'Py/RGSS/Kirikiri 五链真窗通过 |
+| 0.81 | 发布前置：未签名披露 + 剩余人工验收清单（**已交付**） | 把不能在仓库内自动化的 1.0 门禁写成可执行清单，避免「全绿」被误读成「可发布」 | 951 pass / 0 fail；`docs/manual-acceptance.md` 四节；GUI/README 未签名披露 |
 | 1.0 | 10 个引擎目标 + 能力矩阵 + 便携 exe | — | 每个引擎有 L4 证据；不达标的明确标 experimental |
 
 说明：

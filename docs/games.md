@@ -89,7 +89,7 @@ node bin/yakusha.js status "/games/SomeGame"
 
 | 引擎 | 识别 | scan / extract | translate | verify | install 交付 | launch | doctor |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| RPG Maker MZ | ✅ `game.rmmzproject`，或 `data/*.json` | ✅ 明文或单字节 XOR 的 JSON | ✅ 任意 OpenAI 兼容端点或 `mock` | ✅ 十条判据 | ✅ 插件档：一个插件文件，加 `js/plugins.js` 里一行 | ✅ 根目录的 `Game.exe` | ✅ 版本区间 1.3.2–1.9.0，区间外只 `warn` |
+| RPG Maker MZ | ✅ `game.rmmzproject`，或 `data/*.json` | ✅ 明文或单字节 XOR 的 JSON | ✅ 任意 OpenAI 兼容端点或 `mock` | ✅ 十一条判据 | ✅ 插件档：一个插件文件，加 `js/plugins.js` 里一行 | ✅ 根目录的 `Game.exe` | ✅ 版本区间 1.3.2–1.9.0，区间外只 `warn` |
 | RPG Maker MV | ✅ 同上，`www/` 布局也认 | ✅ 同上 | ✅ | ✅ | ✅ 插件档：改写 `loadDataFile`，在 `onLoad` 里回填 | ✅ `www/` 布局下从上一层启动 `Game.exe`（0.44） | ✅ 版本区间 1.6.1–1.6.2 |
 | Ren'Py | ✅ `game/` 目录加 `.rpy` / `.rpyc` | ⚠️ 只用 SDK 的两个官方示例验收，未测真实商业游戏 | ✅ | ✅ | ✅ translation 档：`game/yakusha_translation.rpy` | ✅ 发行版根目录的启动器 | ⚠️ `versions: none`，`config.version` 是游戏版本，没有可比矩阵 |
 | RGSS（XP / VX / VX Ace） | ✅ `.rvproj2` / `.rvproj`，或 `RGSSAD` 家族归档 | ✅ `Data/` 下的 `.rxdata` / `.rvdata` / `.rvdata2` | ✅ | ✅ | ⚠️ inject 档，只有 32 位 Windows 组件；实测两款 VX Ace，XP / VX 未测 | ✅ 经 `yakusha_injector.exe` 启动 | ✅ `versions` 1 / 2 / 3，实测 3 |
@@ -226,8 +226,10 @@ XP3 索引只读标准格式：索引体以 `File` 开头的是标准索引；�
 **抽取验收与交付验收要分开看**：抽取用的是真实归档；交付层的 install/uninstall/doctor 在合成夹具之外，
 0.74 还在一个真实商业归档的副本上做了写入/回读验收——`install` 生成的 `patch.xp3` 只有一个改写过的
 `.ks`，条目 adler-32 校验通过、改写后的标记文本能读回，游戏自己的 `data.xp3` SHA-256 前后不变，
-`uninstall` 后归档与清单消失、doctor 回到 `not-installed`。仍未做的是启动游戏看画面的运行时验收
-（headless 环境无法开窗），也没有在日文原版上跑全量翻译后启动。
+`uninstall` 后归档与清单消失、doctor 回到 `not-installed`。0.74 当时还缺启动游戏看画面的运行时验收
+（当时的 headless 环境无法开窗）；这项后来在 0.77 补上：在同一款商业游戏上 install 后启动，对白两处出现
+mock 的「译:」前缀，`uninstall` 只回收 `patch2.xp3`，原 `data.xp3`、`patch.xp3` 与 exe 字节不变
+（见 [evidence.md](evidence.md)）。
 
 0.16 复查时用真实商业归档复核了读取器：修复了索引容器头与条目起点的两处
 0.13 误读（读取器现按 zlib 头特征自动判位 9 / 17 字节两种布局），并给 `.ks` 解码补上

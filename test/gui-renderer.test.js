@@ -343,6 +343,12 @@ test("every id the renderer looks up exists in the page", () => {
   }
 });
 
+test("the page discloses that release builds are not code-signed", () => {
+  const html = fs.readFileSync(path.join(ROOT, "gui", "renderer", "index.html"), "utf8");
+  assert.match(html, /Unsigned builds may trigger SmartScreen/i);
+  assert.match(html, /SHA256SUMS first/);
+});
+
 test("a folder dropped on the window scans it through pathForFile", async () => {
   const dom = makeDom();
   const dropped = { name: "game" };

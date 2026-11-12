@@ -73,6 +73,16 @@ test("extract: a packed game yields exactly the same strings", () => {
   assert.deepEqual(packedResult.perFile, unpacked.perFile);
 });
 
+test("extract: XP and VX projects read the same strings as VX Ace", () => {
+  const baseline = texts(extractRgssProject(plain()));
+  for (const [version, extension] of [[1, "rxdata"], [2, "rvdata"]]) {
+    const result = extractRgssProject(writeRgssProject(sandbox(), { version }));
+    assert.deepEqual(texts(result), baseline, `version ${version} changed the extracted text`);
+    assert.deepEqual(result.encodings, { [extension]: 7 }, `version ${version} did not read ${extension} documents`);
+    assert.deepEqual(result.undecodable, [], `version ${version} produced undecodable entries`);
+  }
+});
+
 test("extract: the shape is the one every other engine produces", () => {
   const result = extractRgssProject(plain());
   assert.equal(result.entries instanceof Map, true);

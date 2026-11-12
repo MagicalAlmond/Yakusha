@@ -456,6 +456,8 @@ docs/                     设计说明、命令参考、契约、实测记录、
 `node tools/portable.mjs` 在本地组装成可双击的目录，校验与验收见 [docs/release.md](docs/release.md)；
 仓库不打 tag、不推送 release。完整规则与命令见 [docs/dev/DEVLOG.md](docs/dev/DEVLOG.md) §9。
 
+便携包按未签名构建发布：首次运行 Windows 可能显示 SmartScreen 警告，这是未签名可执行文件的预期行为。遇到拦截时先核对 `SHA256SUMS`，确认文件完整且来源可信后，才选择「更多信息 → 仍要运行」；`SHA256SUMS` 只用于核对文件完整性，不构成发布者身份或信任背书。签名与托管方式的最终决定见 [docs/evidence.md](docs/evidence.md) 的 1.0 门禁。
+
 ## 文档
 
 | 文件 | 内容 |
@@ -471,6 +473,7 @@ docs/                     设计说明、命令参考、契约、实测记录、
 | [docs/design.md](docs/design.md) | 为什么走运行时钩子、文本面覆盖、转义码、设计约束、作为库用 |
 | [docs/games.md](docs/games.md) | 匿名记录的实测游戏（RPG Maker 15 款、Ren'Py SDK 自带项目、一款 RGSS3 商业游戏）、全量翻译数据、官中游戏的处理方式 |
 | [docs/release.md](docs/release.md) | 便携 exe 的构建、SHA-256 校验、`--exe` 真机验收与签名/分发边界 |
+| [docs/manual-acceptance.md](docs/manual-acceptance.md) | 只剩用户手动验收的四项：Ren'Py 商业样本、RGSS XP/VX、签名/托管、1.0 引擎名单 |
 | [docs/limitations.md](docs/limitations.md) | 已知限制全表 |
 | [docs/dev/DEVLOG.md](docs/dev/DEVLOG.md) | 内部开发日志（阶段、决策、实测、教训） |
 

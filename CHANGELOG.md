@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.81.0] - 2026-11-13
+
+### Added
+
+- `docs/manual-acceptance.md` lists the release gates that cannot be automated in this repository: a real Ren'Py commercial-game L4 walkthrough, RGSS XP/VX real-game baselines, the code-signing and hosting decision, and the final 1.0 engine list. `README.md` and `docs/evidence.md` link to it.
+- The GUI and README now disclose that portable builds are unsigned: the sidebar and Settings explain the SmartScreen warning, tell users to verify `SHA256SUMS` first, and state that a checksum proves integrity but not publisher identity.
+- `test/rgss-extract.test.js` covers RGSS XP (`rxdata`) and VX (`rvdata`) projects against the same string baseline as VX Ace.
+
+### Changed
+
+- `docs/games.md:92` corrects "ten verification kinds" to "eleven"; `docs/games.md:226-230` replaces the old "headless cannot open a window" conclusion with the 0.77 real-machine result. `docs/evidence.md` narrows the RGSS gap to "real games are VX Ace only; XP/VX have synthetic fixtures only".
+- `docs/gui.md` records the 24 renderer tests and the unsigned-build disclosure.
+
+### Unchanged
+
+- The JSON envelope, exit codes, command table and every payload key are untouched. No new dependency. 951 pass.
+
 ## [0.80.0] - 2026-11-13
 
 ### Added
@@ -1050,7 +1067,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.80.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.81.0...HEAD
+[0.81.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.80.0...v0.81.0
 [0.80.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.79.0...v0.80.0
 [0.79.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.78.0...v0.79.0
 [0.78.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.77.0...v0.78.0

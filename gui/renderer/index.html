@@ -31,6 +31,7 @@
         <div>
           <strong>Local workspace</strong>
           <span>No cloud. No account.</span>
+          <span class="sidebar-note">Unsigned builds may trigger SmartScreen on first run.</span>
         </div>
       </div>
     </aside>
@@ -219,6 +220,7 @@
               </select>
               <label class="check-row"><input id="key-use" type="checkbox" /> Use stored key when translating</label>
               <span id="key-state" class="hint"></span>
+              <p id="unsigned-note" class="hint">Portable builds are not code-signed. If SmartScreen warns, check SHA256SUMS first, then choose More info &rarr; Run anyway.</p>
             </section>
           </div>
         </div>
