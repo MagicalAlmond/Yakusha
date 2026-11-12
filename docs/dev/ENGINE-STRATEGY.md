@@ -597,6 +597,7 @@ TextGrammar = {
 | 0.74 | KRKR patch 覆盖归档交付层：`runtime: "patch"`、`install` 写 `data/patch.xp3` 与 `yakusha/krkr-patch.json`、`uninstall` 只删这两个文件、`extract` 跳过自身归档、doctor 用 `patchStatus()`（**已交付**） | — | 865 pass / 60 个文件（krkr-patch +3；adapter/CLI 改写旧 pending 用例） |
 | 0.76 | 真实游戏语料批量回归 + 兼容性矩阵：`tools/corpus.mjs`（外部 JSON 清单，默认只读 `scan`；`--deep` 建硬链接薄镜像，写步骤不碰真实游戏目录）、`docs/games.md` 五引擎 × 七能力矩阵；MZ/MV 项目根发现跟随 junction / symbolic link，`scan` 全部数据文件被拒时记 findings / exit 1，加密 XP3 索引诊断带出 scheme（**已交付**） | 原计划的新引擎（RGSS XP/VX、NScripter、Wolf、SRPG）因本机无真实游戏可验收而顺延到后续里程碑 | 22 款真实游戏：18 ok / 4 findings（Kirikiri 加密索引） |
 | 0.77 | 交付层 L4 证据：真机运行时验收 + 证据台账 + 能力矩阵单一事实源（**已交付**） | A 项在真实商业游戏上完成运行时验收；B/C 把证据与矩阵做成仓库内可审数据 | Kirikiri 运行时通过、五引擎台账落地、npm test 全绿 |
+| 0.78 | GUI 交付分档展示与真机验收：交付卡按 `capabilities.runtime` 显示 L4-plugin / L4-resource / L4-inject / L4-patch / L3-only，`tools/gui-acceptance.mjs` 在 Electron 真窗跑五引擎 install → uninstall → doctor（**已交付**） | GUI 0.14 后不叠加新引擎适配，这一版只补展示与验收 | 五引擎真机 GUI 走查通过，npm test 934 条全绿 |
 | 1.0 | 10 个引擎目标 + 能力矩阵 + 便携 exe | — | 每个引擎有 L4 证据；不达标的明确标 experimental |
 
 说明：

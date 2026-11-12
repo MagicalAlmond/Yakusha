@@ -7,13 +7,15 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const RENDERER = path.join(ROOT, "gui", "renderer", "renderer.js");
+const DELIVERY = path.join(ROOT, "gui", "renderer", "delivery.js");
 
 const IDS = [
   "project-line", "engine-badge", "pick", "launch-run", "cancel", "progress",
   "bar-fill", "progress-text", "dict-load", "dict-summary", "dict-key",
   "dict-text", "dict-save", "import-run", "config-summary", "key-input",
   "key-save", "key-clear", "key-use", "key-state", "source-lang", "toasts",
-  "log-summary", "log-open",
+  "log-summary", "log-open", "delivery", "delivery-tier", "delivery-title",
+  "delivery-copy", "delivery-caution",
 ];
 const COMMANDS = ["scan", "extract", "status", "translate", "verify", "install",
   "uninstall", "export", "speaker", "terms", "doctor", "config"];
@@ -117,6 +119,7 @@ function makeDom() {
     window, document, console, JSON, Math, Object, Array, String, Promise, Date,
     Number, Boolean, Error, RegExp, setTimeout, clearTimeout,
   });
+  vm.runInContext(fs.readFileSync(DELIVERY, "utf8"), context, { filename: "delivery.js" });
   vm.runInContext(fs.readFileSync(RENDERER, "utf8"), context, { filename: "renderer.js" });
   return { elements, actions, runCalls, envelopes, document, window, docListeners, progressFns, warningFns };
 }
@@ -169,6 +172,38 @@ test("scan success follows capability flags for install and launch", async () =>
   assert.match(uninstall.title, /no delivery layer yet/);
   assert.equal(launch.disabled, true);
   assert.equal(launch.title, "this engine cannot be launched from yakusha");
+});
+
+test("scan explains the delivery layer for every runtime value", async () => {
+  const cases = [
+    { runtime: "plugin", tier: "L4-plugin", title: "Plugin layer", caution: true },
+    { runtime: "translation", tier: "L4-resource", title: "Translation resource", caution: false },
+    { runtime: "inject", tier: "L4-inject", title: "Native components", caution: true },
+    { runtime: "patch", tier: "L4-patch", title: "Overlay archive", caution: false },
+    { runtime: null, tier: "L3-only", title: "No delivery layer", caution: false },
+  ];
+  for (const item of cases) {
+    const dom = makeDom();
+    await scan(dom, {
+      ok: true, outcome: "ok", engine: "probe", root: "C:/games/delivery", gameTitle: "Delivery",
+      capabilities: { runtime: item.runtime, launch: true },
+    });
+    const card = dom.elements.get("delivery");
+    assert.equal(card.hidden, false, item.tier + " card should be visible");
+    assert.equal(dom.elements.get("delivery-tier").textContent, item.tier);
+    assert.equal(dom.elements.get("delivery-title").textContent, item.title);
+    assert.ok(dom.elements.get("delivery-copy").textContent.length > 0);
+    assert.equal(dom.elements.get("delivery-caution").hidden, !item.caution, item.tier + " caution visibility");
+  }
+});
+
+test("scan without capabilities falls back to L3-only and hides delivery on the next scan", async () => {
+  const dom = makeDom();
+  await scan(dom, { ok: true, outcome: "ok", engine: "unknown", root: "C:/games/unknown", gameTitle: "Unknown" });
+  assert.equal(dom.elements.get("delivery").hidden, false);
+  assert.equal(dom.elements.get("delivery-tier").textContent, "L3-only");
+  await scan(dom, { ok: false, outcome: "error", error: { code: "E_NOT_PROJECT", message: "no game" } });
+  assert.equal(dom.elements.get("delivery").hidden, true);
 });
 
 test("scan E_MULTI_ROOT explains where to pick the project", async () => {

@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.78.0] - 2026-11-13
+
+### Added
+
+- The GUI now shows the delivery layer for the scanned engine as a card: `L4-plugin` (plugin), `L4-resource` (translation resource), `L4-inject` (native components), `L4-patch` (overlay archive) or `L3-only` (no delivery layer). The copy lives in `gui/renderer/delivery.js` and is driven by `capabilities.runtime`; each tier states what install writes, what uninstall does, and the remaining risk (for example backup drift or unsigned components).
+- `tools/gui-acceptance.mjs` drives the actual Electron window through CDP for a real-click walkthrough: scan → extract → translate → verify → install → uninstall → doctor across MZ, MV, Ren'Py, RGSS and Kirikiri. It asserts the delivery card, the install artefacts, and byte-for-byte restoration of `js/plugins.js` (plugin) and the original `data.xp3` (patch), and writes screenshots under `.dsh-scratch/`.
+
+### Fixed
+
+- The GUI design document's delivery table now includes the `L4-patch` row, and the three open 0.14 acceptance items are recorded as verified through the real-window walkthrough.
+
+### Unchanged
+
+- The JSON envelope, exit codes and every payload key are untouched. No new dependency. 934 pass.
+
 ## [0.77.0] - 2026-11-13
 
 ### Added
@@ -1000,7 +1015,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.75.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.78.0...HEAD
+[0.78.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.77.0...v0.78.0
 [0.77.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.76.0...v0.77.0
 [0.75.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.74.0...v0.75.0
 [0.74.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.73.0...v0.74.0

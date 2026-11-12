@@ -101,5 +101,5 @@
 - [ ] RGSS XP / VX 补实机基线，或在 1.0 明确标 experimental。
 - [x] Kirikiri 达到 L4。
 - [x] 五个引擎的 `capabilities` 与 `docs/engines.json`、`docs/games.md`、`docs/limitations.md` 一致（`test/engines-json.test.js` 守住）。
-- [ ] GUI 真机走查：`docs/gui.md` 的验收项逐条在真机点过（仓库内 `test/gui-e2e.test.js` 只是自动化覆盖，不等同真机验收）。
+- [x] GUI 真机走查：`docs/gui.md` 的验收项逐条在真机点过。0.78 用 `tools/gui-acceptance.mjs` 在 Electron 真窗跑通 MZ / MV / Ren'Py / RGSS / Kirikiri 五链的 scan → extract → translate → verify → install → uninstall → doctor，并核对 plugin 档 `js/plugins.js` 与 patch 档原 `data.xp3` 的字节不变（`test/gui-e2e.test.js` 只是 handler 层的自动化覆盖）。
 - [ ] 发布级验收：便携 exe、代码签名与托管方式在 1.0 前定稿（`docs/dev/ENGINE-STRATEGY.md:599` 之外的发布前置）。

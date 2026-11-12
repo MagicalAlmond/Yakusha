@@ -140,6 +140,32 @@ function setProjectLine(text) {
   $("project-line").title = text;
 }
 
+/**
+ * Show what the next Install will actually write, in the exact terms of
+ * docs/gui.md §6. The tier comes from capabilities.runtime, the same value the
+ * CLI prints; delivery.js owns the copy so the UI and the docs cannot drift.
+ */
+function showDelivery(caps) {
+  const card = $("delivery");
+  if (!card) return;
+  const tiers = typeof YAKUSHA_DELIVERY_TIERS !== "undefined" ? YAKUSHA_DELIVERY_TIERS : null;
+  const runtime = caps ? caps.runtime : null;
+  const tier = tiers ? tiers[runtime === null || runtime === undefined ? "none" : runtime] : null;
+  if (!tier) { card.hidden = true; return; }
+  card.hidden = false;
+  $("delivery-tier").textContent = tier.key;
+  $("delivery-title").textContent = tier.title;
+  $("delivery-copy").textContent = tier.summary;
+  const caution = $("delivery-caution");
+  caution.textContent = tier.caution;
+  caution.hidden = !tier.caution;
+}
+
+function hideDelivery() {
+  const card = $("delivery");
+  if (card) card.hidden = true;
+}
+
 async function run(command, args, flags) {
   const runId = ++runSeq;
   if (command === "scan") {
@@ -148,6 +174,7 @@ async function run(command, args, flags) {
     // running or after it fails.
     const badge = $("engine-badge");
     if (badge) badge.hidden = true;
+    hideDelivery();
     const installBtn = document.querySelector('button[data-cmd="install"]');
     const uninstallBtn = document.querySelector('button[data-cmd="uninstall"]');
     const launchBtn = $("launch-run");
@@ -200,6 +227,7 @@ async function run(command, args, flags) {
     // capability facts come from the scan payload — the same object the CLI
     // prints in --json.
     const caps = e.capabilities || null;
+    showDelivery(caps);
     const noDelivery = !caps || caps.runtime === null || caps.runtime === undefined;
     const installBtn = document.querySelector('button[data-cmd="install"]');
     const uninstallBtn = document.querySelector('button[data-cmd="uninstall"]');

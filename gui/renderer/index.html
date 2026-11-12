@@ -134,6 +134,15 @@
             </div>
           </div>
 
+          <div id="delivery" class="delivery-card" aria-label="Delivery layer" hidden>
+            <div class="delivery-heading">
+              <span id="delivery-tier" class="delivery-tier"></span>
+              <p id="delivery-title" class="delivery-title"></p>
+            </div>
+            <p id="delivery-copy" class="delivery-copy"></p>
+            <p id="delivery-caution" class="delivery-caution" hidden></p>
+          </div>
+
           <div class="utility-bar">
             <p class="utility-label">Inspector</p>
             <div class="utility-actions">
@@ -231,6 +240,7 @@
     <div class="drop-card"><span>Drop a game folder</span><strong>to scan it</strong></div>
   </div>
 
+  <script src="delivery.js"></script>
   <script src="renderer.js"></script>
 </body>
 </html>
