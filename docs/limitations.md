@@ -40,9 +40,14 @@
   `RGSSEval` 跑 `bootstrap.rb`，由它包一层 `load_data` 替换数据文档返回的对象里的字符串。
   运行日志写在 `yakusha/native/rgss-hook.log`；第一行 `bootstrap ready` 是 Ruby 侧真的跑起来的
   标志，只有 `DLL attached` 而没有它，说明 bootstrap 没执行（`RGSSEval` 对语法/编码错误只返回 0）。
-- 交付层是 32 位 Windows 的原生组件，只在两款 VX Ace 商业游戏上做过真机验收
-  （`RGSS300.dll` 与 `RGSS301.dll` + 2.0 GB 归档）；XP / VX（RGSS1 / RGSS2）未测。`bootstrap.rb`
-  只用 Ruby 1.8 / 1.9 都有的语法，但 1.8 的路径编码没有实机验证：读不到字典时只是不翻译。
+- 交付层是 32 位 Windows 的原生组件；XP / VX / VX Ace 各一款真机走查（VX 截图受锁屏限制）。
+  早期两款 VX Ace 样本是 `RGSS300.dll` 与 `RGSS301.dll` + 2.0 GB 归档；0.82 又补了 XP（RGSS1）
+  与 VX（RGSS2）各一款。`bootstrap.rb` 只用 Ruby 1.8 / 1.9 都有的语法，但 1.8 的路径编码
+  没有实机验证：读不到字典时只是不翻译。
+- RGSS1 的消息窗口在译文字符上可能拿到 0 宽 `Rect`，进而触发 `Bitmap.new(0,16)` 或
+  `Window_Message` 的 `TypeError`。0.82 起 `bootstrap.rb` 在字典非空且当前默认字体是常见
+  Gothic / Arial 系时切到 `Microsoft YaHei UI`，并给 `Bitmap#text_size` 加兜底（宽度 <= 0
+  时按字符数估算）；只对走 `draw_text` 的文本生效，自绘位图字体仍不受影响。
 - 注入是进程内 IAT patch：未签名的注入器与 DLL 可能被杀软误报；0.18 的完整性机制是
   SHA-256 `manifest.json`，Authenticode 签名是后续步骤。已被可执行保护器加壳的游戏
   不在范围内（没有尝试注入）。

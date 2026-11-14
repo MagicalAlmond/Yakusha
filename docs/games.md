@@ -92,7 +92,7 @@ node bin/yakusha.js status "/games/SomeGame"
 | RPG Maker MZ | ✅ `game.rmmzproject`，或 `data/*.json` | ✅ 明文或单字节 XOR 的 JSON | ✅ 任意 OpenAI 兼容端点或 `mock` | ✅ 十一条判据 | ✅ 插件档：一个插件文件，加 `js/plugins.js` 里一行 | ✅ 根目录的 `Game.exe` | ✅ 版本区间 1.3.2–1.9.0，区间外只 `warn` |
 | RPG Maker MV | ✅ 同上，`www/` 布局也认 | ✅ 同上 | ✅ | ✅ | ✅ 插件档：改写 `loadDataFile`，在 `onLoad` 里回填 | ✅ `www/` 布局下从上一层启动 `Game.exe`（0.44） | ✅ 版本区间 1.6.1–1.6.2 |
 | Ren'Py | ✅ `game/` 目录加 `.rpy` / `.rpyc` | ⚠️ 只用 SDK 的两个官方示例验收，未测真实商业游戏 | ✅ | ✅ | ✅ translation 档：`game/yakusha_translation.rpy` | ✅ 发行版根目录的启动器 | ⚠️ `versions: none`，`config.version` 是游戏版本，没有可比矩阵 |
-| RGSS（XP / VX / VX Ace） | ✅ `.rvproj2` / `.rvproj`，或 `RGSSAD` 家族归档 | ✅ `Data/` 下的 `.rxdata` / `.rvdata` / `.rvdata2` | ✅ | ✅ | ⚠️ inject 档，只有 32 位 Windows 组件；实测两款 VX Ace，XP / VX 未测 | ✅ 经 `yakusha_injector.exe` 启动 | ✅ `versions` 1 / 2 / 3，实测 3 |
+| RGSS（XP / VX / VX Ace） | ✅ `.rvproj2` / `.rvproj`，或 `RGSSAD` 家族归档 | ✅ `Data/` 下的 `.rxdata` / `.rvdata` / `.rvdata2` | ✅ | ✅ | ⚠️ inject 档，只有 32 位 Windows 组件；XP / VX / VX Ace 各一款真机走查（VX 截图受锁屏限制） | ✅ 经 `yakusha_injector.exe` 启动 | ✅ `versions` 1 / 2 / 3，实测 1 / 2 / 3 |
 | Kirikiri | ✅ `data/` 或根目录下的 `.xp3` | ⚠️ 只读标准未加密 XP3；加密变体进 `undecodable`，改版索引（Hxv4 形态）报 `E_UNSUPPORTED`；`.tjs` 只计数不读内容 | ✅ | ✅ | ✅ patch 档：只写 `data/patch.xp3`（已存在时自动顺延到 `patch2.xp3`，只含已译 `.ks`）与清单；0.77 起在一款商业游戏上做过运行时全量翻译实测——启动后对白显示译文，`uninstall` 只回收该归档 | ✅ 根目录的 `Game.exe` | ⚠️ 标题与版本读不出时显示 `(untitled)`，`versions: none` |
 
 还有三件事不分引擎：`attach`（接管运行中的进程）五个引擎都是 ❌，从 0.10 起就是桩，没有 CLI 入口；MV 不能挂 `--remote-debugging-port`（`debuggable: false`），MZ 可以，这是引擎本身的差别；只在 Windows 10/11 x64 上支持与验收，Linux、macOS、WSL、Wine、Proton 都不在范围内。
@@ -145,19 +145,27 @@ Ren'Py 的安装产物是一个文件：`install` 写 `game/yakusha_translation.
 
 ## RGSS（XP / VX / VX Ace）
 
-本机实测的是一款 RGSS3 / VX Ace 商业游戏，只按「一款」计：它是日文原版，玩家侧流传的中文
-补丁来自第三方，所以那批中文既不是本项目的译文，也不能拿来当校对参考。仓库里不存它的任何
-文本，也不存归档副本——下面的数字全部来自本机临时解包。
+本机实测三款 RGSS 商业游戏，按 XP（RGSS1）、VX（RGSS2）、VX Ace（RGSS3）各一款计，分别记作
+XP-A、VX-A、VX Ace-A。三款都是日文原版，玩家侧流传的中文补丁来自第三方，所以那批中文既不是
+本项目的译文，也不能拿来当校对参考。仓库里不存它们的任何文本，也不存归档副本——下面的数字
+全部来自本机临时解包。
 
-| 项目 | 数字 |
-| --- | --- |
-| `Game.rgss3a` | 644,284,359 字节 |
-| 归档条目 | 5,138 个（`Data/` 399 个：398 个 `.rvdata2` + 1 个非数据的 zip；`Graphics/` 4,739 个） |
-| 地图 | 381 张，其中 364 张有事件，共 5,300 个事件 |
-| 抽取 | 394 个文档、31,730 条唯一串 / 49,732 次出现、0 条 `undecodable`、282 个文件有文本、约 380 ms |
-| 含转义码 | 2,063 条，23 种 |
+| 项目 | XP-A（RGSS1） | VX-A（RGSS2） | VX Ace-A（RGSS3） |
+| --- | --- | --- | --- |
+| 数据布局 | `Data/` 下的 `.rxdata` | `Data/` 下的 `.rvdata` | `Game.rgss3a` 归档（644,284,359 字节） |
+| 数据文档 | 73 个 | 23 个 | 394 个（`Data/` 399 个条目：398 个 `.rvdata2` + 1 个非数据 zip） |
+| 唯一串 / 出现次数 | 5,316 / 9,195 | 733 / 7,456 | 31,730 / 49,732 |
+| `undecodable` | 0 | 0 | 0 |
+| 安装条目 | 5,316 | 733 | 31,730（0.18 实测） |
+| 运行时证据 | 产品化截图（仓库外） | hook 日志 + 2026-11-14 历史截图 | 早期真机验收 |
 
-这款游戏是打包发行（只有 `.rgss3a`，没有 `Data/` 目录），所以它验的是两条读取路径里的归档
+XP-A 与 VX-A 是 0.82 补的基线：两者都走完 `scan` → `extract` → `translate`（`mock`）→
+`verify` → `install` → `launch`。XP-A 启动后进入对话框，画面里出现 mock 的「译:」前缀；
+VX-A 的 hook 日志记录 `drawn: 译` 与 `drawn: :`，说明绘制钩子确实拿到译文，但当前锁屏
+环境下 WGC 与 PrintWindow 都只得到黑帧，产品化截图无法重截；2026-11-14 的历史截图曾看到
+「译:観衆」等对白，作为运行时证据的补充，不冒充本次重跑。
+
+VX Ace-A 是打包发行（只有 `.rgss3a`，没有 `Data/` 目录），所以它验的是两条读取路径里的归档
 那条：`.rxdata` / `.rvdata` / `.rvdata2` 都在归档里，工具先按 `RGSSAD` 头解出目录，再逐个文档
 解 Ruby Marshal（`src/engines/rgss/archive.js:343`、`src/engines/rgss/marshal.js:91`）。抽取按
 文档名排序后再遍历，所以同一款游戏解包成 `Data/` 目录时给出的是同样的顺序与计数，磁盘版和
@@ -174,12 +182,12 @@ Ren'Py 的安装产物是一个文件：`install` 写 `game/yakusha_translation.
 与记录组件 SHA-256 的 `manifest.json`，游戏自身文件一个字节不改；装了以后 `launch` 通过
 `yakusha_injector.exe` 启动 `Game.exe`，`uninstall` 删掉这个目录即还原；`doctor` 的
 `install` / `runtime` 检查都转为 `ok`。机制与覆盖边界见 [design.md](design.md) 的
-「RGSS 为什么用原生注入器」。所以上表证明的仍是"读得到、翻得了、校验得了"；运行时效果只在
-下面这一款样本上验证过——**不是**对整个 RGSS 家族的验收。
+「RGSS 为什么用原生注入器」。所以上表证明的是三版各一款的"读得到、翻得了、校验得了"；
+运行时效果也只在这三款样本上验证过——**不是**对整个 RGSS 家族的验收。
 
-文本里的控制码仍是反斜杠一族（`\i[n]` 图标、`\c[n]` 换色、`\v[n]` 变量、`\!` 停顿……实测
-共 23 种），所以 tokenize、校验、运行时查表直接复用 MZ/MV 那套 `src/core/textkey.js`，没有为
-RGSS 另写一套（见 [design.md](design.md) 的「RGSS 控制码」）。这也让 `scan` 打印的是
+文本里的控制码仍是反斜杠一族（`\i[n]` 图标、`\c[n]` 换色、`\v[n]` 变量、`\!` 停顿……VX Ace-A
+实测共 23 种；XP-A / VX-A 未单独统计），所以 tokenize、校验、运行时查表直接复用 MZ/MV 那套
+`src/core/textkey.js`，没有为 RGSS 另写一套（见 [design.md](design.md) 的「RGSS 控制码」）。这也让 `scan` 打印的是
 `data files:` 而不是 `scripts   :`——RGSS 数的是数据文档（`bin/yakusha.js:137`）。
 
 RGSS 的根目录形状是 `Game.ini` + `Data/`，或者启动器 `.exe` + 一个
@@ -187,10 +195,13 @@ RGSS 的根目录形状是 `Game.ini` + `Data/`，或者启动器 `.exe` + 一�
 （`src/engines/rgss/project.js:282`），`detect` 还会先从你给的目录往上找最多 3 层，所以指到启动器
 目录、`Data/` 或游戏的子目录都能命中。引擎版本不是读版本号，而是按归档扩展名 → `Game.ini` 的
 `Library=` → `Scripts=` 的扩展名 → `Data/` 里的文件扩展名依次推断
-（`src/engines/rgss/project.js:309`）。
+（`src/engines/rgss/project.js:309`）。`Game.ini` 按字节判编码：严格 UTF-8 优先，含假名或
+`Library=...rgssNNNj.dll` 时按 Shift_JIS，否则 GBK（0.82 修复：无假名的日文标题不再被 GBK
+误解，例如 `Synthetic Quest体験版` 仍能得到正确标题）。
 
-**这不等于对 RGSS 全家族的运行时验收**：本机只有这一款 VX Ace 样本（RGSS300.dll），XP 与 VX
-两款还没有实测数字，三个版本的验收基线也没定；带可执行文件保护壳的样本没有尝试注入。
+**这不等于对 RGSS 全家族的运行时验收**：三版各只有一款样本，三个版本的验收基线仍未定；
+带可执行文件保护壳的样本没有尝试注入。XP / VX 的读取与交付由真实样本和合成夹具共同覆盖，
+VX 的视觉截图受锁屏限制（见 [limitations.md](limitations.md) 的 RGSS 一节）。
 
 ## Kirikiri（KAG）
 

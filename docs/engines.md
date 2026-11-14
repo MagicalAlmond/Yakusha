@@ -387,7 +387,7 @@ MV 的 `debuggable:false` 有实测依据：2019/2020 年的 nw.js 版本传
 | RPG Maker MZ | `{kind:"range", min:"1.3.2", max:"1.9.0"}` | 区间外 `warn`；读不到或不认识 `info` |
 | RPG Maker MV | `{kind:"range", min:"1.6.1", max:"1.6.2"}` | 同上 |
 | Ren'Py | `{kind:"none"}` | 项目里的 `config.version` 是游戏自己的版本，不是 Ren'Py 运行时版本，没有可比较的矩阵 |
-| RGSS（XP/VX/VX Ace） | `{kind:"values", values:["1","2","3"], tested:["3"]}` | 值不在列表 `warn`；在列表但未实测（1/2）`info` |
+| RGSS（XP/VX/VX Ace） | `{kind:"values", values:["1","2","3"], tested:["1","2","3"]}` | 值不在列表 `warn`；三版均已实测，不再追加 `info` |
 | Kirikiri | `{kind:"none"}` | XP3 归档不记录引擎版本，没有可比较的矩阵 |
 
 `versions` 是 adapter 的只读数据字段，不是 `capabilities` 的一部分，也不进 `scan` 载荷；GUI 和文档只把它当说明性元数据。版本比较是数字逐段比较（`1.7` 等于 `1.7.0`），`v1.7.0` 这类带前缀的字符串按“不认识”处理并记 `info`，不猜。
@@ -737,10 +737,15 @@ DLL 搜索路径（Windows 解析 DLL 自己的导入表时走的是**应用程�
 **第一行 `bootstrap ready` 是 Ruby 侧真的跑起来的标志**，只有 `DLL attached` 说明 bootstrap
 没执行（`RGSSEval` 对语法错误只返回 0，不会报错）。
 
-**已知限制。** 这些都是 0.18 的真实边界，不要写得比实现更满：
+**已知限制。** 这些都是 0.18 / 0.82 的真实边界，不要写得比实现更满：
 
-- 只在 2 款真实 VX Ace 游戏上实测过：`RGSS300.dll`（0.18 / 0.69）与 `RGSS301.dll` + 2.0 GB
-  归档（0.70）；XP / VX（RGSS1 / RGSS2）未实测。
+- XP / VX 各一款、VX Ace 两款真实游戏上实测过：XP（RGSS1）、VX（RGSS2），VX Ace 是
+  `RGSS300.dll`（0.18 / 0.69）与 `RGSS301.dll` + 2.0 GB 归档（0.70）两款。VX 的视觉截图受锁屏
+  限制，运行时证据是 hook 日志与 2026-11-14 的历史截图。
+- RGSS1 的消息窗口在译文字符上可能拿到 0 宽 `Rect`，触发 `Bitmap.new(0,16)` 或
+  `Window_Message` 的 `TypeError`。0.82 起 `bootstrap.rb` 在字典非空且默认字体是常见
+  Gothic / Arial 系时切到 `Microsoft YaHei UI`，并给 `Bitmap#text_size` 加兜底（宽度 <= 0
+  时按字符数估算）；只影响走 `draw_text` 的文本。
 - **自绘文字不进钩子**：把字形当图片贴的位图字体渲染（不少 VX Ace 商业游戏用它画标题与
   菜单）不会调用 `Bitmap#draw_text`，绘制钩子拿不到任何字符串；用 `YAKUSHA_DRAW_TRACE=1`
   能看到实际经过钩子的只有零星几条（第二款实测样本的标题界面只有 `00:00` 与 `e`），

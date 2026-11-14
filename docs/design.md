@@ -87,8 +87,10 @@ RGSS（XP / VX / VX Ace）是本项目接的第四种引擎。它没有可以挂
 覆盖不到的地方也要说清楚：只有 `load_data` 返回对象里能到达的字符串（加 `Vocab` 兜底）会被
 替换，直接写在脚本里的字面量参数不经过这里；注入器是进程内 IAT patch，未签名的 exe / DLL
 可能被杀毒软件拦，SHA-256 清单是 0.18 的完整性机制、代码签名留给后续；已经加壳的可执行
-文件不在范围内。版本上只在一款 VX Ace 商业游戏的副本上实测过（RGSS300.dll），XP / VX
-（RGSS1 / RGSS2）未测，RGSS301 只按同族推断。
+文件不在范围内。版本上 XP（RGSS1）、VX（RGSS2）与 VX Ace（RGSS3）各在一款商业游戏副本上
+实测过（VX Ace 覆盖 RGSS300.dll 与 RGSS301.dll）；0.82 起 RGSS1 还处理 0 宽 `Rect`：字典
+非空时把常见 Gothic / Arial 默认字体切到 `Microsoft YaHei UI`，并给 `Bitmap#text_size`
+加兜底，避免消息窗口以 `Bitmap.new(0,16)` 或 `TypeError` 崩掉。
 
 ## Kirikiri 的 patch 覆盖归档
 

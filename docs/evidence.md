@@ -58,29 +58,29 @@
 
 | 能力键 | 证据等级 | 证据指针 | 缺什么 |
 | --- | --- | --- | --- |
-| extract | L2 | `test/rgss-extract.test.js`、`test/rgss-archive.test.js`、`test/rgss-marshal.test.js`；`docs/games.md:146-193` | 真实游戏只有 VX Ace；XP / VX 的读取由合成夹具覆盖（`test/rgss-extract.test.js`），真实游戏未测 |
-| export | L2 | `test/export.test.js` | 同 extract 的样本缺口；真实游戏导出未单独记录 |
-| runtime | L4 | `test/rgss-native-source.test.js`；`docs/limitations.md:43-44`；`docs/engines.md:1416` | XP / VX 未测；自绘位图字体与图片文字不在钩子覆盖内 |
-| launch | L4 | `test/launch.test.js`；`docs/limitations.md:43-44` | 同 runtime |
+| extract | L2 | `test/rgss-extract.test.js`、`test/rgss-archive.test.js`、`test/rgss-marshal.test.js`；`docs/games.md` 的 RGSS 一节 | XP / VX / VX Ace 各一款真实游戏完成 scan / extract（XP 5,316 串、VX 733 串、VX Ace 31,730 串）；三个版本另有合成夹具（`test/rgss-extract.test.js`） |
+| export | L2 | `test/export.test.js` | 同 extract；真实游戏导出未单独记录 |
+| runtime | L4 | `test/rgss-native-source.test.js`；`docs/limitations.md` 的 RGSS 一节；`docs/engines.md` 的 RGSS 一节 | 三版各一款真机走查；VX 的视觉截图受锁屏限制，以 hook 日志与 2026-11-14 历史截图记录；自绘位图字体与图片文字不在钩子覆盖内 |
+| launch | L4 | `test/launch.test.js`；`docs/limitations.md` 的 RGSS 一节 | 同 runtime；XP / VX / VX Ace 各一款经注入器启动 |
 | debuggable | — | `docs/engines.json`（`debuggable: false`）；`src/engines/contract.js` | 未实现 |
 | attach | — | `docs/engines.json`（`attach: false`）；`test/engine-contract.test.js:418-427` | 0.10 起是桩，无 CLI |
 | liveReload | — | `docs/engines.json`（`liveReload: false`）；`src/engines/contract.js` | 未实现 |
-| end-to-end | L4 | `test/rgss-native-source.test.js`；`docs/games.md:146-193` | 真实游戏只覆盖 VX Ace；XP / VX 仅合成夹具覆盖，真实未测 |
+| end-to-end | L4 | `test/rgss-native-source.test.js`；`docs/games.md` 的 RGSS 一节 | 三版各一款走完 translate（mock）→ verify → install → launch；VX 的运行时证据是 hook 日志 + 历史截图，当前锁屏下无法重截 |
 
 ## Kirikiri
 
 | 能力键 | 证据等级 | 证据指针 | 缺什么 |
 | --- | --- | --- | --- |
-| extract | L2 | `test/krkr-extract.test.js`、`test/krkr-xp3.test.js`、`test/krkr-ks.test.js`、`test/krkr-project.test.js`；`docs/games.md:195-237` | 只读标准未加密 XP3；加密变体与 Hxv4 索引不支持 |
+| extract | L2 | `test/krkr-extract.test.js`、`test/krkr-xp3.test.js`、`test/krkr-ks.test.js`、`test/krkr-project.test.js`；`docs/games.md` 的 Kirikiri 一节 | 只读标准未加密 XP3；加密变体与 Hxv4 索引不支持 |
 | export | L2 | `test/export.test.js` | 真实游戏上的导出与回读未单独记录 |
-| runtime | L4 | `test/krkr-patch.test.js`、`test/krkr-cli.test.js:172-193`；`docs/limitations.md:74-80`；仓库外真机验收 2026-11-13 | — |
-| launch | L4 | `test/launch.test.js`；`docs/limitations.md:74-80`；仓库外真机验收 2026-11-13 | 启动画面点击路径仍是手工操作，未做成自动化验收 |
+| runtime | L4 | `test/krkr-patch.test.js`、`test/krkr-cli.test.js:172-193`；`docs/limitations.md` 的 Kirikiri 一节；仓库外真机验收 2026-11-13 | — |
+| launch | L4 | `test/launch.test.js`；`docs/limitations.md` 的 Kirikiri 一节；仓库外真机验收 2026-11-13 | 启动画面点击路径仍是手工操作，未做成自动化验收 |
 | debuggable | — | `docs/engines.json`（`debuggable: false`）；`src/engines/contract.js` | 未实现 |
 | attach | — | `docs/engines.json`（`attach: false`）；`test/engine-contract.test.js:418-427` | 0.10 起是桩，无 CLI |
 | liveReload | — | `docs/engines.json`（`liveReload: false`）；`src/engines/contract.js` | 未实现 |
-| end-to-end | L4 | `test/krkr-patch.test.js`、`test/krkr-cli.test.js:172-193`；`docs/limitations.md:74-80`；仓库外真机验收 2026-11-13 | 启动画面点击路径未自动化；Hxv4 索引仍报 `E_UNSUPPORTED` |
+| end-to-end | L4 | `test/krkr-patch.test.js`、`test/krkr-cli.test.js:172-193`；`docs/limitations.md` 的 Kirikiri 一节；仓库外真机验收 2026-11-13 | 启动画面点击路径未自动化；Hxv4 索引仍报 `E_UNSUPPORTED` |
 
-2026-11-13 的仓库外真机验收用的是一款商业 KiriKiri 游戏（1280×960 KAG）。该游戏已有 `patch.xp3`，`install` 按规则顺延写入 `patch2.xp3`（10,125 条目 / 44 个 `.ks`）；启动后对白两处出现 mock 的 `译:` 前缀，说明归档被加载、UTF-8 BOM 与 UTF-16LE 的 `.ks` 都被正确解码；`uninstall` 返回 `removed:true`、`drifted:false`，只回收 `patch2.xp3`，原 `data.xp3`、`patch.xp3` 与 exe 字节不变。`docs/games.md:226-230` 曾把「headless 无法开窗」写成限制，这条结论已被 0.77 的真机验收推翻，本台账按实测记录。
+2026-11-13 的仓库外真机验收用的是一款商业 KiriKiri 游戏（1280×960 KAG）。该游戏已有 `patch.xp3`，`install` 按规则顺延写入 `patch2.xp3`（10,125 条目 / 44 个 `.ks`）；启动后对白两处出现 mock 的 `译:` 前缀，说明归档被加载、UTF-8 BOM 与 UTF-16LE 的 `.ks` 都被正确解码；`uninstall` 返回 `removed:true`、`drifted:false`，只回收 `patch2.xp3`，原 `data.xp3`、`patch.xp3` 与 exe 字节不变。`docs/games.md` 的 Kirikiri 一节曾把「headless 无法开窗」写成限制，这条结论已被 0.77 的真机验收推翻，本台账按实测记录。
 
 ## 缺口汇总
 
@@ -89,7 +89,7 @@
 | RPG Maker MZ | 无；L4 已达成 |
 | RPG Maker MV | 无；L4 已达成 |
 | Ren'Py | 缺一个真实商业游戏样本；当前只到 L3，需要在真实游戏里启动并肉眼确认译文 |
-| RGSS | VX Ace 已有 L4；XP / VX 没有实机基线，1.0 前不补测就按 experimental 标 |
+| RGSS | 三版各一款已有 L4；VX 的视觉截图受锁屏限制，以 hook 日志与历史截图记录 |
 | Kirikiri | 无；L4 已达成。启动画面点击路径仍靠手工，Hxv4 索引不在支持范围 |
 
 ## 1.0 门禁清单
@@ -99,8 +99,8 @@
 - [x] RPG Maker MZ 达到 L4。
 - [x] RPG Maker MV 达到 L4。
 - [ ] Ren'Py 达到 L4（当前 L3，缺真实商业游戏运行时验收）。
-- [x] RGSS 在 VX Ace 上达到 L4。
-- [ ] RGSS XP / VX 补实机基线，或在 1.0 明确标 experimental。
+- [x] RGSS 在 XP / VX / VX Ace 上各一款达到 L4。
+- [x] RGSS XP / VX 补实机基线（0.82；VX 截图受锁屏限制，运行时证据为 hook 日志 + 历史截图）。
 - [x] Kirikiri 达到 L4。
 - [x] 五个引擎的 `capabilities` 与 `docs/engines.json`、`docs/games.md`、`docs/limitations.md` 一致（`test/engines-json.test.js` 守住）。
 - [x] GUI 真机走查：`docs/gui.md` 的验收项逐条在真机点过。0.78 用 `tools/gui-acceptance.mjs` 在 Electron 真窗跑通 MZ / MV / Ren'Py / RGSS / Kirikiri 五链的 scan → extract → translate → verify → install → uninstall → doctor，并核对 plugin 档 `js/plugins.js` 与 patch 档原 `data.xp3` 的字节不变（`test/gui-e2e.test.js` 只是 handler 层的自动化覆盖）。

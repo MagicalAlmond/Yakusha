@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.82.0] - 2026-11-15
+
+### Added
+
+- RGSS XP (RGSS1) and VX (RGSS2) now have real-game L4 baselines alongside VX Ace: one commercial game each completed `scan` → `extract` → `translate` (`mock`) → `verify` → `install` → `launch`. XP shows the mock `译:` prefix in its message window; VX's hook log records `drawn: 译` and `drawn: :`, but the current locked desktop makes WGC / PrintWindow return black frames, so its visual evidence is the hook log plus the 2026-11-14 historical screenshot. `docs/evidence.md`, `docs/games.md`, `docs/engines.json`, `docs/limitations.md` and `docs/manual-acceptance.md` record the new coverage; adapter `versions.tested` is now `["1","2","3"]`.
+
+### Fixed
+
+- `Game.ini` decoding now classifies bytes as strict UTF-8 first, then Shift_JIS when the text contains kana or names an `rgssNNNj.dll` runtime, then GBK; a Japanese title without kana is no longer mis-decoded as GBK.
+- RGSS1 message windows no longer collapse on translated text: `bootstrap.rb` switches a common Gothic / Arial default font to `Microsoft YaHei UI` when a dictionary is present and adds a `Bitmap#text_size` fallback for zero-width rects, avoiding `Bitmap.new(0,16)` and `Window_Message` `TypeError`.
+
+### Unchanged
+
+- The JSON envelope, exit codes, command table, error codes and every payload key are untouched. No new dependency. 953 pass.
+
 ## [0.81.0] - 2026-11-13
 
 ### Added
@@ -1068,6 +1083,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
 [Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.81.0...HEAD
+[0.82.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.81.0...v0.82.0
 [0.81.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.80.0...v0.81.0
 [0.80.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.79.0...v0.80.0
 [0.79.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.78.0...v0.79.0

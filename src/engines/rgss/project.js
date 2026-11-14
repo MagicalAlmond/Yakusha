@@ -13,8 +13,9 @@
  *  - `Game.ini` is written by the editor in the system locale, so its strings are
  *    Shift_JIS for a Japanese game and GBK for a Chinese one. Node decodes both
  *    when the ICU build carries the tables; the decoder falls back to Shift_JIS
- *    only when the bytes actually look Japanese, because both charsets accept
- *    the same byte ranges and a wrong guess turns a title into mojibake.
+ *    only when the bytes actually look Japanese — kana in the decoded text, or a
+ *    Japanese runtime DLL named in `Game.ini` — because both charsets accept the
+ *    same byte ranges and a wrong guess turns a title into mojibake.
  *  - the version of the engine is visible in three independent places (the
  *    runtime library named in `Game.ini`, the data file extension, the archive
  *    extension). They always agree on a healthy install, so any of them can be
@@ -82,8 +83,8 @@ export const EDITION_NAMES = { 1: "XP", 2: "VX", 3: "VX Ace" };
  *
  * UTF-8 wins when the bytes are valid UTF-8, because that is unambiguous. The
  * legacy charsets share their byte ranges, so the second opinion comes from the
- * text itself: a Shift_JIS decoding that contains kana is Japanese, anything
- * else is decoded as GBK.
+ * text itself: a Shift_JIS decoding that contains kana or names a Japanese
+ * runtime DLL is Japanese; anything else is decoded as GBK.
  *
  * @param {Buffer} buffer
  * @returns {string}
@@ -92,7 +93,7 @@ export function decodeIni(buffer) {
   const utf8 = tryDecode(buffer, "utf-8");
   if (utf8 !== null) return utf8;
   const japanese = tryDecode(buffer, "shift_jis");
-  if (japanese !== null && /[\u3040-\u30ff]/.test(japanese)) return japanese;
+  if (japanese !== null && (/[\u3040-\u30ff]/.test(japanese) || /^library\s*=\s*[^\r\n]*rgss\d{3}j\.dll/im.test(japanese))) return japanese;
   const chinese = tryDecode(buffer, "gbk");
   if (chinese !== null) return chinese;
   if (japanese !== null) return japanese;

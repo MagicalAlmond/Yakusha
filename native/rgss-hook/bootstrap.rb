@@ -35,6 +35,8 @@ module Yakusha
   @hooks_installed = false
   @draw_hooked = false
   @draw_hits = 0
+  @text_size_patched = false
+  @font_set = false
 
   def self.log(message)
     begin
@@ -224,10 +226,77 @@ module Yakusha
     end
   end
 
+  # RGSS1's Bitmap#text_size returns a zero-width Rect for a translated
+  # character when the active font has no glyph for it. Window_Message then
+  # creates Bitmap.new(0, 16) and RGSS aborts with "failed to create bitmap",
+  # or line 207 raises while adding the zero width. Keep a conservative width
+  # so the message window can finish laying out the line. Rect#== raises when
+  # handed nil, so the nil checks must use nil? rather than == nil.
+  def self.install_text_size_fallback
+    return if @text_size_patched
+    return unless defined?(Bitmap)
+    begin
+      Bitmap.class_eval do
+        unless method_defined?(:yakusha_original_text_size) || private_method_defined?(:yakusha_original_text_size)
+          alias_method :yakusha_original_text_size, :text_size
+        end
+        def text_size(str)
+          begin
+            rect = yakusha_original_text_size(str)
+          rescue Exception
+            rect = nil
+          end
+          width = 0
+          unless rect.nil?
+            begin
+              width = rect.width.to_i
+            rescue Exception
+              width = 0
+            end
+          end
+          if !str.nil? && str.length > 0 && width <= 0
+            width = str.length * 12
+            width = 12 if width <= 0
+            rect = Rect.new(0, 0, width, 18)
+          end
+          rect
+        end
+      end
+      @text_size_patched = true
+      log("text_size fallback installed")
+    rescue Exception => error
+      log("text_size fallback failed: " + error.class.to_s)
+    end
+  end
+
+  # RGSS1's default font (MS Gothic) has no simplified-Chinese glyphs, so a
+  # translated line draws as an empty message window. Keep a game's own font
+  # when it already looks Chinese-capable; otherwise switch the default to a
+  # font Windows ships that covers both Japanese and simplified Chinese.
+  def self.install_font
+    return if @font_set
+    return unless defined?(Font)
+    return if dictionary.empty?
+    begin
+      current = Font.default_name.to_s
+      # RGSS1 reports the Japanese default with full-width letters
+      # (ＭＳ Ｐゴシック), so match both spellings.
+      if current.empty? || current =~ /(MS Gothic|MS PGothic|MS UI Gothic|Arial|Verdana|Tahoma|ＭＳ Ｐゴシック|ＭＳ ゴシック|ＭＳ ＵＩ Ｇｏｔｈｉｃ|Meiryo|Yu Gothic)/i
+        Font.default_name = "Microsoft YaHei UI"
+      end
+      @font_set = true
+      log("font set: " + Font.default_name.to_s)
+    rescue Exception => error
+      log("font set failed: " + error.class.to_s)
+    end
+  end
+
   # Vocab only exists once the game scripts have loaded, so this is retried on
   # every load_data call until it succeeds.
   def self.install_hooks
     install_draw_hook
+    install_font
+    install_text_size_fallback
     return if @hooks_installed
     return unless defined?(Vocab)
     patch_vocab

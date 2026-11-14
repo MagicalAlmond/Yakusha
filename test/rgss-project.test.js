@@ -133,6 +133,20 @@ test("project: the ini decoder prefers UTF-8 and falls back to a legacy charset"
   assert.equal(decodeIni(sjis), "Title=\u30c6\u30b9\u30c8");
 });
 
+test("project: a Japanese runtime name keeps a kana-less Shift_JIS title readable", () => {
+  const sjisHex = "5b47616d655d0d0a4c6962726172793d524753533130344a2e646c6c0d0a536372697074733d446174615c536372697074732e7278646174610d0a5469746c653d53796e74686574696320517565737491cc8cb194c50d0a";
+  const sjisIni = Buffer.from(sjisHex, "hex");
+  assert.match(decodeIni(sjisIni), /Title=Synthetic Quest体験版\r\n/);
+  assert.equal(parseIni(sjisIni).title, "Synthetic Quest体験版");
+  assert.equal(parseIni(sjisIni).library, "RGSS104J.dll");
+
+  const gbkHex = "5b47616d655d0d0a4c6962726172793d53797374656d5c52475353313034452e646c6c0d0a536372697074733d446174615c536372697074732e7278646174610d0a5469746c653dd6d0cec40d0a";
+  const gbkIni = Buffer.from(gbkHex, "hex");
+  assert.match(decodeIni(gbkIni), /Title=中文\r\n/);
+  assert.equal(parseIni(gbkIni).title, "中文");
+  assert.equal(parseIni(gbkIni).library, "System\\RGSS104E.dll");
+});
+
 test("project: openRgssProject reports the identity a caller prints", () => {
   const dir = gameDir({ files: ["System.rvdata2", "Actors.rvdata2"] });
   const project = openRgssProject(dir);

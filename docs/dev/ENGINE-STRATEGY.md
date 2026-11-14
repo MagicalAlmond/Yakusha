@@ -601,6 +601,7 @@ TextGrammar = {
 | 0.79 | 便携 exe 发布工程：`tools/portable-lib.mjs` / `tools/portable.mjs` 组装 `Yakusha.exe` + `resources/app` + `build-info.json` + `SHA256SUMS`，`--verify` 全量哈希复核，`tools/gui-acceptance.mjs --exe` 在便携包上跑五链（**已交付**） | 1.0 的发布前置；代码签名按 2026-11-07 决定暂不做，托管方式仍未定 | 0.79 构建 163 文件 / 307,921,513 字节，五链真机通过，npm test 941 条全绿 |
 | 0.80 | 桌面收尾：最近项目（localStorage 最多 5 个、按路径去重）、窗口/任务栏图标、窗口大小/位置持久化、便携包 PE Subsystem=GUI 双重校验（**已交付**） | 1.0 路线表里的「图标、无控制台、最近游戏」三项在仓库内全部落地，只剩真实游戏样本与托管决策 | 949 pass / 0 fail（gui-renderer 23、gui-main 21、window-state +4、portable +1）；MZ/MV/Ren'Py/RGSS/Kirikiri 五链真窗通过 |
 | 0.81 | 发布前置：未签名披露 + 剩余人工验收清单（**已交付**） | 把不能在仓库内自动化的 1.0 门禁写成可执行清单，避免「全绿」被误读成「可发布」 | 951 pass / 0 fail；`docs/manual-acceptance.md` 四节；GUI/README 未签名披露 |
+| 0.82 | RGSS XP / VX 真机基线：`Game.ini` 编码判定（Shift_JIS / GBK）、RGSS1 字体与 `text_size` fallback、XP / VX 各一款全链（**已交付**） | 0.81 把 XP / VX 列为人工验收缺口；0.82 用本机真实样本补上，VX 截图受锁屏限制 | 953 pass / 0 fail；XP 5,316 串、VX 733 串，均见 mock `译:` |
 | 1.0 | 10 个引擎目标 + 能力矩阵 + 便携 exe | — | 每个引擎有 L4 证据；不达标的明确标 experimental |
 
 说明：
@@ -698,8 +699,9 @@ TextGrammar = {
 ### 9.2 仍需拍板
 
 1. **RGSS 三个版本的验收基线**：XP（RGSS1）/VX（RGSS2）/VX Ace（RGSS3）各要几款真实游戏
-   才敢标 supported？0.18 已在单款 VX Ace（RGSS300.dll）与一款 RGSS301.dll 样本上走查，XP/VX 未测；
-   2026-11-07 已整理 14 款 DLsite XP/VX 候选（XP 6 / VX 8，均有体验版），待购买后实测。
+   才敢标 supported？0.82 已补到三版各一款全链（XP 5,316 串、VX 733 串，均见 mock `译:`；
+   VX 截图受锁屏限制）；剩余问题是每版样本数量与版本碎片覆盖，2026-11-07 整理的 14 款
+   DLsite XP/VX 候选仍可作为扩充池。
 2. ~~**`install --native` 的命名是否保留**~~（0.71 已解决：普通 `install` 按引擎自动选择，`--native` 保留为兼容别名，不新增命令）。
 3. ~~**Kirikiri 交付层路线**~~（0.74 已解决：不改 `data.xp3`，写 `data/patch.xp3`
    覆盖归档 + `yakusha/krkr-patch.json` 清单；`install` / `uninstall` / doctor 全部接通）。

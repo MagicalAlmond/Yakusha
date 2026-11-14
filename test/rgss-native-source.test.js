@@ -120,6 +120,22 @@ test("the draw trace is opt-in, bounded, and runs before the dictionary lookup",
   assert.ok(called < lookup, "the trace has to run before the lookup so misses are visible too");
 });
 
+test("bootstrap keeps a translated RGSS1 message window alive", () => {
+  const lines = codeLines(bootstrap);
+  const fallback = lines.findIndex((line) => line.trimmed === "def self.install_text_size_fallback");
+  assert.notEqual(fallback, -1, "RGSS1 returns a zero-width Rect for translated glyphs");
+  const font = lines.findIndex((line) => line.trimmed === "def self.install_font");
+  assert.notEqual(font, -1, "MS Gothic has no simplified-Chinese glyphs");
+  const hooks = lines.findIndex((line) => line.trimmed === "def self.install_hooks");
+  const body = lines.slice(hooks, hooks + 12).map((line) => line.trimmed);
+  assert.ok(body.includes("install_font"), "the font has to be set once the scripts define Font");
+  assert.ok(body.includes("install_text_size_fallback"), "the size fallback has to run before Window_Message lays out text");
+  assert.match(bootstrap, /Font\.default_name = "Microsoft YaHei UI"/);
+  assert.match(bootstrap, /ＭＳ Ｐゴシック/, "RGSS1 reports the Japanese default in full-width letters");
+  assert.match(bootstrap, /rect\.nil\?/);
+  assert.doesNotMatch(bootstrap, /rect == nil/);
+});
+
 test("the injector points the game at the hook folder before loading the DLL", () => {
   const directed = injector.indexOf("remote_call(&process, set_dll_directory");
   const loaded = injector.indexOf("remote_call(&process, load_library");
