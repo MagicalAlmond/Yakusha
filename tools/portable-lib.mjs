@@ -1,11 +1,12 @@
 /**
  * Build and verify the portable Windows GUI bundle.
  *
- * The portable bundle is a plain Electron runtime directory: the stock
- * electron.exe is renamed to Yakusha.exe, the app lives in resources/app, and
- * the directory can be moved or copied as one piece. It is intentionally
- * unsigned (see docs/release.md); the checksums are an integrity check, not a
- * code-signing identity.
+ * The portable bundle is a plain Electron runtime directory with a small
+ * native launcher: Yakusha.exe starts yakusha-runtime.exe (the stock
+ * electron.exe) and keeps the normal Chromium sandbox as the first attempt.
+ * The app lives in resources/app, and the directory can be moved or copied as
+ * one piece. It is intentionally unsigned (see docs/release.md); the
+ * checksums are an integrity check, not a code-signing identity.
  *
  * This module is implemented with Node built-ins only and is safe to import
  * from tests. tools/portable.mjs is the command-line wrapper.
@@ -22,6 +23,8 @@ export const PORTABLE_TOOL = "yakusha-portable";
 export const BUILD_INFO_FILE = "build-info.json";
 export const SUMS_FILE = "SHA256SUMS";
 export const APP_PACKAGE_FILE = "resources/app/package.json";
+export const LAUNCHER_FILE = "Yakusha.exe";
+export const RUNTIME_FILE = "yakusha-runtime.exe";
 
 /** PE optional-header Subsystem value for a Windows GUI program. */
 export const PE_SUBSYSTEM_WINDOWS_GUI = 2;
@@ -190,12 +193,13 @@ function totalBytes(root, files) {
  * @param {string} options.root repository root
  * @param {string} options.electronDir unpacked Electron distribution
  * @param {string} options.nativeDir directory holding manifest.json + components
+ * @param {string} options.launcher native Yakusha.exe launcher (PE GUI subsystem)
  * @param {string} options.outDir output directory (must be absent, empty, or owned by this tool)
  * @param {boolean} [options.force] replace a previous portable build
  * @param {Date} [options.now] build timestamp (tests pin this)
  * @returns {{outDir: string, buildInfo: object, fileCount: number, totalBytes: number}}
  */
-export function buildPortable({ root, electronDir, nativeDir, outDir, force = false, now = new Date() }) {
+export function buildPortable({ root, electronDir, nativeDir, launcher, outDir, force = false, now = new Date() }) {
   const pkgFile = path.join(root, "package.json");
   const pkg = readJson(pkgFile);
   if (typeof pkg.version !== "string" || !/^\d+\.\d+\.\d+$/.test(pkg.version)) {
@@ -204,6 +208,11 @@ export function buildPortable({ root, electronDir, nativeDir, outDir, force = fa
   requireDir(electronDir, "Electron distribution");
   requireFile(path.join(electronDir, "electron.exe"), "Electron executable");
   requireFile(path.join(electronDir, "version"), "Electron version file");
+  requireFile(launcher, "portable launcher");
+  const launcherSubsystem = readPeSubsystem(launcher);
+  if (launcherSubsystem !== PE_SUBSYSTEM_WINDOWS_GUI) {
+    throw new PortableError("E_IO", "portable launcher is not a Windows GUI program (PE subsystem " + launcherSubsystem + "); double-clicking it would open a console window");
+  }
   const nativeManifest = checkNativeAssets(nativeDir);
 
   const electronVersion = fs.readFileSync(path.join(electronDir, "version"), "utf8").trim();
@@ -237,7 +246,8 @@ export function buildPortable({ root, electronDir, nativeDir, outDir, force = fa
     if (subsystem !== PE_SUBSYSTEM_WINDOWS_GUI) {
       throw new PortableError("E_IO", "Electron executable is not a Windows GUI program (PE subsystem " + subsystem + "); the portable app would open a console window");
     }
-    fs.renameSync(executable, path.join(temporary, "Yakusha.exe"));
+    fs.renameSync(executable, path.join(temporary, RUNTIME_FILE));
+    copyFile(launcher, path.join(temporary, LAUNCHER_FILE));
 
     const appDir = path.join(temporary, "resources", "app");
     fs.mkdirSync(appDir, { recursive: true });
@@ -262,7 +272,12 @@ export function buildPortable({ root, electronDir, nativeDir, outDir, force = fa
       arch: "x64",
       electron: electronVersion,
       builtAt: now.toISOString(),
-      executable: "Yakusha.exe",
+      executable: LAUNCHER_FILE,
+      runtime: RUNTIME_FILE,
+      launcher: {
+        fallback: "windows-sandbox-status-breakpoint",
+        runtime: RUNTIME_FILE,
+      },
       subsystem: "windows-gui",
       signed: false,
       payloadFileCount: payloadFiles.length,
@@ -299,11 +314,19 @@ export function verifyPortable(dir) {
   if (info.schema !== PORTABLE_SCHEMA || info.tool !== PORTABLE_TOOL) {
     throw new PortableError("E_VERIFY", "not a portable bundle: " + dir);
   }
-  const executable = path.join(dir, info.executable || "Yakusha.exe");
+  const executable = path.join(dir, info.executable || LAUNCHER_FILE);
   requireFile(executable, "portable executable");
   const subsystem = readPeSubsystem(executable);
   if (subsystem !== PE_SUBSYSTEM_WINDOWS_GUI) {
     throw new PortableError("E_VERIFY", "portable executable is not a Windows GUI program (PE subsystem " + subsystem + "); double-clicking it would open a console window");
+  }
+  if (info.runtime) {
+    const runtime = path.join(dir, info.runtime);
+    requireFile(runtime, "portable runtime");
+    const runtimeSubsystem = readPeSubsystem(runtime);
+    if (runtimeSubsystem !== PE_SUBSYSTEM_WINDOWS_GUI) {
+      throw new PortableError("E_VERIFY", "portable runtime is not a Windows GUI program (PE subsystem " + runtimeSubsystem + ")");
+    }
   }
   const appPkg = readJson(path.join(dir, APP_PACKAGE_FILE));
   if (appPkg.main !== "gui/main.js" || appPkg.type !== "module") {

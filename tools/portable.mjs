@@ -5,13 +5,16 @@
  * Usage:
  *   node tools/portable.mjs
  *   node tools/portable.mjs --out dist/my-build
+ *   node tools/portable.mjs --launcher tools/launcher/prebuilt/yakusha-launcher.exe
  *   node tools/portable.mjs --force
  *   node tools/portable.mjs --verify dist/yakusha-0.79.0-win-x64
  *
  * The default Electron distribution is node_modules/electron/dist (a dev
- * dependency); the default native components are native/prebuilt. Both are
- * read-only inputs. The output directory is the deliverable: copy it to a
- * release page or double-click Yakusha.exe inside it.
+ * dependency), the default native components are native/prebuilt, and the
+ * default launcher is tools/launcher/prebuilt/yakusha-launcher.exe (built by
+ * node tools/build-launcher.mjs). All are read-only inputs. The output
+ * directory is the deliverable: copy it to a release page or double-click
+ * Yakusha.exe inside it.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -36,6 +39,7 @@ function usage() {
     "  --out <dir>          output directory (default: dist/yakusha-<version>-win-x64)",
     "  --electron-dir <dir> unpacked Electron distribution (default: node_modules/electron/dist)",
     "  --native-dir <dir>   native components with manifest.json (default: native/prebuilt)",
+    "  --launcher <exe>     native Yakusha.exe launcher (default: tools/launcher/prebuilt/yakusha-launcher.exe)",
     "  --force              replace a previous portable build in --out",
     "  --verify <dir>       verify an existing bundle and exit",
     "  --json               print one JSON document",
@@ -48,6 +52,7 @@ function parseArgs(argv) {
     out: null,
     electronDir: null,
     nativeDir: null,
+    launcher: null,
     force: false,
     verify: null,
     json: false,
@@ -64,6 +69,9 @@ function parseArgs(argv) {
     } else if (arg === "--native-dir") {
       options.nativeDir = argv[++index];
       if (!options.nativeDir) throw new PortableError("E_USAGE", "--native-dir requires a directory");
+    } else if (arg === "--launcher") {
+      options.launcher = argv[++index];
+      if (!options.launcher) throw new PortableError("E_USAGE", "--launcher requires an executable");
     } else if (arg === "--verify") {
       options.verify = argv[++index];
       if (!options.verify) throw new PortableError("E_USAGE", "--verify requires a directory");
@@ -108,14 +116,20 @@ async function main() {
   const outDir = path.resolve(options.out || path.join(root, "dist", "yakusha-" + pkg.version + "-win-x64"));
   const electronDir = path.resolve(options.electronDir || path.join(root, "node_modules", "electron", "dist"));
   const nativeDir = path.resolve(options.nativeDir || path.join(root, "native", "prebuilt"));
+  const launcher = path.resolve(options.launcher || path.join(root, "tools", "launcher", "prebuilt", "yakusha-launcher.exe"));
   if (!fs.existsSync(electronDir)) {
     throw new PortableError("E_IO", "Electron distribution is missing: " + electronDir + " (run pnpm install first)");
+  }
+
+  if (!fs.existsSync(launcher)) {
+    throw new PortableError("E_IO", "launcher is missing: " + launcher + " (run node tools/build-launcher.mjs)");
   }
 
   const result = buildPortable({
     root,
     electronDir,
     nativeDir,
+    launcher,
     outDir,
     force: options.force,
   });

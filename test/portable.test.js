@@ -64,6 +64,13 @@ function makeElectron(subsystem = 2) {
   return dir;
 }
 
+function makeLauncher(subsystem = 2) {
+  const dir = tempDir("yakusha-portable-launcher-");
+  const file = path.join(dir, "Yakusha.exe");
+  write(file, makePe(subsystem));
+  return file;
+}
+
 function makeNative() {
   const dir = tempDir("yakusha-portable-native-");
   const files = {
@@ -89,8 +96,9 @@ function runCli(args) {
 test("portable: build lays out the runtime, app, native components and checksums", () => {
   const electronDir = makeElectron();
   const nativeDir = makeNative();
+  const launcher = makeLauncher();
   const outDir = path.join(tempDir("yakusha-portable-out-"), "bundle");
-  const result = buildPortable({ root: ROOT, electronDir, nativeDir, outDir, now: new Date("2026-11-12T10:00:00Z") });
+  const result = buildPortable({ root: ROOT, electronDir, nativeDir, launcher, outDir, now: new Date("2026-11-12T10:00:00Z") });
 
   assert.equal(result.outDir, outDir);
   assert.equal(result.buildInfo.schema, 1);
@@ -99,8 +107,13 @@ test("portable: build lays out the runtime, app, native components and checksums
   assert.equal(result.buildInfo.electron, "37.2.3");
   assert.equal(result.buildInfo.subsystem, "windows-gui");
   assert.equal(result.buildInfo.signed, false);
+  assert.equal(result.buildInfo.executable, "Yakusha.exe");
+  assert.equal(result.buildInfo.runtime, "yakusha-runtime.exe");
+  assert.deepEqual(result.buildInfo.launcher, { fallback: "windows-sandbox-status-breakpoint", runtime: "yakusha-runtime.exe" });
   assert.equal(readPeSubsystem(path.join(outDir, "Yakusha.exe")), 2);
+  assert.equal(readPeSubsystem(path.join(outDir, "yakusha-runtime.exe")), 2);
   assert.ok(fs.existsSync(path.join(outDir, "Yakusha.exe")));
+  assert.ok(fs.existsSync(path.join(outDir, "yakusha-runtime.exe")));
   assert.equal(fs.existsSync(path.join(outDir, "electron.exe")), false);
   assert.equal(fs.existsSync(path.join(outDir, "resources", "default_app.asar")), false);
   assert.ok(fs.existsSync(path.join(outDir, "resources", "app", "gui", "main.js")));
@@ -114,6 +127,7 @@ test("portable: build lays out the runtime, app, native components and checksums
   assert.equal(appPkg.version, ROOT_PKG.version);
   const sums = fs.readFileSync(path.join(outDir, "SHA256SUMS"), "utf8");
   assert.ok(sums.includes("  Yakusha.exe\n"), sums);
+  assert.ok(sums.includes("  yakusha-runtime.exe\n"), sums);
   assert.ok(!sums.includes("SHA256SUMS"), sums);
   assert.deepEqual(verifyPortable(outDir), { ok: true, fileCount: result.fileCount, buildInfo: result.buildInfo });
 });
@@ -121,10 +135,23 @@ test("portable: build lays out the runtime, app, native components and checksums
 test("portable: a console-subsystem Electron executable is refused", () => {
   const electronDir = makeElectron(3);
   const nativeDir = makeNative();
+  const launcher = makeLauncher();
   const outDir = path.join(tempDir("yakusha-portable-console-"), "bundle");
   assert.throws(
-    () => buildPortable({ root: ROOT, electronDir, nativeDir, outDir }),
+    () => buildPortable({ root: ROOT, electronDir, nativeDir, launcher, outDir }),
     (error) => error instanceof PortableError && error.code === "E_IO" && /console window/.test(error.message),
+  );
+  assert.equal(fs.existsSync(outDir), false);
+});
+
+test("portable: a console-subsystem launcher is refused", () => {
+  const electronDir = makeElectron();
+  const nativeDir = makeNative();
+  const launcher = makeLauncher(3);
+  const outDir = path.join(tempDir("yakusha-portable-launcher-console-"), "bundle");
+  assert.throws(
+    () => buildPortable({ root: ROOT, electronDir, nativeDir, launcher, outDir }),
+    (error) => error instanceof PortableError && error.code === "E_IO" && /launcher is not a Windows GUI program/.test(error.message),
   );
   assert.equal(fs.existsSync(outDir), false);
 });
@@ -132,8 +159,9 @@ test("portable: a console-subsystem Electron executable is refused", () => {
 test("portable: verify rejects a modified file and an unlisted file", () => {
   const electronDir = makeElectron();
   const nativeDir = makeNative();
+  const launcher = makeLauncher();
   const outDir = path.join(tempDir("yakusha-portable-tamper-"), "bundle");
-  buildPortable({ root: ROOT, electronDir, nativeDir, outDir });
+  buildPortable({ root: ROOT, electronDir, nativeDir, launcher, outDir });
   fs.appendFileSync(path.join(outDir, "resources", "app", "gui", "main.js"), "\n// tampered\n");
   assert.throws(() => verifyPortable(outDir), (error) => error instanceof PortableError && error.code === "E_VERIFY" && /checksum mismatch/.test(error.message));
 });
@@ -141,8 +169,9 @@ test("portable: verify rejects a modified file and an unlisted file", () => {
 test("portable: verify rejects an extra file not listed in SHA256SUMS", () => {
   const electronDir = makeElectron();
   const nativeDir = makeNative();
+  const launcher = makeLauncher();
   const outDir = path.join(tempDir("yakusha-portable-extra-"), "bundle");
-  buildPortable({ root: ROOT, electronDir, nativeDir, outDir });
+  buildPortable({ root: ROOT, electronDir, nativeDir, launcher, outDir });
   write(path.join(outDir, "extra.txt"), "extra\n");
   assert.throws(() => verifyPortable(outDir), (error) => error instanceof PortableError && error.code === "E_VERIFY" && /not listed/.test(error.message));
 });
@@ -150,20 +179,22 @@ test("portable: verify rejects an extra file not listed in SHA256SUMS", () => {
 test("portable: a non-empty output is refused unless --force owns the directory", () => {
   const electronDir = makeElectron();
   const nativeDir = makeNative();
+  const launcher = makeLauncher();
   const parent = tempDir("yakusha-portable-refuse-");
   const outDir = path.join(parent, "bundle");
   write(path.join(outDir, "user-file.txt"), "do not delete\n");
-  assert.throws(() => buildPortable({ root: ROOT, electronDir, nativeDir, outDir }), (error) => error instanceof PortableError && error.code === "E_EXISTS" && /--force/.test(error.message));
-  assert.throws(() => buildPortable({ root: ROOT, electronDir, nativeDir, outDir, force: true }), (error) => error instanceof PortableError && error.code === "E_EXISTS" && /not created by this tool/.test(error.message));
+  assert.throws(() => buildPortable({ root: ROOT, electronDir, nativeDir, launcher, outDir }), (error) => error instanceof PortableError && error.code === "E_EXISTS" && /--force/.test(error.message));
+  assert.throws(() => buildPortable({ root: ROOT, electronDir, nativeDir, launcher, outDir, force: true }), (error) => error instanceof PortableError && error.code === "E_EXISTS" && /not created by this tool/.test(error.message));
   assert.equal(fs.readFileSync(path.join(outDir, "user-file.txt"), "utf8"), "do not delete\n");
 });
 
 test("portable: --force replaces a previous portable build", () => {
   const electronDir = makeElectron();
   const nativeDir = makeNative();
+  const launcher = makeLauncher();
   const outDir = path.join(tempDir("yakusha-portable-force-"), "bundle");
-  buildPortable({ root: ROOT, electronDir, nativeDir, outDir, now: new Date("2026-11-12T10:00:00Z") });
-  const second = buildPortable({ root: ROOT, electronDir, nativeDir, outDir, force: true, now: new Date("2026-11-12T10:01:00Z") });
+  buildPortable({ root: ROOT, electronDir, nativeDir, launcher, outDir, now: new Date("2026-11-12T10:00:00Z") });
+  const second = buildPortable({ root: ROOT, electronDir, nativeDir, launcher, outDir, force: true, now: new Date("2026-11-12T10:01:00Z") });
   assert.equal(second.buildInfo.builtAt, "2026-11-12T10:01:00.000Z");
   assert.equal(verifyPortable(outDir).ok, true);
 });
@@ -176,8 +207,9 @@ test("portable: CLI --help and --verify --json work", () => {
 
   const electronDir = makeElectron();
   const nativeDir = makeNative();
+  const launcher = makeLauncher();
   const outDir = path.join(tempDir("yakusha-portable-cli-"), "bundle");
-  const built = runCli(["--out", outDir, "--electron-dir", electronDir, "--native-dir", nativeDir, "--json"]);
+  const built = runCli(["--out", outDir, "--electron-dir", electronDir, "--native-dir", nativeDir, "--launcher", launcher, "--json"]);
   assert.equal(built.status, 0, built.stderr);
   const envelope = JSON.parse(built.stdout);
   assert.equal(envelope.ok, true);
@@ -194,8 +226,9 @@ test("portable: CLI usage errors exit 2 and a missing Electron distribution exit
 
   const missing = path.join(tempDir("yakusha-portable-missing-"), "no-electron");
   const nativeDir = makeNative();
+  const launcher = makeLauncher();
   const outDir = path.join(tempDir("yakusha-portable-missing-out-"), "bundle");
-  const result = runCli(["--out", outDir, "--electron-dir", missing, "--native-dir", nativeDir]);
+  const result = runCli(["--out", outDir, "--electron-dir", missing, "--native-dir", nativeDir, "--launcher", launcher]);
   assert.equal(result.status, 1, result.stderr);
   assert.ok(result.stderr.includes("E_IO"), result.stderr);
   assert.ok(result.stderr.includes("Electron distribution is missing"), result.stderr);

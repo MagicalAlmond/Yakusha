@@ -341,6 +341,7 @@ test/fixtures/           各引擎最小夹具（mini-mz、mini-mv、renpy-*、r
 | 0.83.0 | **已交付**：Ren'Py RPA 归档读取 + 商业游戏 L4——`src/engines/renpy/rpa.js` 读 RPA-3.x / 4.x 索引与条目（3.x 的 offset / length 与 header key 异或、多段与 inline prefix、只读不解包），`detect` / `scan` / `extract` 直接读 `.rpa` 内的 `.rpyc`；一款商业 RPA-3.0 游戏（245 个 `.rpyc`）完成 scan 43,860 串 → translate（mock）→ verify → install → launch 见 `译:` → uninstall，原 `.rpa` 字节不变 | 958 pass / 0 fail（renpy-rpa +5） |
 | 0.84.0 | **已交付**：Ren'Py screen 文本与生成译文清理——`src/engines/renpy/rpyc.js` 遍历 `.rpyc` AST 的 screen 节点（`text` / `textbutton` / `label`）并读取插件自定义 displayable 的显式 `_()`；`src/engines/renpy/pickle.js` 保留 `NEWOBJ` 构造参数与 `PyExpr.value`；`uninstall` 同时删除 Ren'Py 自动编译的 `yakusha_translation.rpyc`，`extract` 跳过生成译文；1.0 拍板五引擎 + GitHub Releases + 不签名 | 963 pass / 0 fail（Ren'Py 三个测试文件 73 pass） |
 | 1.0.0 | **已交付**：五个引擎（MZ / MV / Ren'Py / RGSS / Kirikiri）+ 能力矩阵 + 便携 exe + GitHub Releases（不签名）——首个 annotated tag，发布包为 `yakusha-1.0.0-win-x64.zip` 与 `SHA256SUMS`（167 个 payload 文件 / 307,967,151 字节） | 963 pass / 0 fail；便携包五链真机通过 |
+| 1.0.1 | **已交付**：双击启动修复——`Yakusha.exe` 改为原生启动器，先以默认 Chromium 沙箱启动 `yakusha-runtime.exe`，仅在子进程以 `0x80000003` / `0xC0000005` 崩溃时回退 `--no-sandbox`；便携包、`build-info.json` 与 `--verify` 同步记录并校验 `executable` / `runtime` / `launcher` | 964 pass / 0 fail（portable +1；真机双击复验） |
 
 ## 10. 风险
 

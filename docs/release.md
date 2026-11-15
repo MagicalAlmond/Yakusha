@@ -10,7 +10,9 @@ Windows x64 目录。它不是安装器，不写注册表，不需要管理员�
   运行时；产物运行时不依赖 Node、pnpm 或仓库。
 - `native/prebuilt/manifest.json` 与清单里的四个原生组件存在（仓库不追踪该目录，
   由 `node native/build.mjs --llvm-mingw <path>` 生成，见 [native/README.md](../native/README.md)）。
-- 构建输入只读：`node_modules/electron/dist` 与 `native/prebuilt` 都不会被修改。
+- 原生启动器 `tools/launcher/prebuilt/yakusha-launcher.exe` 存在（仓库追踪该二进制，
+  由 `node tools/build-launcher.mjs --llvm-mingw <path>` 从 `tools/launcher/launcher.c` 编译）。
+- 构建输入只读：`node_modules/electron/dist`、`native/prebuilt` 与启动器都不会被修改。
 
 ## 2. 构建
 
@@ -25,6 +27,7 @@ node tools/portable.mjs
 | `--out <dir>` | 指定输出目录；默认 `dist/yakusha-<version>-win-x64` |
 | `--electron-dir <dir>` | 指定解包后的 Electron 目录；默认 `node_modules/electron/dist` |
 | `--native-dir <dir>` | 指定原生组件目录；默认 `native/prebuilt` |
+| `--launcher <exe>` | 指定原生启动器；默认 `tools/launcher/prebuilt/yakusha-launcher.exe` |
 | `--force` | 只替换本工具生成过的输出目录；用户自己的非空目录仍拒绝 |
 | `--verify <dir>` | 只校验已有产物，不构建 |
 | `--json` | 输出单个 JSON 文档，便于脚本消费 |
@@ -33,8 +36,9 @@ node tools/portable.mjs
 输出目录的布局：
 
 ```text
-yakusha-1.0.0-win-x64/
-  Yakusha.exe                 # 由 electron.exe 改名，双击即启动 GUI（PE Subsystem=2）
+yakusha-<version>-win-x64/
+  Yakusha.exe                 # 原生启动器，双击即启动 GUI（PE Subsystem=2）
+  yakusha-runtime.exe         # 由 electron.exe 改名，真正的 Electron 运行时（PE Subsystem=2）
   build-info.json             # 版本、Electron 版本、构建时间、原生组件清单、subsystem:windows-gui、signed:false
   SHA256SUMS                  # 除自身外每个文件的 SHA-256，排序、两空格分隔
   README.md
@@ -52,16 +56,23 @@ yakusha-1.0.0-win-x64/
 `resources/app`。GUI 的 profile 仍按 [gui.md](gui.md) §10 的规则解析：优先
 `--user-data-dir`，其次应用数据目录，最后应用旁边的 `.yakusha-gui-profile`。
 
+启动器先不带参数启动 `yakusha-runtime.exe`，保持 Chromium 默认沙箱。只有在子进程以
+`0x80000003`（`STATUS_BREAKPOINT`）或 `0xC0000005`（访问冲突）退出时，才重试一次
+`yakusha-runtime.exe --no-sandbox`；普通退出、应用错误和用户手动退出都不会触发降级。
+这条回退用于部分 Windows 11 构建上 Electron 沙箱子进程启动即崩溃的情况（本机
+2026-11-15 实测 Electron 37.2.3 唯一可用的绕过方式）；`--no-sandbox` 会降低渲染进程
+隔离，只应作为兼容回退，不是默认运行方式。
+
 ## 3. 校验
 
 ```bash
-node tools/portable.mjs --verify dist/yakusha-1.0.0-win-x64
+node tools/portable.mjs --verify dist/yakusha-<version>-win-x64
 ```
 
 校验会重新计算每个文件的哈希，并检查：
 
-- `build-info.json` 的 schema、工具名与版本；
-- `Yakusha.exe` 的 PE optional header Subsystem 必须是 2（Windows GUI）；控制台子系统（3）在构建和校验两处都会被拒绝，双击不会出现黑框；
+- `build-info.json` 的 schema、工具名与版本，以及 `executable` / `runtime` / `launcher` 字段；
+- `Yakusha.exe` 与 `yakusha-runtime.exe` 的 PE optional header Subsystem 都必须是 2（Windows GUI）；控制台子系统（3）在构建和校验两处都会被拒绝，双击不会出现黑框；
 - `Yakusha.exe`、`resources/app/package.json` 的 `main` / `type` / 版本；
 - `SHA256SUMS` 不含绝对路径、重复项、缺失项，也不漏掉产物里的任何文件；
 - 每个文件的 SHA-256 与清单一致。
@@ -73,13 +84,13 @@ node tools/portable.mjs --verify dist/yakusha-1.0.0-win-x64
 构建后用 GUI 验收工具直接运行便携包（而不是仓库里的 Electron）：
 
 ```bash
-node tools/gui-acceptance.mjs --exe dist/yakusha-1.0.0-win-x64/Yakusha.exe
+node tools/gui-acceptance.mjs --exe dist/yakusha-<version>-win-x64/Yakusha.exe
 ```
 
 工具会为 MZ / MV / Ren'Py / RGSS / Kirikiri 五条链准备临时游戏，在真实窗口里点击
 scan → extract → translate → verify → install → uninstall → doctor，并把截图与
-`summary.json` 写到 `.dsh-scratch/gui-acceptance-*`。2026-11-15 的 1.0.0 构建实测：
-167 个 payload 文件 / 307,967,151 字节，五链全部通过（`summary.json` 与截图归档在仓库外验收目录）。
+`summary.json` 写到 `.dsh-scratch/gui-acceptance-*`。2026-11-15 的 1.0.1 构建实测：
+168 个 payload 文件 / 308,035,528 字节，五链全部通过（`summary.json` 与截图归档在仓库外验收目录）；同一构建目录下无参数启动 `Yakusha.exe` 也在默认沙箱启动失败后回退并打开 GUI。
 
 ## 5. 签名、分发与更新
 
@@ -101,7 +112,7 @@ scan → extract → translate → verify → install → uninstall → doctor�
 | 错误码 | 含义 | 处理 |
 | --- | --- | --- |
 | `E_USAGE` | 参数缺失或未知 | 看 `--help`；退出码 2 |
-| `E_IO` | Electron 目录或原生组件缺失 | 先 `pnpm install`，再确认 `native/prebuilt/manifest.json` |
+| `E_IO` | Electron 目录、原生组件或启动器缺失 | 先 `pnpm install`，再确认 `native/prebuilt/manifest.json` 与 `tools/launcher/prebuilt/yakusha-launcher.exe` |
 | `E_EXISTS` | 输出目录非空且不是本工具生成的 | 换 `--out`；确认后手动清理，或只对自有目录加 `--force` |
 | `E_VERIFY` | 产物被改动、缺文件或多文件 | 重新构建；不要手工编辑 `SHA256SUMS` |
 

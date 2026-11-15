@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-11-15
+
+### Fixed
+
+- Double-clicking `Yakusha.exe` on Windows 11 builds where the Chromium sandbox dies at startup (`0x80000003` / `STATUS_BREAKPOINT`) now opens the GUI. `Yakusha.exe` is a small native launcher: it first starts the unchanged Electron runtime with the normal sandbox, and only retries `yakusha-runtime.exe --no-sandbox` when the child exits with `0x80000003` or `0xC0000005`. The portable layout is now `Yakusha.exe` + `yakusha-runtime.exe`; `build-info.json` records `executable` / `runtime` / `launcher`, and `--verify` checks both PE Subsystem=2. No new dependency. 964 pass.
+
 ## [1.0.0] - 2026-11-15
 
 First stable release.
@@ -1123,7 +1129,8 @@ First stable release.
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/MagicalAlmond/Yakusha/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.84.0...v1.0.0
 [0.84.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.83.0...v0.84.0
 [0.83.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.82.0...v0.83.0

@@ -456,7 +456,7 @@ docs/                     设计说明、命令参考、契约、实测记录、
 `node tools/portable.mjs` 在本地组装成可双击的目录，校验与验收见 [docs/release.md](docs/release.md)；
 0.x 开发期不打 tag、不推送 release，1.0 起按 [docs/release.md](docs/release.md) §5 通过 GitHub Releases 发布。完整规则与命令见 [docs/dev/DEVLOG.md](docs/dev/DEVLOG.md) §9。
 
-便携包按未签名构建发布：首次运行 Windows 可能显示 SmartScreen 警告，这是未签名可执行文件的预期行为。遇到拦截时先核对 `SHA256SUMS`，确认文件完整且来源可信后，才选择「更多信息 → 仍要运行」；`SHA256SUMS` 只用于核对文件完整性，不构成发布者身份或信任背书。1.0 已拍板继续不签名，并通过 [GitHub Releases](docs/release.md) 发布；`SHA256SUMS` 与压缩包同页。
+便携包按未签名构建发布：首次运行 Windows 可能显示 SmartScreen 警告，这是未签名可执行文件的预期行为。遇到拦截时先核对 `SHA256SUMS`，确认文件完整且来源可信后，才选择「更多信息 → 仍要运行」；`SHA256SUMS` 只用于核对文件完整性，不构成发布者身份或信任背书。1.0 已拍板继续不签名，并通过 [GitHub Releases](docs/release.md) 发布；`SHA256SUMS` 与压缩包同页。1.0.1 起便携包的 `Yakusha.exe` 是原生启动器：先以默认 Chromium 沙箱启动 `yakusha-runtime.exe`，仅当 Electron 以 `0x80000003` / `0xC0000005` 退出时自动回退一次 `--no-sandbox`；这不是默认关闭沙箱，普通退出和应用错误不会降级。
 
 ## 文档
 

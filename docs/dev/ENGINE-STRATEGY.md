@@ -605,6 +605,7 @@ TextGrammar = {
 | 0.83 | Ren'Py RPA 归档读取 + 商业游戏 L4：`rpa.js` 读 RPA-3.x / 4.x 索引与条目，`detect` / `scan` / `extract` 直接读 `.rpa` 内的 `.rpyc`（**已交付**） | Ren'Py 是五引擎里唯一缺 L4 的；真实发行版通常把脚本打进 `.rpa`，0.83 同时补读取与运行时验收 | 958 pass / 0 fail；一款商业 RPA-3.0 游戏 43,860 串，启动见 mock `译:`，卸载后原 `.rpa` 字节不变 |
 | 0.84 | Ren'Py screen 文本与生成译文清理 + 1.0 发布决策（**已交付**） | 0.83 只验证对话；quick menu 属于 screen 语言，且 Ren'Py 自动生成的 `.rpyc` 会污染二次扫描 | 963 pass / 0 fail；quick menu 真机见 mock `译:`，1.0 定五引擎 + GitHub Releases + 不签名 |
 | 1.0 | 五个引擎（MZ / MV / Ren'Py / RGSS / Kirikiri）+ 能力矩阵 + 便携 exe + GitHub Releases（不签名）（**已交付**） | 2026-11-15 拍板：不补到十个引擎 | 每个引擎有 L4 证据；`v1.0.0` 发布包五链真机通过；963 pass / 0 fail |
+| 1.0.1 | 双击启动修复：原生 `Yakusha.exe` 启动器保留默认沙箱，只在已知 Chromium 沙箱崩溃状态码（`0x80000003` / `0xC0000005`）回退 `--no-sandbox`（**已交付**） | 1.0.0 在本机双击 Electron 37.2.3 直接以 `0x80000003` 退出；修复只作用于 Windows 11 沙箱启动崩溃，不改应用安全模型 | 964 pass / 0 fail；启动器与 runtime 双 PE Subsystem=2；双击见 GUI |
 
 说明：
 
