@@ -33,7 +33,7 @@ node tools/portable.mjs
 输出目录的布局：
 
 ```text
-yakusha-0.80.0-win-x64/
+yakusha-1.0.0-win-x64/
   Yakusha.exe                 # 由 electron.exe 改名，双击即启动 GUI（PE Subsystem=2）
   build-info.json             # 版本、Electron 版本、构建时间、原生组件清单、subsystem:windows-gui、signed:false
   SHA256SUMS                  # 除自身外每个文件的 SHA-256，排序、两空格分隔
@@ -55,7 +55,7 @@ yakusha-0.80.0-win-x64/
 ## 3. 校验
 
 ```bash
-node tools/portable.mjs --verify dist/yakusha-0.80.0-win-x64
+node tools/portable.mjs --verify dist/yakusha-1.0.0-win-x64
 ```
 
 校验会重新计算每个文件的哈希，并检查：
@@ -73,13 +73,13 @@ node tools/portable.mjs --verify dist/yakusha-0.80.0-win-x64
 构建后用 GUI 验收工具直接运行便携包（而不是仓库里的 Electron）：
 
 ```bash
-node tools/gui-acceptance.mjs --exe dist/yakusha-0.80.0-win-x64/Yakusha.exe
+node tools/gui-acceptance.mjs --exe dist/yakusha-1.0.0-win-x64/Yakusha.exe
 ```
 
 工具会为 MZ / MV / Ren'Py / RGSS / Kirikiri 五条链准备临时游戏，在真实窗口里点击
 scan → extract → translate → verify → install → uninstall → doctor，并把截图与
-`summary.json` 写到 `.dsh-scratch/gui-acceptance-*`。2026-11-12 的 0.80 构建实测：
-167 个文件 / 307,940,398 字节，五链全部通过。
+`summary.json` 写到 `.dsh-scratch/gui-acceptance-*`。2026-11-15 的 1.0.0 构建实测：
+167 个 payload 文件 / 307,967,151 字节，五链全部通过（`summary.json` 与截图归档在仓库外验收目录）。
 
 ## 5. 签名、分发与更新
 
@@ -91,8 +91,8 @@ scan → extract → translate → verify → install → uninstall → doctor�
 - **托管：GitHub Releases**（2026-11-15 拍板，1.0 生效）：便携包以
   `yakusha-<version>-win-x64.zip` 上传到 GitHub Releases，页面同时附 `SHA256SUMS`；
   发布者固定为仓库维护者，压缩包解包后目录名保持 `yakusha-<version>-win-x64`。
-- 产物目录默认在 `.gitignore` 的 `dist/` 下，不提交仓库；发布用的压缩包在仓库外生成，
-  仓库不保存二进制。
+- 产物目录默认在 `.gitignore` 的 `dist/` 下，不提交仓库；发布用的压缩包也在 `dist/`
+  生成并随发布页上传，仓库不保存二进制。
 - 签名与托管的最终决定见 [evidence.md](evidence.md) 的 1.0 门禁；本工具只负责
   让"双击 Yakusha.exe 可用"这件事可复现、可校验。
 

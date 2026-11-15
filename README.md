@@ -471,9 +471,9 @@ docs/                     设计说明、命令参考、契约、实测记录、
 | [docs/export-format.md](docs/export-format.md) | 0.10 实现：JSON 导出格式、排序、原子写与覆盖规则；0.13 起另有 TSV / CSV 表格与 import 回灌；0.15 起另有 JSONL 通用内容导入；0.34 起 JSONL 也可导出并带 provenance |
 | [docs/platforms.md](docs/platforms.md) | 平台支持矩阵与决策记录（Windows-only 的原因与重评条件） |
 | [docs/design.md](docs/design.md) | 为什么走运行时钩子、文本面覆盖、转义码、设计约束、作为库用 |
-| [docs/games.md](docs/games.md) | 匿名记录的实测游戏（RPG Maker 15 款、Ren'Py SDK 自带项目、一款 RGSS3 商业游戏）、全量翻译数据、官中游戏的处理方式 |
+| [docs/games.md](docs/games.md) | 匿名记录的实测游戏（RPG Maker 15 款、Ren'Py SDK 自带项目与一款商业 RPA-3.0 游戏、三款 RGSS 商业游戏——XP / VX / VX Ace 各一款）、全量翻译数据、官中游戏的处理方式 |
 | [docs/release.md](docs/release.md) | 便携 exe 的构建、SHA-256 校验、`--exe` 真机验收与签名/分发边界 |
-| [docs/manual-acceptance.md](docs/manual-acceptance.md) | 人工验收记录与发布决策：Ren'Py / RGSS L4 已完成，1.0 定五引擎 + GitHub Releases + 不签名；只剩 Kirikiri 启动画面点击路径 |
+| [docs/manual-acceptance.md](docs/manual-acceptance.md) | 人工验收记录与发布决策：Ren'Py / RGSS / Kirikiri L4 已完成，1.0 定五引擎 + GitHub Releases + 不签名 |
 | [docs/limitations.md](docs/limitations.md) | 已知限制全表 |
 | [docs/dev/DEVLOG.md](docs/dev/DEVLOG.md) | 内部开发日志（阶段、决策、实测、教训） |
 

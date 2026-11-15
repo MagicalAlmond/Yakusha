@@ -2,9 +2,23 @@
 
 All notable changes to this project are documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). No release tag has been cut yet, so versions are recorded by the commit milestone that bumped `package.json`, newest first.
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). `1.0.0` is the first annotated release tag; earlier versions are recorded by the commit milestone that bumped `package.json`, newest first.
 
 ## [Unreleased]
+
+## [1.0.0] - 2026-11-15
+
+First stable release.
+
+### Added
+
+- Stable Windows x64 portable build: `Yakusha.exe` plus `resources/app`, `build-info.json` and a per-file `SHA256SUMS`, assembled by `node tools/portable.mjs` and re-checked by `--verify`. The build is unsigned and distributed through GitHub Releases as `yakusha-1.0.0-win-x64.zip` with a separate `SHA256SUMS`.
+- Five engines are covered end to end: RPG Maker MZ / MV (plugin), Ren'Py (translation file), RPG Maker XP / VX / VX Ace (native injector) and Kirikiri (patch archive). Each engine has L4 runtime evidence in `docs/evidence.md`; `docs/engines.json` is the single source of truth for the capability matrix.
+- `docs/manual-acceptance.md` records the remaining human checks and the 2026-11-15 release decisions: five engines only, GitHub Releases, unsigned.
+
+### Unchanged
+
+- The JSON envelope, exit codes, command table, error codes and every payload key are untouched since 0.10. No new dependency. 963 pass.
 
 ## [0.84.0] - 2026-11-15
 
@@ -1109,7 +1123,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.84.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.84.0...v1.0.0
 [0.84.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.83.0...v0.84.0
 [0.83.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.82.0...v0.83.0
 [0.82.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.81.0...v0.82.0

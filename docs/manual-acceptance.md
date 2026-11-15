@@ -1,8 +1,8 @@
 # 手动验收清单
 
 这份清单只列需要人工判断的验收项。仓库内的单元测试、真机 GUI 链路和便携包校验
-都已完成；发布决策已在 2026-11-15 拍板，当前只剩 Kirikiri 启动画面点击路径这一项
-真机操作。已经完成的历史项保留为记录并标 `[x]`。
+都已完成；发布决策已在 2026-11-15 拍板，Kirikiri 启动画面点击路径也已在 0.77 的真机
+验收中完成。所有条目现在都已关闭，保留为发布记录。
 
 验收口径与能力矩阵见 [evidence.md](evidence.md) 和 [engines.json](engines.json)。本文件
 不重复七能力表，只给操作步骤和通过标准。
@@ -74,14 +74,14 @@ README、GUI 和 [release.md](release.md) 都已明确写出 SmartScreen 风险�
 
 现状：Kirikiri 的 `launch` 只负责启动 `Game.exe`；标题画面上的「开始游戏」等按钮
 要点击后才能进入对白。0.77 已在一款商业游戏上完成 install → 启动 → 点击 → 见译文
-→ uninstall，但点击是桌面操作，没有做成产品化自动化，因此留作手工验收。
+→ uninstall；点击是桌面操作，没有做成产品化自动化，因此按手工步骤验收，2026-11-13 已完成。
 
-- [ ] `node bin/yakusha.js launch <game-dir>` 启动游戏，等标题画面稳定（窗口不要最小化）
-- [ ] 用截图确认「开始游戏」按钮在窗口内的矩形，再把窗口移到固定位置；点击按钮中心
-- [ ] 点击必须走 DPI-aware 的真实鼠标输入（先让窗口到前台并取得焦点，再移动光标与按下）；
+- [x] `node bin/yakusha.js launch <game-dir>` 启动游戏，等标题画面稳定（窗口不要最小化）
+- [x] 用截图确认「开始游戏」按钮在窗口内的矩形，再把窗口移到固定位置；点击按钮中心
+- [x] 点击必须走 DPI-aware 的真实鼠标输入（先让窗口到前台并取得焦点，再移动光标与按下）；
       `PostMessage` 之类的合成消息在 Kirikiri 上不可靠，不作为验收手段
-- [ ] 进入第一段对白，肉眼确认至少一句带 mock `译:` 前缀或已翻译中文
-- [ ] `node bin/yakusha.js uninstall <game-dir>`，确认 `data/patch.xp3` / `patch2.xp3` 与
+- [x] 进入第一段对白，肉眼确认至少一句带 mock `译:` 前缀或已翻译中文
+- [x] `node bin/yakusha.js uninstall <game-dir>`，确认 `data/patch.xp3` / `patch2.xp3` 与
       `yakusha/krkr-patch.json` 消失，原 `data.xp3` 字节不变
 
 通过标准：标题画面点击后能看到一段中文对白；窗口坐标只用于本机操作，不写进仓库文档或夹具。

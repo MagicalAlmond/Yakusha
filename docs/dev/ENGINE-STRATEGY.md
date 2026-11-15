@@ -604,7 +604,7 @@ TextGrammar = {
 | 0.82 | RGSS XP / VX 真机基线：`Game.ini` 编码判定（Shift_JIS / GBK）、RGSS1 字体与 `text_size` fallback、XP / VX 各一款全链（**已交付**） | 0.81 把 XP / VX 列为人工验收缺口；0.82 用本机真实样本补上，VX 也有产品化截图 | 953 pass / 0 fail；XP 5,316 串、VX 733 串，均见 mock `译:` |
 | 0.83 | Ren'Py RPA 归档读取 + 商业游戏 L4：`rpa.js` 读 RPA-3.x / 4.x 索引与条目，`detect` / `scan` / `extract` 直接读 `.rpa` 内的 `.rpyc`（**已交付**） | Ren'Py 是五引擎里唯一缺 L4 的；真实发行版通常把脚本打进 `.rpa`，0.83 同时补读取与运行时验收 | 958 pass / 0 fail；一款商业 RPA-3.0 游戏 43,860 串，启动见 mock `译:`，卸载后原 `.rpa` 字节不变 |
 | 0.84 | Ren'Py screen 文本与生成译文清理 + 1.0 发布决策（**已交付**） | 0.83 只验证对话；quick menu 属于 screen 语言，且 Ren'Py 自动生成的 `.rpyc` 会污染二次扫描 | 963 pass / 0 fail；quick menu 真机见 mock `译:`，1.0 定五引擎 + GitHub Releases + 不签名 |
-| 1.0 | 五个引擎（MZ / MV / Ren'Py / RGSS / Kirikiri）+ 能力矩阵 + 便携 exe + GitHub Releases（不签名） | 2026-11-15 拍板：不补到十个引擎 | 每个引擎有 L4 证据；不达标的明确标 experimental |
+| 1.0 | 五个引擎（MZ / MV / Ren'Py / RGSS / Kirikiri）+ 能力矩阵 + 便携 exe + GitHub Releases（不签名）（**已交付**） | 2026-11-15 拍板：不补到十个引擎 | 每个引擎有 L4 证据；`v1.0.0` 发布包五链真机通过；963 pass / 0 fail |
 
 说明：
 
