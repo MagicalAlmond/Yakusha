@@ -34,7 +34,7 @@ const MULTI_ROOT = /^found \d+ Ren'Py projects under /;
  */
 function notProjectMessage(startDir) {
   return (
-    "not a Ren'Py project (no game/ directory with .rpy or .rpyc scripts found in " +
+    "not a Ren'Py project (no game/ directory with .rpy, .rpyc or .rpa scripts found in " +
     path.resolve(startDir) +
     " or up to 3 levels below it)"
   );

@@ -45,14 +45,16 @@
 
 | 能力键 | 证据等级 | 证据指针 | 缺什么 |
 | --- | --- | --- | --- |
-| extract | L2 | `test/renpy-extract.test.js`、`test/renpy-rpyc.test.js`；`docs/games.md:125-144` | 只用 SDK 官方示例验收，未测真实商业游戏 |
+| extract | L2 | `test/renpy-extract.test.js`、`test/renpy-rpyc.test.js`、`test/renpy-rpa.test.js`；`docs/games.md` 的 Ren'Py 一节；仓库外真机验收 2026-11-15 | 真实商业游戏（RPA-3.0）读出 43,860 唯一串 / 54,617 次，`undecodable` 0；图片文字与插件自定义容器仍看不到 |
 | export | L2 | `test/export.test.js` | 同 extract 的样本缺口；真实游戏导出未单独记录 |
-| runtime | L3 | `test/renpy-runtime.test.js`；`docs/games.md:125-144` | 只做到 install 后静态核对 `game/yakusha_translation.rpy`，未启动游戏看对话框 |
-| launch | L1 | `test/launch.test.js` | 只有适配器启动路径测试，没有真实游戏启动记录 |
+| runtime | L4 | `test/renpy-runtime.test.js`；`docs/games.md` 的 Ren'Py 一节；仓库外真机验收 2026-11-15 | 图片文字与插件自定义容器仍看不到 |
+| launch | L4 | `test/launch.test.js`；仓库外真机验收 2026-11-15 | — |
 | debuggable | — | `docs/engines.json`（`debuggable: false`）；`src/engines/contract.js` | 未实现 |
 | attach | — | `docs/engines.json`（`attach: false`）；`test/engine-contract.test.js:418-427` | 0.10 起是桩，无 CLI |
 | liveReload | — | `docs/engines.json`（`liveReload: false`）；`src/engines/contract.js` | 未实现 |
-| end-to-end | L3 | `test/renpy-runtime.test.js`；`docs/games.md:125-144` | 缺 L4：启动真实游戏并肉眼确认译文 |
+| end-to-end | L4 | `test/renpy-runtime.test.js`、`test/renpy-rpa.test.js`；`docs/games.md` 的 Ren'Py 一节；仓库外真机验收 2026-11-15 | — |
+
+2026-11-15 的仓库外真机验收用的是一款商业 Ren'Py 游戏（RPA-3.0 打包，`game/script.rpa` 内含 245 个 `.rpyc`）。`scan` 读出 292 个数据文件、43,860 唯一串 / 54,617 次，`undecodable` 0；`extract` 43,860；`translate`（mock）43,860；`verify --source-lang en` 2,974 条 source warning、0 errors；`install` 写 5,301,453 字节的 `game/yakusha_translation.rpy`；启动后对话框出现 mock 的 `译:` 前缀（说话人「心声...」，正文「译:马上就要到了...」）；`uninstall` 返回 `removed:true`、`drifted:false`，原 `.rpa` 字节不变。
 
 ## RGSS（XP / VX / VX Ace）
 
@@ -88,7 +90,7 @@
 | --- | --- |
 | RPG Maker MZ | 无；L4 已达成 |
 | RPG Maker MV | 无；L4 已达成 |
-| Ren'Py | 缺一个真实商业游戏样本；当前只到 L3，需要在真实游戏里启动并肉眼确认译文 |
+| Ren'Py | 无；L4 已达成（2026-11-15 真实商业游戏，RPA-3.0） |
 | RGSS | 三版各一款已有 L4；VX 也有产品化截图（仓库外 2026-11-15） |
 | Kirikiri | 无；L4 已达成。启动画面点击路径仍靠手工，Hxv4 索引不在支持范围 |
 
@@ -98,7 +100,7 @@
 
 - [x] RPG Maker MZ 达到 L4。
 - [x] RPG Maker MV 达到 L4。
-- [ ] Ren'Py 达到 L4（当前 L3，缺真实商业游戏运行时验收）。
+- [x] Ren'Py 达到 L4（2026-11-15 真实商业游戏，RPA-3.0；启动后对话框见 mock `译:` 前缀）。
 - [x] RGSS 在 XP / VX / VX Ace 上各一款达到 L4。
 - [x] RGSS XP / VX 补实机基线（0.82；VX 运行时证据为 hook 日志 + 产品化截图，仓库外 2026-11-15）。
 - [x] Kirikiri 达到 L4。

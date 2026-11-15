@@ -1,7 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { walkScripts } from "./project.js";
+import { listRpaArchives, walkScripts } from "./project.js";
+import { readRpaEntry, readRpaIndex } from "./rpa.js";
 import { TRANSLATION_FILE } from "./runtime.js";
 import { collectScriptStrings } from "./rpyscript.js";
 import { collectStrings, isRpyc } from "./rpyc.js";
@@ -40,6 +41,39 @@ function relativeScriptPath(projectRoot, absolutePath) {
  */
 function isCompiledName(absolutePath) {
   return absolutePath.toLowerCase().endsWith(".rpyc");
+}
+
+/**
+ * Whether an archive entry names a Ren'Py script.
+ *
+ * @param {string} name entry name inside an RPA archive
+ * @returns {boolean} true for .rpy and .rpyc
+ */
+function isArchiveScriptName(name) {
+  const lower = name.toLowerCase();
+  return lower.endsWith(".rpy") || lower.endsWith(".rpyc");
+}
+
+/**
+ * The stem of an archive entry, used to pair source with compiled copies.
+ *
+ * @param {string} name entry name inside an RPA archive
+ * @returns {string} name without its extension
+ */
+function archiveStem(name) {
+  const extension = path.extname(name);
+  return name.slice(0, name.length - extension.length);
+}
+
+/**
+ * Whether an archive entry belongs to Ren'Py's translation tree.
+ *
+ * @param {string} name entry name inside an RPA archive
+ * @returns {boolean}
+ */
+function isTranslationEntry(name) {
+  const lower = name.toLowerCase();
+  return lower === "tl" || lower.startsWith("tl/") || lower.includes("/tl/");
 }
 
 /**
@@ -119,6 +153,9 @@ export function collectRenpyUnits(projectRoot) {
   // occurrence count. The source wins: it is the text a translator edits and
   // the only one that carries line numbers on every Ren'Py version.
   const scriptFiles = walkScripts(path.join(root, "game"));
+  const looseStems = new Set(
+    scriptFiles.map((file) => archiveStem(relativeScriptPath(root, file).replace(/^game\//, "")))
+  );
   const sourceStems = new Set(
     scriptFiles.filter((file) => !isCompiledName(file)).map((file) => path.join(path.dirname(file), path.basename(file, path.extname(file))))
   );
@@ -144,6 +181,46 @@ export function collectRenpyUnits(projectRoot) {
       else scripts.rpy += 1;
     } catch (error) {
       undecodable.push({ file, error: errorLine(error) });
+    }
+  }
+
+  // Packaged games keep the same scripts in one or more .rpa archives. The
+  // archive index is read once per archive; entries are decoded individually so
+  // one bad script does not cost the rest of the game. A loose script with the
+  // same stem wins: it is the file a developer edits and the archive copy is
+  // usually its compiled twin.
+  for (const archivePath of listRpaArchives(path.join(root, "game"))) {
+    const archiveRel = relativeScriptPath(root, archivePath);
+    let index;
+    try {
+      index = readRpaIndex(archivePath);
+    } catch (error) {
+      undecodable.push({ file: archiveRel, error: errorLine(error) });
+      continue;
+    }
+    const archiveEntries = [...index.entries.entries()]
+      .filter(([name]) => isArchiveScriptName(name))
+      .filter(([name]) => !isTranslationEntry(name) && path.basename(name) !== TRANSLATION_FILE)
+      .filter(([name]) => !looseStems.has(archiveStem(name)))
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+    const archiveSourceStems = new Set(
+      archiveEntries.filter(([name]) => !isCompiledName(name)).map(([name]) => archiveStem(name))
+    );
+    for (const [name, entry] of archiveEntries) {
+      if (isCompiledName(name) && archiveSourceStems.has(archiveStem(name))) continue;
+      const file = archiveRel + "!" + name;
+      const compiled = isCompiledName(name);
+      try {
+        const buffer = readRpaEntry(archivePath, entry);
+        const found = compiled
+          ? readCompiledUnits(buffer, file)
+          : collectScriptStrings(buffer.toString("utf8"), file).strings;
+        units.push(...found);
+        if (compiled) scripts.rpyc += 1;
+        else scripts.rpy += 1;
+      } catch (error) {
+        undecodable.push({ file, error: errorLine(error) });
+      }
     }
   }
 

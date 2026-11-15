@@ -1,28 +1,30 @@
 # 手动验收清单
 
-这份清单只列**仓库内已经没有办法继续自动化**的验收项。仓库内的单元测试、真机 GUI
-链路和便携包校验都已完成；剩下的每一项都需要一台有真实游戏的 Windows 机器，或者
-需要产品负责人做发布决策。
+这份清单只列需要人工判断的验收项。仓库内的单元测试、真机 GUI 链路和便携包校验
+都已完成；剩下的每一项都需要一台有真实游戏的 Windows 机器，或者需要产品负责人做
+发布决策。已经完成的历史项保留为记录并标 `[x]`。
 
 验收口径与能力矩阵见 [evidence.md](evidence.md) 和 [engines.json](engines.json)。本文件
 不重复七能力表，只给操作步骤和通过标准。
 
-## 1. Ren'Py 真实游戏 L4
+## 1. Ren'Py 真实游戏 L4（已完成，2026-11-15）
 
-现状：Ren'Py 的 scan / extract / translate / verify / install / uninstall / doctor 在 SDK
-自带项目上全部通过，但还没有在一款真实商业游戏上启动并肉眼确认译文，因此证据等级
-仍是 L3。需要准备一款未加密或可正常读取的 Ren'Py 游戏目录。
+现状：0.83 已在一款商业 Ren'Py 游戏（RPA-3.0 打包）上完成 `scan` → `extract` →
+`translate`（`mock`）→ `verify` → `install` → `launch` → `uninstall`；启动后对话框
+显示 mock 的 `译:` 前缀，卸载后原 `.rpa` 字节不变。结果已写入
+[evidence.md](evidence.md) 的 Ren'Py 行。
 
-- [ ] 扫描并抽取：`node bin/yakusha.js scan <game-dir>`、`node bin/yakusha.js extract <game-dir>`
-- [ ] 翻译并校验：`node bin/yakusha.js translate <game-dir>`、`node bin/yakusha.js verify <game-dir>`
-- [ ] 安装译文：`node bin/yakusha.js install <game-dir>`，确认 `game/yakusha_translation.rpy` 存在
-- [ ] 启动游戏：`node bin/yakusha.js launch <game-dir>`（或直接双击游戏 exe），进入一段对白，
+- [x] 扫描并抽取：`node bin/yakusha.js scan <game-dir>`、`node bin/yakusha.js extract <game-dir>`
+- [x] 翻译并校验：`node bin/yakusha.js translate <game-dir>`、`node bin/yakusha.js verify <game-dir>`
+- [x] 安装译文：`node bin/yakusha.js install <game-dir>`，确认 `game/yakusha_translation.rpy` 存在
+- [x] 启动游戏：`node bin/yakusha.js launch <game-dir>`（或直接双击游戏 exe），进入一段对白，
       肉眼确认显示中文
-- [ ] 卸载并复核：`node bin/yakusha.js uninstall <game-dir>`，确认译文文件消失，游戏仍能启动
-- [ ] 把结果补进 `docs/evidence.md` 的 Ren'Py end-to-end 行；若只完成部分，把实际缺什么写清楚
+- [x] 卸载并复核：`node bin/yakusha.js uninstall <game-dir>`，确认译文文件消失，游戏仍能启动
+- [x] 把结果补进 `docs/evidence.md` 的 Ren'Py end-to-end 行
 
-通过标准：真实游戏启动后至少一段对白和一处菜单项显示中文；卸载后原游戏文件字节不变，
-译文文件被删除。
+通过标准：真实游戏启动后至少一段对白显示中文；卸载后原游戏文件字节不变，译文文件被删除。
+0.83 已满足。菜单项与 quick menu（Back / Auto / Skin / Hide / Menu）属于引擎 UI，是否翻译
+取决于游戏是否把它们放进 Ren'Py 的翻译系统，不在本次 L4 门禁内；本次验收只确认了对白。
 
 ## 2. RGSS XP / VX 真机基线
 

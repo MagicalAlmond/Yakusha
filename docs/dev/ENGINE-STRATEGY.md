@@ -427,7 +427,7 @@ TextGrammar = {
 | --- | --- | --- | --- | --- |
 | Maker JS | MZ、MV | `data/*.json` + JS 插件 | `plugin` | 已做到 L4，维护版本矩阵 |
 | Maker RGSS | XP、VX、VX Ace | `Data/*.rxdata`（Ruby Marshal）+ 脚本 | `inject`（原生注入器 + hook DLL，**0.18 已交付；0.71 起普通 `install` 自动选择**） | 高：Ruby Marshal 解析 + RGSS hook + 原生组件分发/签名（0.18 只做了 SHA-256 manifest 校验；分发渠道与签名仍未做） |
-| Ren'Py | Ren'Py | `.rpy` 明文 + `.rpyc` 编译（**两者都要**） | `translation-file` | 已做到 L4-resource（0.11 交付，`src/engines/renpy/`，契约见 [engines.md](../engines.md) §13.2）；屏幕语言 UI 文本仍是已知边界 |
+| Ren'Py | Ren'Py | `.rpy` 明文 + `.rpyc` 编译 + `.rpa` 归档（**都要**） | `translation-file` | 已做到 L4-resource（0.11 交付；0.83 补 RPA 与商业游戏 L4，`src/engines/renpy/`，契约见 [engines.md](../engines.md) §13.2）；屏幕语言 UI 文本仍是已知边界 |
 | TJS 系 | KiriKiri | `.xp3` 归档 + `.ks`/`.tjs` | `patch`（覆盖归档，**0.74 已交付**） | 中：标准 XP3 读写 + KAG 解析；加密变体仍不碰 |
 | JS 视觉小说 | TyranoScript（可选） | `.ks` / `.js` | `plugin` 或 `patch` | 中：脚本结构相对简单，归档/编码要处理 |
 | NScripter | NScripter | `.nscript` / `.nsa` | `patch` | 中：文本简单，归档和编码要处理 |
@@ -602,6 +602,7 @@ TextGrammar = {
 | 0.80 | 桌面收尾：最近项目（localStorage 最多 5 个、按路径去重）、窗口/任务栏图标、窗口大小/位置持久化、便携包 PE Subsystem=GUI 双重校验（**已交付**） | 1.0 路线表里的「图标、无控制台、最近游戏」三项在仓库内全部落地，只剩真实游戏样本与托管决策 | 949 pass / 0 fail（gui-renderer 23、gui-main 21、window-state +4、portable +1）；MZ/MV/Ren'Py/RGSS/Kirikiri 五链真窗通过 |
 | 0.81 | 发布前置：未签名披露 + 剩余人工验收清单（**已交付**） | 把不能在仓库内自动化的 1.0 门禁写成可执行清单，避免「全绿」被误读成「可发布」 | 951 pass / 0 fail；`docs/manual-acceptance.md` 四节；GUI/README 未签名披露 |
 | 0.82 | RGSS XP / VX 真机基线：`Game.ini` 编码判定（Shift_JIS / GBK）、RGSS1 字体与 `text_size` fallback、XP / VX 各一款全链（**已交付**） | 0.81 把 XP / VX 列为人工验收缺口；0.82 用本机真实样本补上，VX 也有产品化截图 | 953 pass / 0 fail；XP 5,316 串、VX 733 串，均见 mock `译:` |
+| 0.83 | Ren'Py RPA 归档读取 + 商业游戏 L4：`rpa.js` 读 RPA-3.x / 4.x 索引与条目，`detect` / `scan` / `extract` 直接读 `.rpa` 内的 `.rpyc`（**已交付**） | Ren'Py 是五引擎里唯一缺 L4 的；真实发行版通常把脚本打进 `.rpa`，0.83 同时补读取与运行时验收 | 958 pass / 0 fail；一款商业 RPA-3.0 游戏 43,860 串，启动见 mock `译:`，卸载后原 `.rpa` 字节不变 |
 | 1.0 | 10 个引擎目标 + 能力矩阵 + 便携 exe | — | 每个引擎有 L4 证据；不达标的明确标 experimental |
 
 说明：

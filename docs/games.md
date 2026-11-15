@@ -91,7 +91,7 @@ node bin/yakusha.js status "/games/SomeGame"
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | RPG Maker MZ | ✅ `game.rmmzproject`，或 `data/*.json` | ✅ 明文或单字节 XOR 的 JSON | ✅ 任意 OpenAI 兼容端点或 `mock` | ✅ 十一条判据 | ✅ 插件档：一个插件文件，加 `js/plugins.js` 里一行 | ✅ 根目录的 `Game.exe` | ✅ 版本区间 1.3.2–1.9.0，区间外只 `warn` |
 | RPG Maker MV | ✅ 同上，`www/` 布局也认 | ✅ 同上 | ✅ | ✅ | ✅ 插件档：改写 `loadDataFile`，在 `onLoad` 里回填 | ✅ `www/` 布局下从上一层启动 `Game.exe`（0.44） | ✅ 版本区间 1.6.1–1.6.2 |
-| Ren'Py | ✅ `game/` 目录加 `.rpy` / `.rpyc` | ⚠️ 只用 SDK 的两个官方示例验收，未测真实商业游戏 | ✅ | ✅ | ✅ translation 档：`game/yakusha_translation.rpy` | ✅ 发行版根目录的启动器 | ⚠️ `versions: none`，`config.version` 是游戏版本，没有可比矩阵 |
+| Ren'Py | ✅ `game/` 目录加 `.rpy` / `.rpyc` / `.rpa` | ⚠️ 一款商业 RPA-3.0 游戏已验收（43,860 串）；图片文字、插件自定义容器仍看不到 | ✅ | ✅ | ✅ translation 档：`game/yakusha_translation.rpy` | ✅ 发行版根目录的启动器；2026-11-15 真机启动见译文 | ⚠️ `versions: none`，`config.version` 是游戏版本，没有可比矩阵 |
 | RGSS（XP / VX / VX Ace） | ✅ `.rvproj2` / `.rvproj`，或 `RGSSAD` 家族归档 | ✅ `Data/` 下的 `.rxdata` / `.rvdata` / `.rvdata2` | ✅ | ✅ | ⚠️ inject 档，只有 32 位 Windows 组件；XP / VX / VX Ace 各一款真机走查 | ✅ 经 `yakusha_injector.exe` 启动 | ✅ `versions` 1 / 2 / 3，实测 1 / 2 / 3 |
 | Kirikiri | ✅ `data/` 或根目录下的 `.xp3` | ⚠️ 只读标准未加密 XP3；加密变体进 `undecodable`，改版索引（Hxv4 形态）报 `E_UNSUPPORTED`；`.tjs` 只计数不读内容 | ✅ | ✅ | ✅ patch 档：只写 `data/patch.xp3`（已存在时自动顺延到 `patch2.xp3`，只含已译 `.ks`）与清单；0.77 起在一款商业游戏上做过运行时全量翻译实测——启动后对白显示译文，`uninstall` 只回收该归档 | ✅ 根目录的 `Game.exe` | ⚠️ 标题与版本读不出时显示 `(untitled)`，`versions: none` |
 
@@ -115,15 +115,34 @@ node bin/yakusha.js status "/games/SomeGame"
 | --- | --- | --- | --- | --- | --- |
 | RPG Maker MZ | 7 | 7 | 0 | 0 | 唯一串 58,256 到 2,295 |
 | RPG Maker MV | 8 | 8 | 0 | 0 | 唯一串 36,203 到 159；0.76 之前其中 7 款因根搜索不认目录链接而整款读不出 |
-| Ren'Py | 0 | 0 | 0 | 0 | 本机没有真实游戏，验收用的是 SDK 示例，见下一节 |
+| Ren'Py | 0 | 0 | 0 | 0 | 0.76 批量回归未含 Ren'Py；0.83 另做一款商业游戏 L4，见下一节 |
 | RGSS | 1 | 1 | 0 | 0 | VX Ace，唯一串 31,730 |
 | Kirikiri | 6 | 2 | 4 | 0 | 4 款整款读不出：索引加密（Hxv4 形态），见 [limitations.md](limitations.md) |
 | 合计 | 22 | 18 | 4 | 0 | 18 款走完 `scan` → `extract` → `translate`（`mock`）→ `verify` |
 
 ## Ren'Py
 
-本机没有真实 Ren'Py 游戏，Ren'Py 的验收用的是 Ren'Py 8.5.3 SDK 自带的两个官方示例游戏
-（`the_question`、`tutorial`），两者都带完整 `.rpy` 源码，统计按源码算：
+本机有一款真实商业 Ren'Py 游戏可用于验收：RPA-3.0 打包，`game/script.rpa` 内含 245 个
+`.rpyc`，外层另有 47 个明文 `.rpy`。按匿名口径记作 Ren'Py-A。0.83 在它上面走完
+`scan` → `extract` → `translate`（`mock`）→ `verify` → `install` → `launch` → `uninstall`：
+
+| 项目 | 结果 |
+| --- | --- |
+| 数据文件 / 脚本 | 292 个数据文件（47 `.rpy` + 245 `.rpyc`），`undecodable` 0 |
+| 唯一串 / 出现次数 | 43,860 / 54,617 |
+| extract | added 43,860 |
+| translate（mock） | total 43,860，failedBatches 0 |
+| verify `--source-lang en` | 2,974 条 source warning，0 errors，0 rejected |
+| install | `game/yakusha_translation.rpy`，5,301,453 字节 / 131,591 行 |
+| launch / L4 | 启动后对话框显示 mock `译:` 前缀；截图归档在仓库外（2026-11-15） |
+| uninstall | `removed:true`、`drifted:false`；译文文件消失，原 `.rpa` 字节不变 |
+
+RPA 读取见 `src/engines/renpy/rpa.js` 与 `test/renpy-rpa.test.js`：支持 RPA-3.x / 4.x；
+3.x 的索引是 `offset ^ key`、`length ^ key`，4.x 的索引不加密。归档里的 `.rpyc` 以
+`game/<archive>!<entry>` 的虚拟路径进入同一条 `.rpyc` 解码链，不落盘解包。
+
+Ren'Py 8.5.3 SDK 自带的两个官方示例游戏（`the_question`、`tutorial`）仍作为明文
+`.rpy` 的回归样本：
 
 | 示例游戏 | 脚本数 | 唯一串 | 出现次数 | `undecodable` |
 | --- | --- | --- | --- | --- |
@@ -137,8 +156,9 @@ node bin/yakusha.js status "/games/SomeGame"
 翻的是引擎 UI 字符串，`script.rpy`、`indepth_*.rpy`、`tutorial_*.rpy` 等翻的是游戏自己的台词），
 扫描时整个 `tl/` 目录跳过。
 
-**这不等于对商业 Ren'Py 游戏的验收**：本机没有任何真实 Ren'Py 发行版可跑，打包过的游戏、
-带第三方 `tl/` 补丁的游戏都还没有实测数字。
+商业 Ren'Py 游戏通常把脚本打进 `.rpa`，0.83 之前这类游戏会在 `detect` 阶段报
+`E_NOT_PROJECT`；现在 `.rpa` 也是识别依据，`scan` / `extract` 直接读归档内的 `.rpyc`。
+仍看不到的是图片里的文字和插件自定义的说话人容器（见 [limitations.md](limitations.md)）。
 
 Ren'Py 的安装产物是一个文件：`install` 写 `game/yakusha_translation.rpy`，`uninstall`
 删掉它，原脚本一个字节都不动，删文件即恢复。

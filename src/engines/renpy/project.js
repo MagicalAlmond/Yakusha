@@ -20,6 +20,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { readRpaEntry, readRpaIndex } from "./rpa.js";
+
 /** Directory that holds the scripts, relative to the project root. */
 export const GAME_DIR = "game";
 
@@ -79,13 +81,56 @@ export function listScriptFiles(gameDir) {
 }
 
 /**
+ * List the RPA archives directly inside a game directory, sorted by name.
+ *
+ * Ren'Py keeps archives at the top level of `game/`; an archive in a
+ * subdirectory is data for a script, not a packaged game.
+ *
+ * @param {string} gameDir absolute path of the `game` directory
+ * @returns {string[]} absolute paths
+ */
+export function listRpaArchives(gameDir) {
+  let names;
+  try {
+    names = fs.readdirSync(gameDir);
+  } catch {
+    return [];
+  }
+  return names
+    .filter((name) => name.toLowerCase().endsWith(".rpa"))
+    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+    .map((name) => path.join(gameDir, name));
+}
+
+/**
+ * True when the game ships scripts inside an RPA archive.
+ *
+ * An archive alone is not enough to call a directory a game: a folder of
+ * extracted assets can contain one. A packaged Ren'Py distribution also has
+ * the `renpy/` runtime directory or a launcher executable next to `game/`,
+ * which is what this checks.
+ *
+ * @param {string} dir candidate project root
+ * @returns {boolean}
+ */
+function hasPackagedScripts(dir) {
+  if (listRpaArchives(path.join(dir, GAME_DIR)).length === 0) return false;
+  if (fs.existsSync(path.join(dir, "renpy"))) return true;
+  try {
+    return fs.readdirSync(dir).some((name) => name.toLowerCase().endsWith(".exe"));
+  } catch {
+    return false;
+  }
+}
+
+/**
  * True when `dir` is the base directory of a Ren'Py game.
  *
  * @param {string} dir
  * @returns {boolean}
  */
 export function looksLikeRenpyProject(dir) {
-  return listScriptFiles(path.join(dir, GAME_DIR)).length > 0;
+  return listScriptFiles(path.join(dir, GAME_DIR)).length > 0 || hasPackagedScripts(dir);
 }
 
 /**
@@ -160,6 +205,11 @@ export function findRenpyRoot(start) {
  * same way. A game that computes its title in code simply gets no title, which
  * is a cosmetic loss, not a reason to fail.
  *
+ * A packaged game keeps options.rpy inside its archive; when no loose file
+ * exists, the same two spellings are read from the first archive that has one.
+ * A malformed archive is ignored here: identity is cosmetic and the extractor
+ * reports the real decode failure.
+ *
  * @param {string} gameDir
  * @returns {{ title: string|null, version: string|null }}
  */
@@ -172,6 +222,22 @@ export function readRenpyIdentity(gameDir) {
       break;
     } catch {
       // try the next spelling
+    }
+  }
+  if (source.length === 0) {
+    for (const archive of listRpaArchives(gameDir)) {
+      try {
+        const index = readRpaIndex(archive);
+        for (const name of ["options.rpy", "options.rpym", "game/options.rpy", "game/options.rpym"]) {
+          const entry = index.entries.get(name);
+          if (entry === undefined) continue;
+          source = readRpaEntry(archive, entry).toString("utf8");
+          break;
+        }
+      } catch {
+        // one unreadable archive must not hide identity in another
+      }
+      if (source.length > 0) break;
     }
   }
   /** @param {string} key */
@@ -196,7 +262,7 @@ export function readRenpyIdentity(gameDir) {
 export function openRenpyProject(start) {
   const root = findRenpyRoot(start);
   if (root === null) {
-    throw new Error("not a Ren'Py project (no game/ directory with .rpy or .rpyc scripts found in " + path.resolve(start) + ")");
+    throw new Error("not a Ren'Py project (no game/ directory with .rpy, .rpyc or .rpa scripts found in " + path.resolve(start) + ")");
   }
   const gameDir = path.join(root, GAME_DIR);
   const identity = readRenpyIdentity(gameDir);

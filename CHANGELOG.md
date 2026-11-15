@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.83.0] - 2026-11-15
+
+### Added
+
+- Ren'Py packaged games: `src/engines/renpy/rpa.js` reads RPA-3.x / 4.x archives (zlib pickle index, 3.x offset / length XOR key, multi-segment entries with inline prefixes) without unpacking to disk. `detect`, `scan` and `extract` now accept `.rpa` and decode archived `.rpyc` files through the existing compiled-script path; a loose `.rpy` still wins over an archived copy with the same stem.
+- One commercial Ren'Py game packaged as RPA-3.0 (245 `.rpyc`, 43,860 unique strings) completed the L4 walkthrough: `scan` → `extract` → `translate` (`mock`) → `verify --source-lang en` → `install` → `launch` with the mock `译:` prefix visible in a dialogue box → `uninstall`, leaving the original `.rpa` byte-identical. `docs/evidence.md`, `docs/games.md`, `docs/engines.json`, `docs/engines.md` and `docs/manual-acceptance.md` record the result.
+
+### Unchanged
+
+- The JSON envelope, exit codes, command table, error codes and every payload key are untouched. No new dependency. 958 pass.
+
 ## [0.82.0] - 2026-11-15
 
 ### Added
@@ -1082,7 +1093,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.81.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.82.0...HEAD
+[0.83.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.82.0...v0.83.0
 [0.82.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.81.0...v0.82.0
 [0.81.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.80.0...v0.81.0
 [0.80.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.79.0...v0.80.0

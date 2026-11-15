@@ -53,6 +53,7 @@ src/engines/
     rpyscript.js    .rpy 词法：哪些字面量算可翻译文本
     rpyc.js         .rpyc 容器：RPC2 槽表 + slot 1 的 pickle
     pickle.js       纯 JS pickle 读取（无依赖、不 eval）
+    rpa.js          RPA-3.x / 4.x 归档索引与条目读取（0.83 起）
     runtime.js      生成 / 删除 / 读取 game/yakusha_translation.rpy
     profile.js      Ren'Py 的 profile 数据（{tag} 与 [var] 语法）
   rgss/
@@ -87,7 +88,7 @@ src/index.js        公共门面（见 §10）
 探测顺序固定：**MZ → MV → Ren'Py → RGSS → Kirikiri**，这是公开契约
 （`src/engines/registry.js:18` 的 `ADAPTERS` 数组顺序，模块头注释也这么写）。一个目录同时有 `js/rmmz_core.js` 与
 `js/rpg_core.js` 时按 MZ 处理（与现有 `openProject` 的
-`fs.existsSync(MZ_CORE) ? "mz" : "mv"` 一致）。Ren'Py 按 `game/` 下的 `.rpy` / `.rpyc`
+`fs.existsSync(MZ_CORE) ? "mz" : "mv"` 一致）。Ren'Py 按 `game/` 下的 `.rpy` / `.rpyc` / `.rpa`
 识别、RGSS 按 `Game.ini` / `RGSSAD` 家族归档 / `Data/` 识别、Kirikiri 按
 `data/`（或根目录本身）下的 `.xp3` 归档识别，都与 RPG Maker 的 core 文件不重叠；
 顺序只影响“五个都不像”时报哪一句。
@@ -298,7 +299,7 @@ RGSS 的两句是 0.12 新增，Kirikiri 的两句是 0.13 新增：
   - `missing data/ directory in <root>`
   - `missing js/plugins.js in <root>`
 - `E_NOT_PROJECT`（Ren'Py）：
-  `not a Ren'Py project (no game/ directory with .rpy or .rpyc scripts found in <dir> or up to 3 levels below it)`
+  `not a Ren'Py project (no game/ directory with .rpy, .rpyc or .rpa scripts found in <dir> or up to 3 levels below it)`
 - `E_MULTI_ROOT`（Ren'Py）：
   `found N Ren'Py projects under <dir>, pass one of them instead: <roots>`
 - `E_NOT_PROJECT`（RGSS，`src/engines/rgss/adapter.js:44-52`）：
@@ -336,7 +337,7 @@ adapter 只负责给 `code` + `message`；CLI 负责把它塞进错误信封（`
 
 | 能力 | MZ | MV | Ren'Py | RGSS | Kirikiri | 含义 |
 | --- | --- | --- | --- | --- | --- | --- |
-| `extract` | true | true | true | true | true | RM：`data/*.json`，明文或单字节 XOR；Ren'Py：`game/` 下的 `.rpy` / `.rpyc`；RGSS：`Data/*.rxdata` / `.rvdata` / `.rvdata2` 或 `RGSSAD` 家族归档里的同一批文档；Kirikiri：`data/`（或根目录本身）下 `.xp3` 归档里的 `.ks` 脚本 |
+| `extract` | true | true | true | true | true | RM：`data/*.json`，明文或单字节 XOR；Ren'Py：`game/` 下的 `.rpy` / `.rpyc` / `.rpa`；RGSS：`Data/*.rxdata` / `.rvdata` / `.rvdata2` 或 `RGSSAD` 家族归档里的同一批文档；Kirikiri：`data/`（或根目录本身）下 `.xp3` 归档里的 `.ks` 脚本 |
 | `export` | true | true | true | true | true | 0.10 起只有 JSON 导出 |
 | `runtime` | `plugin` | `plugin` | `translation` | **`inject`** | **`patch`** | RM 装 JS 插件（MZ 包 `onXhrLoad`，MV 包 `loadDataFile` + `onLoad`）；Ren'Py 生成一个翻译脚本；RGSS 注入原生 hook（`install` 自动选择）；Kirikiri 写一个 `patch.xp3` 覆盖归档 |
 | `launch` | true | true | true | true | true | 项目根唯一 `.exe`（Ren'Py 发行版的根目录通常就是启动器所在处） |
@@ -1201,20 +1202,25 @@ CLI 侧（`test/rgss-cli.test.js`，17 条）走真实的 `bin/yakusha.js`：sca
 与 13.1 共享的是**策略**（只增不删、context 指回原位置、`scan` 不需要字典、
 解码失败的来源只记录不中断），不同之处如下。
 
-**两种源。** `game/` 下的 `.rpy` 是明文，`.rpyc` 是编译产物。两者都读：
+**三种源。** `game/` 下的 `.rpy` 是明文，`.rpyc` 是编译产物，`.rpa` 是商业发行版常用的归档。三者都读：
 
 - `.rpy` 走 `rpyscript.js`，按 Ren'Py 自己的词法规则决定一个引号字面量在运行时
   求值成什么（转义、三引号分段、`[` / `{` / `%` 的加倍）。
 - `.rpyc` 走 `rpyc.js`：`RENPY RPC2` 容器 → slot 1 的 `(header, statements)` →
   纯 JS 的 pickle 读取（`pickle.js`，无依赖、不 `eval`）。Ren'Py 7.x 里只有
   Python 2 才认识的 opcode 直接报 `undecodable`，不猜。
+- `.rpa` 走 `rpa.js`：header 之后是 zlib 压缩的 pickle 索引；RPA-3.x 的 offset / length
+  先与 header 里的 key 异或，RPA-4.x 直接使用。一个逻辑条目可以拆成多段，每段可带一个
+  inline `prefix`；读条目时按索引顺序拼接。只读索引与条目，不解包到磁盘。
 - `.rpyc` 末尾 16 字节的 MD5 **不校验**：用它判断“这个文件是不是被改过”只会把
   本来能读的游戏拒掉，收益为零。
 
 **同 stem 只读 `.rpy`。** 同一个名字的 `.rpy` 与 `.rpyc` 同时存在时只读 `.rpy`。
 理由很实际：两者内容相同，都读会让每条文本在`totalStrings`里出现两次，
 唯一串数不变而出现次数翻倍，`scan` 的“strings: X unique / Y total”就没意义了。
-纯 `.rpyc` 分发的商业游戏仍然能抽，只是条目拿不到行号（见下面的 context）。
+这条规则同时跨磁盘与归档：`game/script.rpy` 存在时，`script.rpa` 里的 `script.rpyc`
+跳过；归档里同时有 `script.rpy` 与 `script.rpyc` 时只读前者。纯 `.rpyc` 分发的
+商业游戏仍然能抽，只是条目拿不到行号（见下面的 context）。
 
 **跳过两类文件。** `game/tl/**`（Ren'Py 自己的翻译目录，里面是别人已有的译文，
 不是原文）和 yakusha 自己生成的 `game/yakusha_translation.rpy`（否则装完再抽会把
@@ -1235,7 +1241,8 @@ CLI 侧（`test/rgss-cli.test.js`，17 条）走真实的 `bin/yakusha.js`：sca
 
 **context 与行号。** `<相对项目根的 posix 路径>:<行号>`，例如
 `game/script.rpy:12`。从 `.rpyc` 抽出的条目没有行号，context 退化成只有路径
-（`game/script.rpyc`）。路径分隔符统一用 `/`，不随平台变。
+（`game/script.rpyc`）；归档里的条目把归档路径与条目名用 `!` 连起来，例如
+`game/script.rpa!script.rpyc`。路径分隔符统一用 `/`，不随平台变。
 
 **失败不中断。** 一个打不开或解不出的脚本进 `undecodable`（`<file>: <error>`），
 遍历继续；`scripts` 与 `encodings` 的计数只在成功解码后加一，所以
@@ -1250,7 +1257,12 @@ CLI 侧（`test/rgss-cli.test.js`，17 条）走真实的 `bin/yakusha.js`：sca
 官方示例游戏里那 29 个同 stem 脚本（不含 `tl/`），`.rpy` 读出 1,446 条、逐脚本去重后
 相加 1,319 条，`.rpyc` 读出 854 条、同法 852 条：`.rpyc` 独有而 `.rpy` 缺的为 **0**，
 同一口径下 `.rpyc` 少 467 条——所以「同 stem 只读 `.rpy`」不会丢文本。两个官方
-示例游戏的扫描结果见 [games.md](games.md)，那里同时写明这不等于对商业 Ren'Py 游戏的验收。
+示例游戏的扫描结果见 [games.md](games.md)。
+
+0.83 起另有一款商业 Ren'Py 游戏（RPA-3.0，245 个 `.rpyc`）完成真机验收：`scan` 读出
+43,860 唯一串 / 54,617 次，`undecodable` 0；`extract`、`translate`（`mock`）、`verify`
+与 `install` 全链路走通，启动后对话框显示 mock 的 `译:` 前缀，`uninstall` 后原 `.rpa`
+字节不变。匿名结果见 [games.md](games.md) 的 Ren'Py 一节。
 
 ### 13.3 RGSS（XP / VX / VX Ace）
 
@@ -1417,7 +1429,7 @@ contexts 合并（`src/engines/krkr/extract.js:74`）。
 | --- | --- | --- | --- |
 | RPG Maker MZ | `data/*.json` | `plugin`（L4-plugin） | 0.10 已实现 |
 | RPG Maker MV | `data/*.json` | `plugin`（L4-plugin） | 0.10 已实现 |
-| Ren'Py | `.rpy` 明文 / `.rpyc` 编译 | `translation`（L4-resource） | 0.11 实现：L2–L4 |
+| Ren'Py | `.rpy` 明文 / `.rpyc` 编译 / `.rpa` 归档 | `translation`（L4-resource） | 0.11 实现 L2–L4；0.83 补 RPA 与商业游戏 L4 |
 | RGSS (XP/VX/VX Ace) | Ruby Marshal：`Data/*.rxdata` / `.rvdata` / `.rvdata2`，或 `RGSSAD` 家族归档 | `inject`（L4-inject，原生注入器） | 0.12 接 L1–L3；0.18 补上 L4 注入器，0.71 起普通 `install` 自动选择 |
 | Kirikiri | XP3 归档里的 `.ks` 脚本（KAG 标签） | `patch`（L4-patch，覆盖归档） | 0.13 接 L1–L3；0.74 补上 L4：写 `patch.xp3` 覆盖归档 |
 
@@ -1449,7 +1461,7 @@ L4-plugin / L4-resource / L4-inject / L4-patch 是
 “加插件、删文件即还原”，resource 是“生成引擎自带的资源、删文件即还原”，inject 是
 “注入原生 hook、删掉注入目录即还原”（RGSS 走这一档），patch 是“写一个引擎会加载的
 覆盖归档、删掉即还原”（Kirikiri 走这一档，不改游戏自己的归档）。
-Ren'Py 做到了 L2（真实游戏提取）、L3（翻译与校验）、L4（运行时交付），
+Ren'Py 做到了 L2（真实游戏提取，含 `.rpa` 内的 `.rpyc`）、L3（翻译与校验）、L4（运行时交付），
 **L5（卸载验证）由契约测试里的“install + uninstall 前后脚本逐字节不变”覆盖**。
 不要说“完全支持 Ren'Py”：三档里每一档的实际含义都以战略稿的定义为准。
 

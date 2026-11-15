@@ -130,7 +130,7 @@ test("detect: a directory without game/ scripts is E_NOT_PROJECT in Ren'Py wordi
   const result = getAdapter("renpy").detect(empty);
   assert.equal(result.ok, false);
   assert.equal(result.code, "E_NOT_PROJECT");
-  assert.match(result.message, /^not a Ren'Py project \(no game\/ directory with \.rpy or \.rpyc scripts found in /);
+  assert.match(result.message, /^not a Ren'Py project \(no game\/ directory with \.rpy, \.rpyc or \.rpa scripts found in /);
   // The registry must keep trying after this, so the prefix has to be the
   // generic one it recognises.
   const viaRegistry = detectProject(empty);

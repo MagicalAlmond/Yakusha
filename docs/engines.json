@@ -125,7 +125,7 @@
       "matrix": {
         "detect": {
           "status": "ok",
-          "note": "识别 `game/` 目录加 `.rpy` / `.rpyc`"
+          "note": "识别 `game/` 目录加 `.rpy` / `.rpyc` / `.rpa`"
         },
         "scanExtract": {
           "status": "limited",
