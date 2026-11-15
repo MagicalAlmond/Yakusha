@@ -90,7 +90,10 @@ node tools/gui-acceptance.mjs --exe dist/yakusha-<version>-win-x64/Yakusha.exe
 工具会为 MZ / MV / Ren'Py / RGSS / Kirikiri 五条链准备临时游戏，在真实窗口里点击
 scan → extract → translate → verify → install → uninstall → doctor，并把截图与
 `summary.json` 写到 `.dsh-scratch/gui-acceptance-*`。2026-11-15 的 1.0.1 构建实测：
-168 个 payload 文件 / 308,035,528 字节，五链全部通过（`summary.json` 与截图归档在仓库外验收目录）；同一构建目录下无参数启动 `Yakusha.exe` 也在默认沙箱启动失败后回退并打开 GUI。
+168 个 payload 文件 / 308,035,528 字节，五链全部通过（`summary.json` 与截图归档在仓库外
+验收目录）；同一构建目录下无参数启动 `Yakusha.exe` 也在默认沙箱启动失败后回退并打开 GUI。
+同日 1.1.0 构建为 168 个 payload 文件 / 308,039,846 字节，`--verify` 通过，便携包 MZ 链与
+真实游戏 exe 的 `resolveInput` 复验通过（1.1.0 只改 GUI 输入路径选择，未重跑五链）。
 
 ## 5. 签名、分发与更新
 

@@ -5,6 +5,10 @@
 
 const $ = (id) => document.getElementById(id);
 let currentDir = null;
+let currentTitle = "";
+let selectedInput = null;
+let selectedKind = "";
+let scanRoot = null;
 let runSeq = 0;
 
 const COMMAND_LABELS = {
@@ -140,6 +144,48 @@ function setProjectLine(text) {
   $("project-line").title = text;
 }
 
+/** Show the exact path the user picked or dropped, separate from the project root. */
+function updateInputLine() {
+  const line = $("project-input");
+  if (!line) return;
+  if (!selectedInput) {
+    line.hidden = true;
+    line.textContent = "";
+    line.title = "";
+    return;
+  }
+  const label = selectedKind === "file" ? "file" : selectedKind === "directory" ? "folder" : "path";
+  line.hidden = false;
+  line.textContent = "Selected " + label + ": " + selectedInput;
+  line.title = selectedInput;
+}
+
+/** Remember what the user chose and what the next scan should receive. */
+function setProjectInput(input, kind, target) {
+  selectedInput = input || null;
+  selectedKind = kind || "";
+  scanRoot = target || input || null;
+  updateInputLine();
+  if (!currentDir) setProjectLine(scanRoot ? "Scanning " + scanRoot + "…" : "Drop a game folder or game exe here, or pick a folder");
+}
+
+/** Show the canonical root the scan resolved, which commands then operate on. */
+function showProjectRoot(root, title) {
+  currentDir = root || null;
+  currentTitle = title || "";
+  if (root) {
+    setProjectLine("Project root: " + root + (currentTitle ? " — " + currentTitle : ""));
+    if (!selectedInput) {
+      selectedInput = root;
+      selectedKind = "directory";
+      scanRoot = root;
+      updateInputLine();
+    }
+  } else {
+    setProjectLine("Drop a game folder or game exe here, or pick a folder");
+  }
+}
+
 /**
  * Show what the next Install will actually write, in the exact terms of
  * docs/gui.md §6. The tier comes from capabilities.runtime, the same value the
@@ -202,9 +248,12 @@ function renderRecent() {
     chip.appendChild(name);
     chip.appendChild(engine);
     chip.addEventListener("click", () => {
-      currentDir = entry.root;
-      setProjectLine(entry.root);
-      run("scan");
+      const input = entry.input || entry.root;
+      const target = entry.scan || entry.root;
+      currentDir = null;
+      currentTitle = "";
+      setProjectInput(input, input === target ? "directory" : "file", target);
+      run("scan", [target]);
     });
     list.appendChild(chip);
   }
@@ -217,6 +266,8 @@ function rememberProject(envelope) {
   try {
     YAKUSHA_RECENT.add(recentStorage(), {
       root: envelope.root,
+      input: selectedInput || envelope.root,
+      scan: scanRoot || envelope.root,
       engine: envelope.engine || "",
       title: envelope.gameTitle || "",
     });
@@ -228,6 +279,7 @@ function rememberProject(envelope) {
 
 async function run(command, args, flags) {
   const runId = ++runSeq;
+  const requestArgs = args || (currentDir ? [currentDir] : []);
   if (command === "scan") {
     // A scan starts a new project view. Do not let the previous engine's
     // capabilities keep install/uninstall/launch enabled while this scan is
@@ -241,10 +293,23 @@ async function run(command, args, flags) {
     if (installBtn) { installBtn.disabled = true; installBtn.title = "scan a project first"; }
     if (uninstallBtn) { uninstallBtn.disabled = true; uninstallBtn.title = "scan a project first"; }
     if (launchBtn) { launchBtn.disabled = true; launchBtn.title = "scan a project first"; }
+    // Do not keep driving commands at the previous root while this scan runs.
+    currentDir = null;
+    currentTitle = "";
+    // A bare Scan button means "this project": rescan its root, but keep the
+    // original file/folder the user chose visible in the selected line.
+    if (!args && requestArgs[0]) {
+      scanRoot = requestArgs[0];
+      if (!selectedInput) {
+        selectedInput = requestArgs[0];
+        selectedKind = "directory";
+        updateInputLine();
+      }
+    }
   }
   if (command === "translate") $("cancel").disabled = false;
   const useStoredKey = command === "translate" && $("key-use").checked;
-  const target = args && args[0] ? baseName(args[0]) : currentDir ? baseName(currentDir) : "";
+  const target = requestArgs[0] ? baseName(requestArgs[0]) : "";
   const pending = showToast({
     title: COMMAND_LABELS[command] || command,
     detail: target ? "working on " + target : "working…",
@@ -253,7 +318,7 @@ async function run(command, args, flags) {
   });
   let envelope;
   try {
-    envelope = await window.yakusha.run(command, args || (currentDir ? [currentDir] : []), flags, runId, useStoredKey);
+    envelope = await window.yakusha.run(command, requestArgs, flags, runId, useStoredKey);
   } catch (error) {
     updateToast(pending, {
       title: COMMAND_LABELS[command] || command,
@@ -281,7 +346,7 @@ async function run(command, args, flags) {
     const badge = $("engine-badge");
     badge.hidden = false;
     badge.textContent = (e.engine || "?") + (e.engineVersion ? " " + e.engineVersion : "");
-    setProjectLine(e.root + " — " + (e.gameTitle || "(untitled)"));
+    showProjectRoot(e.root, e.gameTitle || "(untitled)");
     rememberProject(e);
     // Buttons follow the engine's capabilities (docs/gui.md acceptance: a button
     // for an unsupported capability is disabled with the reason shown). The
@@ -311,8 +376,12 @@ async function run(command, args, flags) {
       launchBtn.title = launchable ? "" : "this engine cannot be launched from yakusha";
     }
   }
-  if (command === "scan" && !envelope.ok && envelope.error && envelope.error.code === "E_MULTI_ROOT") {
-    setProjectLine("multiple projects found — see details.candidates in the output");
+  if (command === "scan" && !envelope.ok) {
+    if (envelope.error && envelope.error.code === "E_MULTI_ROOT") {
+      setProjectLine("multiple projects found — see details.candidates in the output");
+    } else {
+      setProjectLine("No project found — " + (scanRoot || requestArgs[0] || "choose a game folder"));
+    }
   }
   return envelope;
 }
@@ -458,7 +527,12 @@ $("dict-save").addEventListener("click", async () => {
 
 $("pick").addEventListener("click", async () => {
   const picked = await window.yakusha.pickDirectory();
-  if (picked) { currentDir = picked; setProjectLine(currentDir); run("scan"); }
+  if (picked) {
+    currentDir = null;
+    currentTitle = "";
+    setProjectInput(picked, "directory", picked);
+    run("scan", [picked]);
+  }
 });
 
 $("cancel").addEventListener("click", () => window.yakusha.cancel());
@@ -508,12 +582,20 @@ $("log-open").addEventListener("click", async () => {
 // renderer never trusts event data for paths.
 document.addEventListener("dragover", (e) => { e.preventDefault(); document.body.classList.add("dragging"); });
 document.addEventListener("dragleave", () => document.body.classList.remove("dragging"));
-document.addEventListener("drop", (e) => {
+document.addEventListener("drop", async (e) => {
   e.preventDefault();
   document.body.classList.remove("dragging");
   const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
   if (!file) return;
-  currentDir = window.yakusha.pathForFile(file);
-  setProjectLine(currentDir);
-  run("scan");
+  const dropped = window.yakusha.pathForFile(file);
+  if (!dropped) return;
+  let resolved = { input: dropped, path: dropped, kind: "directory" };
+  if (typeof window.yakusha.resolveInput === "function") {
+    const answer = await window.yakusha.resolveInput(dropped);
+    if (answer && answer.path) resolved = answer;
+  }
+  currentDir = null;
+  currentTitle = "";
+  setProjectInput(resolved.input || dropped, resolved.kind, resolved.path || dropped);
+  run("scan", [resolved.path || dropped]);
 });

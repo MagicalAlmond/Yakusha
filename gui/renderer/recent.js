@@ -13,8 +13,12 @@ var YAKUSHA_RECENT = (function () {
     if (!entry || typeof entry.root !== "string") return null;
     var root = entry.root.trim();
     if (!root) return null;
+    var input = typeof entry.input === "string" && entry.input.trim() ? entry.input.trim() : root;
+    var scan = typeof entry.scan === "string" && entry.scan.trim() ? entry.scan.trim() : root;
     return {
       root: root,
+      input: input,
+      scan: scan,
       engine: typeof entry.engine === "string" ? entry.engine : "",
       title: typeof entry.title === "string" ? entry.title : "",
     };

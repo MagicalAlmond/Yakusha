@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-15
+
+### Added
+
+- The GUI project card now separates the path the user chose from the project root that `scan` resolved. A new `gui:resolve-input` IPC channel stats the input without reading it: a file resolves to its containing folder, a directory stays as-is, and a missing path is reported as such. The first line shows `Selected file:` / `Selected folder:` / `Selected path:`; the second shows `Project root: …`. Recent projects remember both the original input and the path to re-scan.
+- Dropping a game executable onto the window now scans its folder automatically instead of failing with `E_NOT_PROJECT`; the drop overlay says `Drop a game folder or game exe`. Folder drops and the folder picker keep the same behaviour.
+
+### Unchanged
+
+- The JSON envelope, exit codes, command table, error codes and every payload key are untouched. No new dependency. 967 pass.
+
 ## [1.0.1] - 2026-11-15
 
 ### Fixed
@@ -1129,7 +1140,8 @@ First stable release.
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/MagicalAlmond/Yakusha/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/MagicalAlmond/Yakusha/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.84.0...v1.0.0
 [0.84.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.83.0...v0.84.0

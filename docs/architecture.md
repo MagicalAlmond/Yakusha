@@ -192,13 +192,15 @@ hook 改的是 `kernel32!GetProcAddress` 的 IAT 槽，借此在 `RGSSGameMain` 
   主进程只保留窗口、IPC、单飞与取消转发；worker 仍 import 同一份 core。
   这满足"CLI 为主、GUI 隐藏控制台"。
 - 渲染进程不开 `nodeIntegration`；`contextIsolation: true`，preload 只暴露白名单方法
-  （`run`/`cancel`/`pickDirectory`/`saveApiKey`/`hasApiKey`/`clearApiKey`/`onProgress`/
-  `onWarning`/`onResult`/`pathForFile` + 命令清单）。
+  （`run`/`cancel`/`pickDirectory`/`resolveInput`/`saveApiKey`/`hasApiKey`/`clearApiKey`/
+  `onProgress`/`onWarning`/`onResult`/`pathForFile` + 命令清单）。
 - 长任务（翻译等所有命令）跑在 `worker_threads` 里，进度与警告经 `gui/worker-host.js`
   转给主进程，再由 `webContents.send` 推给渲染进程；取消是 main→worker 的一条
   `{type:"cancel"}` 消息，最终仍落到 runner 的 `AbortSignal`。接口与 0.72 相同。
 - 拖拽取真实路径用 Electron 的 `webUtils.getPathForFile`（浏览器拿不到绝对路径，
-  这也是选 Electron 而不是本地网页版的根本原因）。
+  这也是选 Electron 而不是本地网页版的根本原因）。主进程的 `gui:resolve-input`
+  只看 `stat` 元数据：拖入文件（例如游戏 exe）时把它所在目录交给 `scan`，拖入
+  目录时原样扫描；界面分别显示「Selected …」和 `scan` 解析出的「Project root …」。
 - 字典编辑器走两条专用通道 `gui:dict-load` / `gui:dict-save`（不是 CLI 命令，不在命令白名单）：
   `gui/dictionary.js` 复用 `src/core/dict.js` 的加载/校验/保存，每次只写一条。
 - `launch` 也在白名单里（14 个命令全量开放）：主进程不做自己的进程管理，
@@ -342,6 +344,7 @@ test/fixtures/           各引擎最小夹具（mini-mz、mini-mv、renpy-*、r
 | 0.84.0 | **已交付**：Ren'Py screen 文本与生成译文清理——`src/engines/renpy/rpyc.js` 遍历 `.rpyc` AST 的 screen 节点（`text` / `textbutton` / `label`）并读取插件自定义 displayable 的显式 `_()`；`src/engines/renpy/pickle.js` 保留 `NEWOBJ` 构造参数与 `PyExpr.value`；`uninstall` 同时删除 Ren'Py 自动编译的 `yakusha_translation.rpyc`，`extract` 跳过生成译文；1.0 拍板五引擎 + GitHub Releases + 不签名 | 963 pass / 0 fail（Ren'Py 三个测试文件 73 pass） |
 | 1.0.0 | **已交付**：五个引擎（MZ / MV / Ren'Py / RGSS / Kirikiri）+ 能力矩阵 + 便携 exe + GitHub Releases（不签名）——首个 annotated tag，发布包为 `yakusha-1.0.0-win-x64.zip` 与 `SHA256SUMS`（167 个 payload 文件 / 307,967,151 字节） | 963 pass / 0 fail；便携包五链真机通过 |
 | 1.0.1 | **已交付**：双击启动修复——`Yakusha.exe` 改为原生启动器，先以默认 Chromium 沙箱启动 `yakusha-runtime.exe`，仅在子进程以 `0x80000003` / `0xC0000005` 崩溃时回退 `--no-sandbox`；便携包、`build-info.json` 与 `--verify` 同步记录并校验 `executable` / `runtime` / `launcher` | 964 pass / 0 fail（portable +1；真机双击复验） |
+| 1.1.0 | **已交付**：GUI 项目路径区分与 exe 拖入——项目卡分两行显示 `Selected file/folder:`（用户拖入或选择的原始路径）与 `Project root:`（scan 解析出的资源根）；新增 `gui:resolve-input` IPC（只读 stat，文件取父目录、目录原样、缺失如实报告），拖入游戏 exe 自动 scan 其所在目录；最近项目同时保存 `input` 与 `scan` | 967 pass / 0 fail（gui-renderer +1、gui-main +1、gui-preload +1；便携包 MZ 链复跑通过，`window.yakusha.resolveInput` 对真实 exe 返回父目录） |
 
 ## 10. 风险
 

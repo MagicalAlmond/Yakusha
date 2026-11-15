@@ -39,6 +39,7 @@ const IPC_CHANNELS = [
   "gui:log-path",
   "gui:open-log",
   "gui:pick-directory",
+  "gui:resolve-input",
   "gui:run",
   "gui:save-key",
 ].sort();
@@ -131,6 +132,31 @@ test("gui-main: app start registers exactly the documented IPC allowlist", async
   await settle();
   const state = stub.__state();
   assert.deepEqual([...state.ipc.keys()].sort(), IPC_CHANNELS);
+});
+
+test("gui-main: gui:resolve-input maps a dropped file to its folder", async () => {
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "yakusha-gui-input-"));
+  const folder = path.join(scratch, "game");
+  fs.mkdirSync(folder);
+  const file = path.join(folder, "Game.exe");
+  fs.writeFileSync(file, "");
+  assert.deepEqual(await stub.ipcMain.__invoke("gui:resolve-input", null, file), {
+    input: file,
+    path: folder,
+    kind: "file",
+  });
+  assert.deepEqual(await stub.ipcMain.__invoke("gui:resolve-input", null, folder), {
+    input: folder,
+    path: folder,
+    kind: "directory",
+  });
+  const missing = path.join(scratch, "not-there");
+  assert.deepEqual(await stub.ipcMain.__invoke("gui:resolve-input", null, missing), {
+    input: missing,
+    path: missing,
+    kind: "missing",
+  });
+  fs.rmSync(scratch, { recursive: true, force: true });
 });
 
 test("gui-main: the window is created with the hardened security settings", () => {

@@ -11,7 +11,7 @@ const DELIVERY = path.join(ROOT, "gui", "renderer", "delivery.js");
 const RECENT = path.join(ROOT, "gui", "renderer", "recent.js");
 
 const IDS = [
-  "project-line", "engine-badge", "pick", "launch-run", "cancel", "progress",
+  "project-line", "project-input", "engine-badge", "pick", "launch-run", "cancel", "progress",
   "bar-fill", "progress-text", "dict-load", "dict-summary", "dict-key",
   "dict-text", "dict-save", "import-run", "config-summary", "key-input",
   "key-save", "key-clear", "key-use", "key-state", "source-lang", "toasts",
@@ -124,6 +124,7 @@ function makeDom(options = {}) {
       saveEntry: async () => ({ ok: true, translated: 0, pendingCount: 0 }),
       pickDirectory: async () => null,
       pathForFile: () => "",
+      resolveInput: async (value) => ({ input: value, path: value, kind: "directory" }),
       logPath: async () => "C:/logs/yakusha/gui.log",
       openLog: async () => ({ ok: true, path: "C:/logs/yakusha/gui.log" }),
     },
@@ -161,7 +162,7 @@ test("scan success shows the engine and enables the install path", async () => {
   });
   assert.equal(dom.elements.get("engine-badge").hidden, false);
   assert.equal(dom.elements.get("engine-badge").textContent, "rgss 3");
-  assert.equal(dom.elements.get("project-line").textContent, "C:/games/alpha — Alpha");
+  assert.equal(dom.elements.get("project-line").textContent, "Project root: C:/games/alpha — Alpha");
   const install = action(dom, "install");
   assert.equal(install.disabled, false);
   assert.equal(install.title, "");
@@ -200,7 +201,7 @@ test("successful scans fill the recent row and a chip scans that folder again", 
   await flush();
   assert.equal(dom.runCalls.at(-1)[0], "scan");
   assert.deepEqual([...dom.runCalls.at(-1)[1]], ["C:/games/alpha"]);
-  assert.equal(dom.elements.get("project-line").textContent, "C:/games/alpha — Alpha");
+  assert.equal(dom.elements.get("project-line").textContent, "Project root: C:/games/alpha — Alpha");
 });
 
 test("a failed scan never enters the recent row", async () => {
@@ -354,6 +355,7 @@ test("a folder dropped on the window scans it through pathForFile", async () => 
   const dropped = { name: "game" };
   const seen = [];
   dom.window.yakusha.pathForFile = (file) => { seen.push(file); return "D:/games/dropped"; };
+  dom.window.yakusha.resolveInput = async (value) => ({ input: value, path: value, kind: "directory" });
   dom.envelopes.push({
     ok: true, outcome: "ok", engine: "mv", root: "D:/games/dropped", gameTitle: "Dropped",
     capabilities: { runtime: "plugin", launch: true },
@@ -366,7 +368,54 @@ test("a folder dropped on the window scans it through pathForFile", async () => 
   const call = dom.runCalls.at(-1);
   assert.equal(call[0], "scan");
   assert.deepEqual([...call[1]], ["D:/games/dropped"]);
-  assert.equal(dom.elements.get("project-line").textContent, "D:/games/dropped — Dropped");
+  assert.equal(dom.elements.get("project-input").textContent, "Selected folder: D:/games/dropped");
+  assert.equal(dom.elements.get("project-line").textContent, "Project root: D:/games/dropped — Dropped");
+});
+
+test("a game exe dropped on the window scans its containing folder", async () => {
+  const dom = makeDom();
+  const dropped = { name: "Game.exe" };
+  const seen = [];
+  dom.window.yakusha.pathForFile = (file) => { seen.push(file); return "D:/games/picked/Game.exe"; };
+  dom.window.yakusha.resolveInput = async (value) => ({
+    input: value, path: "D:/games/picked", kind: "file",
+  });
+  dom.envelopes.push({
+    ok: true, outcome: "ok", engine: "mv", root: "D:/games/picked/www", gameTitle: "Picked",
+    capabilities: { runtime: "plugin", launch: true },
+  });
+  for (const fn of dom.docListeners.get("drop") || []) {
+    await fn({ preventDefault() {}, dataTransfer: { files: [dropped] } });
+  }
+  await flush();
+  assert.deepEqual(seen, [dropped]);
+  const call = dom.runCalls.at(-1);
+  assert.equal(call[0], "scan");
+  assert.deepEqual([...call[1]], ["D:/games/picked"]);
+  assert.equal(dom.elements.get("project-input").textContent, "Selected file: D:/games/picked/Game.exe");
+  assert.equal(dom.elements.get("project-line").textContent, "Project root: D:/games/picked/www — Picked");
+
+  // The recent chip must remember both paths: the file the user chose and the
+  // folder the scan actually reads.
+  dom.envelopes.push({
+    ok: true, outcome: "ok", engine: "mv", root: "D:/games/picked/www", gameTitle: "Picked",
+    capabilities: { runtime: "plugin", launch: true },
+  });
+  await dom.elements.get("recent-list").children[0].click();
+  await flush();
+  assert.deepEqual([...dom.runCalls.at(-1)[1]], ["D:/games/picked"]);
+  assert.equal(dom.elements.get("project-input").textContent, "Selected file: D:/games/picked/Game.exe");
+
+  // A bare Scan button rescans the project root but must not replace the
+  // file the user originally dropped in the Selected line.
+  dom.envelopes.push({
+    ok: true, outcome: "ok", engine: "mv", root: "D:/games/picked/www", gameTitle: "Picked",
+    capabilities: { runtime: "plugin", launch: true },
+  });
+  await action(dom, "scan").click();
+  await flush();
+  assert.deepEqual([...dom.runCalls.at(-1)[1]], ["D:/games/picked/www"]);
+  assert.equal(dom.elements.get("project-input").textContent, "Selected file: D:/games/picked/Game.exe");
 });
 
 test("a drop without files is ignored", async () => {
@@ -398,7 +447,8 @@ test("the picker scans the chosen directory and a canceled picker does nothing",
   await dom.elements.get("pick").click();
   await flush();
   assert.deepEqual([...dom.runCalls.at(-1)[1]], ["C:/games/picked"]);
-  assert.equal(dom.elements.get("project-line").textContent, "C:/games/picked — Picked");
+  assert.equal(dom.elements.get("project-input").textContent, "Selected folder: C:/games/picked");
+  assert.equal(dom.elements.get("project-line").textContent, "Project root: C:/games/picked — Picked");
   dom.window.yakusha.pickDirectory = async () => null;
   await dom.elements.get("pick").click();
   await flush();

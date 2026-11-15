@@ -34,6 +34,9 @@ contextBridge.exposeInMainWorld(WORLD, {
   /** Open the native directory picker; resolves to a path or null. */
   pickDirectory: () => ipcRenderer.invoke("gui:pick-directory"),
 
+  /** Resolve a dropped path to the folder to scan (a file uses its parent). */
+  resolveInput: (value) => ipcRenderer.invoke("gui:resolve-input", value),
+
   /** The GUI log file: where full command envelopes and warnings are written. */
   logPath: () => ipcRenderer.invoke("gui:log-path"),
   openLog: () => ipcRenderer.invoke("gui:open-log"),

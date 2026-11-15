@@ -21,6 +21,7 @@
  * @module gui/main
  */
 
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -220,6 +221,21 @@ function registerIpc() {
     }
     const error = await shell.openPath(file);
     return error ? { ok: false, path: file, error } : { ok: true, path: file };
+  });
+  // Drag and drop may hand the renderer a file (a game executable) rather than
+  // a folder. Only the path shape is inspected here — stat metadata, never
+  // file contents — so the renderer can scan the containing project directory.
+  ipcMain.handle("gui:resolve-input", (_event, value) => {
+    const input = typeof value === "string" ? value.trim() : "";
+    if (!input) return { input: "", path: "", kind: "missing" };
+    try {
+      const stat = fs.statSync(input);
+      if (stat.isFile()) return { input, path: path.dirname(input), kind: "file" };
+      if (stat.isDirectory()) return { input, path: input, kind: "directory" };
+    } catch {
+      // A missing path is still useful: scan will report its normal E_NOT_PROJECT.
+    }
+    return { input, path: input, kind: "missing" };
   });
   // The one file-system affordance the renderer gets: a native open dialog.
   // It returns a path string; every other check stays in the runner (the path

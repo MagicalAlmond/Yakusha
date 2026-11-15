@@ -287,6 +287,14 @@ h1, h2, h3, p { margin: 0; }
   font-weight: 700;
 }
 .project-copy { min-width: 0; }
+.project-input {
+  margin-top: 3px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .project-line {
   margin-top: 3px;
   overflow: hidden;

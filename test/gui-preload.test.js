@@ -31,7 +31,7 @@ test("gui-preload: the bridge is exposed as window.yakusha with the documented s
   assert.deepEqual(Object.keys(api).sort(), [
     "cancel", "clearApiKey", "commands", "hasApiKey", "loadDictionary",
     "logPath", "onProgress", "onResult", "onWarning", "openLog", "pathForFile",
-    "pickDirectory", "run", "saveApiKey", "saveEntry",
+    "pickDirectory", "resolveInput", "run", "saveApiKey", "saveEntry",
   ]);
 });
 
@@ -139,6 +139,13 @@ test("gui-preload: the unsubscribe function fully removes a lone listener", () =
   assert.equal(state.rendererListeners.get("gui:result").length, 1);
   off();
   assert.equal(state.rendererListeners.get("gui:result").length, 0);
+});
+
+test("gui-preload: resolveInput passes the dropped path through", async () => {
+  stub.__reset();
+  await api.resolveInput("D:/games/Game.exe");
+  await flush();
+  assert.deepEqual(state.rendererInvokes, [["gui:resolve-input", "D:/games/Game.exe"]]);
 });
 
 test("gui-preload: pathForFile delegates to webUtils", () => {
