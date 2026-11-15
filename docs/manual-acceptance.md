@@ -28,18 +28,17 @@
 
 现状：0.82 已在 XP（RGSS1）、VX（RGSS2）与 VX Ace（RGSS3）各一款商业游戏上完成
 `scan` → `extract` → `translate`（`mock`）→ `verify` → `install` → `launch`。
-XP 的运行时画面已归档产品化截图；VX 的 hook 日志记录了 `drawn: 译` 与 `drawn: :`，
-但当前锁屏环境下 WGC 与 PrintWindow 只能得到黑帧，视觉证据用 2026-11-14 的历史截图补充。
+XP 与 VX 的运行时画面都已归档产品化截图；VX 的 hook 日志记录 `drawn: 译` 与
+`drawn: :`，2026-11-15 亮屏后重截的截图与日志一致。
 
 - [x] XP：scan → extract → translate → verify → install → launch，进入对话框确认中文
 - [x] XP：uninstall，确认 `yakusha/native/` 消失，游戏仍能启动
-- [x] VX：重复上一组步骤；运行时以 hook 日志 + 历史截图记录
+- [x] VX：重复上一组步骤，进入对话框确认中文（产品化截图已归档）
 - [x] 记录每款的引擎版本（RGSS1 / RGSS2）、归档/数据布局、是否遇到杀软误报（未观察到拦截）
 - [x] 0.82 已补上实机基线，不再需要把 XP / VX 标成 experimental
 
 通过标准：至少各一款 XP 与 VX 游戏在 `install` 后启动并看到中文对白；`uninstall`
-后原生组件目录被删除，原游戏可正常启动。0.82 已满足；VX 的截图限制写在
-[limitations.md](limitations.md) 的 RGSS 一节。
+后原生组件目录被删除，原游戏可正常启动。0.82 已满足。
 
 ## 3. 代码签名与托管方式
 

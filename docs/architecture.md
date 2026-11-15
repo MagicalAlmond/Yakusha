@@ -110,7 +110,7 @@ RGSS 的注入器有独立夹具 `test/rgss-native-fixture.js`（真 SHA-256 造
 | --- | --- | --- | --- | --- |
 | `plugin` | MZ / MV | 装一个 JS 插件，包装 `DataManager.onXhrLoad`（MZ）或 `onLoad`（MV） | 逐字节还原 | **已实现**，4 款游戏验收 |
 | `translation` | Ren'Py | 在 `game/` 下写一个 `yakusha_translation.rpy`，里面是 `translate <lang> strings:` 块 | 删掉这一个文件即恢复 | **已实现**（0.11），Ren'Py SDK 自带的两个示例游戏跑通五步（见 [games.md](games.md)） |
-| `inject` | RGSS（XP / VX / VX Ace）；Unity / Godot / Wolf 等仍只预留契约 | 原生注入器 + 引擎钩子 DLL：装进 `yakusha/native/`，挂起启动游戏后载入 hook | 删 `yakusha/native/`，游戏文件从未改 | **已实现**（0.18；0.82 起 XP / VX / VX Ace 各一款真机验收，VX 截图受锁屏限制） |
+| `inject` | RGSS（XP / VX / VX Ace）；Unity / Godot / Wolf 等仍只预留契约 | 原生注入器 + 引擎钩子 DLL：装进 `yakusha/native/`，挂起启动游戏后载入 hook | 删 `yakusha/native/`，游戏文件从未改 | **已实现**（0.18；0.82 起 XP / VX / VX Ace 各一款真机验收，VX 也有产品化截图） |
 | `patch` | Kirikiri | 写一个 `data/patch.xp3` 覆盖归档（只含已译 `.ks`）与清单 `yakusha/krkr-patch.json`；引擎按 `data.xp3` → `patch.xp3` 的顺序加载 | 删归档与清单，游戏自己的归档从未改 | **已实现**（0.74）：合成夹具覆盖 install/uninstall/doctor，另在真实商业归档副本上验过写入/回读与可逆性 |
 | `debug` | NW.js / Electron / Chromium 系（含某些多引擎工具自带的运行时、部分 Unity WebGL 壳） | 启动参数 `--remote-debugging-port`，用 CDP `Runtime.evaluate` 注入钩子 | 结束即恢复 | **机制已实机验证**：MZ 加参数后可读 `SceneManager`、可改写 `startMessage`；但 `attach` 命令仍未实现（能力表 `attach:false`），MV 旧版不吃该参数 |
 
@@ -337,7 +337,7 @@ test/fixtures/           各引擎最小夹具（mini-mz、mini-mv、renpy-*、r
 | 0.79.0 | **已交付**：便携 exe 发布工程——`tools/portable-lib.mjs` / `tools/portable.mjs` 从本地 Electron 37 与 `native/prebuilt` 组装 `dist/yakusha-<version>-win-x64`（`Yakusha.exe` + `resources/app` + `build-info.json` + `SHA256SUMS`），非空目录无 `--force` 即拒绝且只替换本工具生成的目录；`--verify` 逐文件重算哈希并拒绝缺失/多余/篡改；`tools/gui-acceptance.mjs --exe` 用便携包跑通五引擎真窗链路；`docs/release.md` 记录构建、校验、签名（不签）与托管边界 | 941 pass / 0 fail（portable +7）；0.79 构建 163 文件 / 307,921,513 字节，五链真机通过 |
 | 0.80.0 | **已交付**：桌面收尾——GUI 最近项目（localStorage 最多 5 个，按路径去重）、窗口/任务栏 `app-icon.ico`、窗口大小/位置/最大化状态持久化（profile 的 `window-state.json`），便携包构建与 `--verify` 双重校验 `Yakusha.exe` 的 PE Subsystem=2（拒绝控制台子系统） | 949 pass / 0 fail（gui-renderer 23、gui-main 21、window-state +4、portable +1；MZ/MV/Ren'Py/RGSS/Kirikiri 五链真窗通过） |
 | 0.81.0 | **已交付**：1.0 发布前置——README 与 GUI 显式披露未签名构建与 SmartScreen 处理，`docs/manual-acceptance.md` 把剩余人工验收整理成可执行清单（Ren'Py 真实游戏 L4、RGSS XP/VX 真机基线、签名与托管、1.0 引擎名单）；RGSS XP/VX 补合成提取测试，`docs/games.md` / `docs/evidence.md` 旧口径修正 | 951 pass / 0 fail（rgss-extract +1、gui-renderer +1） |
-| 0.82.0 | **已交付**：RGSS XP / VX 真机基线——`Game.ini` 按字节判编码（Shift_JIS / GBK），RGSS1 消息窗口切换 `Microsoft YaHei UI` 并给 `Bitmap#text_size` 加兜底；XP（5,316 串）与 VX（733 串）各一款走完 translate（mock）→ verify → install → launch，XP 有产品化截图，VX 以 hook 日志 + 历史截图记录（当前锁屏下 WGC / PrintWindow 只得到黑帧）；`docs/evidence.md` / `docs/games.md` / `docs/engines.json` / adapter `tested` 同步 | 953 pass / 0 fail（rgss-project 4 断言、rgss-native-source +1） |
+| 0.82.0 | **已交付**：RGSS XP / VX 真机基线——`Game.ini` 按字节判编码（Shift_JIS / GBK），RGSS1 消息窗口切换 `Microsoft YaHei UI` 并给 `Bitmap#text_size` 加兜底；XP（5,316 串）与 VX（733 串）各一款走完 translate（mock）→ verify → install → launch，XP 与 VX 均有产品化截图（VX 于 2026-11-15 重截）；`docs/evidence.md` / `docs/games.md` / `docs/engines.json` / adapter `tested` 同步 | 953 pass / 0 fail（rgss-project 4 断言、rgss-native-source +1） |
 | 1.0.0 | 10 个引擎 + 能力矩阵 + 便携 exe（图标、无控制台、最近游戏） | 双击 exe 可用 |
 
 ## 10. 风险
@@ -347,7 +347,7 @@ test/fixtures/           各引擎最小夹具（mini-mz、mini-mv、renpy-*、r
   所以 0.11 一个版本就拿下了；但它的代价是**只能整串替换**，做不到改半句。
   RGSS 排第二：解析器与归档算法都有公开格式可循（0.12 纯 JS 拿下 L1–L3），
   "送进去"在 0.18 选了原生注入器（写回二进制文档保留为备选），是唯一需要原生组件的引擎，
-  验收覆盖 XP / VX / VX Ace 各一款商业游戏（VX 截图受锁屏限制）。
+  验收覆盖 XP / VX / VX Ace 各一款商业游戏，运行时画面均有产品化截图。
   Kirikiri 的提取同样走公开格式（XP3 归档 + KAG 脚本，0.13 纯 JS 拿下 L1–L3，
   覆盖来自合成夹具，0.16 起补过真实归档读取复核）；0.74 的交付层不重写 `data.xp3`，而是写一个
   引擎会按加载顺序覆盖上去的 `patch.xp3`，并在一个真实商业归档副本上验过写入/回读与可逆性，

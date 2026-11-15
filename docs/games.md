@@ -92,7 +92,7 @@ node bin/yakusha.js status "/games/SomeGame"
 | RPG Maker MZ | ✅ `game.rmmzproject`，或 `data/*.json` | ✅ 明文或单字节 XOR 的 JSON | ✅ 任意 OpenAI 兼容端点或 `mock` | ✅ 十一条判据 | ✅ 插件档：一个插件文件，加 `js/plugins.js` 里一行 | ✅ 根目录的 `Game.exe` | ✅ 版本区间 1.3.2–1.9.0，区间外只 `warn` |
 | RPG Maker MV | ✅ 同上，`www/` 布局也认 | ✅ 同上 | ✅ | ✅ | ✅ 插件档：改写 `loadDataFile`，在 `onLoad` 里回填 | ✅ `www/` 布局下从上一层启动 `Game.exe`（0.44） | ✅ 版本区间 1.6.1–1.6.2 |
 | Ren'Py | ✅ `game/` 目录加 `.rpy` / `.rpyc` | ⚠️ 只用 SDK 的两个官方示例验收，未测真实商业游戏 | ✅ | ✅ | ✅ translation 档：`game/yakusha_translation.rpy` | ✅ 发行版根目录的启动器 | ⚠️ `versions: none`，`config.version` 是游戏版本，没有可比矩阵 |
-| RGSS（XP / VX / VX Ace） | ✅ `.rvproj2` / `.rvproj`，或 `RGSSAD` 家族归档 | ✅ `Data/` 下的 `.rxdata` / `.rvdata` / `.rvdata2` | ✅ | ✅ | ⚠️ inject 档，只有 32 位 Windows 组件；XP / VX / VX Ace 各一款真机走查（VX 截图受锁屏限制） | ✅ 经 `yakusha_injector.exe` 启动 | ✅ `versions` 1 / 2 / 3，实测 1 / 2 / 3 |
+| RGSS（XP / VX / VX Ace） | ✅ `.rvproj2` / `.rvproj`，或 `RGSSAD` 家族归档 | ✅ `Data/` 下的 `.rxdata` / `.rvdata` / `.rvdata2` | ✅ | ✅ | ⚠️ inject 档，只有 32 位 Windows 组件；XP / VX / VX Ace 各一款真机走查 | ✅ 经 `yakusha_injector.exe` 启动 | ✅ `versions` 1 / 2 / 3，实测 1 / 2 / 3 |
 | Kirikiri | ✅ `data/` 或根目录下的 `.xp3` | ⚠️ 只读标准未加密 XP3；加密变体进 `undecodable`，改版索引（Hxv4 形态）报 `E_UNSUPPORTED`；`.tjs` 只计数不读内容 | ✅ | ✅ | ✅ patch 档：只写 `data/patch.xp3`（已存在时自动顺延到 `patch2.xp3`，只含已译 `.ks`）与清单；0.77 起在一款商业游戏上做过运行时全量翻译实测——启动后对白显示译文，`uninstall` 只回收该归档 | ✅ 根目录的 `Game.exe` | ⚠️ 标题与版本读不出时显示 `(untitled)`，`versions: none` |
 
 还有三件事不分引擎：`attach`（接管运行中的进程）五个引擎都是 ❌，从 0.10 起就是桩，没有 CLI 入口；MV 不能挂 `--remote-debugging-port`（`debuggable: false`），MZ 可以，这是引擎本身的差别；只在 Windows 10/11 x64 上支持与验收，Linux、macOS、WSL、Wine、Proton 都不在范围内。
@@ -157,13 +157,12 @@ XP-A、VX-A、VX Ace-A。三款都是日文原版，玩家侧流传的中文补�
 | 唯一串 / 出现次数 | 5,316 / 9,195 | 733 / 7,456 | 31,730 / 49,732 |
 | `undecodable` | 0 | 0 | 0 |
 | 安装条目 | 5,316 | 733 | 31,730（0.18 实测） |
-| 运行时证据 | 产品化截图（仓库外） | hook 日志 + 2026-11-14 历史截图 | 早期真机验收 |
+| 运行时证据 | 产品化截图（仓库外） | 产品化截图（仓库外，2026-11-15） | 早期真机验收 |
 
 XP-A 与 VX-A 是 0.82 补的基线：两者都走完 `scan` → `extract` → `translate`（`mock`）→
 `verify` → `install` → `launch`。XP-A 启动后进入对话框，画面里出现 mock 的「译:」前缀；
-VX-A 的 hook 日志记录 `drawn: 译` 与 `drawn: :`，说明绘制钩子确实拿到译文，但当前锁屏
-环境下 WGC 与 PrintWindow 都只得到黑帧，产品化截图无法重截；2026-11-14 的历史截图曾看到
-「译:観衆」等对白，作为运行时证据的补充，不冒充本次重跑。
+VX-A 的 hook 日志记录 `drawn: 译` 与 `drawn: :`，2026-11-15 亮屏后重截的产品化截图可见
+「译:観衆」与「译:「姫様～～～！！」」，与日志一致。
 
 VX Ace-A 是打包发行（只有 `.rgss3a`，没有 `Data/` 目录），所以它验的是两条读取路径里的归档
 那条：`.rxdata` / `.rvdata` / `.rvdata2` 都在归档里，工具先按 `RGSSAD` 头解出目录，再逐个文档
@@ -201,7 +200,7 @@ RGSS 的根目录形状是 `Game.ini` + `Data/`，或者启动器 `.exe` + 一�
 
 **这不等于对 RGSS 全家族的运行时验收**：三版各只有一款样本，三个版本的验收基线仍未定；
 带可执行文件保护壳的样本没有尝试注入。XP / VX 的读取与交付由真实样本和合成夹具共同覆盖，
-VX 的视觉截图受锁屏限制（见 [limitations.md](limitations.md) 的 RGSS 一节）。
+运行时画面都已有产品化截图（仓库外，2026-11-15）。
 
 ## Kirikiri（KAG）
 

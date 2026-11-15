@@ -10,7 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- RGSS XP (RGSS1) and VX (RGSS2) now have real-game L4 baselines alongside VX Ace: one commercial game each completed `scan` → `extract` → `translate` (`mock`) → `verify` → `install` → `launch`. XP shows the mock `译:` prefix in its message window; VX's hook log records `drawn: 译` and `drawn: :`, but the current locked desktop makes WGC / PrintWindow return black frames, so its visual evidence is the hook log plus the 2026-11-14 historical screenshot. `docs/evidence.md`, `docs/games.md`, `docs/engines.json`, `docs/limitations.md` and `docs/manual-acceptance.md` record the new coverage; adapter `versions.tested` is now `["1","2","3"]`.
+- RGSS XP (RGSS1) and VX (RGSS2) now have real-game L4 baselines alongside VX Ace: one commercial game each completed `scan` → `extract` → `translate` (`mock`) → `verify` → `install` → `launch`. XP and VX both show the mock `译:` prefix in their message windows; VX's hook log records `drawn: 译` and `drawn: :`, and a 2026-11-15 runtime capture confirms the same prefix. `docs/evidence.md`, `docs/games.md`, `docs/engines.json`, `docs/limitations.md` and `docs/manual-acceptance.md` record the new coverage; adapter `versions.tested` is now `["1","2","3"]`.
 
 ### Fixed
 

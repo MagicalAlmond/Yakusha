@@ -40,7 +40,7 @@
   `RGSSEval` 跑 `bootstrap.rb`，由它包一层 `load_data` 替换数据文档返回的对象里的字符串。
   运行日志写在 `yakusha/native/rgss-hook.log`；第一行 `bootstrap ready` 是 Ruby 侧真的跑起来的
   标志，只有 `DLL attached` 而没有它，说明 bootstrap 没执行（`RGSSEval` 对语法/编码错误只返回 0）。
-- 交付层是 32 位 Windows 的原生组件；XP / VX / VX Ace 各一款真机走查（VX 截图受锁屏限制）。
+- 交付层是 32 位 Windows 的原生组件；XP / VX / VX Ace 各一款真机走查，运行时画面都有产品化截图（仓库外）。
   早期两款 VX Ace 样本是 `RGSS300.dll` 与 `RGSS301.dll` + 2.0 GB 归档；0.82 又补了 XP（RGSS1）
   与 VX（RGSS2）各一款。`bootstrap.rb` 只用 Ruby 1.8 / 1.9 都有的语法，但 1.8 的路径编码
   没有实机验证：读不到字典时只是不翻译。

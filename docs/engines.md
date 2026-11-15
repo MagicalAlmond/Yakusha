@@ -740,8 +740,8 @@ DLL 搜索路径（Windows 解析 DLL 自己的导入表时走的是**应用程�
 **已知限制。** 这些都是 0.18 / 0.82 的真实边界，不要写得比实现更满：
 
 - XP / VX 各一款、VX Ace 两款真实游戏上实测过：XP（RGSS1）、VX（RGSS2），VX Ace 是
-  `RGSS300.dll`（0.18 / 0.69）与 `RGSS301.dll` + 2.0 GB 归档（0.70）两款。VX 的视觉截图受锁屏
-  限制，运行时证据是 hook 日志与 2026-11-14 的历史截图。
+  `RGSS300.dll`（0.18 / 0.69）与 `RGSS301.dll` + 2.0 GB 归档（0.70）两款。VX 也有
+  产品化截图（仓库外 2026-11-15），与 hook 日志一致。
 - RGSS1 的消息窗口在译文字符上可能拿到 0 宽 `Rect`，触发 `Bitmap.new(0,16)` 或
   `Window_Message` 的 `TypeError`。0.82 起 `bootstrap.rb` 在字典非空且默认字体是常见
   Gothic / Arial 系时切到 `Microsoft YaHei UI`，并给 `Bitmap#text_size` 加兜底（宽度 <= 0
