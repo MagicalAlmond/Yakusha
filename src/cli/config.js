@@ -20,8 +20,14 @@ import { CliError } from "./envelope.js";
 /** The endpoint used when provider is openai and no base URL is configured. */
 export const DEFAULT_BASE_URL = "https://api.openai.com/v1";
 
+/** The wire format used when none is configured. */
+export const DEFAULT_API_FORMAT = "chat-completions";
+
+/** API wire formats a user may select. */
+export const API_FORMATS = ["chat-completions", "responses"];
+
 /** Keys a user may read or write with the config command. */
-export const CONFIG_KEYS = ["provider", "model", "baseUrl"];
+export const CONFIG_KEYS = ["provider", "model", "baseUrl", "apiFormat"];
 
 /** Names that would turn the config file into a secret store. Never used or shown. */
 const SENSITIVE = new Set(["apikey", "key", "token", "authorization"]);
@@ -88,6 +94,14 @@ export function validateConfigValue(key, value) {
     if (normalised.length === 0) return { ok: false, message: "model must not be empty" };
     if (normalised.length > 200) return { ok: false, message: "model must be at most 200 characters" };
     if (CONTROL.test(normalised)) return { ok: false, message: "model must not contain control characters" };
+    return { ok: true, value: normalised };
+  }
+  if (key === "apiFormat") {
+    if (typeof value !== "string") return { ok: false, message: "apiFormat must be a string" };
+    const normalised = value.trim().toLowerCase();
+    if (!API_FORMATS.includes(normalised)) {
+      return { ok: false, message: "apiFormat must be chat-completions or responses" };
+    }
     return { ok: true, value: normalised };
   }
   if (key === "baseUrl") {
@@ -243,6 +257,7 @@ export function requireUsableConfig(loaded) {
  *   provider: {value: string|null, source: string},
  *   model: {value: string|null, source: string},
  *   baseUrl: {value: string|null, source: string},
+ *   apiFormat: {value: string, source: string},
  *   apiKey: {set: boolean, source: string|null}
  * }}
  */
@@ -276,6 +291,14 @@ export function resolveEffective(loaded, options = {}) {
   else if (provider.value === "compatible") baseUrl = { value: null, source: "none" };
   else baseUrl = { value: DEFAULT_BASE_URL, source: "default" };
 
+  let apiFormat;
+  const apiFormatFlag = text(flags["api-format"]).toLowerCase();
+  const apiFormatEnv = text(env.YAKUSHA_API_FORMAT).toLowerCase();
+  if (apiFormatFlag) apiFormat = { value: apiFormatFlag, source: "flag" };
+  else if (apiFormatEnv) apiFormat = { value: apiFormatEnv, source: "env" };
+  else if (config.apiFormat !== undefined) apiFormat = { value: config.apiFormat, source: "file" };
+  else apiFormat = { value: DEFAULT_API_FORMAT, source: "default" };
+
   let apiKey;
   const keyFlag = text(flags["api-key"]);
   if (keyFlag) apiKey = { set: true, source: "--api-key" };
@@ -283,7 +306,7 @@ export function resolveEffective(loaded, options = {}) {
   else if (env.OPENAI_API_KEY) apiKey = { set: true, source: "OPENAI_API_KEY" };
   else apiKey = { set: false, source: null };
 
-  return { provider, model, baseUrl, apiKey };
+  return { provider, model, baseUrl, apiFormat, apiKey };
 }
 
 /**
@@ -381,7 +404,7 @@ function requireWritableKey(key) {
     );
   }
   if (!CONFIG_KEYS.includes(key)) {
-    throw new CliError("E_USAGE", "unknown config key: " + key + " (expected provider, model or baseUrl)");
+    throw new CliError("E_USAGE", "unknown config key: " + key + " (expected provider, model, baseUrl or apiFormat)");
   }
 }
 

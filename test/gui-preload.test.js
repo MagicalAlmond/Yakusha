@@ -29,9 +29,9 @@ const flush = () => new Promise((resolve) => setTimeout(resolve, 5));
 test("gui-preload: the bridge is exposed as window.yakusha with the documented surface", () => {
   assert.equal(WORLD, "yakusha");
   assert.deepEqual(Object.keys(api).sort(), [
-    "cancel", "clearApiKey", "commands", "hasApiKey", "loadDictionary",
-    "logPath", "onProgress", "onResult", "onWarning", "openLog", "pathForFile",
-    "pickDirectory", "resolveInput", "run", "saveApiKey", "saveEntry",
+    "cancel", "clearApiKey", "commands", "hasApiKey", "listModels", "loadDictionary",
+    "logPath", "logTail", "onProgress", "onResult", "onWarning", "openLog", "pathForFile",
+    "pickDirectory", "projectState", "resolveInput", "run", "saveApiKey", "saveEntry",
   ]);
 });
 
@@ -80,10 +80,11 @@ test("gui-preload: the no-argument methods hit their channels bare", async () =>
   await api.hasApiKey();
   await api.clearApiKey();
   await api.logPath();
+  await api.logTail();
   await api.openLog();
   await flush();
   assert.deepEqual(state.rendererInvokes.map((entry) => entry[0]), [
-    "gui:cancel", "gui:pick-directory", "gui:has-key", "gui:clear-key", "gui:log-path", "gui:open-log",
+    "gui:cancel", "gui:pick-directory", "gui:has-key", "gui:clear-key", "gui:log-path", "gui:log-tail", "gui:open-log",
   ]);
   for (const entry of state.rendererInvokes) {
     assert.equal(entry.length, 1, entry[0] + " carries no payload");
@@ -139,6 +140,19 @@ test("gui-preload: the unsubscribe function fully removes a lone listener", () =
   assert.equal(state.rendererListeners.get("gui:result").length, 1);
   off();
   assert.equal(state.rendererListeners.get("gui:result").length, 0);
+});
+
+test("gui-preload: model listing and project state pass their arguments through", async () => {
+  stub.__reset();
+  await api.listModels({ provider: "compatible", baseUrl: "http://127.0.0.1:8080/v1" });
+  await api.listModels();
+  await api.projectState("D:/games/x", "rgss");
+  await flush();
+  assert.deepEqual(state.rendererInvokes, [
+    ["gui:list-models", { provider: "compatible", baseUrl: "http://127.0.0.1:8080/v1" }],
+    ["gui:list-models", {}],
+    ["gui:project-state", "D:/games/x", "rgss"],
+  ]);
 });
 
 test("gui-preload: resolveInput passes the dropped path through", async () => {

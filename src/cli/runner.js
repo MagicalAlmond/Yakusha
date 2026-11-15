@@ -31,6 +31,7 @@ import { repairSpeakerNames } from "../pipeline/speaker.js";
 import { SOURCE_LANGUAGES, sourceLanguage } from "../languages/index.js";
 import { mineTerms, toGlossary } from "../pipeline/terms.js";
 import {
+  API_FORMATS,
   DEFAULT_BASE_URL,
   loadConfig,
   requireUsableConfig,
@@ -757,6 +758,7 @@ async function commandTranslate(dir, flags, sink, onProgress, opts = {}) {
         provider: { value: null, source: "none" },
         model: { value: null, source: "none" },
         baseUrl: { value: null, source: "none" },
+        apiFormat: { value: "chat-completions", source: "default" },
         apiKey: { set: false, source: null },
       };
   // 0.10 has no default provider: the flag, the config file or nothing.
@@ -770,6 +772,12 @@ async function commandTranslate(dir, flags, sink, onProgress, opts = {}) {
   const providerKey = providerName === null ? null : String(providerName).toLowerCase();
   // A third-party endpoint has no sensible default, and sending the key to
   // api.openai.com because baseUrl was omitted would be both wrong and surprising.
+  if (!API_FORMATS.includes(effective.apiFormat.value)) {
+    throw new CliError(
+      "E_USAGE",
+      "--api-format must be chat-completions or responses, not " + effective.apiFormat.value
+    );
+  }
   if (providerKey === "compatible" && !effective.baseUrl.value) {
     throw new CliError(
       "E_CONFIG",
@@ -784,6 +792,7 @@ async function commandTranslate(dir, flags, sink, onProgress, opts = {}) {
       : createProvider(providerName, {
           baseUrl: effective.baseUrl.value || undefined,
           model: effective.model.value || undefined,
+          apiFormat: effective.apiFormat.value,
           apiKey: typeof flags["api-key"] === "string" ? flags["api-key"] : undefined,
           temperature: numberFlag(flags, "temperature", undefined),
           timeoutMs: numberFlag(flags, "timeout", undefined),
@@ -1261,7 +1270,7 @@ async function commandImport(dir, flags, sink) {
  */
 async function commandLaunch(dir, flags, sink) {
   const { project, adapter } = requireProject(dir);
-  const result = await adapter.launch(project, { exe: flags.exe });
+  const result = await adapter.launch(project, { exe: flags.exe, original: flags.original === true });
   sink.out("launched  : " + result.exe);
   sink.out("pid       : " + result.pid);
   return { payload: { root: result.root, exe: result.exe, pid: result.pid } };
@@ -1338,7 +1347,7 @@ async function commandDoctor(dir, flags, sink) {
 }
 
 const CONFIG_ACTION_NAMES = new Set(["list", "get", "set", "unset"]);
-const CONFIG_KEY_NAMES = new Set(["provider", "model", "baseUrl"]);
+const CONFIG_KEY_NAMES = new Set(["provider", "model", "baseUrl", "apiFormat"]);
 
 /**
  * Reject a key the config command does not manage. apiKey is a special case
@@ -1355,7 +1364,7 @@ function requireConfigKey(key) {
     );
   }
   if (!CONFIG_KEY_NAMES.has(key)) {
-    throw new CliError("E_USAGE", "unknown config key: " + key + " (expected provider, model or baseUrl)");
+    throw new CliError("E_USAGE", "unknown config key: " + key + " (expected provider, model, baseUrl or apiFormat)");
   }
 }
 
@@ -1388,6 +1397,7 @@ async function commandConfig(args, sink) {
     sink.out("provider: " + configEntryText(resolved.provider));
     sink.out("model   : " + configEntryText(resolved.model));
     sink.out("baseUrl : " + configEntryText(resolved.baseUrl));
+    sink.out("apiFormat: " + configEntryText(resolved.apiFormat));
     sink.out("apiKey  : " + (resolved.apiKey.set ? "set (" + resolved.apiKey.source + ")" : "(not set)"));
     warnNonDefaultBaseUrl(resolved.baseUrl.value, sink);
     return {
@@ -1399,6 +1409,7 @@ async function commandConfig(args, sink) {
           provider: resolved.provider,
           model: resolved.model,
           baseUrl: resolved.baseUrl,
+          apiFormat: resolved.apiFormat,
         },
         apiKey: resolved.apiKey,
       },

@@ -11,19 +11,28 @@ const DELIVERY = path.join(ROOT, "gui", "renderer", "delivery.js");
 const RECENT = path.join(ROOT, "gui", "renderer", "recent.js");
 
 const IDS = [
-  "project-line", "project-input", "engine-badge", "pick", "launch-run", "cancel",
-  "progress", "bar-fill", "progress-bar", "progress-text", "dict-load", "dict-summary",
-  "dict-key", "dict-text", "dict-save", "import-run", "config-summary", "key-input",
-  "key-save", "key-clear", "key-use", "key-state", "source-lang", "toasts",
-  "log-summary", "log-open", "delivery", "delivery-tier", "delivery-title",
-  "delivery-copy", "delivery-caution", "recent", "recent-list",
+  "project-line", "project-input", "engine-badge", "pick", "launch-run", "launch-original",
+  "launch-translated", "cancel", "progress", "bar-fill", "progress-bar", "progress-text",
+  "dict-load", "dict-summary", "dict-key", "dict-text", "dict-save", "import-run",
+  "config-summary", "key-input", "key-save", "key-clear", "key-use", "key-state",
+  "source-lang", "toasts", "log-summary", "log-open", "delivery", "delivery-tier",
+  "delivery-title", "delivery-copy", "delivery-caution", "recent", "recent-list",
   "project-title", "project-state", "sidebar-project-name", "stage-prepare",
-  "stage-translate", "stage-deliver", "stage-prepare-status", "stage-translate-status", "stage-deliver-status", "task-title", "task-copy", "task-state",
-  "primary-action", "task-secondary", "task-stats", "stat-translated", "stat-pending",
-  "stat-total", "last-run", "last-run-title", "last-run-detail", "last-run-time",
-  "health-engine", "health-strings", "health-translated", "health-delivery",
-  "service-banner", "service-config", "config-load", "config-provider",
-  "config-model", "config-base-url", "config-save", "config-clear", "config-state",
+  "stage-translate", "stage-deliver", "stage-prepare-status", "stage-translate-status",
+  "stage-deliver-status", "task-title", "task-copy", "task-state", "primary-action",
+  "task-secondary", "task-stats", "stat-translated", "stat-pending", "stat-total",
+  "last-run", "last-run-title", "last-run-detail", "last-run-time", "health-engine",
+  "health-strings", "health-translated", "health-delivery", "service-banner",
+  "service-config", "config-load", "config-provider", "config-api-format", "config-model",
+  "config-base-url", "config-save", "config-clear", "config-state", "config-query-models",
+  "config-model-list", "config-model-status", "brand-home", "nav-overview", "nav-workflow",
+  "nav-dictionary", "nav-settings", "page-overview", "page-workflow", "page-dictionary",
+  "page-settings", "overview-heading", "workflow-heading", "dictionary-heading",
+  "settings-heading", "project-card-title", "project-card-line", "project-card-engine",
+  "workflow-launch", "tab-service", "tab-credentials", "tab-translation", "tab-glossary",
+  "settings-service", "settings-credentials", "settings-translation", "settings-glossary",
+  "rail-toggle", "rail-toggle-icon",
+  "log-toggle", "log-dock", "log-refresh", "log-close", "log-lines", "log-count",
 ];
 const COMMANDS = ["scan", "extract", "status", "translate", "verify", "install",
   "uninstall", "export", "speaker", "terms", "doctor", "config"];
@@ -45,6 +54,12 @@ class FakeElement {
       _set: new Set(),
       add(name) { this._set.add(name); },
       remove(name) { this._set.delete(name); },
+      toggle(name, force) {
+        const next = force === undefined ? !this._set.has(name) : Boolean(force);
+        if (next) this._set.add(name); else this._set.delete(name);
+        return next;
+      },
+      contains(name) { return this._set.has(name); },
       has(name) { return this._set.has(name); },
     };
     this._innerHTML = "";
@@ -134,6 +149,9 @@ function makeDom(options = {}) {
       resolveInput: async (value) => ({ input: value, path: value, kind: "directory" }),
       logPath: async () => "C:/logs/yakusha/gui.log",
       openLog: async () => ({ ok: true, path: "C:/logs/yakusha/gui.log" }),
+      logTail: async () => ({ ok: true, path: "C:/logs/yakusha/gui.log", lines: [] }),
+      listModels: async () => ({ ok: true, models: [] }),
+      projectState: async () => ({ ok: true, dictionary: { translated: 0, pending: 0, total: 0 }, native: { installed: false, intact: true } }),
     },
   };
   const context = vm.createContext({
@@ -259,13 +277,15 @@ test("scan explains the delivery layer for every runtime value", async () => {
   }
 });
 
-test("scan without capabilities falls back to L3-only and hides delivery on the next scan", async () => {
+test("scan without capabilities falls back to L3-only and a failed scan keeps the last project", async () => {
   const dom = makeDom();
   await scan(dom, { ok: true, outcome: "ok", engine: "unknown", root: "C:/games/unknown", gameTitle: "Unknown" });
   assert.equal(dom.elements.get("delivery").hidden, false);
   assert.equal(dom.elements.get("delivery-tier").textContent, "L3-only");
   await scan(dom, { ok: false, outcome: "error", error: { code: "E_NOT_PROJECT", message: "no game" } });
-  assert.equal(dom.elements.get("delivery").hidden, true);
+  assert.equal(dom.elements.get("delivery").hidden, false, "a failed scan must not erase the visible project");
+  assert.equal(dom.elements.get("project-line").textContent, "Project root: C:/games/unknown — Unknown");
+  assert.equal(dom.elements.get("project-state").textContent, "Scan failed — previous project kept");
 });
 
 test("scan E_MULTI_ROOT explains where to pick the project", async () => {
@@ -280,7 +300,7 @@ test("scan E_MULTI_ROOT explains where to pick the project", async () => {
   );
 });
 
-test("a new scan resets the previous engine before the result arrives", async () => {
+test("a failed scan keeps the previous project and its capability bits", async () => {
   const dom = makeDom();
   await scan(dom, {
     ok: true, outcome: "ok", engine: "rgss", root: "C:/games/alpha", gameTitle: "Alpha",
@@ -288,12 +308,12 @@ test("a new scan resets the previous engine before the result arrives", async ()
   });
   assert.equal(action(dom, "install").disabled, false);
 
-  // The next scan fails. The renderer must not keep the previous project's
-  // capability bits; install and uninstall must be disabled again.
+  // A failed scan is an event, not a project replacement: the user keeps the
+  // working project and can still install or launch it.
   await scan(dom, { ok: false, outcome: "error", error: { code: "E_NOT_PROJECT", message: "no game" } });
-  assert.equal(action(dom, "install").disabled, true);
-  assert.equal(action(dom, "uninstall").disabled, true);
-  assert.equal(dom.elements.get("engine-badge").hidden, true);
+  assert.equal(action(dom, "install").disabled, false);
+  assert.equal(dom.elements.get("engine-badge").hidden, false);
+  assert.equal(dom.elements.get("engine-badge").textContent, "rgss");
   await action(dom, "install").click();
   const call = dom.runCalls.at(-1);
   assert.deepEqual({ ...call[2] }, {});
@@ -382,10 +402,12 @@ test("saving the service writes provider, model and base URL, then reloads", asy
   dom.elements.get("config-base-url").value = "http://127.0.0.1:8080/v1";
   dom.envelopes.push(
     { ok: true, outcome: "ok", action: "set", key: "provider", value: "compatible" },
-    { ok: true, outcome: "ok", action: "set", key: "model", value: "local-model" },
+    { ok: true, outcome: "ok", action: "set", key: "apiFormat", value: "chat-completions" },
     { ok: true, outcome: "ok", action: "set", key: "baseUrl", value: "http://127.0.0.1:8080/v1" },
+    { ok: true, outcome: "ok", action: "set", key: "model", value: "local-model" },
     { ok: true, outcome: "ok", action: "list", values: {
       provider: { value: "compatible", source: "file" },
+      apiFormat: { value: "chat-completions", source: "default" },
       model: { value: "local-model", source: "file" },
       baseUrl: { value: "http://127.0.0.1:8080/v1", source: "file" },
     }, apiKey: { set: true, source: "file" } },
@@ -395,15 +417,16 @@ test("saving the service writes provider, model and base URL, then reloads", asy
   const calls = dom.runCalls.filter((call) => call[0] === "config");
   assert.deepEqual(calls.map((call) => [...call[1]]), [
     ["set", "provider", "compatible"],
-    ["set", "model", "local-model"],
+    ["set", "apiFormat", "chat-completions"],
     ["set", "baseUrl", "http://127.0.0.1:8080/v1"],
+    ["set", "model", "local-model"],
     ["list"],
   ]);
   assert.equal(dom.elements.get("config-state").textContent, "Service saved");
   assert.equal(dom.elements.get("service-banner").hidden, true);
 });
 
-test("clearing the service unsets all three fields and restores the banner", async () => {
+test("clearing the service unsets every service field and restores the banner", async () => {
   const dom = makeDom();
   dom.elements.get("config-provider").value = "openai";
   dom.elements.get("config-model").value = "gpt-4.1-mini";
@@ -412,6 +435,7 @@ test("clearing the service unsets all three fields and restores the banner", asy
     { ok: true, outcome: "ok", action: "unset", key: "provider" },
     { ok: true, outcome: "ok", action: "unset", key: "model" },
     { ok: true, outcome: "ok", action: "unset", key: "baseUrl" },
+    { ok: true, outcome: "ok", action: "unset", key: "apiFormat" },
   );
   await dom.elements.get("config-clear").click();
   await flush();
@@ -420,6 +444,7 @@ test("clearing the service unsets all three fields and restores the banner", asy
     ["unset", "provider"],
     ["unset", "model"],
     ["unset", "baseUrl"],
+    ["unset", "apiFormat"],
   ]);
   assert.equal(dom.elements.get("config-provider").value, "");
   assert.equal(dom.elements.get("config-model").value, "");
@@ -451,10 +476,42 @@ test("every id the renderer looks up exists in the page", () => {
   }
 });
 
-test("the page discloses that release builds are not code-signed", () => {
+test("the page has four workspace pages, settings tabs and no SmartScreen note", () => {
   const html = fs.readFileSync(path.join(ROOT, "gui", "renderer", "index.html"), "utf8");
-  assert.match(html, /Unsigned builds may trigger SmartScreen/i);
-  assert.match(html, /SHA256SUMS first/);
+  assert.match(html, /id="nav-overview"/);
+  assert.match(html, /id="page-workflow"/);
+  assert.match(html, /id="tab-glossary"/);
+  assert.match(html, /id="log-toggle"/);
+  assert.doesNotMatch(html, /SmartScreen|SHA256SUMS/);
+});
+
+test("the imported project card owns both launch actions", () => {
+  const html = fs.readFileSync(path.join(ROOT, "gui", "renderer", "index.html"), "utf8");
+  const start = html.indexOf('id="project"');
+  const end = html.indexOf('id="actions"');
+  assert.ok(start > 0 && end > start);
+  const card = html.slice(start, end);
+  assert.match(card, /id="launch-original"/);
+  assert.match(card, /id="launch-translated"/);
+});
+
+test("the workspace rail collapses, swaps its glyph and remembers the choice", async () => {
+  const storage = makeStorage();
+  const dom = makeDom({ storage });
+  const toggle = dom.elements.get("rail-toggle");
+  assert.equal(dom.document.body.classList.contains("rail-collapsed"), false);
+  assert.equal(dom.elements.get("rail-toggle-icon").textContent, "«");
+  await toggle.click();
+  assert.equal(dom.document.body.classList.contains("rail-collapsed"), true);
+  assert.equal(dom.elements.get("rail-toggle-icon").textContent, "»");
+  assert.equal(storage.getItem("yakusha.rail.collapsed"), "1");
+
+  const restored = makeDom({ storage });
+  assert.equal(restored.document.body.classList.contains("rail-collapsed"), true);
+  assert.equal(restored.elements.get("rail-toggle-icon").textContent, "»");
+  await restored.elements.get("rail-toggle").click();
+  assert.equal(restored.document.body.classList.contains("rail-collapsed"), false);
+  assert.equal(storage.getItem("yakusha.rail.collapsed"), "0");
 });
 
 test("a folder dropped on the window scans it through pathForFile", async () => {
@@ -686,4 +743,136 @@ test("switching the source language to English reaches translate and verify only
     capabilities: { runtime: "plugin", launch: true },
   });
   assert.deepEqual({ ...dom.runCalls.at(-1)[2] }, {});
+});
+
+test("the rail switches between independent pages and settings tabs", async () => {
+  const dom = makeDom();
+  assert.equal(dom.elements.get("page-overview").hidden, false);
+  assert.equal(dom.elements.get("page-settings").hidden, true);
+  await dom.elements.get("nav-workflow").click();
+  assert.equal(dom.elements.get("page-workflow").hidden, false);
+  assert.equal(dom.elements.get("page-overview").hidden, true);
+  assert.equal(dom.elements.get("nav-workflow").classList.has("is-active"), true);
+  await dom.elements.get("nav-settings").click();
+  assert.equal(dom.elements.get("page-settings").hidden, false);
+  assert.equal(dom.elements.get("settings-service").hidden, false);
+  assert.equal(dom.elements.get("settings-glossary").hidden, true);
+  await dom.elements.get("tab-glossary").click();
+  assert.equal(dom.elements.get("settings-glossary").hidden, false);
+  assert.equal(dom.elements.get("settings-service").hidden, true);
+  assert.equal(dom.elements.get("tab-glossary").classList.has("is-active"), true);
+});
+
+test("fetch models lists clickable models and fills the model field", async () => {
+  const dom = makeDom();
+  dom.elements.get("config-provider").value = "compatible";
+  dom.elements.get("config-base-url").value = "http://127.0.0.1:8080/v1";
+  dom.window.yakusha.listModels = async (request) => {
+    dom.modelRequest = request;
+    return { ok: true, models: ["model-a", "model-b"] };
+  };
+  await dom.elements.get("config-query-models").click();
+  await flush();
+  assert.deepEqual({ ...dom.modelRequest }, { provider: "compatible", baseUrl: "http://127.0.0.1:8080/v1" });
+  const list = dom.elements.get("config-model-list");
+  assert.equal(list.hidden, false);
+  assert.equal(list.children.length, 2);
+  assert.equal(list.children[0].textContent, "model-a");
+  assert.match(dom.elements.get("config-model-status").textContent, /2 models available/);
+  await list.children[1].click();
+  assert.equal(dom.elements.get("config-model").value, "model-b");
+  assert.equal(list.children[1].classList.has("is-selected"), true);
+  assert.equal(dom.elements.get("config-model-status").textContent, "Selected model-b");
+});
+
+test("mock model listing works without a base URL", async () => {
+  const dom = makeDom();
+  dom.elements.get("config-provider").value = "mock";
+  dom.window.yakusha.listModels = async () => ({ ok: true, models: ["mock"] });
+  await dom.elements.get("config-query-models").click();
+  await flush();
+  assert.equal(dom.elements.get("config-model-list").children.length, 1);
+  assert.equal(dom.elements.get("config-model-list").children[0].textContent, "mock");
+});
+
+test("RGSS shows original and translated launch buttons and gates the translated one", async () => {
+  const dom = makeDom();
+  dom.window.yakusha.projectState = async () => ({
+    ok: true, dictionary: { translated: 0, pending: 3, total: 3 }, native: { installed: false, intact: true },
+  });
+  await scan(dom, {
+    ok: true, outcome: "ok", engine: "rgss", engineVersion: "3",
+    root: "C:/games/alpha", gameTitle: "Alpha",
+    capabilities: { runtime: "inject", launch: true },
+  });
+  assert.equal(dom.elements.get("launch-run").hidden, true);
+  assert.equal(dom.elements.get("launch-original").hidden, false);
+  assert.equal(dom.elements.get("launch-translated").hidden, false);
+  assert.equal(dom.elements.get("launch-original").disabled, false);
+  assert.equal(dom.elements.get("launch-translated").disabled, true);
+  assert.equal(dom.elements.get("launch-translated").title, "游戏未进行翻译");
+
+  dom.window.yakusha.projectState = async () => ({
+    ok: true, dictionary: { translated: 2, pending: 1, total: 3 }, native: { installed: true, intact: true },
+  });
+  await scan(dom, {
+    ok: true, outcome: "ok", engine: "rgss", engineVersion: "3",
+    root: "C:/games/alpha", gameTitle: "Alpha",
+    capabilities: { runtime: "inject", launch: true },
+  });
+  assert.equal(dom.elements.get("launch-translated").disabled, false);
+  assert.equal(dom.elements.get("launch-translated").title, "");
+  await dom.elements.get("launch-original").click();
+  await flush();
+  assert.deepEqual({ ...dom.runCalls.at(-1)[2] }, { original: true });
+  await dom.elements.get("launch-translated").click();
+  await flush();
+  assert.deepEqual({ ...dom.runCalls.at(-1)[2] }, {});
+});
+
+test("a non-RGSS engine keeps a single launch button", async () => {
+  const dom = makeDom();
+  await scan(dom, {
+    ok: true, outcome: "ok", engine: "mz", root: "C:/games/alpha", gameTitle: "Alpha",
+    capabilities: { runtime: "plugin", launch: true },
+  });
+  assert.equal(dom.elements.get("launch-run").hidden, false);
+  assert.equal(dom.elements.get("launch-original").hidden, true);
+  assert.equal(dom.elements.get("launch-translated").hidden, true);
+  assert.equal(dom.elements.get("launch-run").disabled, false);
+});
+
+test("verify findings do not mark the project ready to install", async () => {
+  const dom = makeDom();
+  await scan(dom, {
+    ok: true, outcome: "ok", engine: "mz", root: "C:/games/alpha", gameTitle: "Alpha",
+    capabilities: { runtime: "plugin", launch: true },
+  });
+  dom.envelopes.push({
+    ok: true, outcome: "findings", translated: 2, total: 4, pending: 2, errors: 2, warnings: 0,
+    counts: { codes: 2 }, problems: [],
+  });
+  await action(dom, "verify").click();
+  await flush();
+  assert.equal(dom.elements.get("primary-action").dataset.action, "extract");
+  assert.match(dom.elements.get("task-state").textContent, /In progress/);
+});
+
+test("the bottom log toggle fetches and renders log lines", async () => {
+  const dom = makeDom();
+  dom.window.yakusha.logTail = async (request) => {
+    assert.deepEqual({ ...request }, { limit: 200 });
+    return { ok: true, path: "C:/logs/yakusha/gui.log", lines: ["one", { time: "2026-11-16T10:00:00.000Z", event: "run.start", command: "scan" }, JSON.stringify({ time: "2026-11-16T10:00:01.000Z", event: "run.result", command: "scan", outcome: "ok" })] };
+  };
+  await dom.elements.get("log-toggle").click();
+  await flush();
+  assert.equal(dom.elements.get("log-dock").hidden, false);
+  assert.equal(dom.elements.get("log-lines").children.length, 3);
+  assert.equal(dom.elements.get("log-lines").children[0].textContent, "one");
+  assert.match(dom.elements.get("log-lines").children[1].textContent, /10:00:00 · run.start · scan/);
+  assert.match(dom.elements.get("log-lines").children[2].textContent, /10:00:01 · run.result · scan · ok/);
+  assert.equal(dom.elements.get("log-lines").children[2].dataset.event, "run.result");
+  assert.equal(dom.elements.get("log-count").textContent, "3");
+  await dom.elements.get("log-close").click();
+  assert.equal(dom.elements.get("log-dock").hidden, true);
 });

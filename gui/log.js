@@ -71,6 +71,48 @@ export function appendGuiLog(file, entry) {
 }
 
 /**
+ * Read the last lines of the JSONL log without loading a huge file.
+ *
+ * A read that starts mid-file drops the incomplete first line; the returned
+ * strings are the original JSONL lines, oldest first. Missing files and read
+ * errors both return an empty list so the dock never breaks a page.
+ *
+ * @param {string|null} file
+ * @param {{limit?: number, maxBytes?: number}} [options]
+ * @returns {string[]}
+ */
+export function readLogTail(file, options = {}) {
+  if (!file) return [];
+  const limit = Number.isInteger(options.limit) && options.limit > 0 ? options.limit : 200;
+  const maxBytes = Number.isInteger(options.maxBytes) && options.maxBytes > 0 ? options.maxBytes : 256 * 1024;
+  let fd;
+  try {
+    const stat = fs.statSync(file);
+    if (!stat.isFile() || stat.size === 0) return [];
+    const start = Math.max(0, stat.size - maxBytes);
+    fd = fs.openSync(file, "r");
+    const buffer = Buffer.alloc(stat.size - start);
+    fs.readSync(fd, buffer, 0, buffer.length, start);
+    let text = buffer.toString("utf8");
+    if (start > 0) {
+      const newline = text.indexOf("\n");
+      text = newline === -1 ? "" : text.slice(newline + 1);
+    }
+    return text.split(/\r?\n/).filter((line) => line.length > 0).slice(-limit);
+  } catch {
+    return [];
+  } finally {
+    if (fd !== undefined) {
+      try {
+        fs.closeSync(fd);
+      } catch {
+        // Best effort: the lines already read are still useful.
+      }
+    }
+  }
+}
+
+/**
  * Create an empty log file when the user asks to open it.
  *
  * @param {string|null} file

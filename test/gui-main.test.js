@@ -36,9 +36,12 @@ const IPC_CHANNELS = [
   "gui:dict-load",
   "gui:dict-save",
   "gui:has-key",
+  "gui:list-models",
   "gui:log-path",
+  "gui:log-tail",
   "gui:open-log",
   "gui:pick-directory",
+  "gui:project-state",
   "gui:resolve-input",
   "gui:run",
   "gui:save-key",
@@ -292,6 +295,41 @@ test("gui-main: gui:log-path names the file and gui:open-log reveals it", async 
   assert.equal(result.path, LOG_FILE);
   assert.ok(fs.existsSync(LOG_FILE));
   assert.deepEqual(stub.__state().openPathCalls.at(-1), LOG_FILE);
+});
+
+test("gui-main: gui:log-tail returns the recent lines of the same log file", async () => {
+  const result = await stub.ipcMain.__invoke("gui:log-tail");
+  assert.equal(result.ok, true);
+  assert.equal(result.path, LOG_FILE);
+  assert.ok(Array.isArray(result.lines));
+  assert.ok(result.lines.length > 0, "earlier runs wrote log lines");
+});
+
+test("gui-main: gui:list-models asks the provider for ids and maps failures", async () => {
+  assert.deepEqual(await stub.ipcMain.__invoke("gui:list-models", null, { provider: "mock" }), {
+    ok: true, models: ["mock"],
+  });
+  const bad = await stub.ipcMain.__invoke("gui:list-models", null, { provider: "nope" });
+  assert.equal(bad.ok, false);
+  assert.equal(bad.error.code, "E_PROVIDER");
+});
+
+test("gui-main: gui:project-state reads the dictionary and native state", async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "yakusha-gui-state-"));
+  try {
+    fs.mkdirSync(path.join(tmp, "yakusha"), { recursive: true });
+    fs.writeFileSync(
+      path.join(tmp, "yakusha", "dictionary.json"),
+      JSON.stringify({ format: "yakusha/1", entries: { k1: { text: "v1" }, k2: { text: "" } } }, null, 2) + "\n",
+    );
+    const state = await stub.ipcMain.__invoke("gui:project-state", null, tmp, "mz");
+    assert.equal(state.ok, true);
+    assert.equal(state.dictionary.total, 2);
+    assert.equal(state.dictionary.translated, 1);
+    assert.equal(state.native.installed, false);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
 });
 
 test("gui-main: a thrown handler error still answers with one E_INTERNAL envelope", async () => {

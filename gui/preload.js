@@ -39,7 +39,13 @@ contextBridge.exposeInMainWorld(WORLD, {
 
   /** The GUI log file: where full command envelopes and warnings are written. */
   logPath: () => ipcRenderer.invoke("gui:log-path"),
+  logTail: () => ipcRenderer.invoke("gui:log-tail"),
   openLog: () => ipcRenderer.invoke("gui:open-log"),
+
+  /** Query the configured endpoint for selectable model ids; mock returns ["mock"]. */
+  listModels: (request) => ipcRenderer.invoke("gui:list-models", request || {}),
+  /** Read dictionary/native facts for the launch buttons (read-only). */
+  projectState: (root, engine) => ipcRenderer.invoke("gui:project-state", root, engine),
 
   /** Credentials (docs/config.md §8): the key crosses IPC once on save and
    *  is only read back inside the main process; the renderer never stores it. */

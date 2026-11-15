@@ -608,6 +608,7 @@ TextGrammar = {
 | 1.0.1 | 双击启动修复：原生 `Yakusha.exe` 启动器保留默认沙箱，只在已知 Chromium 沙箱崩溃状态码（`0x80000003` / `0xC0000005`）回退 `--no-sandbox`（**已交付**） | 1.0.0 在本机双击 Electron 37.2.3 直接以 `0x80000003` 退出；修复只作用于 Windows 11 沙箱启动崩溃，不改应用安全模型 | 964 pass / 0 fail；启动器与 runtime 双 PE Subsystem=2；双击见 GUI |
 | 1.1.0 | GUI 项目路径区分与 exe 拖入：项目卡分 `Selected …` 与 `Project root …` 两行，`gui:resolve-input` 只读 stat 判定文件/目录，拖入游戏 exe 自动取所在目录再 scan（**已交付**） | 用户拖入 NW.js 游戏的 `Game.exe` 时，旧行为把 exe 当项目目录报 `E_NOT_PROJECT`；同时界面只显示规范化后的 `www` 根，看不出自己选了什么 | 967 pass / 0 fail；便携包 MZ 链通过；真实 exe 经 `window.yakusha.resolveInput` 返回父目录 |
 | 1.2 | GUI Calm Workbench 与 Settings 服务配置：224px 深色导航 + 项目卡 + Prepare / Translate / Deliver 三阶段带 + Current task + Project health；Settings 直接配置 provider / model / base URL（`config list/set/unset`）（**已交付**） | 用户指出 GUI 目前无法配置 provider / model / baseUrl；1.2 把配置表单接进既有 config 命令，同时把 0.72 的页面纵向堆叠收成固定工作台 | 972 pass / 0 fail；`tools/gui-acceptance.mjs --only mz` 真窗阶段带 Now/Later/Later → Done/Now/Later，Settings 保存/清除/恢复通过 |
+| 1.3 | GUI 四页工作台与 Service 配置补全：Overview / Workflow / Dictionary / Settings 四页、Workspace / Recent games 两层左栏可收 76px、Settings 四标签页、底部 Log 抽屉、RGSS Launch original / Launch translated 双启动；Service 增加 API 格式与 `gui:list-models` 模型查询（**已交付**） | 用户要求左侧导航分页、侧栏两层可收起、底部日志、Settings 标签页，并补齐 provider / API 格式 / model 的 GUI 配置 | 996 pass / 0 fail；`tools/gui-acceptance.mjs --only mz` 真窗通过（四页、rail 收起 76px、Settings 保存、日志抽屉） |
 
 说明：
 

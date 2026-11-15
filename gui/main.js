@@ -29,7 +29,7 @@ import { app, BrowserWindow, dialog, ipcMain, safeStorage, shell } from "electro
 
 import { GUI_COMMANDS } from "./commands.js";
 import { runGuiCommandInWorker } from "./worker-host.js";
-import { appendGuiLog, ensureGuiLog, guiLogPath, sanitizeFlags } from "./log.js";
+import { appendGuiLog, ensureGuiLog, guiLogPath, readLogTail, sanitizeFlags } from "./log.js";
 import {
   clearApiKey,
   credentialsFile,
@@ -38,9 +38,11 @@ import {
   saveApiKey,
 } from "./credentials.js";
 import { readDictionary, writeEntry } from "./dictionary.js";
+import { projectState } from "./project-state.js";
 import { resolveProfileDir } from "./profile.js";
 import { readWindowState, WINDOW_STATE_FILE, writeWindowState } from "./window-state.js";
 import { configFilePath } from "../src/cli/config.js";
+import { listModels } from "../src/pipeline/provider.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
@@ -211,6 +213,50 @@ function registerIpc() {
     return true;
   });
   ipcMain.handle("gui:log-path", () => logFilePath());
+  ipcMain.handle("gui:log-tail", () => {
+    const file = logFilePath();
+    return { ok: true, path: file, lines: readLogTail(file, { limit: 200, maxBytes: 256 * 1024 }) };
+  });
+  ipcMain.handle("gui:list-models", async (_event, request) => {
+    const provider = request && typeof request.provider === "string" ? request.provider.trim().toLowerCase() : "openai";
+    const baseUrl = request && typeof request.baseUrl === "string" && request.baseUrl.trim() ? request.baseUrl.trim() : undefined;
+    let apiKey;
+    if (provider !== "mock") {
+      const file = credentialsPath();
+      if (file && hasApiKey(file)) {
+        const stored = readApiKey(file, safeStorage);
+        if (stored.error) {
+          return { ok: false, error: { code: "E_CONFIG", message: stored.error } };
+        }
+        apiKey = stored.key;
+      }
+    }
+    try {
+      const models = await listModels({ provider, baseUrl, apiKey });
+      return { ok: true, models };
+    } catch (error) {
+      return {
+        ok: false,
+        error: {
+          code: error && error.code ? error.code : "E_INTERNAL",
+          message: String(error && error.message ? error.message : error),
+        },
+      };
+    }
+  });
+  ipcMain.handle("gui:project-state", (_event, root, engine) => {
+    try {
+      return projectState(String(root || ""), typeof engine === "string" ? engine : undefined);
+    } catch (error) {
+      return {
+        ok: false,
+        error: {
+          code: error && error.code ? error.code : "E_INTERNAL",
+          message: String(error && error.message ? error.message : error),
+        },
+      };
+    }
+  });
   ipcMain.handle("gui:open-log", async () => {
     const file = logFilePath();
     if (!file) {

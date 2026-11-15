@@ -1,4 +1,4 @@
-# 配置与密钥（0.10 已实现）
+# 配置与密钥（0.10 已实现；1.3 起支持 API 格式）
 
 > **状态：0.10 已实现（WP3）。** `yakusha config list|get|set|unset` 与 `translate` 的
 > 配置读取规则按本文执行；provider / model / 密钥都没有默认值，真实调用前必须显式配置。
@@ -32,7 +32,8 @@ Windows 上无法满足 0600。0.10 的配置里没有秘密，分享游戏目�
   "schema": 1,
   "provider": "openai",
   "model": "gpt-4o-mini",
-  "baseUrl": "https://api.openai.com/v1"
+  "baseUrl": "https://api.openai.com/v1",
+  "apiFormat": "chat-completions"
 }
 ```
 
@@ -49,10 +50,13 @@ Windows 上无法满足 0600。0.10 的配置里没有秘密，分享游戏目�
 | `provider` | 字符串 | 无（必填） | `openai` / `compatible` / `mock`；`compatible` 是 OpenAI 兼容端点的别名 |
 | `model` | 字符串 | 无（必填） | 非空、≤200 字符、不含控制字符 |
 | `baseUrl` | 字符串 | `https://api.openai.com/v1`（仅 `provider=openai`）；`compatible` 必填 | 绝对 `http(s)` URL；不含 userinfo、query、fragment；≤2000 字符；去掉结尾 `/` |
+| `apiFormat` | 字符串 | `chat-completions` | `chat-completions` / `responses`；大小写不敏感，写盘前规范成小写 |
 
 没有内置模型：不配置 `model` 时不会替你假设 `gpt-4o-mini`，而是直接 `E_CONFIG`。
 真实调用（`openai` / `compatible`）必须同时具备 provider、model 和密钥；缺任何一项都在
 发请求前失败，不会带着默认值去试。`mock`、`--dry-run`、`--glossary-only` 不需要这三项。
+
+`apiFormat` 只影响真实 provider 的线上请求形状：`chat-completions`（默认）向 `<baseUrl>/chat/completions` POST `messages`，读回 `choices[0].message.content`；`responses` 向 `<baseUrl>/responses` POST `instructions` + `input`，读回 `output_text`（缺失时回退拼接 `output[].content[].text`）。`mock` 忽略该键。GUI 的 `Fetch models` 走 `GET <baseUrl>/models`，与 apiFormat 无关。
 
 无效值分两种处理：
 
@@ -69,6 +73,7 @@ Windows 上无法满足 0600。0.10 的配置里没有秘密，分享游戏目�
 | provider | `--provider` → 配置文件 → 无（缺则 `E_CONFIG`） |
 | model | `--model` → `YAKUSHA_MODEL` → 配置文件 → 无（缺则 `E_CONFIG`） |
 | baseUrl | `--base-url` → `YAKUSHA_BASE_URL` → 配置文件 → `provider=openai` 时默认 `https://api.openai.com/v1`；`compatible` 无默认（缺则 `E_CONFIG`） |
+| apiFormat | `--api-format` → `YAKUSHA_API_FORMAT` → 配置文件 → 默认 `chat-completions` |
 | apiKey | `--api-key` → `YAKUSHA_API_KEY` → `OPENAI_API_KEY` → 空（真实调用缺则 `E_CONFIG`） |
 
 - 环境变量高于配置文件：CI 和临时切换端点不需要改用户的文件。
@@ -103,7 +108,8 @@ yakusha config unset <key>
   "values": {
     "provider": { "value": null, "source": "none" },
     "model": { "value": null, "source": "none" },
-    "baseUrl": { "value": "https://api.openai.com/v1", "source": "default" }
+    "baseUrl": { "value": "https://api.openai.com/v1", "source": "default" },
+    "apiFormat": { "value": "chat-completions", "source": "default" }
   },
   "apiKey": { "set": true, "source": "YAKUSHA_API_KEY" }
 }
@@ -129,7 +135,7 @@ yakusha config unset <key>
 }
 ```
 
-`key` 只接受 `provider` / `model` / `baseUrl`；`apiKey` → `E_USAGE`。
+`key` 只接受 `provider` / `model` / `baseUrl` / `apiFormat`；`apiKey` → `E_USAGE`。
 
 ### 5.3 `set` / `unset`
 
@@ -200,7 +206,7 @@ yakusha config unset <key>
 
 ## 9. 验收清单
 
-0.10.0 交付时逐条核过（`test/config.test.js` 15 条 + `test/provider-config.test.js` 9 条）：
+0.10.0 交付时逐条核过（`test/config.test.js` 15 条 + `test/provider-config.test.js` 9 条）；1.3.0 的 API 格式另由 `test/provider-api.test.js` 的 wire-format 用例、`test/config.test.js` 的 apiFormat 校验与 `test/gui-renderer.test.js` 的 Settings 用例覆盖：
 
 - [x] `config set/get/list/unset` 在临时 `YAKUSHA_CONFIG_DIR` 下全绿；文件内容是 `schema` 在前的 2 空格缩进 LF。
 - [x] `config set apiKey` 返回 `E_USAGE`，且临时目录里没有出现密钥字符串。

@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-16
+
+### Added
+
+- The GUI is now a four-page workbench: Overview / Workflow / Dictionary / Settings live behind a two-layer rail (Workspace and Recent games) that collapses to a 76px icon strip and remembers the choice across restarts.
+- Settings is split into Service / Credentials / Translation / Glossary tabs. The Service form drives provider / API format / base URL / model through `config list/get/set/unset`, with `Load current`, `Save service` and `Clear service`; `Fetch models` is a read-only `gui:list-models` channel that queries `GET <baseUrl>/models` and fills the model field.
+- `config` now accepts `apiFormat` (`chat-completions` by default, or `responses`); `translate` accepts `--api-format` and `YAKUSHA_API_FORMAT`. The provider sends and parses the matching wire format: `choices[0].message.content` for chat completions, `output_text` (falling back to `output[].content[].text`) for responses.
+- The GUI has a bottom Log dock backed by `gui:log-tail` (last 200 lines / 256 KiB) with Refresh / Open file… / Close.
+- RGSS project cards offer `Launch original` and `Launch translated`; translated launch is enabled when the injector is installed and the dictionary has translations.
+- `tools/gui-acceptance.mjs` checks the rail collapse, four pages, Settings tabs and Log dock in a real Electron window.
+
+### Unchanged
+
+- The JSON envelope, exit codes, command table, error codes and every existing payload key are untouched. No new dependency. 996 pass.
+
 ## [1.2.0] - 2026-11-16
 
 ### Added
@@ -1153,6 +1168,7 @@ First stable release.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
 [Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v1.2.0...HEAD
+[1.3.0]: https://github.com/MagicalAlmond/Yakusha/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/MagicalAlmond/Yakusha/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/MagicalAlmond/Yakusha/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/MagicalAlmond/Yakusha/compare/v1.0.0...v1.0.1

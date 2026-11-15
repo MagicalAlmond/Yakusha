@@ -96,6 +96,7 @@ test("config: list on a missing file reports defaults without creating it", () =
   assert.deepEqual(body.values.provider, { value: null, source: "none" });
   assert.deepEqual(body.values.model, { value: null, source: "none" });
   assert.deepEqual(body.values.baseUrl, { value: "https://api.openai.com/v1", source: "default" });
+  assert.deepEqual(body.values.apiFormat, { value: "chat-completions", source: "default" });
   assert.deepEqual(body.apiKey, { set: false, source: null });
   assert.equal(fs.existsSync(file), false);
 });
@@ -125,6 +126,9 @@ test("config: get reports file, env and default sources", () => {
   const env = { YAKUSHA_CONFIG_DIR: dir };
   let result = run(["config", "get", "baseUrl", "--json"], { env });
   assert.equal(json(result).value, "https://api.openai.com/v1");
+  assert.equal(json(result).source, "default");
+  result = run(["config", "get", "apiFormat", "--json"], { env });
+  assert.equal(json(result).value, "chat-completions");
   assert.equal(json(result).source, "default");
   result = run(["config", "get", "provider", "--json"], { env });
   assert.equal(json(result).value, null);
@@ -184,6 +188,7 @@ test("config: invalid values are E_USAGE and never written", () => {
     ["baseUrl", "https://example.test/v1?x=1"],
     ["baseUrl", "https://example.test/v1#x"],
     ["baseUrl", "https://user:" + "pass" + "@example.test/v1"],
+    ["apiFormat", "xml"],
   ];
   for (const [key, value] of cases) {
     const result = run(["config", "set", key, value, "--json"], { env });
@@ -300,6 +305,15 @@ test("config: list never echoes a key from env or a sensitive file key", () => {
   assert.match(result.stderr, /sensitive key/);
 });
 
+test("config: apiFormat defaults to chat-completions and accepts responses", () => {
+  const { dir, file } = configDir();
+  const env = { YAKUSHA_CONFIG_DIR: dir };
+  run(["config", "set", "apiFormat", "responses", "--json"], { env });
+  assert.equal(JSON.parse(fs.readFileSync(file, "utf8")).apiFormat, "responses");
+  const body = json(run(["config", "list", "--json"], { env }));
+  assert.deepEqual(body.values.apiFormat, { value: "responses", source: "file" });
+});
+
 test("config: provider compatible has no default base URL", () => {
   const { dir } = configDir();
   const env = { YAKUSHA_CONFIG_DIR: dir };
@@ -314,34 +328,40 @@ test("config: precedence is flag over env over file over default", () => {
       provider: "file-provider",
       model: "file-model",
       baseUrl: "https://file.example.test/v1",
+      apiFormat: "responses",
     },
   };
   const env = {
     YAKUSHA_MODEL: "env-model",
     YAKUSHA_BASE_URL: "https://env.example.test/v1",
+    YAKUSHA_API_FORMAT: "chat-completions",
     YAKUSHA_API_KEY: "sk-" + "env" + "secret123",
   };
   const flags = {
     provider: "flag-provider",
     model: "flag-model",
     "base-url": "https://flag.example.test/v1",
+    "api-format": "responses",
     "api-key": "sk-" + "flag" + "secret123",
   };
   let effective = resolveEffective(loaded, { flags, env });
   assert.deepEqual(effective.provider, { value: "flag-provider", source: "flag" });
   assert.deepEqual(effective.model, { value: "flag-model", source: "flag" });
   assert.deepEqual(effective.baseUrl, { value: "https://flag.example.test/v1", source: "flag" });
+  assert.deepEqual(effective.apiFormat, { value: "responses", source: "flag" });
   assert.deepEqual(effective.apiKey, { set: true, source: "--api-key" });
 
   effective = resolveEffective(loaded, { flags: {}, env });
   assert.deepEqual(effective.provider, { value: "file-provider", source: "file" });
   assert.deepEqual(effective.model, { value: "env-model", source: "env" });
   assert.deepEqual(effective.baseUrl, { value: "https://env.example.test/v1", source: "env" });
+  assert.deepEqual(effective.apiFormat, { value: "chat-completions", source: "env" });
   assert.deepEqual(effective.apiKey, { set: true, source: "YAKUSHA_API_KEY" });
 
   effective = resolveEffective({ config: {} }, { flags: {}, env: {} });
   assert.deepEqual(effective.provider, { value: null, source: "none" });
   assert.deepEqual(effective.model, { value: null, source: "none" });
   assert.deepEqual(effective.baseUrl, { value: "https://api.openai.com/v1", source: "default" });
+  assert.deepEqual(effective.apiFormat, { value: "chat-completions", source: "default" });
   assert.deepEqual(effective.apiKey, { set: false, source: null });
 });

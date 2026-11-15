@@ -201,6 +201,7 @@ async function clickCommand(cdp, logFile, selector, command, timeout) {
 }
 
 async function capture(cdp, file) {
+  await cdp.evaluate('(() => { const stack = document.getElementById("toasts"); if (stack) stack.replaceChildren(); const pages = document.querySelector(".pages"); if (pages) pages.scrollTop = 0; window.scrollTo(0, 0); return true; })()');
   const result = await cdp.send("Page.captureScreenshot", { format: "png" });
   fs.writeFileSync(file, Buffer.from(result.data, "base64"));
   return file;
@@ -284,6 +285,7 @@ function checkUninstalled(chain, dir, envelope, originalPlugins, originalArchive
 }
 
 async function runChain(cdp, chain, dir, logFile, artifacts, timeout) {
+  await clickSelector(cdp, "#nav-workflow");
   await cdp.evaluate("currentDir = " + JSON.stringify(dir) + "; String(currentDir)");
   await cdp.evaluate('document.getElementById("source-lang").value = ' + JSON.stringify(chain.sourceLang) + '; document.getElementById("source-lang").value');
   const originalPlugins = chain.runtime === "plugin"
@@ -296,6 +298,13 @@ async function runChain(cdp, chain, dir, logFile, artifacts, timeout) {
   const scan = await clickCommand(cdp, logFile, "[data-cmd=scan]", "scan", timeout);
   assertEnvelope("scan", scan, chain);
   if (scan.engine !== chain.engine) throw new Error(chain.id + " scan reported engine " + scan.engine);
+  const launchUi = JSON.parse(await cdp.evaluate('JSON.stringify({ run: { hidden: document.getElementById("launch-run").hidden, disabled: document.getElementById("launch-run").disabled }, original: { hidden: document.getElementById("launch-original").hidden, disabled: document.getElementById("launch-original").disabled }, translated: { hidden: document.getElementById("launch-translated").hidden, disabled: document.getElementById("launch-translated").disabled, title: document.getElementById("launch-translated").title } })'));
+  if (chain.engine === "rgss") {
+    if (launchUi.run.hidden !== true || launchUi.original.hidden !== false || launchUi.translated.hidden !== false) throw new Error(chain.id + " launch buttons do not show the RGSS original/translated pair");
+    if (launchUi.translated.disabled !== true || launchUi.translated.title !== "游戏未进行翻译") throw new Error(chain.id + " translated launch button is not gated before translation");
+  } else if (launchUi.run.hidden !== false || launchUi.original.hidden !== true || launchUi.translated.hidden !== true) {
+    throw new Error(chain.id + " launch buttons do not show the single launch button");
+  }
   const tier = await cdp.evaluate('document.getElementById("delivery-tier").textContent');
   if (tier !== chain.tier) throw new Error(chain.id + " delivery card shows " + JSON.stringify(tier) + ", expected " + chain.tier);
   const cardHidden = await cdp.evaluate('document.getElementById("delivery").hidden');
@@ -307,7 +316,7 @@ async function runChain(cdp, chain, dir, logFile, artifacts, timeout) {
   const screenshot = await capture(cdp, path.join(artifacts, chain.id + "-scan.png"));
   const stageAfterScan = await readStages(cdp);
   if (stageAfterScan !== "Done|Now|Later") throw new Error(chain.id + " stage band after scan is " + JSON.stringify(stageAfterScan));
-  steps.push({ command: "scan", ok: scan.ok, engine: scan.engine, uniqueStrings: scan.uniqueStrings, deliveryTier: tier, stageBand: stageAfterScan });
+  steps.push({ command: "scan", ok: scan.ok, engine: scan.engine, uniqueStrings: scan.uniqueStrings, deliveryTier: tier, stageBand: stageAfterScan, launchButtons: launchUi });
 
   const extract = await clickCommand(cdp, logFile, "[data-cmd=extract]", "extract", timeout);
   assertEnvelope("extract", extract, chain);
@@ -338,6 +347,12 @@ async function runChain(cdp, chain, dir, logFile, artifacts, timeout) {
   assertEnvelope("doctor", doctor, chain);
   steps.push({ command: "doctor", ok: doctor.ok, verdict: doctor.verdict });
 
+  await clickSelector(cdp, "#nav-overview");
+  await sleep(300);
+  const projectShot = await capture(cdp, path.join(artifacts, chain.id + "-project.png"));
+  await clickSelector(cdp, "#nav-workflow");
+  steps.push({ screenshot: projectShot });
+
   return { engine: chain.engine, runtime: chain.runtime, deliveryTier: tier, steps, screenshot };
 }
 
@@ -345,16 +360,63 @@ async function readStages(cdp) {
   return cdp.evaluate('["stage-prepare-status", "stage-translate-status", "stage-deliver-status"].map((id) => document.getElementById(id).textContent).join("|")');
 }
 
+async function checkPages(cdp, timeout) {
+  const order = ["overview", "workflow", "dictionary", "settings", "overview"];
+  const seen = [];
+  for (const page of order) {
+    await clickSelector(cdp, "#nav-" + page);
+    await waitFor(cdp, 'document.getElementById("page-' + page + '").hidden === false', timeout, "page " + page);
+    seen.push(page);
+  }
+  return seen;
+}
+
+async function checkRailCollapse(cdp, artifacts, timeout) {
+  await clickSelector(cdp, "#rail-toggle");
+  await waitFor(cdp, 'document.body.classList.contains("rail-collapsed") === true', timeout, "rail collapse");
+  const width = await cdp.evaluate('getComputedStyle(document.querySelector(".app-shell")).gridTemplateColumns');
+  const icon = await cdp.evaluate('document.getElementById("rail-toggle-icon").textContent');
+  if (!width.startsWith("76px")) throw new Error("collapsed rail width is " + JSON.stringify(width));
+  if (icon !== "»") throw new Error("collapsed rail glyph is " + JSON.stringify(icon));
+  const shot = await capture(cdp, path.join(artifacts, "rail-collapsed.png"));
+  await clickSelector(cdp, "#rail-toggle");
+  await waitFor(cdp, 'document.body.classList.contains("rail-collapsed") === false', timeout, "rail expand");
+  return { width, icon, screenshot: shot };
+}
+
+async function checkLogDock(cdp, artifacts, timeout) {
+  await clickSelector(cdp, "#log-toggle");
+  await waitFor(cdp, 'document.getElementById("log-dock").hidden === false', timeout, "log dock");
+  await waitFor(cdp, 'document.getElementById("log-lines").children.length > 0', timeout, "log lines");
+  const lines = await cdp.evaluate('document.getElementById("log-lines").children.length');
+  const shot = await capture(cdp, path.join(artifacts, "log-dock.png"));
+  await clickSelector(cdp, "#log-close");
+  await waitFor(cdp, 'document.getElementById("log-dock").hidden === true', timeout, "log dock close");
+  return { lines, screenshot: shot };
+}
+
 async function checkConfigForm(cdp, logFile, artifacts, timeout) {
+  await clickSelector(cdp, "#nav-settings");
+  await clickSelector(cdp, "#tab-service");
   await clickCommand(cdp, logFile, "[data-cmd=config]", "config", timeout);
   await waitFor(cdp, 'document.getElementById("config-provider").value === "mock"', timeout, "config load");
-  await cdp.evaluate('(() => { document.getElementById("config-provider").value = "mock"; document.getElementById("config-model").value = "demo-model"; document.getElementById("config-base-url").value = "http://127.0.0.1:9/v1"; return true; })()');
+  await cdp.evaluate('(() => { document.getElementById("config-provider").value = "mock"; document.getElementById("config-api-format").value = "responses"; document.getElementById("config-base-url").value = "http://127.0.0.1:9/v1"; return true; })()');
+  await clickSelector(cdp, "#config-query-models");
+  await waitFor(cdp, 'document.getElementById("config-model-list").hidden === false && document.getElementById("config-model-list").children.length > 0', timeout, "model list");
+  const firstModel = await cdp.evaluate('document.getElementById("config-model-list").children[0].textContent');
+  await clickSelector(cdp, "#config-model-list .model-option:first-child");
+  const selectedModel = await cdp.evaluate('document.getElementById("config-model").value');
+  const modelStatus = await cdp.evaluate('document.getElementById("config-model-status").textContent');
+  if (selectedModel !== firstModel) throw new Error("clicking a model row did not select it: " + JSON.stringify({ firstModel, selectedModel }));
+  if (!modelStatus.startsWith("Selected ")) throw new Error("model selection status is " + JSON.stringify(modelStatus));
+  await cdp.evaluate('(() => { document.getElementById("config-model").value = "demo-model"; return true; })()');
   await clickSelector(cdp, "#config-save");
   await waitFor(cdp, 'document.getElementById("config-state").textContent === "Service saved"', timeout, "config save");
   const saved = await cdp.evaluate('window.yakusha.run("config", ["list"], {}, 0, false)');
   if (!saved || saved.ok !== true) throw new Error("config list failed after save");
   if (!saved.values.model || saved.values.model.value !== "demo-model") throw new Error("config save did not persist model");
   if (!saved.values.baseUrl || saved.values.baseUrl.value !== "http://127.0.0.1:9/v1") throw new Error("config save did not persist baseUrl");
+  if (!saved.values.apiFormat || saved.values.apiFormat.value !== "responses") throw new Error("config save did not persist apiFormat");
   const savedShot = await capture(cdp, path.join(artifacts, "settings-saved.png"));
   await clickSelector(cdp, "#config-clear");
   await waitFor(cdp, 'document.getElementById("config-state").textContent === "Service cleared"', timeout, "config clear");
@@ -369,7 +431,7 @@ async function checkConfigForm(cdp, logFile, artifacts, timeout) {
   await cdp.evaluate('(() => { document.getElementById("config-provider").value = "mock"; return true; })()');
   await clickSelector(cdp, "#config-save");
   await waitFor(cdp, 'document.getElementById("config-state").textContent === "Service saved"', timeout, "config restore");
-  return { savedScreenshot: savedShot, model: "demo-model", baseUrl: "http://127.0.0.1:9/v1" };
+  return { savedScreenshot: savedShot, model: "demo-model", baseUrl: "http://127.0.0.1:9/v1", apiFormat: "responses", fetchedModels: [firstModel] };
 }
 
 function killTree(child) {
@@ -429,10 +491,14 @@ async function main() {
     summary.overviewScreenshot = await capture(cdp, path.join(shots, "overview.png"));
     summary.stageInitial = await readStages(cdp);
     if (summary.stageInitial !== "Now|Later|Later") throw new Error("initial stage band is " + JSON.stringify(summary.stageInitial) + ", expected Now|Later|Later");
+    summary.pages = await checkPages(cdp, options.timeout);
+    summary.rail = await checkRailCollapse(cdp, shots, options.timeout);
     summary.config = await checkConfigForm(cdp, logFile, shots, options.timeout);
+    await sleep(4500);
     for (const item of prepared) {
       summary.chains.push(await runChain(cdp, item.chain, item.dir, logFile, shots, options.timeout));
     }
+    summary.logDock = await checkLogDock(cdp, shots, options.timeout);
     summary.ok = true;
   } catch (error) {
     summary.error = String(error && error.stack ? error.stack : error);

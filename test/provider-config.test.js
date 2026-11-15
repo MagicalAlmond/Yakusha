@@ -151,6 +151,14 @@ test("translate: environment variables alone do not pick a provider", () => {
   assert.match(envelope(result).error.message, /provider/);
 });
 
+test("translate: an unknown --api-format is E_USAGE before any request", () => {
+  const game = gameWithDictionary();
+  const result = run(["translate", game, "--provider", "mock", "--api-format", "xml", "--json"]);
+  assert.equal(result.code, 2, result.stderr);
+  assert.equal(envelope(result).error.code, "E_USAGE");
+  assert.match(envelope(result).error.message, /--api-format must be chat-completions or responses/);
+});
+
 test("translate: an unknown provider is E_PROVIDER, not E_CONFIG", () => {
   const game = gameWithDictionary();
   const result = run([

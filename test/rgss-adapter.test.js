@@ -8,6 +8,7 @@
 
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
+import { EventEmitter } from "node:events";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -558,6 +559,29 @@ test("launch: a damaged native layer refuses to start instead of running untrans
       return true;
     }
   );
+});
+test("launch: --original skips a damaged native layer and starts the stock executable", async () => {
+  const { root, project, adapter } = projectFor();
+  translateAll(project, adapter);
+  const assets = nativeAssets();
+  adapter.installRuntime(project, { native: true, assetsDir: assets.dir });
+  fs.rmSync(path.join(root, "yakusha", "native", "libunwind.dll"));
+  fs.writeFileSync(path.join(root, "Game.exe"), "");
+  let spawned = null;
+  const child = new EventEmitter();
+  child.pid = 4242;
+  child.unref = () => {};
+  queueMicrotask(() => child.emit("spawn"));
+  const result = await adapter.launch(project, {
+    original: true,
+    platform: "win32",
+    spawn: (exe) => {
+      spawned = exe;
+      return child;
+    },
+  });
+  assert.equal(result.pid, 4242);
+  assert.match(spawned, /Game\.exe$/);
 });
 test("doctor: diagnostics counts the documents the scan counts", () => {
   const { root, project, adapter } = projectFor();

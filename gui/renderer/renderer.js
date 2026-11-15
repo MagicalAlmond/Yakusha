@@ -27,6 +27,8 @@ const ui = {
   delivery: null,
 };
 
+const PAGES = ["overview", "workflow", "dictionary", "settings"];
+const SETTINGS_TABS = ["service", "credentials", "translation", "glossary"];
 const COMMAND_LABELS = {
   scan: "Scan", extract: "Extract", status: "Status", translate: "Translate",
   verify: "Verify", speaker: "Speaker fix", terms: "Mine terms", install: "Install",
@@ -113,7 +115,8 @@ function summaryFor(command, envelope) {
   }
   if (command === "verify") {
     return (e.translated !== undefined ? e.translated + "/" + e.total + " translated" : "verification complete") +
-      (e.rejected ? " · " + e.rejected + " rejected" : "");
+      (e.rejected ? " · " + e.rejected + " rejected" : "") +
+      (envelope.outcome === "findings" ? " · findings need review" : "");
   }
   if (command === "install") {
     if (e.native) {
@@ -210,6 +213,31 @@ function setProjectTitle(title) {
   setText("sidebar-project-name", resolved, resolved);
 }
 
+/** Show page navigation without rebuilding any panel (running jobs keep their state). */
+function showPage(name) {
+  const page = PAGES.includes(name) ? name : "overview";
+  for (const id of PAGES) {
+    setHidden("page-" + id, id !== page);
+    const nav = $("nav-" + id);
+    if (!nav || !nav.classList) continue;
+    nav.classList.remove("is-active");
+    if (id === page) nav.classList.add("is-active");
+    if (typeof nav.setAttribute === "function") nav.setAttribute("aria-current", id === page ? "page" : "false");
+  }
+}
+
+function showSettingsTab(name) {
+  const tab = SETTINGS_TABS.includes(name) ? name : "service";
+  for (const id of SETTINGS_TABS) {
+    setHidden("settings-" + id, id !== tab);
+    const button = $("tab-" + id);
+    if (!button || !button.classList) continue;
+    button.classList.remove("is-active");
+    if (id === tab) button.classList.add("is-active");
+    if (typeof button.setAttribute === "function") button.setAttribute("aria-selected", id === tab ? "true" : "false");
+  }
+}
+
 /** Remember what the user chose and what the next scan should receive. */
 function setProjectInput(input, kind, target) {
   selectedInput = input || null;
@@ -226,14 +254,19 @@ function setProjectInput(input, kind, target) {
 function showProjectRoot(root, title) {
   currentDir = root || null;
   currentTitle = title || "";
+  const label = currentTitle || (root ? baseName(root) : "");
   if (root) {
     setProjectTitle(currentTitle || baseName(root));
     setProjectLine("Project root: " + root + (currentTitle ? " — " + currentTitle : ""));
+    setText("project-card-title", label);
+    setText("project-card-line", root);
     setText("project-state", "Ready to work");
     if (!selectedInput) { selectedInput = root; selectedKind = "directory"; scanRoot = root; updateInputLine(); }
   } else {
     setProjectTitle("No project selected");
     setProjectLine("Drop a game folder or game exe here, or pick a folder");
+    setText("project-card-title", "No game imported yet");
+    setText("project-card-line", "Choose a folder above, or drop a game folder anywhere on this window.");
     setText("project-state", "Waiting for a project");
   }
 }
@@ -266,7 +299,7 @@ function recentStorage() {
   try { return window.localStorage || null; } catch { return null; }
 }
 
-/** Render the last successfully scanned projects as one-click chips. */
+/** Render successfully scanned games in the rail, below the workspace pages. */
 function renderRecent() {
   const row = $("recent");
   const list = $("recent-list");
@@ -293,6 +326,7 @@ function renderRecent() {
       currentDir = null;
       currentTitle = "";
       setProjectInput(input, input === target ? "directory" : "file", target);
+      showPage("overview");
       run("scan", [target]);
     });
     list.appendChild(chip);
@@ -369,6 +403,7 @@ function updateTask() {
   if (ui.pending !== null) setText("stat-pending", ui.pending);
   setHidden("task-secondary", !ui.extracted);
   updateStages();
+  updateLaunchButtons();
 }
 
 function updateHealth() {
@@ -399,27 +434,67 @@ function setLastRunResult(command, envelope) {
   }
 }
 
+function updateLaunchButtons() {
+  const rgss = ui.engine === "rgss";
+  const launchable = ui.capabilities ? ui.capabilities.launch === true : false;
+  setHidden("launch-run", rgss);
+  setHidden("launch-original", !rgss);
+  setHidden("launch-translated", !rgss);
+  const single = $("launch-run");
+  if (single) { single.disabled = !launchable; single.title = launchable ? "" : "this engine cannot be launched from yakusha"; }
+  const original = $("launch-original");
+  if (original) { original.disabled = !launchable; original.title = launchable ? "" : "this engine cannot be launched from yakusha"; }
+  const translated = $("launch-translated");
+  if (translated) {
+    const hasText = ui.translatedCount !== null ? Number(ui.translatedCount) > 0 : ui.translated;
+    const ready = launchable && ui.installed && hasText;
+    translated.disabled = !ready;
+    translated.title = !hasText ? "游戏未进行翻译" : !ui.installed ? "Install the translation first" : launchable ? "" : "this engine cannot be launched from yakusha";
+  }
+  const workflow = $("workflow-launch");
+  if (workflow) { workflow.disabled = !launchable; workflow.title = launchable ? "" : "scan a project first"; }
+}
+
+async function refreshProjectState(root, engine) {
+  if (!root || typeof window.yakusha.projectState !== "function") return;
+  try {
+    const state = await window.yakusha.projectState(root, engine);
+    if (!state || state.ok === false) return;
+    const dictionary = state.dictionary || {};
+    if (dictionary.translated !== undefined) ui.translatedCount = dictionary.translated;
+    if (dictionary.total !== undefined) ui.total = dictionary.total;
+    if (dictionary.pending !== undefined) ui.pending = dictionary.pending;
+    ui.translated = Number(dictionary.translated || 0) > 0;
+    if (state.native && state.native.installed) ui.installed = true;
+    updateTask();
+    updateHealth();
+  } catch { /* project state is convenience, not a gate */ }
+}
+
 function applyConfig(envelope) {
   const values = envelope && envelope.values ? envelope.values : null;
   if (!values) return;
   const provider = configEntry(values.provider);
   const model = configEntry(values.model);
   const baseUrl = configEntry(values.baseUrl);
+  const apiFormat = configEntry(values.apiFormat) || "chat-completions";
   const select = $("config-provider");
   if (select) select.value = provider;
+  setValue("config-api-format", apiFormat);
   setValue("config-model", model);
   setValue("config-base-url", baseUrl);
   const label = (entry) => entry && entry.value ? entry.value + (entry.source ? " (" + entry.source + ")" : "") : "(not set)";
-  setText("config-summary", "provider: " + label(values.provider) + " · model: " + label(values.model) + " · baseUrl: " + label(values.baseUrl));
+  setText("config-summary", "provider: " + label(values.provider) + " · apiFormat: " + label(values.apiFormat) + " · model: " + label(values.model) + " · baseUrl: " + label(values.baseUrl));
   setHidden("service-banner", Boolean(provider));
   if (provider) setText("config-state", "Service configured");
 }
 
 function readConfigForm() {
   const provider = $("config-provider") ? $("config-provider").value.trim() : "";
+  const apiFormat = $("config-api-format") ? $("config-api-format").value.trim() : "chat-completions";
   const model = $("config-model") ? $("config-model").value.trim() : "";
   const baseUrl = $("config-base-url") ? $("config-base-url").value.trim() : "";
-  return { provider, model, baseUrl };
+  return { provider, apiFormat, model, baseUrl };
 }
 
 async function saveConfigForm() {
@@ -431,9 +506,9 @@ async function saveConfigForm() {
   if (values.provider === "compatible" && !values.baseUrl) {
     showToast({ title: "Settings", detail: "base URL is required for a compatible endpoint", kind: "warning", timeout: 6000 }); return;
   }
-  const jobs = [["provider", values.provider]];
-  if (values.model) jobs.push(["model", values.model]);
+  const jobs = [["provider", values.provider], ["apiFormat", values.apiFormat || "chat-completions"]];
   if (values.baseUrl) jobs.push(["baseUrl", values.baseUrl]);
+  if (values.model) jobs.push(["model", values.model]);
   try {
     for (const [key, value] of jobs) {
       const envelope = await window.yakusha.run("config", ["set", key, value], {}, 0, false);
@@ -453,7 +528,7 @@ async function saveConfigForm() {
 
 async function clearConfigForm() {
   try {
-    for (const key of ["provider", "model", "baseUrl"]) {
+    for (const key of ["provider", "model", "baseUrl", "apiFormat"]) {
       const envelope = await window.yakusha.run("config", ["unset", key], {}, 0, false);
       if (!envelope || envelope.ok === false) {
         showToast({ title: "Settings", detail: summaryFor("config", envelope), kind: "error", timeout: 8000 });
@@ -461,9 +536,12 @@ async function clearConfigForm() {
       }
     }
     const select = $("config-provider"); if (select) select.value = "";
+    setValue("config-api-format", "chat-completions");
     setValue("config-model", "");
     setValue("config-base-url", "");
-    setText("config-summary", "No service configured — set provider, model and API key.");
+    renderModelList([]);
+    setText("config-model-status", "");
+    setText("config-summary", "No service configured — set provider, API format and model.");
     setText("config-state", "Service cleared");
     setHidden("service-banner", false);
     showToast({ title: "Settings", detail: "translation service cleared", kind: "success", timeout: 6000 });
@@ -472,30 +550,62 @@ async function clearConfigForm() {
   }
 }
 
+function renderModelList(models) {
+  const list = $("config-model-list");
+  if (!list) return;
+  list.innerHTML = "";
+  if (!models || models.length === 0) { list.hidden = true; return; }
+  for (const model of models) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "model-option";
+    button.dataset.model = model;
+    button.textContent = model;
+    button.title = "Use " + model;
+    button.addEventListener("click", () => {
+      setValue("config-model", model);
+      for (const child of list.children) if (child.classList) child.classList.remove("is-selected");
+      button.classList.add("is-selected");
+      setText("config-model-status", "Selected " + model);
+    });
+    list.appendChild(button);
+  }
+  list.hidden = false;
+}
+
+async function queryModels() {
+  const values = readConfigForm();
+  if (!values.provider) { showToast({ title: "Models", detail: "choose a provider first", kind: "warning", timeout: 6000 }); return; }
+  if (values.provider === "compatible" && !values.baseUrl) { showToast({ title: "Models", detail: "set the base URL first", kind: "warning", timeout: 6000 }); return; }
+  setText("config-model-status", "Fetching models…");
+  if (typeof window.yakusha.listModels !== "function") { setText("config-model-status", "model listing is unavailable in this build"); return; }
+  try {
+    const result = await window.yakusha.listModels({ provider: values.provider, baseUrl: values.baseUrl });
+    if (!result || result.ok === false) {
+      const error = result && result.error;
+      setText("config-model-status", error ? error.code + " · " + brief(error.message) : "could not fetch models");
+      return;
+    }
+    const models = Array.isArray(result.models) ? result.models : [];
+    renderModelList(models);
+    setText("config-model-status", models.length + " model" + (models.length === 1 ? "" : "s") + " available — click one to select it");
+  } catch (error) {
+    setText("config-model-status", brief(error && error.message ? error.message : error));
+  }
+}
+
 async function run(command, args, flags) {
   const runId = ++runSeq;
   const requestArgs = args || (currentDir ? [currentDir] : []);
   if (command === "scan") {
-    const badge = $("engine-badge"); if (badge) badge.hidden = true;
-    hideDelivery();
-    for (const id of ["install", "uninstall"]) {
-      const btn = document.querySelector('button[data-cmd="' + id + '"]');
-      if (btn) { btn.disabled = true; btn.title = "scan a project first"; }
-    }
-    const launchBtn = $("launch-run"); if (launchBtn) { launchBtn.disabled = true; launchBtn.title = "scan a project first"; }
-    currentDir = null;
-    currentTitle = "";
-    ui.scanned = false; ui.extracted = false; ui.translated = false; ui.verified = false; ui.installed = false;
-    ui.engine = ""; ui.engineVersion = ""; ui.capabilities = null; ui.total = null; ui.translatedCount = null; ui.pending = null; ui.delivery = null;
     setText("project-state", "Scanning…");
-    updateTask();
     if (!args && requestArgs[0]) {
       scanRoot = requestArgs[0];
       if (!selectedInput) { selectedInput = requestArgs[0]; selectedKind = "directory"; updateInputLine(); }
     }
   }
-  if (command === "translate") $("cancel").disabled = false;
-  const useStoredKey = command === "translate" && $("key-use").checked;
+  const cancel = $("cancel"); if (cancel) cancel.disabled = false;
+  const useStoredKey = command === "translate" && $("key-use") && $("key-use").checked;
   const target = requestArgs[0] ? baseName(requestArgs[0]) : "";
   setLastRunBusy(command, target);
   const pending = showToast({ title: COMMAND_LABELS[command] || command, detail: target ? "working on " + target : "working…", kind: "busy", timeout: 0 });
@@ -507,15 +617,19 @@ async function run(command, args, flags) {
     setLastRunResult(command, { ok: false, outcome: "error", error: { code: "E_INTERNAL", message: error && error.message ? error.message : error } });
     throw error;
   }
-  $("cancel").disabled = true;
-  $("progress").hidden = true;
-  updateToast(pending, { title: COMMAND_LABELS[command] || command, detail: summaryFor(command, envelope), kind: envelope.ok ? "success" : envelope.outcome === "findings" ? "warning" : "error", timeout: envelope.ok ? 4200 : 8000 });
+  if (cancel) cancel.disabled = true;
+  setHidden("progress", true);
+  const toastKind = envelope.ok ? "success" : envelope.outcome === "findings" ? "warning" : "error";
+  updateToast(pending, { title: COMMAND_LABELS[command] || command, detail: summaryFor(command, envelope), kind: toastKind, timeout: envelope.ok ? 4200 : 8000 });
   setLastRunResult(command, envelope);
   if (envelope.error && envelope.error.code === "E_CONFIG") setHidden("service-banner", false);
   if (command === "config" && envelope.ok && envelope.values) applyConfig(envelope);
   if (command === "scan" && envelope.ok) {
     const e = envelope;
-    const badge = $("engine-badge"); if (badge) { badge.hidden = false; badge.textContent = (e.engine || "?") + (e.engineVersion ? " " + e.engineVersion : ""); }
+    const badge = $("engine-badge");
+    if (badge) { badge.hidden = false; badge.textContent = (e.engine || "?") + (e.engineVersion ? " " + e.engineVersion : ""); }
+    const cardBadge = $("project-card-engine");
+    if (cardBadge) { cardBadge.hidden = false; cardBadge.textContent = (e.engine || "?") + (e.engineVersion ? " " + e.engineVersion : ""); }
     showProjectRoot(e.root, e.gameTitle || "(untitled)");
     rememberProject(e);
     const caps = e.capabilities || null;
@@ -529,15 +643,14 @@ async function run(command, args, flags) {
       const btn = document.querySelector('button[data-cmd="' + id + '"]');
       if (btn) { btn.disabled = noDelivery; btn.title = noDelivery ? "this engine has no delivery layer yet — install reports E_NOT_IMPLEMENTED" : ""; }
     }
-    const launchBtn = $("launch-run");
-    if (launchBtn) { const launchable = caps ? caps.launch === true : true; launchBtn.disabled = !launchable; launchBtn.title = launchable ? "" : "this engine cannot be launched from yakusha"; }
     updateHealth(); updateTask();
+    await refreshProjectState(e.root, e.engine || "");
   }
   if (command === "scan" && !envelope.ok) {
     if (envelope.error && envelope.error.code === "E_MULTI_ROOT") setProjectLine("multiple projects found — see details.candidates in the output");
-    else setProjectLine("No project found — " + (scanRoot || requestArgs[0] || "choose a game folder"));
-    setProjectTitle("No project selected");
-    setText("project-state", "Needs attention");
+    else if (!currentDir) setProjectLine("No project found — " + (scanRoot || requestArgs[0] || "choose a game folder"));
+    setText("project-state", currentDir ? "Scan failed — previous project kept" : "Needs attention");
+    if (!currentDir) setProjectTitle("No project selected");
     updateTask();
   }
   if (command === "extract" && envelope.ok) { ui.extracted = true; if (envelope.total !== undefined) ui.total = envelope.total; updateTask(); updateHealth(); }
@@ -548,8 +661,14 @@ async function run(command, args, flags) {
     if (envelope.pending !== undefined) ui.pending = envelope.pending;
     updateTask(); updateHealth();
   }
-  if (command === "verify" && envelope.ok) { ui.verified = true; updateTask(); }
-  if (command === "install" && envelope.ok) { ui.installed = true; updateTask(); }
+  if (command === "verify" && envelope.ok) {
+    ui.verified = envelope.outcome !== "findings";
+    if (envelope.translated !== undefined) ui.translatedCount = envelope.translated;
+    if (envelope.pending !== undefined) ui.pending = envelope.pending;
+    updateTask(); updateHealth();
+    if (!ui.verified) showToast({ title: "Verify", detail: (envelope.errors || 0) + " error(s) block install — open the log for details", kind: "warning", timeout: 9000 });
+  }
+  if (command === "install" && envelope.ok) { ui.installed = true; ui.verified = true; updateTask(); }
   if (command === "uninstall" && envelope.ok) { ui.installed = false; ui.verified = false; updateTask(); }
   return envelope;
 }
@@ -559,6 +678,19 @@ function sourceLang() {
   const select = $("source-lang");
   const value = select ? select.value : "";
   return value === "en" ? "en" : "ja";
+}
+
+async function launchCurrent(original) {
+  if (!currentDir) { setProjectLine("pick a project first"); return; }
+  let exe = "";
+  if (typeof window.yakusha.pickExecutable === "function") {
+    exe = await window.yakusha.pickExecutable(currentDir);
+    if (exe === null) return;
+  }
+  const flags = exe && String(exe).trim() ? { exe: String(exe).trim() } : {};
+  if (original) flags.original = true;
+  const envelope = await run("launch", [currentDir], flags);
+  if (!envelope.ok && envelope.error && envelope.error.code === "E_EXE" && envelope.error.details && Array.isArray(envelope.error.details.candidates)) setProjectLine("pick one: " + envelope.error.details.candidates.join(", "));
 }
 
 for (const button of document.querySelectorAll("button[data-cmd]")) {
@@ -574,38 +706,71 @@ if (primary) {
   primary.addEventListener("click", () => {
     const action = primary.dataset.action || "pick";
     if (action === "pick") $("pick").click();
-    else if (action === "launch") $("launch-run").click();
+    else if (action === "launch") launchCurrent(false);
     else if (action === "translate" || action === "verify") run(action, undefined, { "source-lang": sourceLang() });
     else run(action);
   });
 }
 const secondary = $("task-secondary");
-if (secondary) secondary.addEventListener("click", () => { const target = $("dictionary"); if (target && target.scrollIntoView) target.scrollIntoView({ behavior: "smooth", block: "start" }); });
+if (secondary) secondary.addEventListener("click", () => { showPage("dictionary"); const load = $("dict-load"); if (load) load.click(); });
 const serviceConfig = $("service-config");
-if (serviceConfig) serviceConfig.addEventListener("click", () => { const target = $("settings"); if (target && target.scrollIntoView) target.scrollIntoView({ behavior: "smooth", block: "start" }); if ($("config-provider")) $("config-provider").focus(); });
+if (serviceConfig) serviceConfig.addEventListener("click", () => { showPage("settings"); showSettingsTab("service"); if ($("config-provider")) $("config-provider").focus(); });
+
+for (const id of PAGES) {
+  const nav = $("nav-" + id);
+  if (nav) nav.addEventListener("click", () => showPage(id));
+}
+const RAIL_KEY = "yakusha.rail.collapsed";
+function setRailCollapsed(collapsed) {
+  document.body.classList.toggle("rail-collapsed", collapsed);
+  setText("rail-toggle-icon", collapsed ? "»" : "«");
+  const toggle = $("rail-toggle");
+  if (toggle) {
+    toggle.title = collapsed ? "Expand sidebar" : "Collapse sidebar";
+    toggle.dataset.collapsed = collapsed ? "true" : "false";
+    if (typeof toggle.setAttribute === "function") toggle.setAttribute("aria-expanded", String(!collapsed));
+  }
+}
+const railToggle = $("rail-toggle");
+if (railToggle) railToggle.addEventListener("click", () => {
+  const collapsed = !document.body.classList.contains("rail-collapsed");
+  setRailCollapsed(collapsed);
+  try { localStorage.setItem(RAIL_KEY, collapsed ? "1" : "0"); } catch { /* storage is optional */ }
+});
+try { setRailCollapsed(localStorage.getItem(RAIL_KEY) === "1"); } catch { setRailCollapsed(false); }
+
+const brandHome = $("brand-home");
+if (brandHome) brandHome.addEventListener("click", (event) => { if (event && event.preventDefault) event.preventDefault(); showPage("overview"); });
+for (const id of SETTINGS_TABS) {
+  const tab = $("tab-" + id);
+  if (tab) tab.addEventListener("click", () => showSettingsTab(id));
+}
 
 // Credentials: the key is typed once, sent to the main process for DPAPI
 // storage (or clearing), and the input is emptied immediately.
-$("key-save").addEventListener("click", async () => {
+const keySave = $("key-save");
+if (keySave) keySave.addEventListener("click", async () => {
   const key = $("key-input").value;
   if (!key) return;
   const result = await window.yakusha.saveApiKey(key);
   $("key-input").value = "";
   $("key-state").textContent = result.saved ? "key stored (encrypted)" : "not stored: " + (result.reason || "?");
 });
-$("key-clear").addEventListener("click", async () => {
+const keyClear = $("key-clear");
+if (keyClear) keyClear.addEventListener("click", async () => {
   await window.yakusha.clearApiKey();
   $("key-state").textContent = "stored key removed";
   $("key-use").checked = false;
 });
-window.yakusha.hasApiKey().then((has) => {
+if (window.yakusha.hasApiKey) window.yakusha.hasApiKey().then((has) => {
   if (!has) $("key-use").disabled = true;
   $("key-state").textContent = has ? "a stored key is available" : "no stored key";
 });
-$("key-use").addEventListener("change", () => {
-  if (!$("key-use").checked) return;
+const keyUse = $("key-use");
+if (keyUse) keyUse.addEventListener("change", () => {
+  if (!keyUse.checked) return;
   window.yakusha.hasApiKey().then((has) => {
-    if (!has) { $("key-use").checked = false; $("key-state").textContent = "no stored key — enter and remember one first"; }
+    if (!has) { keyUse.checked = false; $("key-state").textContent = "no stored key — enter and remember one first"; }
   });
 });
 
@@ -620,7 +785,8 @@ async function doExport() {
   await run("export", [currentDir], { out: String(out).trim(), format: "json", force: true });
 }
 
-$("import-run").addEventListener("click", async () => {
+const importRun = $("import-run");
+if (importRun) importRun.addEventListener("click", async () => {
   if (!currentDir) { setProjectLine("pick a project first"); return; }
   let from = null;
   if (typeof window.yakusha.pickOpenFile === "function") from = await window.yakusha.pickOpenFile("Import table", ["tsv", "csv", "json", "jsonl"]);
@@ -630,19 +796,18 @@ $("import-run").addEventListener("click", async () => {
   await run("import", [currentDir], { from: String(from).trim(), strategy: strategy.trim() });
 });
 
-$("launch-run").addEventListener("click", async () => {
-  if (!currentDir) { setProjectLine("pick a project first"); return; }
-  let exe = null;
-  if (typeof window.yakusha.pickExecutable === "function") exe = await window.yakusha.pickExecutable(currentDir);
-  else exe = window.prompt("Executable file name (empty = let yakusha pick)", "");
-  if (exe === null) return;
-  const flags = exe && String(exe).trim() ? { exe: String(exe).trim() } : {};
-  const envelope = await run("launch", [currentDir], flags);
-  if (!envelope.ok && envelope.error && envelope.error.code === "E_EXE" && envelope.error.details && Array.isArray(envelope.error.details.candidates)) setProjectLine("pick one: " + envelope.error.details.candidates.join(", "));
-});
+const launchRun = $("launch-run");
+if (launchRun) launchRun.addEventListener("click", () => launchCurrent(false));
+const launchOriginal = $("launch-original");
+if (launchOriginal) launchOriginal.addEventListener("click", () => launchCurrent(true));
+const launchTranslated = $("launch-translated");
+if (launchTranslated) launchTranslated.addEventListener("click", () => launchCurrent(false));
+const workflowLaunch = $("workflow-launch");
+if (workflowLaunch) workflowLaunch.addEventListener("click", () => launchCurrent(false));
 
 // Dictionary editor: one pending entry at a time.
-$("dict-load").addEventListener("click", async () => {
+const dictLoad = $("dict-load");
+if (dictLoad) dictLoad.addEventListener("click", async () => {
   if (!currentDir) { setProjectLine("pick a project first"); return; }
   const result = await window.yakusha.loadDictionary(currentDir);
   if (!result || result.ok === false) { $("dict-summary").textContent = (result && result.error ? result.error.code + ": " : "") + (result && result.error ? result.error.message : "cannot read the dictionary"); return; }
@@ -655,7 +820,8 @@ $("dict-load").addEventListener("click", async () => {
   if (pendingEntries.length > 0) { $("dict-text").value = ""; $("dict-summary").textContent += " — showing the first " + pendingEntries.length + " pending"; }
   else if (result.pendingCount === 0) $("dict-summary").textContent += " — nothing pending";
 });
-$("dict-save").addEventListener("click", async () => {
+const dictSave = $("dict-save");
+if (dictSave) dictSave.addEventListener("click", async () => {
   if (!dictState) return;
   const key = $("dict-key").value;
   const result = await window.yakusha.saveEntry(currentDir, key, $("dict-text").value);
@@ -664,16 +830,18 @@ $("dict-save").addEventListener("click", async () => {
   $("dict-load").click();
 });
 
-$("pick").addEventListener("click", async () => {
+const pick = $("pick");
+if (pick) pick.addEventListener("click", async () => {
   const picked = await window.yakusha.pickDirectory();
-  if (picked) { currentDir = null; currentTitle = ""; setProjectInput(picked, "directory", picked); run("scan", [picked]); }
+  if (picked) { currentDir = null; currentTitle = ""; setProjectInput(picked, "directory", picked); showPage("overview"); run("scan", [picked]); }
 });
 
-$("cancel").addEventListener("click", () => window.yakusha.cancel());
+const cancel = $("cancel");
+if (cancel) cancel.addEventListener("click", () => window.yakusha.cancel());
 
 window.yakusha.onProgress(({ runId, progress }) => {
   if (runId !== runSeq) return;
-  $("progress").hidden = false;
+  setHidden("progress", false);
   const pct = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
   $("bar-fill").style.width = pct + "%";
   const bar = $("progress-bar"); if (bar && bar.setAttribute) bar.setAttribute("aria-valuenow", String(pct));
@@ -690,22 +858,75 @@ initLogSummary();
 renderRecent();
 updateTask();
 updateHealth();
+updateLaunchButtons();
+showPage("overview");
+showSettingsTab("service");
 
-$("log-open").addEventListener("click", async () => {
+// Bottom log dock: one small toggle, fetched on demand from the JSONL log.
+function parseLogEntry(entry) {
+  if (typeof entry !== "string") return entry;
+  try { return JSON.parse(entry); } catch { return entry; }
+}
+function logLineText(entry) {
+  const value = parseLogEntry(entry);
+  if (typeof value === "string") return value;
+  if (!value || typeof value !== "object") return String(value);
+  const time = value.time ? String(value.time).slice(11, 19) : "";
+  const bits = [time, value.event, value.command, value.outcome, value.code, value.message].filter(Boolean);
+  return bits.join(" · ");
+}
+function renderLogLines(lines) {
+  const box = $("log-lines");
+  if (!box) return;
+  box.innerHTML = "";
+  for (const entry of lines) {
+    const parsed = parseLogEntry(entry);
+    const line = document.createElement("div");
+    line.className = "log-line";
+    if (parsed && typeof parsed === "object" && parsed.event) line.dataset.event = String(parsed.event);
+    line.textContent = logLineText(entry);
+    box.appendChild(line);
+  }
+  setText("log-count", lines.length ? String(lines.length) : "");
+}
+async function refreshLog() {
+  if (typeof window.yakusha.logTail !== "function") { setText("log-summary", "Log tail is unavailable in this build."); return; }
+  try {
+    const result = await window.yakusha.logTail({ limit: 200 });
+    if (!result || result.ok === false) { setText("log-summary", "Could not read the log file."); return; }
+    const lines = Array.isArray(result.lines) ? result.lines : [];
+    if (result.path) setText("log-summary", "Detailed output: " + result.path);
+    renderLogLines(lines);
+  } catch (error) { setText("log-summary", brief(error && error.message ? error.message : error)); }
+}
+function setLogVisible(visible) {
+  const dock = $("log-dock");
+  const toggle = $("log-toggle");
+  if (dock) dock.hidden = !visible;
+  if (toggle && typeof toggle.setAttribute === "function") toggle.setAttribute("aria-expanded", visible ? "true" : "false");
+  if (visible) refreshLog();
+}
+const logToggle = $("log-toggle");
+if (logToggle) logToggle.addEventListener("click", () => setLogVisible(Boolean($("log-dock") && $("log-dock").hidden)));
+const logClose = $("log-close");
+if (logClose) logClose.addEventListener("click", () => setLogVisible(false));
+const logRefresh = $("log-refresh");
+if (logRefresh) logRefresh.addEventListener("click", () => refreshLog());
+setLogVisible(false);
+const logOpen = $("log-open");
+if (logOpen) logOpen.addEventListener("click", async () => {
   if (typeof window.yakusha.openLog !== "function") return;
   const result = await window.yakusha.openLog();
   if (!result || result.ok === false) showToast({ title: "Log", detail: result && result.error ? result.error : "could not open the log file", kind: "error", timeout: 8000 });
 });
 
-// Config form
-$("config-save").addEventListener("click", saveConfigForm);
-$("config-clear").addEventListener("click", clearConfigForm);
-
-// Simple section highlight; actual scrolling is native anchor behavior.
-try {
-  const links = document.querySelectorAll(".side-link");
-  for (const link of links) link.addEventListener("click", () => { for (const item of links) item.classList.remove("is-active"); link.classList.add("is-active"); });
-} catch { /* link enhancement is optional */ }
+// Settings form.
+const configSave = $("config-save");
+if (configSave) configSave.addEventListener("click", saveConfigForm);
+const configClear = $("config-clear");
+if (configClear) configClear.addEventListener("click", clearConfigForm);
+const queryModelsButton = $("config-query-models");
+if (queryModelsButton) queryModelsButton.addEventListener("click", queryModels);
 
 // Drag & drop: the File object must go through webUtils in preload.
 document.addEventListener("dragover", (e) => { e.preventDefault(); document.body.classList.add("dragging"); });
@@ -718,5 +939,5 @@ document.addEventListener("drop", async (e) => {
   if (!dropped) return;
   let resolved = { input: dropped, path: dropped, kind: "directory" };
   if (typeof window.yakusha.resolveInput === "function") { const answer = await window.yakusha.resolveInput(dropped); if (answer && answer.path) resolved = answer; }
-  currentDir = null; currentTitle = ""; setProjectInput(resolved.input || dropped, resolved.kind, resolved.path || dropped); run("scan", [resolved.path || dropped]);
+  currentDir = null; currentTitle = ""; setProjectInput(resolved.input || dropped, resolved.kind, resolved.path || dropped); showPage("overview"); run("scan", [resolved.path || dropped]);
 });

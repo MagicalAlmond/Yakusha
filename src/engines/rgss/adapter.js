@@ -275,7 +275,7 @@ export const adapter = {
    * otherwise start the game normally, exactly like the other engines.
    */
   launch(project, options = {}) {
-    if (nativeStatus(project).installed) return launchNative(project, options);
+    if (options.original !== true && nativeStatus(project).installed) return launchNative(project, options);
     return launchProject(project, options);
   },
 

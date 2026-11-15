@@ -40,6 +40,7 @@ const BOOLEAN = new Set([
   "native",
   "require-complete",
   "prune",
+  "original",
 ]);
 
 /**
@@ -50,6 +51,7 @@ const BOOLEAN = new Set([
 const VALUE = [
   "provider",
   "model",
+  "api-format",
   "base-url",
   "api-key",
   "glossary",
@@ -91,13 +93,14 @@ const COMMAND_OPTIONS = {
   status: [],
   export: ["out", "format", "flat", "force"],
   import: ["from", "format", "strategy", "dry-run", "create"],
-  launch: ["exe"],
+  launch: ["exe", "original"],
   uninstall: ["dry-run"],
   install: ["embed", "native", "dry-run"],
   doctor: ["max-length", "source-lang"],
   translate: [
     "provider",
     "model",
+    "api-format",
     "base-url",
     "api-key",
     "glossary",

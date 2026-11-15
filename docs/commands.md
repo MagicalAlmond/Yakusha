@@ -1,6 +1,6 @@
 # 命令参考
 
-本文是 yakusha 0.79.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出；0.33 给 `verify` 增加了 SARIF 报告输出（`--report-format sarif`）；0.34 给 `export` 增加 JSONL 输出（`--format jsonl`），0.35 给 `verify` 增加 `--fail-on warning`（warning 也算发布失败），0.36 给 `verify` 增加 `--require-complete`（还有未译条目就失败），0.37 只修 markdown 报告表格里的 `|` 转义，0.38 只让 `verify` 的 problem 带出字典条目的 `locator`，0.39 修 `import --dry-run --create` 会落盘空字典的问题（dry-run 不写盘），0.40 让 `verify --write-report`、`speaker --write-names`、`terms --write` 拒绝把输出写到项目字典上（`E_EXISTS`、退出 2），0.41 只让 `terms` 识别 RGSS 的数据库名表（`.rvdata2` / `.rvdata` / `.rxdata`），0.42 让 `install --dry-run` 在 RPG Maker 插件层与 Ren'Py 译文文件层上真的不写盘（RGSS 的 `--native --dry-run` 0.18 起已如此），0.43 给 `uninstall` 增加 `--dry-run`（MZ/MV、Ren'Py、RGSS 四个引擎都只报告将要删除或还原的内容），0.44 只修 `launch` 在 MV 的 `www/` 布局下从上一层启动 `Game.exe`（项目根仍是 `www/`），0.45 只修 `scan` 文本模式的长文件名与计数间距（载荷不变），0.46 只修 RGSS `install --native --dry-run` 的 `state` 预测（首次安装报 `added`，不是 `unchanged`；不写盘），0.49 只让 `verify --kind width` 在没给 `--max-length`（或给 0）时报用法错误（`E_USAGE`、退出 2），0.47 只让 Kirikiri 的归档级错误不再把归档名重复两遍，0.48 只让 `launch` 在 `data/` 本身是 nw.js 宿主时从 `data/` 启动（项目根仍是 `data/www/`），0.50 只让 `install --embed` 在非 RPG Maker 引擎上报用法错误（此前在 Ren'Py 上被静默忽略，在 Kirikiri 上被字典检查盖住），0.51 只把空字符串的选项值也当缺值（`--write-report ""` 报 `E_USAGE`，不再被当成当前目录去写），0.53 只让 `import` 对 provenance（`engine` / `locator` / `contexts`）的类型错误显式报 `E_DICTIONARY`（此前版本会静默丢弃这些值），0.54 只让 Kirikiri 的 KS 抽取跳过 `[iscript]` 代码块并把行首 `@` 的单行标签当标签行（代码与注释不再混进字典），0.55 又把行首 `[` 的标签行里剥掉标签后的可见文本收进字典（宏引用对白 `[「]text」` 不再整行丢失），0.59 只给 `import` 的同源重复行定下显式语义（同译文只应用第一次、计入新的 `duplicates` 载荷键；冲突译文整体拒绝），其余命令不变。0.71 起 `install` 按引擎自动选择交付方式：RGSS 的普通 `install` 直接装原生注入器，`--native` 保留为兼容别名。0.73 只重构内部模块边界（引擎契约、诊断服务、语言 profile 与 GUI worker），命令行行为、信封、退出码、错误码与所有载荷键不变。0.74 给 KRKR 补上 `patch.xp3` 交付层：`install` 写一个只含已译 `.ks` 文件的覆盖归档与清单，`uninstall` 只删这两样，`capabilities.runtime` 变成 `"patch"`；不新增命令、不改既有信封与退出码。0.75 把源语言也做成一条接缝：`--source-lang ja|en`（默认 `ja`）只挂在 `translate` / `verify` / `speaker` / `doctor` 上，非法值报 `E_USAGE`、退出 2；`verify` 新增 `source` 判据，只对残留的源语言文本给警告。0.76 用真实游戏语料做批量回归，五引擎 × 七能力的兼容性矩阵与匿名汇总见 [games.md](games.md)（22 款语料：18 ok / 4 findings）。 0.79 只新增便携 exe 构建与验收工具（`tools/portable.mjs` / `tools/gui-acceptance.mjs --exe`），命令行、信封、退出码、错误码与载荷键不变。
+本文是 yakusha 1.3.0 的命令行参考手册：14 个命令各自的选项、判据、输出形状与实测数据，加上所有命令共用的约定（JSON 信封、退出码、错误码、脱敏、参数解析）和用户级配置。0.11 开始支持 Ren'Py，0.12 起支持 RGSS（RPG Maker XP / VX / VX Ace），0.13 起支持 Kirikiri（KAG），0.18 起 RGSS 有了原生注入器交付层：同一个命令在 RPG Maker（MZ/MV）、Ren'Py、RGSS 与 Kirikiri 上共用一套选项、信封、退出码和载荷键名，只有少数输出文本与安装产物按引擎不同，各节用「Ren'Py」「RGSS」「Kirikiri」标出；0.33 给 `verify` 增加了 SARIF 报告输出（`--report-format sarif`）；0.34 给 `export` 增加 JSONL 输出（`--format jsonl`），0.35 给 `verify` 增加 `--fail-on warning`（warning 也算发布失败），0.36 给 `verify` 增加 `--require-complete`（还有未译条目就失败），0.37 只修 markdown 报告表格里的 `|` 转义，0.38 只让 `verify` 的 problem 带出字典条目的 `locator`，0.39 修 `import --dry-run --create` 会落盘空字典的问题（dry-run 不写盘），0.40 让 `verify --write-report`、`speaker --write-names`、`terms --write` 拒绝把输出写到项目字典上（`E_EXISTS`、退出 2），0.41 只让 `terms` 识别 RGSS 的数据库名表（`.rvdata2` / `.rvdata` / `.rxdata`），0.42 让 `install --dry-run` 在 RPG Maker 插件层与 Ren'Py 译文文件层上真的不写盘（RGSS 的 `--native --dry-run` 0.18 起已如此），0.43 给 `uninstall` 增加 `--dry-run`（MZ/MV、Ren'Py、RGSS 四个引擎都只报告将要删除或还原的内容），0.44 只修 `launch` 在 MV 的 `www/` 布局下从上一层启动 `Game.exe`（项目根仍是 `www/`），0.45 只修 `scan` 文本模式的长文件名与计数间距（载荷不变），0.46 只修 RGSS `install --native --dry-run` 的 `state` 预测（首次安装报 `added`，不是 `unchanged`；不写盘），0.49 只让 `verify --kind width` 在没给 `--max-length`（或给 0）时报用法错误（`E_USAGE`、退出 2），0.47 只让 Kirikiri 的归档级错误不再把归档名重复两遍，0.48 只让 `launch` 在 `data/` 本身是 nw.js 宿主时从 `data/` 启动（项目根仍是 `data/www/`），0.50 只让 `install --embed` 在非 RPG Maker 引擎上报用法错误（此前在 Ren'Py 上被静默忽略，在 Kirikiri 上被字典检查盖住），0.51 只把空字符串的选项值也当缺值（`--write-report ""` 报 `E_USAGE`，不再被当成当前目录去写），0.53 只让 `import` 对 provenance（`engine` / `locator` / `contexts`）的类型错误显式报 `E_DICTIONARY`（此前版本会静默丢弃这些值），0.54 只让 Kirikiri 的 KS 抽取跳过 `[iscript]` 代码块并把行首 `@` 的单行标签当标签行（代码与注释不再混进字典），0.55 又把行首 `[` 的标签行里剥掉标签后的可见文本收进字典（宏引用对白 `[「]text」` 不再整行丢失），0.59 只给 `import` 的同源重复行定下显式语义（同译文只应用第一次、计入新的 `duplicates` 载荷键；冲突译文整体拒绝），其余命令不变。0.71 起 `install` 按引擎自动选择交付方式：RGSS 的普通 `install` 直接装原生注入器，`--native` 保留为兼容别名。0.73 只重构内部模块边界（引擎契约、诊断服务、语言 profile 与 GUI worker），命令行行为、信封、退出码、错误码与所有载荷键不变。0.74 给 KRKR 补上 `patch.xp3` 交付层：`install` 写一个只含已译 `.ks` 文件的覆盖归档与清单，`uninstall` 只删这两样，`capabilities.runtime` 变成 `"patch"`；不新增命令、不改既有信封与退出码。0.75 把源语言也做成一条接缝：`--source-lang ja|en`（默认 `ja`）只挂在 `translate` / `verify` / `speaker` / `doctor` 上，非法值报 `E_USAGE`、退出 2；`verify` 新增 `source` 判据，只对残留的源语言文本给警告。0.76 用真实游戏语料做批量回归，五引擎 × 七能力的兼容性矩阵与匿名汇总见 [games.md](games.md)（22 款语料：18 ok / 4 findings）。 0.79 只新增便携 exe 构建与验收工具（`tools/portable.mjs` / `tools/gui-acceptance.mjs --exe`），命令行、信封、退出码、错误码与载荷键不变。1.3 给 `config` 增加 `apiFormat`（`chat-completions` / `responses`）与 GUI 的 `gui:list-models` 模型查询，`translate` 增加 `--api-format`；信封、退出码、错误码与既有载荷键不变。
 
 **RGSS 在 0.18 起有了交付层。** `scan` / `extract` / `status` / `translate` / `verify` / `speaker` / `terms` / `export` / `import` 都能用；0.18 新增原生注入器，把预编译的注入器与 hook DLL 装进 `yakusha/native/`，游戏启动时由注入器加载，译文从 `dictionary.txt` 读。0.71 起普通的 `install` 会自动选择它（`--native` 仍被接受，作为 0.18–0.70 脚本的兼容别名）。安装细节与限制见下文 [install 与 uninstall](#install-与-uninstall)。
 
@@ -59,6 +59,7 @@
 --provider <name>   openai, compatible or mock (required for a real run)
 --model <name>      model id (required for a real run; $YAKUSHA_MODEL)
 --base-url <url>    OpenAI compatible endpoint, defaults to $YAKUSHA_BASE_URL
+--api-format <name> chat-completions (default) or responses
 --api-key <key>     API key, defaults to $YAKUSHA_API_KEY or $OPENAI_API_KEY
 --glossary <file>   JSON map of source -> fixed translation
 --limit <n>         translate at most n pending entries (at least 1); 0, negatives and non-integers are a usage error (0.61)
@@ -74,6 +75,8 @@
 --glossary-only     apply --glossary and never call a model
 --overwrite         let --glossary replace entries that are already translated
 ```
+
+`--api-format` 覆盖配置文件里的 `apiFormat`：`chat-completions`（默认）向 `<baseUrl>/chat/completions` POST `messages`，`responses` 向 `<baseUrl>/responses` POST `instructions` + `input`；非法值报 `E_USAGE`，退出 2。
 
 白名单里还有 6 个 `--help` 没列出来的选项：`--temperature`（默认 0.3）、`--timeout`、`--max-tokens`、`--target-lang`、`--allow-code-drift`、`--source-lang`。它们能用，但没有写进帮助，属于内部接线，不要当成稳定接口。
 
@@ -266,20 +269,21 @@
 
 ```text
 yakusha config list
-yakusha config get <provider|model|baseUrl>
-yakusha config set <provider|model|baseUrl> <value>
-yakusha config unset <provider|model|baseUrl>
+yakusha config get <provider|model|baseUrl|apiFormat>
+yakusha config set <provider|model|baseUrl|apiFormat> <value>
+yakusha config unset <provider|model|baseUrl|apiFormat>
 ```
 
 文件在 `%APPDATA%\yakusha\config.json`，即 `<用户目录>\AppData\Roaming\yakusha\config.json`。`YAKUSHA_CONFIG_DIR` 可以换目录——是目录不是文件，必须是绝对路径，文件名固定仍是 `config.json`；不展开 `~`，也不看 `XDG_CONFIG_HOME`。两个都没设时读配置直接 `E_CONFIG`。
 
-### 三个键与优先级
+### 四个键与优先级
 
 | 键 | 取值与校验 | 优先级（高 → 低） |
 | --- | --- | --- |
 | `provider` | `openai` / `compatible` / `mock`，无默认 | `--provider` → 文件 → 无（`E_CONFIG`） |
 | `model` | 非空、≤ 200 字符、无控制字符，无默认 | `--model` → `YAKUSHA_MODEL` → 文件 → 无（`E_CONFIG`） |
 | `baseUrl` | 绝对 http(s)、无 userinfo/query/fragment、≤ 2000 字符 | `--base-url` → `YAKUSHA_BASE_URL` → 文件 → 只有 openai 有默认 `https://api.openai.com/v1` |
+| `apiFormat` | `chat-completions`（默认）或 `responses` | `--api-format` → `YAKUSHA_API_FORMAT` → 文件 → 默认 `chat-completions` |
 | `apiKey` | 只在内存里，从不落盘 | `--api-key` → `YAKUSHA_API_KEY` → `OPENAI_API_KEY` → 无（`E_CONFIG`） |
 
 - 默认 baseUrl 只对 `provider=openai` 生效；`compatible` 必须自己给，否则 `E_CONFIG`：`no base URL configured for provider compatible: pass --base-url, set YAKUSHA_BASE_URL, or run: yakusha config set baseUrl <url>`。
@@ -317,7 +321,7 @@ yakusha config unset <provider|model|baseUrl>
 
 | action | 载荷 |
 | --- | --- |
-| `list` | `{action, file, exists, values{provider, model, baseUrl}, apiKey{set, source}}`，每个键是 `{value, source}` |
+| `list` | `{action, file, exists, values{provider, model, baseUrl, apiFormat}, apiKey{set, source}}`，每个键是 `{value, source}` |
 | `get` | `{action, key, value, source}` |
 | `set` | `{action, key, value, file, changed}` |
 | `unset` | `{action, key, file, changed}`，没有 `value` |
@@ -332,6 +336,7 @@ exists  : false
 provider: (not set)
 model   : (not set)
 baseUrl : https://api.openai.com/v1 (default)
+apiFormat: chat-completions (default)
 apiKey  : (not set)
 ```
 

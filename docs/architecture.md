@@ -346,6 +346,7 @@ test/fixtures/           各引擎最小夹具（mini-mz、mini-mv、renpy-*、r
 | 1.0.1 | **已交付**：双击启动修复——`Yakusha.exe` 改为原生启动器，先以默认 Chromium 沙箱启动 `yakusha-runtime.exe`，仅在子进程以 `0x80000003` / `0xC0000005` 崩溃时回退 `--no-sandbox`；便携包、`build-info.json` 与 `--verify` 同步记录并校验 `executable` / `runtime` / `launcher` | 964 pass / 0 fail（portable +1；真机双击复验） |
 | 1.1.0 | **已交付**：GUI 项目路径区分与 exe 拖入——项目卡分两行显示 `Selected file/folder:`（用户拖入或选择的原始路径）与 `Project root:`（scan 解析出的资源根）；新增 `gui:resolve-input` IPC（只读 stat，文件取父目录、目录原样、缺失如实报告），拖入游戏 exe 自动 scan 其所在目录；最近项目同时保存 `input` 与 `scan` | 967 pass / 0 fail（gui-renderer +1、gui-main +1、gui-preload +1；便携包 MZ 链复跑通过，`window.yakusha.resolveInput` 对真实 exe 返回父目录） |
 | 1.2.0 | **已交付**：GUI Calm Workbench 与 Settings 服务配置——224px 深色导航 + 项目卡 + Prepare / Translate / Deliver 三阶段带（Done / Now / Later）+ Current task + Project health；Settings 的 provider / model / base URL 表单经 `config list/set/unset` 读写，保存后回填并隐藏 service banner，清除后恢复未配置提示；`tools/gui-acceptance.mjs` 增加阶段带与 Settings 表单真窗检查 | 972 pass / 0 fail（gui-renderer +5；gui-acceptance 为真机工具，不进 npm test） |
+| 1.3.0 | **已交付**：GUI 四页工作台与 Service 配置补全——Overview / Workflow / Dictionary / Settings 四页 + Workspace / Recent games 两层左栏（可收 76px）；Settings 四标签页，Service 表单接 `config list/get/set/unset`，API 格式 `chat-completions` / `responses` 与 `gui:list-models` 模型查询；底部 Log 抽屉；RGSS 项目卡 `Launch original` / `Launch translated` 双启动；`config` 增加 `apiFormat`，`translate` 增加 `--api-format` | 996 pass / 0 fail（gui-renderer 39、provider-api 8；gui-main / gui-preload 新增 config 与 log 用例；gui-acceptance 为真机工具，不进 npm test） |
 
 ## 10. 风险
 
