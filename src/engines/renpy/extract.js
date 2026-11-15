@@ -77,6 +77,21 @@ function isTranslationEntry(name) {
 }
 
 /**
+ * Whether a path is the translation file yakusha wrote, source or compiled.
+ *
+ * Ren'Py compiles a loaded .rpy into a sibling .rpyc, so after the game has run
+ * the generated pair exists and both must be skipped. Reading the .rpyc would
+ * put our own translations back into the dictionary as source text.
+ *
+ * @param {string} name file path or archive entry name
+ * @returns {boolean}
+ */
+function isGeneratedTranslation(name) {
+  const base = path.basename(name).toLowerCase();
+  return base === TRANSLATION_FILE || base === TRANSLATION_FILE + "c";
+}
+
+/**
  * Reduce a thrown value to a single line for the undecodable report.
  *
  * The report is rendered as a table, so a message spanning lines would break
@@ -164,7 +179,7 @@ export function collectRenpyUnits(projectRoot) {
     // yakusha's own delivered translation is a .rpy file inside game/, so the
     // walk sees it. It holds nothing to translate and counting it would move
     // the reported script count every time install or uninstall runs.
-    if (path.basename(absolutePath) === TRANSLATION_FILE) continue;
+    if (isGeneratedTranslation(absolutePath)) continue;
     if (isCompiledName(absolutePath)) {
       const stem = path.join(path.dirname(absolutePath), path.basename(absolutePath, path.extname(absolutePath)));
       if (sourceStems.has(stem)) continue;
@@ -200,7 +215,7 @@ export function collectRenpyUnits(projectRoot) {
     }
     const archiveEntries = [...index.entries.entries()]
       .filter(([name]) => isArchiveScriptName(name))
-      .filter(([name]) => !isTranslationEntry(name) && path.basename(name) !== TRANSLATION_FILE)
+      .filter(([name]) => !isTranslationEntry(name) && !isGeneratedTranslation(name))
       .filter(([name]) => !looseStems.has(archiveStem(name)))
       .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
     const archiveSourceStems = new Set(

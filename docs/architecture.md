@@ -339,7 +339,8 @@ test/fixtures/           各引擎最小夹具（mini-mz、mini-mv、renpy-*、r
 | 0.81.0 | **已交付**：1.0 发布前置——README 与 GUI 显式披露未签名构建与 SmartScreen 处理，`docs/manual-acceptance.md` 把剩余人工验收整理成可执行清单（Ren'Py 真实游戏 L4、RGSS XP/VX 真机基线、签名与托管、1.0 引擎名单）；RGSS XP/VX 补合成提取测试，`docs/games.md` / `docs/evidence.md` 旧口径修正 | 951 pass / 0 fail（rgss-extract +1、gui-renderer +1） |
 | 0.82.0 | **已交付**：RGSS XP / VX 真机基线——`Game.ini` 按字节判编码（Shift_JIS / GBK），RGSS1 消息窗口切换 `Microsoft YaHei UI` 并给 `Bitmap#text_size` 加兜底；XP（5,316 串）与 VX（733 串）各一款走完 translate（mock）→ verify → install → launch，XP 与 VX 均有产品化截图（VX 于 2026-11-15 重截）；`docs/evidence.md` / `docs/games.md` / `docs/engines.json` / adapter `tested` 同步 | 953 pass / 0 fail（rgss-project 4 断言、rgss-native-source +1） |
 | 0.83.0 | **已交付**：Ren'Py RPA 归档读取 + 商业游戏 L4——`src/engines/renpy/rpa.js` 读 RPA-3.x / 4.x 索引与条目（3.x 的 offset / length 与 header key 异或、多段与 inline prefix、只读不解包），`detect` / `scan` / `extract` 直接读 `.rpa` 内的 `.rpyc`；一款商业 RPA-3.0 游戏（245 个 `.rpyc`）完成 scan 43,860 串 → translate（mock）→ verify → install → launch 见 `译:` → uninstall，原 `.rpa` 字节不变 | 958 pass / 0 fail（renpy-rpa +5） |
-| 1.0.0 | 10 个引擎 + 能力矩阵 + 便携 exe（图标、无控制台、最近游戏） | 双击 exe 可用 |
+| 0.84.0 | **已交付**：Ren'Py screen 文本与生成译文清理——`src/engines/renpy/rpyc.js` 遍历 `.rpyc` AST 的 screen 节点（`text` / `textbutton` / `label`）并读取插件自定义 displayable 的显式 `_()`；`src/engines/renpy/pickle.js` 保留 `NEWOBJ` 构造参数与 `PyExpr.value`；`uninstall` 同时删除 Ren'Py 自动编译的 `yakusha_translation.rpyc`，`extract` 跳过生成译文；1.0 拍板五引擎 + GitHub Releases + 不签名 | 963 pass / 0 fail（Ren'Py 三个测试文件 73 pass） |
+| 1.0.0 | 五个引擎（MZ / MV / Ren'Py / RGSS / Kirikiri）+ 能力矩阵 + 便携 exe + GitHub Releases（不签名） | 双击 exe 可用 |
 
 ## 10. 风险
 

@@ -870,19 +870,28 @@ class PickleReader {
       }
 
       case OP.NEWOBJ: {
-        // Stack holds [class, args]; the arguments tuple carries constructor
-        // arguments, which no Ren'Py AST node uses.
-        this.pop();
+        // Stack holds [class, args]. Ren'Py's PyExpr is a str subclass whose
+        // constructor takes the expression source as its first argument; the
+        // BUILD state that follows only carries filename/linenumber/py, so
+        // dropping the arguments loses the expression itself.
+        const args = this.pop();
         const cls = this.pop();
-        this.stack.push(instance(PickleReader.callableName(cls)));
+        const target = instance(PickleReader.callableName(cls));
+        PickleReader.applyConstructorArgs(target, args);
+        this.stack.push(target);
         return;
       }
 
       case OP.NEWOBJ_EX: {
-        this.pop(); // keyword arguments
-        this.pop(); // positional arguments
+        const kwargs = this.pop();
+        const args = this.pop();
         const cls = this.pop();
-        this.stack.push(instance(PickleReader.callableName(cls)));
+        const target = instance(PickleReader.callableName(cls));
+        PickleReader.applyConstructorArgs(target, args);
+        if (kwargs !== null && typeof kwargs === "object" && !Array.isArray(kwargs)) {
+          for (const key of Object.keys(kwargs)) target[key] = kwargs[key];
+        }
+        this.stack.push(target);
         return;
       }
 
@@ -973,6 +982,17 @@ class PickleReader {
    * @param {unknown[]} args
    * @returns {unknown}
    */
+  static applyConstructorArgs(target, args) {
+    if (!Array.isArray(args)) return target;
+    // PyExpr(str) is the only Ren'Py AST constructor whose first argument is
+    // display-bearing text. Keeping it as value lets the .rpyc walker read
+    // screen expressions without evaluating them.
+    if (args.length > 0 && (typeof args[0] === "string" || Buffer.isBuffer(args[0]))) {
+      target.value = args[0];
+    }
+    return target;
+  }
+
   static applyReduce(callable, args) {
     const name = PickleReader.callableName(callable);
 

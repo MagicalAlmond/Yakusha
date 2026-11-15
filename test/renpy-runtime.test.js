@@ -355,6 +355,21 @@ test("uninstallTranslation removes the file and is idempotent", () => {
   assert.deepEqual(uninstallTranslation(project(dir)), { path: target, removed: false });
 });
 
+test("uninstallTranslation removes the compiled twin Ren'Py writes", () => {
+  const dir = sandbox();
+  const target = path.join(dir.gameDir, TRANSLATION_FILE);
+  const compiled = target + "c";
+  installTranslation(project(dir), [["a", "b"]]);
+  // The game has run once and Ren'Py compiled the delivered translation.
+  fs.writeFileSync(compiled, "stale compiled translation", "utf8");
+
+  const result = uninstallTranslation(project(dir));
+  assert.deepEqual(result, { path: target, removed: true });
+  assert.equal(fs.existsSync(target), false);
+  assert.equal(fs.existsSync(compiled), false);
+  assert.deepEqual(fs.readdirSync(dir.gameDir), ["script.rpy"]);
+});
+
 test("uninstallTranslation --dry-run leaves the file in place", () => {
   const dir = sandbox();
   const target = path.join(dir.gameDir, TRANSLATION_FILE);

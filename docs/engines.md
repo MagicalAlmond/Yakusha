@@ -1223,8 +1223,9 @@ CLI 侧（`test/rgss-cli.test.js`，17 条）走真实的 `bin/yakusha.js`：sca
 商业游戏仍然能抽，只是条目拿不到行号（见下面的 context）。
 
 **跳过两类文件。** `game/tl/**`（Ren'Py 自己的翻译目录，里面是别人已有的译文，
-不是原文）和 yakusha 自己生成的 `game/yakusha_translation.rpy`（否则装完再抽会把
-自己的译文当成原文再翻一遍）。`tl/` 在任何层级出现都跳过。
+不是原文）和 yakusha 自己生成的 `game/yakusha_translation.rpy` 及其编译孪生
+`game/yakusha_translation.rpyc`（否则装完再抽会把自己的译文当成原文再翻一遍；
+Ren'Py 运行一次就可能自动生成这个 `.rpyc`）。`tl/` 在任何层级出现都跳过。
 
 **四类文本。** `kind` 有四种，与 [design.md](design.md) 的分类一致：
 
@@ -1233,7 +1234,7 @@ CLI 侧（`test/rgss-cli.test.js`，17 条）走真实的 `bin/yakusha.js`：sca
 | `say` | 对话与裸旁白；带说话人时只取引号里的台词（`"Lucy" "Better watch out."` 取第二句） |
 | `menu` | `menu:` 的标题**与选项标签**（`menu:` 块的第一层字面量整体算 `menu`） |
 | `string` | 被 `_()` 包起来的字符串，出现在哪里都算 |
-| `screen` | `screen` 里 `text` / `textbutton` / `label` / `tooltip` / `notify` 的第一个字面量 |
+| `screen` | `screen` 里 `text` / `textbutton` / `label` / `tooltip` / `notify` 的第一个字面量；插件自定义 displayable / 容器里显式写成 `_("...")` 的文本（0.84 起） |
 
 刻意不抽：注释、Python 代码块与 `$` 行里的字符串、`define` / `default` 右值
 （除非被 `_()` 包住）、`old` / `new` 语句、整个 `translate` 块、图片/音乐/字体路径、
@@ -1262,7 +1263,10 @@ CLI 侧（`test/rgss-cli.test.js`，17 条）走真实的 `bin/yakusha.js`：sca
 0.83 起另有一款商业 Ren'Py 游戏（RPA-3.0，245 个 `.rpyc`）完成真机验收：`scan` 读出
 43,860 唯一串 / 54,617 次，`undecodable` 0；`extract`、`translate`（`mock`）、`verify`
 与 `install` 全链路走通，启动后对话框显示 mock 的 `译:` 前缀，`uninstall` 后原 `.rpa`
-字节不变。匿名结果见 [games.md](games.md) 的 Ren'Py 一节。
+字节不变。0.84 起 `.rpyc` 的 screen AST 会读出 `text` / `textbutton` / `label` 的第一个
+字面量，以及插件自定义 displayable 里显式 `_()` 标记的文本；同一款游戏的 quick menu
+（Back / Auto / Skip / Hide / Menu）在 2026-11-15 的真机截图里显示为 mock `译:` 前缀。
+匿名结果见 [games.md](games.md) 的 Ren'Py 一节。
 
 ### 13.3 RGSS（XP / VX / VX Ace）
 
@@ -1429,7 +1433,7 @@ contexts 合并（`src/engines/krkr/extract.js:74`）。
 | --- | --- | --- | --- |
 | RPG Maker MZ | `data/*.json` | `plugin`（L4-plugin） | 0.10 已实现 |
 | RPG Maker MV | `data/*.json` | `plugin`（L4-plugin） | 0.10 已实现 |
-| Ren'Py | `.rpy` 明文 / `.rpyc` 编译 / `.rpa` 归档 | `translation`（L4-resource） | 0.11 实现 L2–L4；0.83 补 RPA 与商业游戏 L4 |
+| Ren'Py | `.rpy` 明文 / `.rpyc` 编译 / `.rpa` 归档 | `translation`（L4-resource） | 0.11 实现 L2–L4；0.83 补 RPA 与商业游戏 L4；0.84 补 screen AST 文本（含 quick menu）与生成译文清理 |
 | RGSS (XP/VX/VX Ace) | Ruby Marshal：`Data/*.rxdata` / `.rvdata` / `.rvdata2`，或 `RGSSAD` 家族归档 | `inject`（L4-inject，原生注入器） | 0.12 接 L1–L3；0.18 补上 L4 注入器，0.71 起普通 `install` 自动选择 |
 | Kirikiri | XP3 归档里的 `.ks` 脚本（KAG 标签） | `patch`（L4-patch，覆盖归档） | 0.13 接 L1–L3；0.74 补上 L4：写 `patch.xp3` 覆盖归档 |
 

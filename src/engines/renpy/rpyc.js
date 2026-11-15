@@ -49,8 +49,9 @@ const RECORD_LENGTH = 12;
  * @property {string} text the text as the engine would display it, still
  *   carrying Ren'Py markup (`{i}`, `[slot]`) because translation works on the
  *   markup, not on the rendered result
- * @property {"say"|"menu"|"string"} kind where the text came from: a `Say`
- *   node's `what`, a `Menu` caption or choice label, or a translation payload
+ * @property {"say"|"menu"|"screen"|"string"} kind where the text came from: a
+ *   `Say` node's `what`, a `Menu` caption or choice label, a visible screen
+ *   label, or a translation payload
  * @property {string} file the file name passed to {@link collectStrings}
  * @property {number|null} line 1-based line number, or `null` when the node
  *   carries none
@@ -200,14 +201,14 @@ export function readScript(buffer) {
  * @param {string} [file] path recorded on every unit; callers pass the `.rpy`
  *   path relative to the game root, exactly as written into the file
  * @returns {{version: number|null, strings: RenpyString[], nodeCount: number,
- *   sayCount: number, menuCount: number}} collected units and counters;
- *   `nodeCount` is the number of AST objects visited
+ *   sayCount: number, menuCount: number, screenCount: number}} collected units
+ *   and counters; `nodeCount` is the number of AST objects visited
  * @throws {Error} when the file cannot be decoded at all
  */
 export function collectStrings(buffer, file = "") {
   const script = readScript(buffer);
   const strings = [];
-  const state = { file, strings, nodeCount: 0, sayCount: 0, menuCount: 0 };
+  const state = { file, strings, nodeCount: 0, sayCount: 0, menuCount: 0, screenCount: 0 };
   walkStatements(script.statements, state, new Set());
   return {
     version: script.version,
@@ -215,6 +216,7 @@ export function collectStrings(buffer, file = "") {
     nodeCount: state.nodeCount,
     sayCount: state.sayCount,
     menuCount: state.menuCount,
+    screenCount: state.screenCount,
   };
 }
 
@@ -262,6 +264,12 @@ function walkNode(node, state, seen) {
       // The strings themselves are emitted by the generic descent below, so a
       // menu is only counted here.
       state.menuCount += 1;
+    } else if (className === "renpy.ast.Screen") {
+      // The screen itself is walked through its `screen` field; this count only
+      // tells a caller that a compiled UI was actually present.
+      state.screenCount += 1;
+    } else if (className === "renpy.sl2.slast.SLDisplayable") {
+      collectScreenDisplayable(node, state);
     } else if (className === "renpy.ast.TranslateString") {
       addUnit(state, node.old, "string", node);
       addUnit(state, node.new, "string", node);
@@ -278,6 +286,14 @@ function walkNode(node, state, seen) {
   collectMenu(node, state);
   if (node.items !== undefined) walkNode(node.items, state, seen);
   walkStatements(node.after, state, seen);
+  // Compiled screens hang off the Screen node's `screen` field; their layout
+  // tree uses `children` (SLScreen / SLBlock / SLDisplayable), while
+  // conditionals use `entries`. `node` is kept for AST nodes that carry their
+  // body there instead of in `block`.
+  if (node.node !== undefined) walkNode(node.node, state, seen);
+  if (node.screen !== undefined) walkNode(node.screen, state, seen);
+  if (node.children !== undefined) walkNode(node.children, state, seen);
+  if (node.entries !== undefined) walkNode(node.entries, state, seen);
 }
 
 /**
@@ -306,6 +322,185 @@ function collectMenu(node, state) {
     if (!Array.isArray(item) || item.length === 0) continue;
     addUnit(state, item[0], "menu", node);
   }
+}
+
+/**
+ * Displayable names whose first positional argument is visible label text.
+ *
+ * button and imagebutton are deliberately absent: their visible text is a
+ * child text displayable, which the generic descent reaches on its own.
+ */
+const SCREEN_TEXT_DISPLAYABLES = new Set(["text", "textbutton", "label"]);
+
+/**
+ * Emit the label of one screen displayable.
+ *
+ * Only a complete string literal, optionally wrapped in _() or __(), is
+ * accepted. A variable, a concatenation, a conditional expression or a format
+ * call is Python source, not display text, and guessing at it would put the
+ * wrong key into the dictionary.
+ *
+ * @param {object} node SLDisplayable node
+ * @param {object} state collector state
+ * @returns {void}
+ */
+function collectScreenDisplayable(node, state) {
+  const positional = Array.isArray(node.positional) ? node.positional : [];
+  const expression = positional[0];
+  // A plugin's own displayable has no known argument shape, but an explicit
+  // _("...") marker is the game author telling Ren'Py the string is
+  // translatable, so that is safe to collect whatever the displayable is.
+  const text = SCREEN_TEXT_DISPLAYABLES.has(node.name)
+    ? screenLiteral(expression)
+    : screenMarkedLiteral(expression);
+  if (text === null || text.length === 0) return;
+  if (!hasVisibleText(text)) return;
+  const line =
+    expression !== null && typeof expression === "object" && typeof expression.linenumber === "number"
+      ? expression.linenumber
+      : node.linenumber;
+  addUnitAt(state, text, "screen", line);
+}
+
+/**
+ * Whether a screen literal still contains text after markup and slots are removed.
+ *
+ * A value such as "[message!tq]" or a lone "▸" is a placeholder or a glyph, not
+ * a translatable label. Adding it to the dictionary would either do nothing or
+ * put a translated prefix in front of a value the engine fills in at runtime.
+ *
+ * @param {string} text decoded screen text
+ * @returns {boolean} true when at least one letter or digit remains
+ */
+function hasVisibleText(text) {
+  const stripped = text.replace(/\{[^{}]*\}/g, "").replace(/\[[^\]]*\]/g, "");
+  return /[\p{L}\p{N}]/u.test(stripped);
+}
+/**
+ * Turn one positional screen argument into display text.
+ *
+ * @param {unknown} value a PyExpr or a plain string
+ * @returns {string|null} decoded text, or null when this is not a literal
+ */
+function screenLiteral(value) {
+  if (typeof value === "string") return screenExpression(value);
+  if (value === null || typeof value !== "object") return null;
+  if (value.__class !== "renpy.ast.PyExpr") return null;
+  if (typeof value.value !== "string") return null;
+  return screenExpression(value.value);
+}
+
+/**
+ * Turn one positional argument into display text only when it is _() marked.
+ *
+ * @param {unknown} value a PyExpr or a plain string
+ * @returns {string|null} decoded text, or null when there is no marker
+ */
+function screenMarkedLiteral(value) {
+  let source = null;
+  if (typeof value === "string") source = value;
+  else if (value !== null && typeof value === "object" && value.__class === "renpy.ast.PyExpr"
+    && typeof value.value === "string") source = value.value;
+  if (source === null || !/^_\s*\(/.test(source.trim())) return null;
+  return screenLiteral(value);
+}
+
+/**
+ * Unwrap the _() translation marker, then require one Python string literal.
+ *
+ * @param {string} source Python expression source
+ * @returns {string|null} decoded text, or null when the expression is not one literal
+ */
+function screenExpression(source) {
+  let text = source.trim();
+  const wrapped = /^(?:_|__)\s*\(([\s\S]*)\)$/.exec(text);
+  if (wrapped !== null) text = wrapped[1].trim();
+  return screenStringLiteral(text);
+}
+
+/**
+ * Decode one quoted Python string literal, rejecting every other expression.
+ *
+ * @param {string} text candidate source
+ * @returns {string|null} decoded text, or null when the candidate is not one literal
+ */
+function screenStringLiteral(text) {
+  const match = /^[uU]?("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')$/s.exec(text);
+  if (match === null) return null;
+  return decodeScreenEscapes(match[1].slice(1, -1));
+}
+
+/**
+ * Decode the escape sequences Python allows in a one-line string literal.
+ *
+ * Unknown escapes return null instead of being copied through: a dictionary key
+ * must be the text the engine displays, not an approximation of its source.
+ *
+ * @param {string} raw body between the quotes
+ * @returns {string|null} decoded text, or null on an unsupported escape
+ */
+function decodeScreenEscapes(raw) {
+  let out = "";
+  for (let i = 0; i < raw.length; i += 1) {
+    const ch = raw[i];
+    if (ch !== "\\") {
+      out += ch;
+      continue;
+    }
+    i += 1;
+    if (i >= raw.length) return null;
+    const escape = raw[i];
+    if (escape === "\\" || escape === "\"" || escape === "'") {
+      out += escape;
+    } else if (escape === "n") {
+      out += "\n";
+    } else if (escape === "r") {
+      out += "\r";
+    } else if (escape === "t") {
+      out += "\t";
+    } else if (escape === "a") {
+      out += "\u0007";
+    } else if (escape === "b") {
+      out += "\b";
+    } else if (escape === "f") {
+      out += "\f";
+    } else if (escape === "v") {
+      out += "\u000b";
+    } else if (escape === "\n") {
+      // A backslash at the end of a line joins the next line.
+    } else if (escape === "x" || escape === "u" || escape === "U") {
+      const length = escape === "x" ? 2 : escape === "u" ? 4 : 8;
+      const hex = raw.slice(i + 1, i + 1 + length);
+      const pattern = new RegExp("^[0-9A-Fa-f]{" + length + "}$");
+      if (!pattern.test(hex)) return null;
+      const code = Number.parseInt(hex, 16);
+      if (escape === "U" && (code > 0x10ffff || (code >= 0xd800 && code <= 0xdfff))) return null;
+      out += String.fromCodePoint(code);
+      i += length;
+    } else {
+      return null;
+    }
+  }
+  return out;
+}
+
+/**
+ * Append one unit at an explicit line number.
+ *
+ * @param {object} state collector state
+ * @param {string} text display text
+ * @param {"say"|"menu"|"screen"|"string"} kind source kind
+ * @param {unknown} line line number or anything else
+ * @returns {void}
+ */
+function addUnitAt(state, text, kind, line) {
+  if (typeof text !== "string" || text.length === 0) return;
+  state.strings.push({
+    text,
+    kind,
+    file: state.file,
+    line: typeof line === "number" ? line : null,
+  });
 }
 
 /**

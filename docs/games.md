@@ -91,7 +91,7 @@ node bin/yakusha.js status "/games/SomeGame"
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | RPG Maker MZ | ✅ `game.rmmzproject`，或 `data/*.json` | ✅ 明文或单字节 XOR 的 JSON | ✅ 任意 OpenAI 兼容端点或 `mock` | ✅ 十一条判据 | ✅ 插件档：一个插件文件，加 `js/plugins.js` 里一行 | ✅ 根目录的 `Game.exe` | ✅ 版本区间 1.3.2–1.9.0，区间外只 `warn` |
 | RPG Maker MV | ✅ 同上，`www/` 布局也认 | ✅ 同上 | ✅ | ✅ | ✅ 插件档：改写 `loadDataFile`，在 `onLoad` 里回填 | ✅ `www/` 布局下从上一层启动 `Game.exe`（0.44） | ✅ 版本区间 1.6.1–1.6.2 |
-| Ren'Py | ✅ `game/` 目录加 `.rpy` / `.rpyc` / `.rpa` | ⚠️ 一款商业 RPA-3.0 游戏已验收（43,860 串）；图片文字、插件自定义容器仍看不到 | ✅ | ✅ | ✅ translation 档：`game/yakusha_translation.rpy` | ✅ 发行版根目录的启动器；2026-11-15 真机启动见译文 | ⚠️ `versions: none`，`config.version` 是游戏版本，没有可比矩阵 |
+| Ren'Py | ✅ `game/` 目录加 `.rpy` / `.rpyc` / `.rpa` | ⚠️ 一款商业 RPA-3.0 游戏已验收（43,860 串）；图片文字不处理；插件自定义容器只读字面量或显式 `_()`，运行时拼接/自绘看不到 | ✅ | ✅ | ✅ translation 档：`game/yakusha_translation.rpy` | ✅ 发行版根目录的启动器；2026-11-15 真机启动见译文 | ⚠️ `versions: none`，`config.version` 是游戏版本，没有可比矩阵 |
 | RGSS（XP / VX / VX Ace） | ✅ `.rvproj2` / `.rvproj`，或 `RGSSAD` 家族归档 | ✅ `Data/` 下的 `.rxdata` / `.rvdata` / `.rvdata2` | ✅ | ✅ | ⚠️ inject 档，只有 32 位 Windows 组件；XP / VX / VX Ace 各一款真机走查 | ✅ 经 `yakusha_injector.exe` 启动 | ✅ `versions` 1 / 2 / 3，实测 1 / 2 / 3 |
 | Kirikiri | ✅ `data/` 或根目录下的 `.xp3` | ⚠️ 只读标准未加密 XP3；加密变体进 `undecodable`，改版索引（Hxv4 形态）报 `E_UNSUPPORTED`；`.tjs` 只计数不读内容 | ✅ | ✅ | ✅ patch 档：只写 `data/patch.xp3`（已存在时自动顺延到 `patch2.xp3`，只含已译 `.ks`）与清单；0.77 起在一款商业游戏上做过运行时全量翻译实测——启动后对白显示译文，`uninstall` 只回收该归档 | ✅ 根目录的 `Game.exe` | ⚠️ 标题与版本读不出时显示 `(untitled)`，`versions: none` |
 
@@ -134,8 +134,8 @@ node bin/yakusha.js status "/games/SomeGame"
 | translate（mock） | total 43,860，failedBatches 0 |
 | verify `--source-lang en` | 2,974 条 source warning，0 errors，0 rejected |
 | install | `game/yakusha_translation.rpy`，5,301,453 字节 / 131,591 行 |
-| launch / L4 | 启动后对话框显示 mock `译:` 前缀；截图归档在仓库外（2026-11-15） |
-| uninstall | `removed:true`、`drifted:false`；译文文件消失，原 `.rpa` 字节不变 |
+| launch / L4 | 启动后对话框显示 mock `译:` 前缀；0.84 起底部 quick menu 的 Back / Auto / Skip / Hide / Menu 也显示 mock `译:`（2026-11-15 截图）；截图归档在仓库外 |
+| uninstall | `removed:true`、`drifted:false`；`.rpy` 与 Ren'Py 自动编译的 `.rpyc` 都消失，原 `.rpa` 字节不变 |
 
 RPA 读取见 `src/engines/renpy/rpa.js` 与 `test/renpy-rpa.test.js`：支持 RPA-3.x / 4.x；
 3.x 的索引是 `offset ^ key`、`length ^ key`，4.x 的索引不加密。归档里的 `.rpyc` 以
@@ -158,10 +158,11 @@ Ren'Py 8.5.3 SDK 自带的两个官方示例游戏（`the_question`、`tutorial`
 
 商业 Ren'Py 游戏通常把脚本打进 `.rpa`，0.83 之前这类游戏会在 `detect` 阶段报
 `E_NOT_PROJECT`；现在 `.rpa` 也是识别依据，`scan` / `extract` 直接读归档内的 `.rpyc`。
-仍看不到的是图片里的文字和插件自定义的说话人容器（见 [limitations.md](limitations.md)）。
+图片里的文字不在文本面内（需要 OCR，零依赖范围不做）。插件自定义的说话人容器只读字面量或显式 `_()` 标记，运行时拼接或自绘的文本看不到；Ren'Py 自己的 screen 文本（含 quick menu 的 Back / Auto / Skip / Hide / Menu）从 0.84 起会进入字典。
 
 Ren'Py 的安装产物是一个文件：`install` 写 `game/yakusha_translation.rpy`，`uninstall`
-删掉它，原脚本一个字节都不动，删文件即恢复。
+同时删掉它和 Ren'Py 运行后自动编译的 `game/yakusha_translation.rpyc`；原脚本一个字节
+都不动，删文件即恢复。
 
 ## RGSS（XP / VX / VX Ace）
 

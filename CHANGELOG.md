@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.84.0] - 2026-11-15
+
+### Added
+
+- Ren'Py screen text: `src/engines/renpy/rpyc.js` now walks the compiled screen AST (`node.node`, `node.screen`, `node.children`, `node.entries`) and collects the first literal of `text` / `textbutton` / `label`, plus explicitly marked `_()` literals inside plugin-defined displayables. `src/engines/renpy/pickle.js` keeps `NEWOBJ` / `NEWOBJ_EX` constructor arguments and `PyExpr.value`, which is what made screen strings reachable.
+- The commercial RPA-3.0 sample's quick menu (Back / Auto / Skip / Hide / Menu) now enters the dictionary; the 2026-11-15 runtime capture shows the mock `译:` prefix on those labels.
+- `docs/manual-acceptance.md` records the 2026-11-15 release decisions: 1.0 ships the five current engines and uses GitHub Releases, still unsigned; `docs/release.md` §5 defines the archive name and `SHA256SUMS` placement.
+
+### Fixed
+
+- `uninstall` now removes both `game/yakusha_translation.rpy` and the compiled twin `game/yakusha_translation.rpyc` that Ren'Py writes after a run; `extract` skips both generated files so a previous install is never scanned back as game text.
+
+### Unchanged
+
+- The JSON envelope, exit codes, command table, error codes and every payload key are untouched. No new dependency. 963 pass.
+
 ## [0.83.0] - 2026-11-15
 
 ### Added
@@ -1093,7 +1109,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.82.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v0.84.0...HEAD
+[0.84.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.83.0...v0.84.0
 [0.83.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.82.0...v0.83.0
 [0.82.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.81.0...v0.82.0
 [0.81.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.80.0...v0.81.0

@@ -88,9 +88,12 @@ scan → extract → translate → verify → install → uninstall → doctor�
 - 原生组件本身带 SHA-256 `manifest.json`，安装前逐文件校验；这只保证组件与清单一致，
   不构成对构建者或下载渠道的信任。
 - **不做自动更新**：更新渠道、增量与校验未设计；用户从发布页手动下载新目录替换旧目录。
-- 产物目录默认在 `.gitignore` 的 `dist/` 下，不提交仓库；需要分发的压缩包由发布者
-  在仓库外生成，仓库不保存二进制。
-- 代码签名与托管方式的最终决定见 [evidence.md](evidence.md) 的 1.0 门禁；本工具只负责
+- **托管：GitHub Releases**（2026-11-15 拍板，1.0 生效）：便携包以
+  `yakusha-<version>-win-x64.zip` 上传到 GitHub Releases，页面同时附 `SHA256SUMS`；
+  发布者固定为仓库维护者，压缩包解包后目录名保持 `yakusha-<version>-win-x64`。
+- 产物目录默认在 `.gitignore` 的 `dist/` 下，不提交仓库；发布用的压缩包在仓库外生成，
+  仓库不保存二进制。
+- 签名与托管的最终决定见 [evidence.md](evidence.md) 的 1.0 门禁；本工具只负责
   让"双击 Yakusha.exe 可用"这件事可复现、可校验。
 
 ## 6. 常见错误
@@ -106,5 +109,5 @@ scan → extract → translate → verify → install → uninstall → doctor�
 
 版本号只改 `package.json`；`CHANGELOG.md`、`docs/architecture.md` 的路线表和
 `docs/dev/DEVLOG.md` 同步记录。发布验收的顺序是：`npm test` 全绿 → 构建 →
-`--verify` → 用 `--exe` 跑五链 GUI 验收 → 归档 `summary.json` 与截图。仓库不创建
-tag、不推送 release，发布物由维护者在本地生成并自行分发。
+`--verify` → 用 `--exe` 跑五链 GUI 验收 → 归档 `summary.json` 与截图。0.x 开发期
+不创建 tag、不推送 release；1.0 起按 §5 的 GitHub Releases 方式由维护者手动创建发布页。

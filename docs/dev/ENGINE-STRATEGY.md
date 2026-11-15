@@ -427,7 +427,7 @@ TextGrammar = {
 | --- | --- | --- | --- | --- |
 | Maker JS | MZ、MV | `data/*.json` + JS 插件 | `plugin` | 已做到 L4，维护版本矩阵 |
 | Maker RGSS | XP、VX、VX Ace | `Data/*.rxdata`（Ruby Marshal）+ 脚本 | `inject`（原生注入器 + hook DLL，**0.18 已交付；0.71 起普通 `install` 自动选择**） | 高：Ruby Marshal 解析 + RGSS hook + 原生组件分发/签名（0.18 只做了 SHA-256 manifest 校验；分发渠道与签名仍未做） |
-| Ren'Py | Ren'Py | `.rpy` 明文 + `.rpyc` 编译 + `.rpa` 归档（**都要**） | `translation-file` | 已做到 L4-resource（0.11 交付；0.83 补 RPA 与商业游戏 L4，`src/engines/renpy/`，契约见 [engines.md](../engines.md) §13.2）；屏幕语言 UI 文本仍是已知边界 |
+| Ren'Py | Ren'Py | `.rpy` 明文 + `.rpyc` 编译 + `.rpa` 归档（**都要**） | `translation-file` | 已做到 L4-resource（0.11 交付；0.83 补 RPA 与商业游戏 L4；0.84 起 screen AST 的 text / textbutton / label 与显式 `_()` 也进字典，quick menu 已验证；`src/engines/renpy/`，契约见 [engines.md](../engines.md) §13.2）；图片文字仍需 OCR） |
 | TJS 系 | KiriKiri | `.xp3` 归档 + `.ks`/`.tjs` | `patch`（覆盖归档，**0.74 已交付**） | 中：标准 XP3 读写 + KAG 解析；加密变体仍不碰 |
 | JS 视觉小说 | TyranoScript（可选） | `.ks` / `.js` | `plugin` 或 `patch` | 中：脚本结构相对简单，归档/编码要处理 |
 | NScripter | NScripter | `.nscript` / `.nsa` | `patch` | 中：文本简单，归档和编码要处理 |
@@ -603,7 +603,8 @@ TextGrammar = {
 | 0.81 | 发布前置：未签名披露 + 剩余人工验收清单（**已交付**） | 把不能在仓库内自动化的 1.0 门禁写成可执行清单，避免「全绿」被误读成「可发布」 | 951 pass / 0 fail；`docs/manual-acceptance.md` 四节；GUI/README 未签名披露 |
 | 0.82 | RGSS XP / VX 真机基线：`Game.ini` 编码判定（Shift_JIS / GBK）、RGSS1 字体与 `text_size` fallback、XP / VX 各一款全链（**已交付**） | 0.81 把 XP / VX 列为人工验收缺口；0.82 用本机真实样本补上，VX 也有产品化截图 | 953 pass / 0 fail；XP 5,316 串、VX 733 串，均见 mock `译:` |
 | 0.83 | Ren'Py RPA 归档读取 + 商业游戏 L4：`rpa.js` 读 RPA-3.x / 4.x 索引与条目，`detect` / `scan` / `extract` 直接读 `.rpa` 内的 `.rpyc`（**已交付**） | Ren'Py 是五引擎里唯一缺 L4 的；真实发行版通常把脚本打进 `.rpa`，0.83 同时补读取与运行时验收 | 958 pass / 0 fail；一款商业 RPA-3.0 游戏 43,860 串，启动见 mock `译:`，卸载后原 `.rpa` 字节不变 |
-| 1.0 | 10 个引擎目标 + 能力矩阵 + 便携 exe | — | 每个引擎有 L4 证据；不达标的明确标 experimental |
+| 0.84 | Ren'Py screen 文本与生成译文清理 + 1.0 发布决策（**已交付**） | 0.83 只验证对话；quick menu 属于 screen 语言，且 Ren'Py 自动生成的 `.rpyc` 会污染二次扫描 | 963 pass / 0 fail；quick menu 真机见 mock `译:`，1.0 定五引擎 + GitHub Releases + 不签名 |
+| 1.0 | 五个引擎（MZ / MV / Ren'Py / RGSS / Kirikiri）+ 能力矩阵 + 便携 exe + GitHub Releases（不签名） | 2026-11-15 拍板：不补到十个引擎 | 每个引擎有 L4 证据；不达标的明确标 experimental |
 
 说明：
 
@@ -622,8 +623,8 @@ TextGrammar = {
   （历史表述更正，2026-10-27：上面那句“1.0 之前只剩 0.15 把第 10 个引擎（KRKR）补齐”
   写的是 2026-10-25 时的原计划；实际交付里 KRKR 已提前到 0.13 作为第五个引擎交付，
   0.15 实际交付的是 0.11 顺延的通用内容导入 v1。截至 0.16 已接入五个引擎
-  （MZ / MV / Ren'Py / RGSS / Kirikiri），1.0 的“10 个引擎”仍是目标数，剩余引擎
-  等交付层路线拍板后再排（§6.3 的勘察注记与 DEVLOG §8.1 #10）。
+  （MZ / MV / Ren'Py / RGSS / Kirikiri）。2026-11-15 拍板 1.0 就发布这五个引擎，
+  不再把“10 个引擎”当目标数；其余引擎等单独立项（§6.3 的勘察注记与 DEVLOG §8.1 #10）。
   “如果决定把 KRKR 推到 1.0 之后，则 0.14 验收完可以直接进 1.0”一句随之失效：
   KRKR 已在 0.13 交付，1.0 的剩余工作量取决于还有哪些引擎与 L4 证据。）
 

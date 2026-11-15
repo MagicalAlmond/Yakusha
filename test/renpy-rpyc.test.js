@@ -15,6 +15,18 @@ import { collectStrings, isRpyc, readContainer, readScript } from "../src/engine
 const FIXTURE = fileURLToPath(new URL("./fixtures/renpy-rpyc/game/script.rpyc", import.meta.url));
 
 /**
+ * Compiled screen fixture: the same shape as a packaged game's screens.rpyc,
+ * but generated from a synthetic AST so the quick-menu labels are stable.
+ */
+const SCREEN_FIXTURE = fileURLToPath(new URL("./fixtures/renpy-rpyc-screen/game/screens.rpyc", import.meta.url));
+
+/**
+ * Compiled fixture for a plugin-owned displayable: the name is not one Ren'Py
+ * knows, but the argument carries an explicit _() marker.
+ */
+const CUSTOM_FIXTURE = fileURLToPath(new URL("./fixtures/renpy-rpyc-plugin/game/custom.rpyc", import.meta.url));
+
+/**
  * Read the committed fixture.
  *
  * @returns {Buffer} raw .rpyc bytes
@@ -176,6 +188,7 @@ test("collectStrings walks say, menu and translate strings in source order", () 
   assert.equal(result.nodeCount, 19);
   assert.equal(result.sayCount, 5);
   assert.equal(result.menuCount, 1);
+  assert.equal(result.screenCount, 0);
   assert.deepEqual(result.strings, [
     {
       text: "Alpha line one.",
@@ -240,6 +253,38 @@ test("collectStrings walks say, menu and translate strings in source order", () 
   ]);
 });
 
+test("collectStrings reads labels from a compiled screen tree", () => {
+  const result = collectStrings(readFileSync(SCREEN_FIXTURE), "game/screens.rpy");
+  assert.equal(result.version, 5003000);
+  assert.equal(result.nodeCount, 17);
+  assert.equal(result.sayCount, 0);
+  assert.equal(result.menuCount, 0);
+  assert.equal(result.screenCount, 1);
+  assert.deepEqual(result.strings, [
+    { text: "Back", kind: "screen", file: "game/screens.rpy", line: 10 },
+    { text: "Skip", kind: "screen", file: "game/screens.rpy", line: 11 },
+    { text: "Auto", kind: "screen", file: "game/screens.rpy", line: 12 },
+    { text: "Hide", kind: "screen", file: "game/screens.rpy", line: 13 },
+    { text: "Menu", kind: "screen", file: "game/screens.rpy", line: 14 },
+    {
+      text: "{size=16}{color=#FFF}Back{/color}{/size}",
+      kind: "screen",
+      file: "game/screens.rpy",
+      line: 15,
+    },
+    { text: "Nested", kind: "screen", file: "game/screens.rpy", line: 18 },
+    { text: "A\nB", kind: "screen", file: "game/screens.rpy", line: 21 },
+  ]);
+});
+test("collectStrings reads a marked string from a plugin displayable", () => {
+  const result = collectStrings(readFileSync(CUSTOM_FIXTURE), "game/custom.rpy");
+  assert.equal(result.version, 5003000);
+  assert.equal(result.screenCount, 1);
+  assert.deepEqual(result.strings, [
+    { text: "Marked", kind: "screen", file: "game/custom.rpy", line: null },
+    { text: "Plain", kind: "screen", file: "game/custom.rpy", line: null },
+  ]);
+});
 test("collectStrings keeps the caller supplied file name verbatim", () => {
   const result = collectStrings(fixture(), "custom/location.rpy");
   assert.equal(result.strings.length, 10);

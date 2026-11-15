@@ -366,13 +366,22 @@ export function installTranslation(project, pairs, options = {}) {
  */
 export function uninstallTranslation(project, options = {}) {
   const target = translationPath(project);
+  // Ren'Py compiles every .rpy it loads. Once the game has run, an installed
+  // translation leaves a sibling yakusha_translation.rpyc behind; removing only
+  // the source file would leave the old translation active and would make the
+  // next scan read our own output as game text.
+  const compiled = target + "c";
   assertInsideRoot(project, target);
-  if (!fs.existsSync(target)) return { path: target, removed: false };
+  assertInsideRoot(project, compiled);
+  const present = [target, compiled].filter((file) => fs.existsSync(file));
+  if (present.length === 0) return { path: target, removed: false };
   if (options.dryRun === true) return { path: target, removed: true, dryRun: true };
-  try {
-    fs.rmSync(target);
-  } catch (error) {
-    throw coded("E_IO", "cannot remove " + target + " (" + ((error && error.code) || "remove failed") + ")");
+  for (const file of present) {
+    try {
+      fs.rmSync(file);
+    } catch (error) {
+      throw coded("E_IO", "cannot remove " + file + " (" + ((error && error.code) || "remove failed") + ")");
+    }
   }
   return { path: target, removed: true };
 }

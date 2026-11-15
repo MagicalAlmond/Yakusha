@@ -245,3 +245,31 @@ test("collectRenpyUnits exposes the units behind the extractor", () => {
     ["Gamma menu caption.", "Delta choice one.", "Epsilon choice two."],
   );
 });
+
+test("the generated translation and its compiled twin are skipped", () => {
+  const result = extractRenpyProject(fixtureProject("generated"));
+
+  // Both the .rpy and the .rpyc Ren'Py wrote are our own output, not game text.
+  assert.deepEqual([...result.entries.keys()], ["Hello from the game."]);
+  assert.deepEqual(result.perFile, { "game/script.rpy": 1 });
+  assert.deepEqual(result.scripts, { rpy: 1, rpyc: 0 });
+  assert.deepEqual(result.undecodable, []);
+});
+
+test("a compiled screen contributes its quick-menu labels", () => {
+  const root = fileURLToPath(new URL("./fixtures/renpy-rpyc-screen", import.meta.url));
+  const result = extractRenpyProject(root);
+
+  assert.deepEqual(result.scripts, { rpy: 0, rpyc: 1 });
+  assert.deepEqual(result.perFile, { "game/screens.rpyc": 8 });
+  assert.equal(result.totalStrings, 8);
+  assert.deepEqual(result.undecodable, []);
+  assert.deepEqual(contextsOf(result, "Back"), ["game/screens.rpyc:10"]);
+  assert.deepEqual(contextsOf(result, "Menu"), ["game/screens.rpyc:14"]);
+  assert.deepEqual(contextsOf(result, "{size=16}{color=#FFF}Back{/color}{/size}"), [
+    "game/screens.rpyc:15",
+  ]);
+  assert.deepEqual(contextsOf(result, "A\nB"), ["game/screens.rpyc:21"]);
+  assert.equal(result.entries.has("[message!tq]"), false);
+  assert.equal(result.entries.has("▸"), false);
+});
