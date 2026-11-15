@@ -179,7 +179,7 @@ async function waitForRunResult(logFile, command, before, timeout) {
 
 async function clickSelector(cdp, selector) {
   const prepared = await cdp.evaluate(
-    '(() => { const el = document.querySelector(' + JSON.stringify(selector) + '); if (!el) return false; el.scrollIntoView({block: "center"}); return !el.disabled; })()'
+    '(() => { const el = document.querySelector(' + JSON.stringify(selector) + '); if (!el) return false; el.scrollIntoView({block: "center", behavior: "instant"}); return !el.disabled; })()'
   );
   if (!prepared) throw new Error("cannot click " + selector + " (missing or disabled)");
   await sleep(120);
@@ -305,7 +305,9 @@ async function runChain(cdp, chain, dir, logFile, artifacts, timeout) {
   );
   if (!recentVisible) throw new Error(chain.id + " recent row did not record the scanned project");
   const screenshot = await capture(cdp, path.join(artifacts, chain.id + "-scan.png"));
-  steps.push({ command: "scan", ok: scan.ok, engine: scan.engine, uniqueStrings: scan.uniqueStrings, deliveryTier: tier });
+  const stageAfterScan = await readStages(cdp);
+  if (stageAfterScan !== "Done|Now|Later") throw new Error(chain.id + " stage band after scan is " + JSON.stringify(stageAfterScan));
+  steps.push({ command: "scan", ok: scan.ok, engine: scan.engine, uniqueStrings: scan.uniqueStrings, deliveryTier: tier, stageBand: stageAfterScan });
 
   const extract = await clickCommand(cdp, logFile, "[data-cmd=extract]", "extract", timeout);
   assertEnvelope("extract", extract, chain);
@@ -337,6 +339,37 @@ async function runChain(cdp, chain, dir, logFile, artifacts, timeout) {
   steps.push({ command: "doctor", ok: doctor.ok, verdict: doctor.verdict });
 
   return { engine: chain.engine, runtime: chain.runtime, deliveryTier: tier, steps, screenshot };
+}
+
+async function readStages(cdp) {
+  return cdp.evaluate('["stage-prepare-status", "stage-translate-status", "stage-deliver-status"].map((id) => document.getElementById(id).textContent).join("|")');
+}
+
+async function checkConfigForm(cdp, logFile, artifacts, timeout) {
+  await clickCommand(cdp, logFile, "[data-cmd=config]", "config", timeout);
+  await waitFor(cdp, 'document.getElementById("config-provider").value === "mock"', timeout, "config load");
+  await cdp.evaluate('(() => { document.getElementById("config-provider").value = "mock"; document.getElementById("config-model").value = "demo-model"; document.getElementById("config-base-url").value = "http://127.0.0.1:9/v1"; return true; })()');
+  await clickSelector(cdp, "#config-save");
+  await waitFor(cdp, 'document.getElementById("config-state").textContent === "Service saved"', timeout, "config save");
+  const saved = await cdp.evaluate('window.yakusha.run("config", ["list"], {}, 0, false)');
+  if (!saved || saved.ok !== true) throw new Error("config list failed after save");
+  if (!saved.values.model || saved.values.model.value !== "demo-model") throw new Error("config save did not persist model");
+  if (!saved.values.baseUrl || saved.values.baseUrl.value !== "http://127.0.0.1:9/v1") throw new Error("config save did not persist baseUrl");
+  const savedShot = await capture(cdp, path.join(artifacts, "settings-saved.png"));
+  await clickSelector(cdp, "#config-clear");
+  await waitFor(cdp, 'document.getElementById("config-state").textContent === "Service cleared"', timeout, "config clear");
+  const cleared = await cdp.evaluate('window.yakusha.run("config", ["list"], {}, 0, false)');
+  if (!cleared || cleared.ok !== true) throw new Error("config list failed after clear");
+  if (cleared.values.provider && cleared.values.provider.value) throw new Error("config clear left a provider behind");
+  const clearedUi = await cdp.evaluate('JSON.stringify({ provider: document.getElementById("config-provider").value, banner: document.getElementById("service-banner").hidden, summary: document.getElementById("config-summary").textContent })');
+  const clearedState = JSON.parse(clearedUi);
+  if (clearedState.provider !== "") throw new Error("config clear did not blank the provider field");
+  if (clearedState.banner !== false) throw new Error("config clear did not show the service banner");
+  if (!clearedState.summary.startsWith("No service configured")) throw new Error("config clear summary is " + JSON.stringify(clearedState.summary));
+  await cdp.evaluate('(() => { document.getElementById("config-provider").value = "mock"; return true; })()');
+  await clickSelector(cdp, "#config-save");
+  await waitFor(cdp, 'document.getElementById("config-state").textContent === "Service saved"', timeout, "config restore");
+  return { savedScreenshot: savedShot, model: "demo-model", baseUrl: "http://127.0.0.1:9/v1" };
 }
 
 function killTree(child) {
@@ -393,6 +426,10 @@ async function main() {
     await cdp.send("Page.bringToFront");
     await waitFor(cdp, "document.readyState === \"complete\" && typeof currentDir !== \"undefined\" && !!document.querySelector(\"[data-cmd=scan]\")", options.timeout, "renderer ready");
     const logFile = path.join(config, "logs", "gui.log");
+    summary.overviewScreenshot = await capture(cdp, path.join(shots, "overview.png"));
+    summary.stageInitial = await readStages(cdp);
+    if (summary.stageInitial !== "Now|Later|Later") throw new Error("initial stage band is " + JSON.stringify(summary.stageInitial) + ", expected Now|Later|Later");
+    summary.config = await checkConfigForm(cdp, logFile, shots, options.timeout);
     for (const item of prepared) {
       summary.chains.push(await runChain(cdp, item.chain, item.dir, logFile, shots, options.timeout));
     }

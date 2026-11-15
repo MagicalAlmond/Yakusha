@@ -10,22 +10,28 @@ let selectedInput = null;
 let selectedKind = "";
 let scanRoot = null;
 let runSeq = 0;
+let dictState = null;
+
+const ui = {
+  scanned: false,
+  extracted: false,
+  translated: false,
+  verified: false,
+  installed: false,
+  engine: "",
+  engineVersion: "",
+  capabilities: null,
+  total: null,
+  translatedCount: null,
+  pending: null,
+  delivery: null,
+};
 
 const COMMAND_LABELS = {
-  scan: "Scan",
-  extract: "Extract",
-  status: "Status",
-  translate: "Translate",
-  verify: "Verify",
-  speaker: "Speaker fix",
-  terms: "Mine terms",
-  install: "Install",
-  uninstall: "Uninstall",
-  export: "Export",
-  import: "Import",
-  launch: "Launch",
-  doctor: "Doctor",
-  config: "Config",
+  scan: "Scan", extract: "Extract", status: "Status", translate: "Translate",
+  verify: "Verify", speaker: "Speaker fix", terms: "Mine terms", install: "Install",
+  uninstall: "Uninstall", export: "Export", import: "Import", launch: "Launch",
+  doctor: "Doctor", config: "Settings",
 };
 
 /** Short, one-line summaries for the toast; full envelopes go to the log file. */
@@ -38,6 +44,46 @@ function baseName(value) {
   const text = String(value || "").replace(/[\\/]+$/, "");
   const parts = text.split(/[\\/]/);
   return parts[parts.length - 1] || text;
+}
+
+function setText(id, text, title) {
+  const node = $(id);
+  if (!node) return;
+  node.textContent = text === undefined || text === null ? "" : String(text);
+  if (title !== undefined) node.title = title;
+}
+
+function setHidden(id, hidden) {
+  const node = $(id);
+  if (node) node.hidden = hidden;
+}
+
+function setValue(id, value) {
+  const node = $(id);
+  if (node) node.value = value === undefined || value === null ? "" : String(value);
+}
+
+function setStatusChip(id, text, kind) {
+  const node = $(id);
+  if (!node) return;
+  node.textContent = text;
+  if (!node.classList) return;
+  node.classList.remove("is-active", "is-done");
+  if (kind === "active") node.classList.add("is-active");
+  if (kind === "done") node.classList.add("is-done");
+}
+
+function setStage(id, state) {
+  const node = $(id);
+  if (!node || !node.classList) return;
+  node.classList.remove("is-current", "is-done");
+  if (state === "current") node.classList.add("is-current");
+  if (state === "done") node.classList.add("is-done");
+}
+
+function configEntry(entry) {
+  if (!entry || entry.value === undefined || entry.value === null) return "";
+  return String(entry.value);
 }
 
 function summaryFor(command, envelope) {
@@ -79,8 +125,7 @@ function summaryFor(command, envelope) {
     return "delivery layer installed";
   }
   if (command === "uninstall") return e.restored ? "delivery layer removed and original restored" : "delivery layer removed";
-  if (command === "export") return (e.entries !== undefined ? e.entries + " entries" : "exported") +
-    (e.format ? " · " + e.format : "");
+  if (command === "export") return (e.entries !== undefined ? e.entries + " entries" : "exported") + (e.format ? " · " + e.format : "");
   if (command === "import") {
     return (e.read !== undefined ? e.read + " read" : "imported") +
       (e.applied !== undefined ? " · " + e.applied + " applied" : "") +
@@ -90,7 +135,12 @@ function summaryFor(command, envelope) {
   if (command === "doctor") return e.verdict ? "verdict: " + e.verdict : "check complete";
   if (command === "speaker") return e.entries !== undefined ? (e.names || 0) + " names across " + e.entries + " entries" : "speaker names updated";
   if (command === "terms") return e.names !== undefined ? e.names + " names mined" : "terms mined";
-  if (command === "config") return e.values ? "configuration loaded" : "configuration";
+  if (command === "config") {
+    if (e.values) return "configuration loaded";
+    if (e.action === "set") return e.key + " saved";
+    if (e.action === "unset") return e.key + " cleared";
+    return "configuration";
+  }
   return "completed";
 }
 
@@ -98,12 +148,8 @@ let toastNodes = [];
 
 function dismissToast(node) {
   if (!node) return;
-  if (node._toastTimer) {
-    clearTimeout(node._toastTimer);
-    node._toastTimer = null;
-  }
-  if (typeof node.remove === "function") node.remove();
-  else node.hidden = true;
+  if (node._toastTimer) { clearTimeout(node._toastTimer); node._toastTimer = null; }
+  if (typeof node.remove === "function") node.remove(); else node.hidden = true;
   const index = toastNodes.indexOf(node);
   if (index >= 0) toastNodes.splice(index, 1);
 }
@@ -120,7 +166,11 @@ function showToast({ title, detail, kind = "info", timeout = 4200 }) {
   node.className = "toast toast-" + kind;
   node.textContent = detail ? title + " — " + detail : title;
   node.title = detail || title;
+  node.dataset.kind = kind;
   node.addEventListener("click", () => dismissToast(node));
+  node.addEventListener("keydown", (event) => {
+    if (event && (event.key === "Enter" || event.key === " ")) dismissToast(node);
+  });
   const stack = $("toasts");
   if (stack) stack.appendChild(node);
   toastNodes.push(node);
@@ -135,29 +185,29 @@ function updateToast(handle, { title, detail, kind = "success", timeout = 4200 }
   node.className = "toast toast-" + kind;
   node.textContent = detail ? title + " — " + detail : title;
   node.title = detail || title;
+  node.dataset.kind = kind;
   scheduleToastDismiss(node, timeout);
   return handle;
 }
 
-function setProjectLine(text) {
-  $("project-line").textContent = text;
-  $("project-line").title = text;
-}
-
-/** Show the exact path the user picked or dropped, separate from the project root. */
 function updateInputLine() {
   const line = $("project-input");
   if (!line) return;
-  if (!selectedInput) {
-    line.hidden = true;
-    line.textContent = "";
-    line.title = "";
-    return;
-  }
+  if (!selectedInput) { line.hidden = true; line.textContent = ""; line.title = ""; return; }
   const label = selectedKind === "file" ? "file" : selectedKind === "directory" ? "folder" : "path";
   line.hidden = false;
   line.textContent = "Selected " + label + ": " + selectedInput;
   line.title = selectedInput;
+}
+
+function setProjectLine(text) {
+  setText("project-line", text, text);
+}
+
+function setProjectTitle(title) {
+  const resolved = title || "No project selected";
+  setText("project-title", resolved, resolved);
+  setText("sidebar-project-name", resolved, resolved);
 }
 
 /** Remember what the user chose and what the next scan should receive. */
@@ -166,7 +216,10 @@ function setProjectInput(input, kind, target) {
   selectedKind = kind || "";
   scanRoot = target || input || null;
   updateInputLine();
-  if (!currentDir) setProjectLine(scanRoot ? "Scanning " + scanRoot + "…" : "Drop a game folder or game exe here, or pick a folder");
+  if (!currentDir) {
+    setProjectTitle(scanRoot ? "Selecting " + baseName(scanRoot) : "No project selected");
+    setProjectLine(scanRoot ? "Scanning " + scanRoot + "…" : "Drop a game folder or game exe here, or pick a folder");
+  }
 }
 
 /** Show the canonical root the scan resolved, which commands then operate on. */
@@ -174,51 +227,43 @@ function showProjectRoot(root, title) {
   currentDir = root || null;
   currentTitle = title || "";
   if (root) {
+    setProjectTitle(currentTitle || baseName(root));
     setProjectLine("Project root: " + root + (currentTitle ? " — " + currentTitle : ""));
-    if (!selectedInput) {
-      selectedInput = root;
-      selectedKind = "directory";
-      scanRoot = root;
-      updateInputLine();
-    }
+    setText("project-state", "Ready to work");
+    if (!selectedInput) { selectedInput = root; selectedKind = "directory"; scanRoot = root; updateInputLine(); }
   } else {
+    setProjectTitle("No project selected");
     setProjectLine("Drop a game folder or game exe here, or pick a folder");
+    setText("project-state", "Waiting for a project");
   }
 }
 
-/**
- * Show what the next Install will actually write, in the exact terms of
- * docs/gui.md §6. The tier comes from capabilities.runtime, the same value the
- * CLI prints; delivery.js owns the copy so the UI and the docs cannot drift.
- */
+/** Show what the next Install will actually write, in the exact terms of docs/gui.md §6. */
 function showDelivery(caps) {
   const card = $("delivery");
   if (!card) return;
   const tiers = typeof YAKUSHA_DELIVERY_TIERS !== "undefined" ? YAKUSHA_DELIVERY_TIERS : null;
   const runtime = caps ? caps.runtime : null;
   const tier = tiers ? tiers[runtime === null || runtime === undefined ? "none" : runtime] : null;
-  if (!tier) { card.hidden = true; return; }
+  if (!tier) { card.hidden = true; ui.delivery = null; return; }
   card.hidden = false;
-  $("delivery-tier").textContent = tier.key;
-  $("delivery-title").textContent = tier.title;
-  $("delivery-copy").textContent = tier.summary;
+  ui.delivery = tier.key;
+  setText("delivery-tier", tier.key);
+  setText("delivery-title", tier.title);
+  setText("delivery-copy", tier.summary);
   const caution = $("delivery-caution");
-  caution.textContent = tier.caution;
-  caution.hidden = !tier.caution;
+  if (caution) { caution.textContent = tier.caution || ""; caution.hidden = !tier.caution; }
+  setText("health-delivery", tier.key);
 }
 
 function hideDelivery() {
-  const card = $("delivery");
-  if (card) card.hidden = true;
+  setHidden("delivery", true);
+  ui.delivery = null;
 }
 
 /** localStorage can throw when the profile is read-only; recent projects are best effort. */
 function recentStorage() {
-  try {
-    return window.localStorage || null;
-  } catch {
-    return null;
-  }
+  try { return window.localStorage || null; } catch { return null; }
 }
 
 /** Render the last successfully scanned projects as one-click chips. */
@@ -226,14 +271,9 @@ function renderRecent() {
   const row = $("recent");
   const list = $("recent-list");
   if (!row || !list) return;
-  const items = typeof YAKUSHA_RECENT !== "undefined"
-    ? YAKUSHA_RECENT.read(recentStorage())
-    : [];
+  const items = typeof YAKUSHA_RECENT !== "undefined" ? YAKUSHA_RECENT.read(recentStorage()) : [];
   list.innerHTML = "";
-  if (items.length === 0) {
-    row.hidden = true;
-    return;
-  }
+  if (items.length === 0) { row.hidden = true; return; }
   for (const entry of items) {
     const chip = document.createElement("button");
     chip.type = "button";
@@ -271,126 +311,250 @@ function rememberProject(envelope) {
       engine: envelope.engine || "",
       title: envelope.gameTitle || "",
     });
-  } catch {
-    // Recent projects are a convenience; never fail the scan over storage.
-  }
+  } catch { /* best effort */ }
   renderRecent();
+}
+
+function updateStages() {
+  const prepareState = ui.scanned ? "done" : "current";
+  const translateState = ui.verified ? "done" : ui.scanned ? "current" : "next";
+  const deliverState = ui.installed ? "done" : ui.verified ? "current" : "next";
+  setStage("stage-prepare", prepareState);
+  setStage("stage-translate", translateState);
+  setStage("stage-deliver", deliverState);
+  setText("stage-prepare-status", prepareState === "done" ? "Done" : prepareState === "current" ? "Now" : "Later");
+  setText("stage-translate-status", translateState === "done" ? "Done" : translateState === "current" ? "Now" : "Later");
+  setText("stage-deliver-status", deliverState === "done" ? "Done" : deliverState === "current" ? "Now" : "Later");
+  setStatusChip("task-state", ui.installed ? "Installed" : ui.verified ? "Ready to install" : ui.scanned ? "In progress" : "Ready", ui.installed ? "done" : ui.scanned ? "active" : "");
+}
+
+function updateTask() {
+  let title = "Choose a game folder";
+  let copy = "Start by selecting a game folder or dropping a game exe here.";
+  let button = "Choose game folder →";
+  let action = "pick";
+  if (ui.installed) {
+    title = "Play the translated game";
+    copy = "The delivery layer is installed. Launch the game to check the translation in context.";
+    button = "Launch game →";
+    action = "launch";
+  } else if (ui.verified) {
+    title = "Install the translation";
+    copy = "Verification is complete. Install writes only the delivery layer described below.";
+    button = "Install translation →";
+    action = "install";
+  } else if (ui.translated) {
+    title = "Check quality before installing";
+    copy = "Run Verify to catch control codes, empty translations and speaker-name problems.";
+    button = "Run Verify →";
+    action = "verify";
+  } else if (ui.extracted) {
+    title = "Translate the dictionary";
+    copy = "Your text is extracted. Translate pending entries with the configured service; progress is saved along the way.";
+    button = "Start Translate →";
+    action = "translate";
+  } else if (ui.scanned) {
+    title = "Extract the text";
+    copy = "Scan found the game. Extract strings into the local dictionary before translating.";
+    button = "Extract text →";
+    action = "extract";
+  }
+  setText("task-title", title);
+  setText("task-copy", copy);
+  const primary = $("primary-action");
+  if (primary) { primary.textContent = button; primary.dataset.action = action; }
+  setHidden("task-stats", !(ui.scanned || ui.extracted || ui.translated));
+  if (ui.total !== null) setText("stat-total", ui.total);
+  if (ui.translatedCount !== null) setText("stat-translated", ui.translatedCount);
+  if (ui.pending !== null) setText("stat-pending", ui.pending);
+  setHidden("task-secondary", !ui.extracted);
+  updateStages();
+}
+
+function updateHealth() {
+  setText("health-engine", ui.engine ? ui.engine + (ui.engineVersion ? " " + ui.engineVersion : "") : "—");
+  setText("health-strings", ui.total === null ? "—" : String(ui.total));
+  setText("health-translated", ui.translatedCount === null ? "—" : String(ui.translatedCount));
+  setText("health-delivery", ui.delivery || "—");
+}
+
+function setLastRunBusy(command, target) {
+  setText("last-run-title", (COMMAND_LABELS[command] || command) + " running…");
+  setText("last-run-detail", target ? "Working on " + target : "Working…");
+  setText("last-run-time", "now");
+  const card = $("last-run");
+  if (card && card.classList) { card.classList.remove("is-error", "is-success"); }
+}
+
+function setLastRunResult(command, envelope) {
+  const summary = summaryFor(command, envelope);
+  setText("last-run-title", (COMMAND_LABELS[command] || command) + (envelope.ok ? " complete" : " failed"));
+  setText("last-run-detail", summary);
+  const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  setText("last-run-time", time);
+  const card = $("last-run");
+  if (card && card.classList) {
+    card.classList.remove("is-error", "is-success");
+    card.classList.add(envelope.ok ? "is-success" : "is-error");
+  }
+}
+
+function applyConfig(envelope) {
+  const values = envelope && envelope.values ? envelope.values : null;
+  if (!values) return;
+  const provider = configEntry(values.provider);
+  const model = configEntry(values.model);
+  const baseUrl = configEntry(values.baseUrl);
+  const select = $("config-provider");
+  if (select) select.value = provider;
+  setValue("config-model", model);
+  setValue("config-base-url", baseUrl);
+  const label = (entry) => entry && entry.value ? entry.value + (entry.source ? " (" + entry.source + ")" : "") : "(not set)";
+  setText("config-summary", "provider: " + label(values.provider) + " · model: " + label(values.model) + " · baseUrl: " + label(values.baseUrl));
+  setHidden("service-banner", Boolean(provider));
+  if (provider) setText("config-state", "Service configured");
+}
+
+function readConfigForm() {
+  const provider = $("config-provider") ? $("config-provider").value.trim() : "";
+  const model = $("config-model") ? $("config-model").value.trim() : "";
+  const baseUrl = $("config-base-url") ? $("config-base-url").value.trim() : "";
+  return { provider, model, baseUrl };
+}
+
+async function saveConfigForm() {
+  const values = readConfigForm();
+  if (!values.provider) { showToast({ title: "Settings", detail: "choose a provider first", kind: "warning", timeout: 6000 }); return; }
+  if ((values.provider === "openai" || values.provider === "compatible") && !values.model) {
+    showToast({ title: "Settings", detail: "model is required for this provider", kind: "warning", timeout: 6000 }); return;
+  }
+  if (values.provider === "compatible" && !values.baseUrl) {
+    showToast({ title: "Settings", detail: "base URL is required for a compatible endpoint", kind: "warning", timeout: 6000 }); return;
+  }
+  const jobs = [["provider", values.provider]];
+  if (values.model) jobs.push(["model", values.model]);
+  if (values.baseUrl) jobs.push(["baseUrl", values.baseUrl]);
+  try {
+    for (const [key, value] of jobs) {
+      const envelope = await window.yakusha.run("config", ["set", key, value], {}, 0, false);
+      if (!envelope || envelope.ok === false) {
+        showToast({ title: "Settings", detail: summaryFor("config", envelope), kind: "error", timeout: 8000 });
+        return;
+      }
+    }
+    const current = await window.yakusha.run("config", ["list"], {}, 0, false);
+    if (current && current.ok) applyConfig(current);
+    setText("config-state", "Service saved");
+    showToast({ title: "Settings", detail: "translation service saved", kind: "success", timeout: 6000 });
+  } catch (error) {
+    showToast({ title: "Settings", detail: brief(error && error.message ? error.message : error), kind: "error", timeout: 8000 });
+  }
+}
+
+async function clearConfigForm() {
+  try {
+    for (const key of ["provider", "model", "baseUrl"]) {
+      const envelope = await window.yakusha.run("config", ["unset", key], {}, 0, false);
+      if (!envelope || envelope.ok === false) {
+        showToast({ title: "Settings", detail: summaryFor("config", envelope), kind: "error", timeout: 8000 });
+        return;
+      }
+    }
+    const select = $("config-provider"); if (select) select.value = "";
+    setValue("config-model", "");
+    setValue("config-base-url", "");
+    setText("config-summary", "No service configured — set provider, model and API key.");
+    setText("config-state", "Service cleared");
+    setHidden("service-banner", false);
+    showToast({ title: "Settings", detail: "translation service cleared", kind: "success", timeout: 6000 });
+  } catch (error) {
+    showToast({ title: "Settings", detail: brief(error && error.message ? error.message : error), kind: "error", timeout: 8000 });
+  }
 }
 
 async function run(command, args, flags) {
   const runId = ++runSeq;
   const requestArgs = args || (currentDir ? [currentDir] : []);
   if (command === "scan") {
-    // A scan starts a new project view. Do not let the previous engine's
-    // capabilities keep install/uninstall/launch enabled while this scan is
-    // running or after it fails.
-    const badge = $("engine-badge");
-    if (badge) badge.hidden = true;
+    const badge = $("engine-badge"); if (badge) badge.hidden = true;
     hideDelivery();
-    const installBtn = document.querySelector('button[data-cmd="install"]');
-    const uninstallBtn = document.querySelector('button[data-cmd="uninstall"]');
-    const launchBtn = $("launch-run");
-    if (installBtn) { installBtn.disabled = true; installBtn.title = "scan a project first"; }
-    if (uninstallBtn) { uninstallBtn.disabled = true; uninstallBtn.title = "scan a project first"; }
-    if (launchBtn) { launchBtn.disabled = true; launchBtn.title = "scan a project first"; }
-    // Do not keep driving commands at the previous root while this scan runs.
+    for (const id of ["install", "uninstall"]) {
+      const btn = document.querySelector('button[data-cmd="' + id + '"]');
+      if (btn) { btn.disabled = true; btn.title = "scan a project first"; }
+    }
+    const launchBtn = $("launch-run"); if (launchBtn) { launchBtn.disabled = true; launchBtn.title = "scan a project first"; }
     currentDir = null;
     currentTitle = "";
-    // A bare Scan button means "this project": rescan its root, but keep the
-    // original file/folder the user chose visible in the selected line.
+    ui.scanned = false; ui.extracted = false; ui.translated = false; ui.verified = false; ui.installed = false;
+    ui.engine = ""; ui.engineVersion = ""; ui.capabilities = null; ui.total = null; ui.translatedCount = null; ui.pending = null; ui.delivery = null;
+    setText("project-state", "Scanning…");
+    updateTask();
     if (!args && requestArgs[0]) {
       scanRoot = requestArgs[0];
-      if (!selectedInput) {
-        selectedInput = requestArgs[0];
-        selectedKind = "directory";
-        updateInputLine();
-      }
+      if (!selectedInput) { selectedInput = requestArgs[0]; selectedKind = "directory"; updateInputLine(); }
     }
   }
   if (command === "translate") $("cancel").disabled = false;
   const useStoredKey = command === "translate" && $("key-use").checked;
   const target = requestArgs[0] ? baseName(requestArgs[0]) : "";
-  const pending = showToast({
-    title: COMMAND_LABELS[command] || command,
-    detail: target ? "working on " + target : "working…",
-    kind: "busy",
-    timeout: 0,
-  });
+  setLastRunBusy(command, target);
+  const pending = showToast({ title: COMMAND_LABELS[command] || command, detail: target ? "working on " + target : "working…", kind: "busy", timeout: 0 });
   let envelope;
   try {
     envelope = await window.yakusha.run(command, requestArgs, flags, runId, useStoredKey);
   } catch (error) {
-    updateToast(pending, {
-      title: COMMAND_LABELS[command] || command,
-      detail: brief(error && error.message ? error.message : error),
-      kind: "error",
-      timeout: 8000,
-    });
+    updateToast(pending, { title: COMMAND_LABELS[command] || command, detail: brief(error && error.message ? error.message : error), kind: "error", timeout: 8000 });
+    setLastRunResult(command, { ok: false, outcome: "error", error: { code: "E_INTERNAL", message: error && error.message ? error.message : error } });
     throw error;
   }
   $("cancel").disabled = true;
   $("progress").hidden = true;
-  updateToast(pending, {
-    title: COMMAND_LABELS[command] || command,
-    detail: summaryFor(command, envelope),
-    kind: envelope.ok ? "success" : envelope.outcome === "findings" ? "warning" : "error",
-    timeout: envelope.ok ? 4200 : 8000,
-  });
-  if (command === "config" && envelope.ok && envelope.values) {
-    const text = (entry) => (entry && entry.value !== undefined && entry.value !== null ? entry.value : "(unset)");
-    $("config-summary").textContent =
-      "provider: " + text(envelope.values.provider) + ", model: " + text(envelope.values.model);
-  }
+  updateToast(pending, { title: COMMAND_LABELS[command] || command, detail: summaryFor(command, envelope), kind: envelope.ok ? "success" : envelope.outcome === "findings" ? "warning" : "error", timeout: envelope.ok ? 4200 : 8000 });
+  setLastRunResult(command, envelope);
+  if (envelope.error && envelope.error.code === "E_CONFIG") setHidden("service-banner", false);
+  if (command === "config" && envelope.ok && envelope.values) applyConfig(envelope);
   if (command === "scan" && envelope.ok) {
     const e = envelope;
-    const badge = $("engine-badge");
-    badge.hidden = false;
-    badge.textContent = (e.engine || "?") + (e.engineVersion ? " " + e.engineVersion : "");
+    const badge = $("engine-badge"); if (badge) { badge.hidden = false; badge.textContent = (e.engine || "?") + (e.engineVersion ? " " + e.engineVersion : ""); }
     showProjectRoot(e.root, e.gameTitle || "(untitled)");
     rememberProject(e);
-    // Buttons follow the engine's capabilities (docs/gui.md acceptance: a button
-    // for an unsupported capability is disabled with the reason shown). The
-    // capability facts come from the scan payload — the same object the CLI
-    // prints in --json.
     const caps = e.capabilities || null;
     showDelivery(caps);
+    ui.scanned = true; ui.extracted = false; ui.translated = false; ui.verified = false; ui.installed = false;
+    ui.engine = e.engine || ""; ui.engineVersion = e.engineVersion || ""; ui.capabilities = caps;
+    ui.total = e.uniqueStrings !== undefined ? e.uniqueStrings : (e.totalStrings !== undefined ? e.totalStrings : null);
+    ui.translatedCount = 0; ui.pending = null;
     const noDelivery = !caps || caps.runtime === null || caps.runtime === undefined;
-    const installBtn = document.querySelector('button[data-cmd="install"]');
-    const uninstallBtn = document.querySelector('button[data-cmd="uninstall"]');
+    for (const id of ["install", "uninstall"]) {
+      const btn = document.querySelector('button[data-cmd="' + id + '"]');
+      if (btn) { btn.disabled = noDelivery; btn.title = noDelivery ? "this engine has no delivery layer yet — install reports E_NOT_IMPLEMENTED" : ""; }
+    }
     const launchBtn = $("launch-run");
-    if (installBtn) {
-      installBtn.disabled = noDelivery;
-      installBtn.title = noDelivery
-        ? "this engine has no delivery layer yet — install reports E_NOT_IMPLEMENTED"
-        : "";
-    }
-    if (uninstallBtn) {
-      uninstallBtn.disabled = noDelivery;
-      uninstallBtn.title = noDelivery
-        ? "this engine has no delivery layer yet — uninstall reports E_NOT_IMPLEMENTED"
-        : "";
-    }
-    if (launchBtn) {
-      const launchable = caps ? caps.launch === true : true;
-      launchBtn.disabled = !launchable;
-      launchBtn.title = launchable ? "" : "this engine cannot be launched from yakusha";
-    }
+    if (launchBtn) { const launchable = caps ? caps.launch === true : true; launchBtn.disabled = !launchable; launchBtn.title = launchable ? "" : "this engine cannot be launched from yakusha"; }
+    updateHealth(); updateTask();
   }
   if (command === "scan" && !envelope.ok) {
-    if (envelope.error && envelope.error.code === "E_MULTI_ROOT") {
-      setProjectLine("multiple projects found — see details.candidates in the output");
-    } else {
-      setProjectLine("No project found — " + (scanRoot || requestArgs[0] || "choose a game folder"));
-    }
+    if (envelope.error && envelope.error.code === "E_MULTI_ROOT") setProjectLine("multiple projects found — see details.candidates in the output");
+    else setProjectLine("No project found — " + (scanRoot || requestArgs[0] || "choose a game folder"));
+    setProjectTitle("No project selected");
+    setText("project-state", "Needs attention");
+    updateTask();
   }
+  if (command === "extract" && envelope.ok) { ui.extracted = true; if (envelope.total !== undefined) ui.total = envelope.total; updateTask(); updateHealth(); }
+  if ((command === "status" || command === "translate") && envelope.ok) {
+    if (command === "translate") ui.translated = true;
+    if (envelope.translated !== undefined) ui.translatedCount = envelope.translated;
+    if (envelope.total !== undefined) ui.total = envelope.total;
+    if (envelope.pending !== undefined) ui.pending = envelope.pending;
+    updateTask(); updateHealth();
+  }
+  if (command === "verify" && envelope.ok) { ui.verified = true; updateTask(); }
+  if (command === "install" && envelope.ok) { ui.installed = true; updateTask(); }
+  if (command === "uninstall" && envelope.ok) { ui.installed = false; ui.verified = false; updateTask(); }
   return envelope;
 }
 
-/**
- * Source language for translate/verify. The CLI defaults to ja, but the GUI
- * sends the selected value explicitly so the payload and the run log always
- * state which language the project is in (docs/gui.md §9).
- */
+/** Source language for translate/verify. */
 function sourceLang() {
   const select = $("source-lang");
   const value = select ? select.value : "";
@@ -398,26 +562,30 @@ function sourceLang() {
 }
 
 for (const button of document.querySelectorAll("button[data-cmd]")) {
-  if (button.dataset.cmd === "export") {
-    button.addEventListener("click", doExport);
-  } else if (button.dataset.cmd === "config") {
-    button.addEventListener("click", () => run("config", ["list"]));
-  } else if (button.dataset.cmd === "install" || button.dataset.cmd === "uninstall") {
-    // Every engine has exactly one delivery layer and the command picks it;
-    // both buttons send the plain command, like the CLI.
-    button.addEventListener("click", () => run(button.dataset.cmd));
-  } else if (button.dataset.cmd === "translate" || button.dataset.cmd === "verify") {
-    // Both commands take --source-lang; send it explicitly even for the
-    // default so the run log records what the GUI assumed.
-    button.addEventListener("click", () => run(button.dataset.cmd, undefined, { "source-lang": sourceLang() }));
-  } else {
-    button.addEventListener("click", () => run(button.dataset.cmd));
-  }
+  if (button.dataset.cmd === "export") button.addEventListener("click", doExport);
+  else if (button.dataset.cmd === "config") button.addEventListener("click", () => run("config", ["list"]));
+  else if (button.dataset.cmd === "install" || button.dataset.cmd === "uninstall") button.addEventListener("click", () => run(button.dataset.cmd));
+  else if (button.dataset.cmd === "translate" || button.dataset.cmd === "verify") button.addEventListener("click", () => run(button.dataset.cmd, undefined, { "source-lang": sourceLang() }));
+  else button.addEventListener("click", () => run(button.dataset.cmd));
 }
 
+const primary = $("primary-action");
+if (primary) {
+  primary.addEventListener("click", () => {
+    const action = primary.dataset.action || "pick";
+    if (action === "pick") $("pick").click();
+    else if (action === "launch") $("launch-run").click();
+    else if (action === "translate" || action === "verify") run(action, undefined, { "source-lang": sourceLang() });
+    else run(action);
+  });
+}
+const secondary = $("task-secondary");
+if (secondary) secondary.addEventListener("click", () => { const target = $("dictionary"); if (target && target.scrollIntoView) target.scrollIntoView({ behavior: "smooth", block: "start" }); });
+const serviceConfig = $("service-config");
+if (serviceConfig) serviceConfig.addEventListener("click", () => { const target = $("settings"); if (target && target.scrollIntoView) target.scrollIntoView({ behavior: "smooth", block: "start" }); if ($("config-provider")) $("config-provider").focus(); });
+
 // Credentials: the key is typed once, sent to the main process for DPAPI
-// storage (or clearing), and the input is emptied immediately — the renderer
-// never keeps a copy.
+// storage (or clearing), and the input is emptied immediately.
 $("key-save").addEventListener("click", async () => {
   const key = $("key-input").value;
   if (!key) return;
@@ -441,98 +609,64 @@ $("key-use").addEventListener("change", () => {
   });
 });
 
-// Export asks for a destination file (default: next to the dictionary, out of
-// the game tree is the user's call — the CLI's overwrite protection stays on).
+// Export asks for a destination file (native dialog in main; prompt fallback for older preloads).
 async function doExport() {
   if (!currentDir) { setProjectLine("pick a project first"); return; }
   const suggested = currentDir.replace(/[\\/]+$/, "") + "-export.json";
-  const out = window.prompt("Export file (absolute path)", suggested);
+  let out = null;
+  if (typeof window.yakusha.pickSaveFile === "function") out = await window.yakusha.pickSaveFile(suggested, "JSON file", ["json"]);
+  else out = window.prompt("Export file (absolute path)", suggested);
   if (!out) return;
-  await run("export", [currentDir], { out: out.trim(), format: "json", force: true });
+  await run("export", [currentDir], { out: String(out).trim(), format: "json", force: true });
 }
 
-// Import asks for the source table; strategy stays the documented default
-// (only-empty) unless the user types overwrite.
 $("import-run").addEventListener("click", async () => {
   if (!currentDir) { setProjectLine("pick a project first"); return; }
-  const from = window.prompt("File to import (absolute path, .tsv/.csv/.json/.jsonl)");
+  let from = null;
+  if (typeof window.yakusha.pickOpenFile === "function") from = await window.yakusha.pickOpenFile("Import table", ["tsv", "csv", "json", "jsonl"]);
+  else from = window.prompt("File to import (absolute path, .tsv/.csv/.json/.jsonl)");
   if (!from) return;
   const strategy = window.prompt("Strategy: only-empty or overwrite", "only-empty") || "only-empty";
-  await run("import", [currentDir], { from: from.trim(), strategy: strategy.trim() });
+  await run("import", [currentDir], { from: String(from).trim(), strategy: strategy.trim() });
 });
 
-// Launch goes through the same runner seam (runner spawns detached with the
-// secret-free environment). --exe is optional; the CLI's E_EXE error lists
-// candidates when the choice is ambiguous.
 $("launch-run").addEventListener("click", async () => {
   if (!currentDir) { setProjectLine("pick a project first"); return; }
-  const exe = window.prompt("Executable file name (empty = let yakusha pick)", "");
+  let exe = null;
+  if (typeof window.yakusha.pickExecutable === "function") exe = await window.yakusha.pickExecutable(currentDir);
+  else exe = window.prompt("Executable file name (empty = let yakusha pick)", "");
   if (exe === null) return;
-  const flags = exe.trim() ? { exe: exe.trim() } : {};
+  const flags = exe && String(exe).trim() ? { exe: String(exe).trim() } : {};
   const envelope = await run("launch", [currentDir], flags);
-  if (!envelope.ok && envelope.error && envelope.error.code === "E_EXE" &&
-      envelope.error.details && Array.isArray(envelope.error.details.candidates)) {
-    setProjectLine("pick one: " + envelope.error.details.candidates.join(", "));
-  }
+  if (!envelope.ok && envelope.error && envelope.error.code === "E_EXE" && envelope.error.details && Array.isArray(envelope.error.details.candidates)) setProjectLine("pick one: " + envelope.error.details.candidates.join(", "));
 });
 
-// Dictionary editor: one pending entry at a time. The list is capped so a
-// 30k-entry dictionary cannot freeze the renderer; the dropdown only holds
-// pending keys and the text box edits exactly the selected key.
-let dictState = null;
+// Dictionary editor: one pending entry at a time.
 $("dict-load").addEventListener("click", async () => {
   if (!currentDir) { setProjectLine("pick a project first"); return; }
   const result = await window.yakusha.loadDictionary(currentDir);
-  if (!result || result.ok === false) {
-    $("dict-summary").textContent = (result && result.error ? result.error.code + ": " : "") +
-      (result && result.error ? result.error.message : "cannot read the dictionary");
-    return;
-  }
+  if (!result || result.ok === false) { $("dict-summary").textContent = (result && result.error ? result.error.code + ": " : "") + (result && result.error ? result.error.message : "cannot read the dictionary"); return; }
   dictState = result;
-  $("dict-summary").textContent =
-    result.translated + " translated, " + result.pendingCount + " pending (" + result.entries.length + " keys)";
-  const pending = result.entries.filter((entry) => entry.pending).slice(0, 200);
-  const select = $("dict-key");
-  select.innerHTML = "";
-  for (const entry of pending) {
-    const option = document.createElement("option");
-    option.value = entry.key;
-    option.textContent = entry.key.length > 80 ? entry.key.slice(0, 77) + "…" : entry.key;
-    select.appendChild(option);
-  }
-  select.hidden = pending.length === 0;
-  $("dict-text").hidden = pending.length === 0;
-  $("dict-save").hidden = pending.length === 0;
-  if (pending.length > 0) {
-    $("dict-text").value = "";
-    $("dict-summary").textContent += " — showing the first " + pending.length + " pending";
-  } else if (result.pendingCount === 0) {
-    $("dict-summary").textContent += " — nothing pending";
-  }
+  $("dict-summary").textContent = result.translated + " translated, " + result.pendingCount + " pending (" + result.entries.length + " keys)";
+  const pendingEntries = result.entries.filter((entry) => entry.pending).slice(0, 200);
+  const select = $("dict-key"); select.innerHTML = "";
+  for (const entry of pendingEntries) { const option = document.createElement("option"); option.value = entry.key; option.textContent = entry.key.length > 80 ? entry.key.slice(0, 77) + "…" : entry.key; select.appendChild(option); }
+  select.hidden = pendingEntries.length === 0; $("dict-text").hidden = pendingEntries.length === 0; $("dict-save").hidden = pendingEntries.length === 0;
+  if (pendingEntries.length > 0) { $("dict-text").value = ""; $("dict-summary").textContent += " — showing the first " + pendingEntries.length + " pending"; }
+  else if (result.pendingCount === 0) $("dict-summary").textContent += " — nothing pending";
 });
 $("dict-save").addEventListener("click", async () => {
   if (!dictState) return;
   const key = $("dict-key").value;
   const result = await window.yakusha.saveEntry(currentDir, key, $("dict-text").value);
-  if (!result || result.ok === false) {
-    $("dict-summary").textContent = (result && result.error ? result.error.code + ": " : "") +
-      (result && result.error ? result.error.message : "cannot save the entry");
-    return;
-  }
+  if (!result || result.ok === false) { $("dict-summary").textContent = (result && result.error ? result.error.code + ": " : "") + (result && result.error ? result.error.message : "cannot save the entry"); return; }
   $("dict-summary").textContent = result.translated + " translated, " + result.pendingCount + " pending";
-  // Reload: the dropdown rebuilds without the saved key, so the editor simply
-  // advances to the next pending entry.
   $("dict-load").click();
 });
 
 $("pick").addEventListener("click", async () => {
   const picked = await window.yakusha.pickDirectory();
-  if (picked) {
-    currentDir = null;
-    currentTitle = "";
-    setProjectInput(picked, "directory", picked);
-    run("scan", [picked]);
-  }
+  if (picked) { currentDir = null; currentTitle = ""; setProjectInput(picked, "directory", picked); run("scan", [picked]); }
 });
 
 $("cancel").addEventListener("click", () => window.yakusha.cancel());
@@ -542,60 +676,47 @@ window.yakusha.onProgress(({ runId, progress }) => {
   $("progress").hidden = false;
   const pct = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
   $("bar-fill").style.width = pct + "%";
-  $("progress-text").textContent =
-    progress.done + "/" + progress.total + " entries, " + progress.translated + " translated";
+  const bar = $("progress-bar"); if (bar && bar.setAttribute) bar.setAttribute("aria-valuenow", String(pct));
+  $("progress-text").textContent = progress.done + "/" + progress.total + " entries, " + progress.translated + " translated";
 });
 
-window.yakusha.onWarning(({ line }) => {
-  showToast({ title: "Warning", detail: brief(line, 180), kind: "warning", timeout: 6000 });
-});
+window.yakusha.onWarning(({ line }) => showToast({ title: "Warning", detail: brief(line, 180), kind: "warning", timeout: 6000 }));
 
-// The detailed command output (including full envelopes) lives in the log
-// file; the window only links to it. Keep this defensive so an older preload
-// still loads the rest of the renderer.
 async function initLogSummary() {
   if (typeof window.yakusha.logPath !== "function") return;
-  try {
-    const file = await window.yakusha.logPath();
-    if (file) $("log-summary").textContent = "Detailed output: " + file;
-  } catch {
-    // The summary line is a convenience; the controls still work without it.
-  }
+  try { const file = await window.yakusha.logPath(); if (file) $("log-summary").textContent = "Detailed output: " + file; } catch { /* convenience */ }
 }
 initLogSummary();
 renderRecent();
+updateTask();
+updateHealth();
 
 $("log-open").addEventListener("click", async () => {
   if (typeof window.yakusha.openLog !== "function") return;
   const result = await window.yakusha.openLog();
-  if (!result || result.ok === false) {
-    showToast({
-      title: "Log",
-      detail: result && result.error ? result.error : "could not open the log file",
-      kind: "error",
-      timeout: 8000,
-    });
-  }
+  if (!result || result.ok === false) showToast({ title: "Log", detail: result && result.error ? result.error : "could not open the log file", kind: "error", timeout: 8000 });
 });
 
-// Drag & drop: the File object must go through webUtils in preload; the
-// renderer never trusts event data for paths.
+// Config form
+$("config-save").addEventListener("click", saveConfigForm);
+$("config-clear").addEventListener("click", clearConfigForm);
+
+// Simple section highlight; actual scrolling is native anchor behavior.
+try {
+  const links = document.querySelectorAll(".side-link");
+  for (const link of links) link.addEventListener("click", () => { for (const item of links) item.classList.remove("is-active"); link.classList.add("is-active"); });
+} catch { /* link enhancement is optional */ }
+
+// Drag & drop: the File object must go through webUtils in preload.
 document.addEventListener("dragover", (e) => { e.preventDefault(); document.body.classList.add("dragging"); });
 document.addEventListener("dragleave", () => document.body.classList.remove("dragging"));
 document.addEventListener("drop", async (e) => {
-  e.preventDefault();
-  document.body.classList.remove("dragging");
+  e.preventDefault(); document.body.classList.remove("dragging");
   const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
   if (!file) return;
   const dropped = window.yakusha.pathForFile(file);
   if (!dropped) return;
   let resolved = { input: dropped, path: dropped, kind: "directory" };
-  if (typeof window.yakusha.resolveInput === "function") {
-    const answer = await window.yakusha.resolveInput(dropped);
-    if (answer && answer.path) resolved = answer;
-  }
-  currentDir = null;
-  currentTitle = "";
-  setProjectInput(resolved.input || dropped, resolved.kind, resolved.path || dropped);
-  run("scan", [resolved.path || dropped]);
+  if (typeof window.yakusha.resolveInput === "function") { const answer = await window.yakusha.resolveInput(dropped); if (answer && answer.path) resolved = answer; }
+  currentDir = null; currentTitle = ""; setProjectInput(resolved.input || dropped, resolved.kind, resolved.path || dropped); run("scan", [resolved.path || dropped]);
 });

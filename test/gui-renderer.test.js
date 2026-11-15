@@ -11,12 +11,19 @@ const DELIVERY = path.join(ROOT, "gui", "renderer", "delivery.js");
 const RECENT = path.join(ROOT, "gui", "renderer", "recent.js");
 
 const IDS = [
-  "project-line", "project-input", "engine-badge", "pick", "launch-run", "cancel", "progress",
-  "bar-fill", "progress-text", "dict-load", "dict-summary", "dict-key",
-  "dict-text", "dict-save", "import-run", "config-summary", "key-input",
+  "project-line", "project-input", "engine-badge", "pick", "launch-run", "cancel",
+  "progress", "bar-fill", "progress-bar", "progress-text", "dict-load", "dict-summary",
+  "dict-key", "dict-text", "dict-save", "import-run", "config-summary", "key-input",
   "key-save", "key-clear", "key-use", "key-state", "source-lang", "toasts",
   "log-summary", "log-open", "delivery", "delivery-tier", "delivery-title",
   "delivery-copy", "delivery-caution", "recent", "recent-list",
+  "project-title", "project-state", "sidebar-project-name", "stage-prepare",
+  "stage-translate", "stage-deliver", "stage-prepare-status", "stage-translate-status", "stage-deliver-status", "task-title", "task-copy", "task-state",
+  "primary-action", "task-secondary", "task-stats", "stat-translated", "stat-pending",
+  "stat-total", "last-run", "last-run-title", "last-run-detail", "last-run-time",
+  "health-engine", "health-strings", "health-translated", "health-delivery",
+  "service-banner", "service-config", "config-load", "config-provider",
+  "config-model", "config-base-url", "config-save", "config-clear", "config-state",
 ];
 const COMMANDS = ["scan", "extract", "status", "translate", "verify", "install",
   "uninstall", "export", "speaker", "terms", "doctor", "config"];
@@ -332,6 +339,106 @@ test("remembering a key sends it once and clears the input", async () => {
   assert.equal(saved, "sk-example");
   assert.equal(dom.elements.get("key-input").value, "");
   assert.equal(dom.elements.get("key-state").textContent, "key stored (encrypted)");
+});
+
+test("the stage band follows the same state as the current task", async () => {
+  const dom = makeDom();
+  assert.equal(dom.elements.get("stage-prepare-status").textContent, "Now");
+  assert.equal(dom.elements.get("stage-translate-status").textContent, "Later");
+  assert.equal(dom.elements.get("stage-deliver-status").textContent, "Later");
+  await scan(dom, {
+    ok: true, outcome: "ok", engine: "mz", root: "C:/games/alpha", gameTitle: "Alpha",
+    capabilities: { runtime: "plugin", launch: true },
+  });
+  assert.equal(dom.elements.get("stage-prepare-status").textContent, "Done");
+  assert.equal(dom.elements.get("stage-translate-status").textContent, "Now");
+  assert.equal(dom.elements.get("stage-deliver-status").textContent, "Later");
+});
+
+test("config load fills the provider form and hides the setup banner", async () => {
+  const dom = makeDom();
+  dom.envelopes.push({
+    ok: true, outcome: "ok", action: "list", file: "C:/cfg/config.json", exists: true,
+    values: {
+      provider: { value: "openai", source: "file" },
+      model: { value: "gpt-4.1-mini", source: "file" },
+      baseUrl: { value: "https://api.example.test/v1", source: "file" },
+    },
+    apiKey: { set: false, source: null },
+  });
+  await action(dom, "config").click();
+  await flush();
+  assert.equal(dom.elements.get("config-provider").value, "openai");
+  assert.equal(dom.elements.get("config-model").value, "gpt-4.1-mini");
+  assert.equal(dom.elements.get("config-base-url").value, "https://api.example.test/v1");
+  assert.equal(dom.elements.get("service-banner").hidden, true);
+  assert.match(dom.elements.get("config-summary").textContent, /provider: openai \(file\)/);
+});
+
+test("saving the service writes provider, model and base URL, then reloads", async () => {
+  const dom = makeDom();
+  dom.elements.get("config-provider").value = "compatible";
+  dom.elements.get("config-model").value = "local-model";
+  dom.elements.get("config-base-url").value = "http://127.0.0.1:8080/v1";
+  dom.envelopes.push(
+    { ok: true, outcome: "ok", action: "set", key: "provider", value: "compatible" },
+    { ok: true, outcome: "ok", action: "set", key: "model", value: "local-model" },
+    { ok: true, outcome: "ok", action: "set", key: "baseUrl", value: "http://127.0.0.1:8080/v1" },
+    { ok: true, outcome: "ok", action: "list", values: {
+      provider: { value: "compatible", source: "file" },
+      model: { value: "local-model", source: "file" },
+      baseUrl: { value: "http://127.0.0.1:8080/v1", source: "file" },
+    }, apiKey: { set: true, source: "file" } },
+  );
+  await dom.elements.get("config-save").click();
+  await flush();
+  const calls = dom.runCalls.filter((call) => call[0] === "config");
+  assert.deepEqual(calls.map((call) => [...call[1]]), [
+    ["set", "provider", "compatible"],
+    ["set", "model", "local-model"],
+    ["set", "baseUrl", "http://127.0.0.1:8080/v1"],
+    ["list"],
+  ]);
+  assert.equal(dom.elements.get("config-state").textContent, "Service saved");
+  assert.equal(dom.elements.get("service-banner").hidden, true);
+});
+
+test("clearing the service unsets all three fields and restores the banner", async () => {
+  const dom = makeDom();
+  dom.elements.get("config-provider").value = "openai";
+  dom.elements.get("config-model").value = "gpt-4.1-mini";
+  dom.elements.get("config-base-url").value = "https://api.example.test/v1";
+  dom.envelopes.push(
+    { ok: true, outcome: "ok", action: "unset", key: "provider" },
+    { ok: true, outcome: "ok", action: "unset", key: "model" },
+    { ok: true, outcome: "ok", action: "unset", key: "baseUrl" },
+  );
+  await dom.elements.get("config-clear").click();
+  await flush();
+  const calls = dom.runCalls.filter((call) => call[0] === "config");
+  assert.deepEqual(calls.map((call) => [...call[1]]), [
+    ["unset", "provider"],
+    ["unset", "model"],
+    ["unset", "baseUrl"],
+  ]);
+  assert.equal(dom.elements.get("config-provider").value, "");
+  assert.equal(dom.elements.get("config-model").value, "");
+  assert.equal(dom.elements.get("config-base-url").value, "");
+  assert.equal(dom.elements.get("config-state").textContent, "Service cleared");
+  assert.equal(dom.elements.get("service-banner").hidden, false);
+  assert.match(dom.elements.get("config-summary").textContent, /^No service configured/);
+});
+
+test("a missing configuration opens the setup banner instead of failing silently", async () => {
+  const dom = makeDom();
+  dom.envelopes.push({
+    ok: false, outcome: "error", error: { code: "E_CONFIG", message: "provider is not configured" },
+  });
+  await action(dom, "translate").click();
+  await flush();
+  assert.equal(dom.elements.get("service-banner").hidden, false);
+  const toast = dom.elements.get("toasts").children.at(-1);
+  assert.match(toast.textContent, /E_CONFIG/);
 });
 
 test("every id the renderer looks up exists in the page", () => {

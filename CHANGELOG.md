@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-16
+
+### Added
+
+- The GUI now uses a Calm Workbench layout: a 224px dark navigation rail, project card, Prepare → Translate → Deliver stage band, Current task, Last run and Project health. The stage band reports Done / Now / Later and the primary action advances pick → scan → extract → translate → verify → install → launch from the same UI state.
+- Settings can now configure the translation service without editing a file: provider / model / base URL are read with `config list`, saved with `config set` (empty fields are skipped), and cleared with `config unset`. When no provider is configured, Translate and Verify surface the existing `E_CONFIG` service banner and focus the form.
+- `tools/gui-acceptance.mjs` now checks the initial and post-scan stage band and exercises the Settings form in the real Electron window; its overview and settings screenshots are saved with the acceptance summary.
+
+### Unchanged
+
+- The JSON envelope, exit codes, command table, error codes and every payload key are untouched. No new dependency. 972 pass.
+
 ## [1.1.0] - 2026-11-15
 
 ### Added
@@ -1140,7 +1152,8 @@ First stable release.
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/MagicalAlmond/Yakusha/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/MagicalAlmond/Yakusha/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/MagicalAlmond/Yakusha/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/MagicalAlmond/Yakusha/compare/v0.84.0...v1.0.0
