@@ -929,15 +929,57 @@ const queryModelsButton = $("config-query-models");
 if (queryModelsButton) queryModelsButton.addEventListener("click", queryModels);
 
 // Drag & drop: the File object must go through webUtils in preload.
-document.addEventListener("dragover", (e) => { e.preventDefault(); document.body.classList.add("dragging"); });
-document.addEventListener("dragleave", () => document.body.classList.remove("dragging"));
-document.addEventListener("drop", async (e) => {
-  e.preventDefault(); document.body.classList.remove("dragging");
-  const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-  if (!file) return;
-  const dropped = window.yakusha.pathForFile(file);
-  if (!dropped) return;
+// A drag enters and leaves every child element on the way to the drop target,
+// so a single dragleave must not hide the overlay. Count the nested enters and
+// only clear the state once the pointer has actually left the window.
+let dragDepth = 0;
+function showDropTarget() { dragDepth += 1; document.body.classList.add("dragging"); }
+function hideDropTarget() { dragDepth = Math.max(0, dragDepth - 1); if (dragDepth === 0) document.body.classList.remove("dragging"); }
+function clearDropTarget() { dragDepth = 0; document.body.classList.remove("dragging"); }
+
+// The overlay is visual only. It must never become the element under the
+// pointer, otherwise showing it steals the drag target and the browser can
+// stop delivering dragover/drop to the page.
+function droppedUriPath(dataTransfer) {
+  if (!dataTransfer || typeof dataTransfer.getData !== "function") return "";
+  const list = dataTransfer.getData("text/uri-list") || dataTransfer.getData("text/plain") || "";
+  for (const line of list.split(/\r?\n/)) {
+    const value = line.trim();
+    if (!value || value.startsWith("#") || !value.startsWith("file://")) continue;
+    try {
+      const url = new URL(value);
+      let pathname = decodeURIComponent(url.pathname);
+      if (/^\/[A-Za-z]:/.test(pathname)) pathname = pathname.slice(1);
+      if (url.hostname) pathname = "//" + url.hostname + pathname;
+      return pathname.replace(/\//g, "\\");
+    } catch { /* try the next URI */ }
+  }
+  return "";
+}
+
+window.addEventListener("dragenter", (e) => { e.preventDefault(); showDropTarget(); }, true);
+window.addEventListener("dragover", (e) => {
+  e.preventDefault();
+  if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+  document.body.classList.add("dragging");
+}, true);
+window.addEventListener("dragleave", (e) => { e.preventDefault(); hideDropTarget(); }, true);
+window.addEventListener("drop", async (e) => {
+  e.preventDefault();
+  clearDropTarget();
+  const transfer = e.dataTransfer;
+  const file = transfer && transfer.files && transfer.files[0];
+  let dropped = "";
+  if (file) {
+    try { dropped = window.yakusha.pathForFile(file) || ""; }
+    catch (error) { dropped = ""; }
+  }
+  if (!dropped) dropped = droppedUriPath(transfer);
+  if (!dropped) {
+    showToast({ title: "Drop", detail: "This drop did not carry a file path. Use Choose game folder instead.", kind: "error", timeout: 8000 });
+    return;
+  }
   let resolved = { input: dropped, path: dropped, kind: "directory" };
   if (typeof window.yakusha.resolveInput === "function") { const answer = await window.yakusha.resolveInput(dropped); if (answer && answer.path) resolved = answer; }
   currentDir = null; currentTitle = ""; setProjectInput(resolved.input || dropped, resolved.kind, resolved.path || dropped); showPage("overview"); run("scan", [resolved.path || dropped]);
-});
+}, true);

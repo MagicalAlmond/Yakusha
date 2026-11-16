@@ -131,6 +131,10 @@ function makeDom(options = {}) {
   const window = {
     prompt: () => null,
     localStorage: storage,
+    addEventListener(type, fn) {
+      if (!docListeners.has(type)) docListeners.set(type, []);
+      docListeners.get(type).push(fn);
+    },
     yakusha: {
       run: async (...args) => {
         runCalls.push(args);
@@ -156,7 +160,7 @@ function makeDom(options = {}) {
   };
   const context = vm.createContext({
     window, document, console, JSON, Math, Object, Array, String, Promise, Date,
-    Number, Boolean, Error, RegExp, setTimeout, clearTimeout, localStorage: storage,
+    Number, Boolean, Error, RegExp, URL, setTimeout, clearTimeout, localStorage: storage,
   });
   vm.runInContext(fs.readFileSync(DELIVERY, "utf8"), context, { filename: "delivery.js" });
   vm.runInContext(fs.readFileSync(RECENT, "utf8"), context, { filename: "recent.js" });
@@ -597,8 +601,45 @@ test("dragover and dragleave toggle the dragging hint", async () => {
   const dom = makeDom();
   for (const fn of dom.docListeners.get("dragover") || []) await fn({ preventDefault() {} });
   assert.equal(dom.document.body.classList.has("dragging"), true);
-  for (const fn of dom.docListeners.get("dragleave") || []) await fn({});
+  for (const fn of dom.docListeners.get("dragleave") || []) await fn({ preventDefault() {} });
   assert.equal(dom.document.body.classList.has("dragging"), false);
+});
+
+test("nested dragenter events keep the drop hint until the pointer leaves", async () => {
+  const dom = makeDom();
+  const fire = async (type) => {
+    for (const fn of dom.docListeners.get(type) || []) await fn({ preventDefault() {} });
+  };
+  await fire("dragenter");
+  await fire("dragenter");
+  await fire("dragleave");
+  assert.equal(dom.document.body.classList.has("dragging"), true);
+  await fire("dragleave");
+  assert.equal(dom.document.body.classList.has("dragging"), false);
+});
+
+test("a drop without a File falls back to its file URI", async () => {
+  const dom = makeDom();
+  const seen = [];
+  dom.window.yakusha.pathForFile = () => "";
+  dom.window.yakusha.resolveInput = async (value) => {
+    seen.push(value);
+    return { input: value, path: value, kind: "file" };
+  };
+  dom.envelopes.push({
+    ok: true, outcome: "ok", engine: "mv", root: "C:/games/Alpha Game", gameTitle: "Alpha",
+    capabilities: { runtime: "plugin", launch: true },
+  });
+  const transfer = {
+    files: [],
+    getData(type) {
+      return type === "text/uri-list" ? "file:///C:/games/Alpha%20Game/Game.exe" : "";
+    },
+  };
+  for (const fn of dom.docListeners.get("drop") || []) await fn({ preventDefault() {}, dataTransfer: transfer });
+  await flush();
+  assert.deepEqual(seen, ["C:\\games\\Alpha Game\\Game.exe"]);
+  assert.deepEqual([...dom.runCalls.at(-1)[1]], ["C:\\games\\Alpha Game\\Game.exe"]);
 });
 
 test("the picker scans the chosen directory and a canceled picker does nothing", async () => {

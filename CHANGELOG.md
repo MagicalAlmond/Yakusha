@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-11-17
+
+### Fixed
+
+- Dragging a game folder or game executable onto the window now drops reliably. The drop overlay is visual-only (`pointer-events: none`), nested dragenter / dragleave events are counted so the overlay cannot flicker, and the drop handler falls back to the `text/uri-list` path when `webUtils.getPathForFile` cannot resolve the File. A drop that carries no path now shows an explicit message instead of doing nothing. A native OLE drag from a helper window into the packaged 1.3.1 build imported both a game folder and a game executable.
+- The drop overlay copy now says "Drop a game folder or game exe", matching the behaviour added in 1.1.0.
+
+### Unchanged
+
+- The JSON envelope, exit codes, command table, error codes and every existing payload key are untouched. No new dependency. 998 pass.
+
 ## [1.3.0] - 2026-11-16
 
 ### Added
@@ -1167,7 +1178,8 @@ First stable release.
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v1.3.1...HEAD
+[1.3.1]: https://github.com/MagicalAlmond/Yakusha/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/MagicalAlmond/Yakusha/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/MagicalAlmond/Yakusha/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/MagicalAlmond/Yakusha/compare/v1.0.1...v1.1.0
