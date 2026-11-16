@@ -10,38 +10,38 @@
 <body>
   <div class="app-shell">
     <aside class="rail">
-      <a class="brand" href="#" aria-label="Yakusha home" id="brand-home">
+      <a class="brand" href="#" aria-label="Yakusha home" data-i18n-aria-label="brand.home" id="brand-home">
         <span class="brand-mark" aria-hidden="true">Y</span>
-        <span class="brand-copy"><strong>yakusha</strong><span>game translation</span></span>
+        <span class="brand-copy"><strong>yakusha</strong><span data-i18n="brand.tagline">game translation</span></span>
       </a>
 
       <div class="rail-section rail-workspace">
-        <p class="rail-label">Workspace</p>
-        <nav class="rail-nav" aria-label="Workspace pages">
-          <button type="button" id="nav-overview" class="rail-link is-active" data-page="overview"><span class="rail-icon" aria-hidden="true">◈</span><span>Overview</span></button>
-          <button type="button" id="nav-workflow" class="rail-link" data-page="workflow"><span class="rail-icon" aria-hidden="true">⇄</span><span>Workflow</span></button>
-          <button type="button" id="nav-dictionary" class="rail-link" data-page="dictionary"><span class="rail-icon" aria-hidden="true">文</span><span>Dictionary</span></button>
-          <button type="button" id="nav-settings" class="rail-link" data-page="settings"><span class="rail-icon" aria-hidden="true">⚙</span><span>Settings</span></button>
+        <p class="rail-label" data-i18n="rail.workspace">Workspace</p>
+        <nav class="rail-nav" aria-label="Workspace pages" data-i18n-aria-label="nav.aria">
+          <button type="button" id="nav-overview" class="rail-link is-active" data-page="overview"><span class="rail-icon" aria-hidden="true">◈</span><span data-i18n="nav.overview">Overview</span></button>
+          <button type="button" id="nav-workflow" class="rail-link" data-page="workflow"><span class="rail-icon" aria-hidden="true">⇄</span><span data-i18n="nav.workflow">Workflow</span></button>
+          <button type="button" id="nav-dictionary" class="rail-link" data-page="dictionary"><span class="rail-icon" aria-hidden="true">文</span><span data-i18n="nav.dictionary">Dictionary</span></button>
+          <button type="button" id="nav-settings" class="rail-link" data-page="settings"><span class="rail-icon" aria-hidden="true">⚙</span><span data-i18n="nav.settings">Settings</span></button>
         </nav>
       </div>
 
       <div id="recent" class="rail-section rail-recent" hidden>
-        <p class="rail-label">Recent games</p>
+        <p class="rail-label" data-i18n="rail.recent">Recent games</p>
         <div id="recent-list" class="recent-list"></div>
       </div>
 
-      <button id="rail-toggle" class="rail-toggle" type="button" aria-expanded="true" title="Collapse sidebar"><span id="rail-toggle-icon" class="rail-icon" aria-hidden="true">«</span><span class="rail-toggle-label">Collapse sidebar</span></button>
+      <button id="rail-toggle" class="rail-toggle" type="button" aria-expanded="true" title="Collapse sidebar" data-i18n-title="rail.collapse"><span id="rail-toggle-icon" class="rail-icon" aria-hidden="true">«</span><span class="rail-toggle-label" data-i18n="rail.collapse">Collapse sidebar</span></button>
 
       <div class="rail-footer">
         <span class="rail-dot" aria-hidden="true"></span>
-        <div><strong id="sidebar-project-name">No project</strong><span>Local only</span></div>
+        <div><strong id="sidebar-project-name">No project</strong><span data-i18n="rail.localOnly">Local only</span></div>
       </div>
     </aside>
 
     <div class="workspace">
       <header class="topbar">
         <div class="topbar-main">
-          <p class="eyebrow">Game localization workbench</p>
+          <p class="eyebrow" data-i18n="topbar.eyebrow">Game localization workbench</p>
           <div class="project-heading">
             <h1 id="project-title">No project selected</h1>
             <span id="engine-badge" class="badge" hidden></span>
@@ -50,12 +50,12 @@
           <p id="project-input" class="project-input" aria-live="polite" hidden></p>
         </div>
         <div class="topbar-side">
-          <button id="pick" class="button button-primary button-large" type="button">Choose game folder<span class="button-arrow" aria-hidden="true">↗</span></button>
+          <button id="pick" class="button button-primary button-large" type="button"><span data-i18n="pick.button">Choose game folder</span><span class="button-arrow" aria-hidden="true">↗</span></button>
         </div>
       </header>
 
-      <section id="progress" class="progress-strip" aria-label="Progress" hidden>
-        <div class="progress-heading"><div><p class="section-kicker">Running</p><strong>Translation in progress</strong></div><button id="cancel" class="button button-quiet button-small" type="button" disabled>Cancel run</button></div>
+      <section id="progress" class="progress-strip" aria-label="Progress" data-i18n-aria-label="progress.aria" hidden>
+        <div class="progress-heading"><div><p class="section-kicker" data-i18n="progress.kicker">Running</p><strong data-i18n="progress.title">Translation in progress</strong></div><button id="cancel" class="button button-quiet button-small" type="button" disabled data-i18n="progress.cancel">Cancel run</button></div>
         <div id="progress-bar" class="bar" role="progressbar" aria-label="Translation progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="bar-fill"></div></div>
         <span id="progress-text" class="progress-text" role="status" aria-live="polite"></span>
       </section>
@@ -63,56 +63,56 @@
       <main class="pages">
         <section id="page-overview" class="page is-active" data-page="overview" aria-labelledby="overview-heading">
           <header class="page-header">
-            <div><p class="section-kicker">Overview</p><h2 id="overview-heading">Your game at a glance</h2><p class="page-copy">Import a game, inspect its engine and delivery path, then move into the workflow when you are ready.</p></div>
+            <div><p class="section-kicker" data-i18n="overview.kicker">Overview</p><h2 id="overview-heading" data-i18n="overview.title">Your game at a glance</h2><p class="page-copy" data-i18n="overview.copy">Import a game, inspect its engine and delivery path, then move into the workflow when you are ready.</p></div>
             <span id="project-state" class="status-chip status-chip-quiet">Waiting for a project</span>
           </header>
 
           <section id="service-banner" class="service-banner" hidden>
-            <div><strong>Translation service is not configured</strong><span>Set a provider, API format and model once. Translate will use it without editing config files.</span></div>
-            <button id="service-config" class="button button-small" type="button">Configure service</button>
+            <div><strong data-i18n="service.banner.title">Translation service is not configured</strong><span data-i18n="service.banner.copy">Set a provider, API format and model once. Translate will use it without editing config files.</span></div>
+            <button id="service-config" class="button button-small" type="button" data-i18n="service.banner.action">Configure service</button>
           </section>
 
           <div class="overview-grid">
             <div class="overview-main">
-              <section id="project" class="panel project-card" aria-label="Project">
+              <section id="project" class="panel project-card" aria-label="Project" data-i18n-aria-label="project.card.aria">
                 <div class="project-mark" aria-hidden="true"><span class="project-mark-ring"></span><span class="project-mark-letter">Y</span></div>
                 <div class="project-copy">
-                  <p class="section-kicker">Imported game</p>
+                  <p class="section-kicker" data-i18n="project.card.kicker">Imported game</p>
                   <p class="project-title" id="project-card-title">No game imported yet</p>
                   <p class="project-line" id="project-card-line">Choose a folder above, or drop a game folder anywhere on this window.</p>
-                  <p class="project-meta">Yakusha reads game files locally. Nothing leaves this machine.</p>
+                  <p class="project-meta" data-i18n="project.card.meta">Yakusha reads game files locally. Nothing leaves this machine.</p>
                 </div>
                 <div class="project-aside">
                   <span id="project-card-engine" class="badge" hidden></span>
-                  <div class="launch-cluster" aria-label="Launch game">
-                    <button id="launch-run" class="button button-quiet button-small" type="button" disabled title="scan a project first">▶ Launch game</button>
-                    <button id="launch-original" class="button button-quiet button-small" type="button" hidden disabled title="scan a project first">▶ Launch original</button>
-                    <button id="launch-translated" class="button button-quiet button-small" type="button" hidden disabled title="游戏未进行翻译">▶ Launch translated</button>
+                  <div class="launch-cluster" aria-label="Launch game" data-i18n-aria-label="project.aside.aria">
+                    <button id="launch-run" class="button button-quiet button-small" type="button" disabled title="scan a project first" data-i18n-title="launch.scanFirst">▶ <span data-i18n="launch.game">Launch game</span></button>
+                    <button id="launch-original" class="button button-quiet button-small" type="button" hidden disabled title="scan a project first" data-i18n-title="launch.scanFirst">▶ <span data-i18n="launch.original">Launch original</span></button>
+                    <button id="launch-translated" class="button button-quiet button-small" type="button" hidden disabled title="The game has not been translated yet" data-i18n-title="launch.notTranslated">▶ <span data-i18n="launch.translated">Launch translated</span></button>
                   </div>
                 </div>
               </section>
 
-              <section id="actions" class="panel task-card" aria-label="Current task">
+              <section id="actions" class="panel task-card" aria-label="Current task" data-i18n-aria-label="task.aria">
                 <div class="panel-heading">
-                  <div><p class="section-kicker">Current task</p><h2 id="task-title">Choose a game folder</h2></div>
+                  <div><p class="section-kicker" data-i18n="task.kicker">Current task</p><h2 id="task-title">Choose a game folder</h2></div>
                   <span id="task-state" class="status-chip">Ready</span>
                 </div>
                 <p id="task-copy" class="task-copy">Start by selecting a game folder or dropping a game exe here.</p>
-                <div class="task-actions"><button id="primary-action" class="button button-primary button-large" type="button">Choose game folder →</button><button id="task-secondary" class="button button-quiet" type="button" hidden>Open dictionary</button></div>
-                <div id="task-stats" class="task-stats" hidden><div><b id="stat-translated">0</b><span>translated</span></div><div><b id="stat-pending">0</b><span>pending</span></div><div><b id="stat-total">0</b><span>strings</span></div></div>
-                <div id="delivery" class="delivery-card" aria-label="Delivery layer" hidden><div class="delivery-heading"><span id="delivery-tier" class="delivery-tier"></span><p id="delivery-title" class="delivery-title"></p></div><p id="delivery-copy" class="delivery-copy"></p><p id="delivery-caution" class="delivery-caution" hidden></p></div>
+                <div class="task-actions"><button id="primary-action" class="button button-primary button-large" type="button">Choose game folder →</button><button id="task-secondary" class="button button-quiet" type="button" hidden data-i18n="task.openDictionary">Open dictionary</button></div>
+                <div id="task-stats" class="task-stats" hidden><div><b id="stat-translated">0</b><span data-i18n="stat.translated">translated</span></div><div><b id="stat-pending">0</b><span data-i18n="stat.pending">pending</span></div><div><b id="stat-total">0</b><span data-i18n="stat.strings">strings</span></div></div>
+                <div id="delivery" class="delivery-card" aria-label="Delivery layer" data-i18n-aria-label="delivery.aria" hidden><div class="delivery-heading"><span id="delivery-tier" class="delivery-tier"></span><p id="delivery-title" class="delivery-title"></p></div><p id="delivery-copy" class="delivery-copy"></p><p id="delivery-caution" class="delivery-caution" hidden></p></div>
               </section>
             </div>
 
             <aside class="side-stack">
-              <section id="last-run" class="panel last-run" aria-label="Last run" aria-live="polite">
-                <div class="last-run-head"><p class="section-kicker">Last run</p><span id="last-run-time" class="last-run-time">—</span></div>
+              <section id="last-run" class="panel last-run" aria-label="Last run" data-i18n-aria-label="lastRun.aria" aria-live="polite">
+                <div class="last-run-head"><p class="section-kicker" data-i18n="lastRun.kicker">Last run</p><span id="last-run-time" class="last-run-time">—</span></div>
                 <strong id="last-run-title">No runs yet</strong>
                 <p id="last-run-detail">Run Scan to inspect your game.</p>
               </section>
-              <section class="panel project-health" aria-label="Project health">
-                <div class="last-run-head"><p class="section-kicker">Project health</p><span class="status-chip status-chip-quiet">Local</span></div>
-                <dl><div><dt>Engine</dt><dd id="health-engine">—</dd></div><div><dt>Strings</dt><dd id="health-strings">—</dd></div><div><dt>Translated</dt><dd id="health-translated">—</dd></div><div><dt>Delivery</dt><dd id="health-delivery">—</dd></div></dl>
+              <section class="panel project-health" aria-label="Project health" data-i18n-aria-label="health.aria">
+                <div class="last-run-head"><p class="section-kicker" data-i18n="health.kicker">Project health</p><span class="status-chip status-chip-quiet" data-i18n="health.local">Local</span></div>
+                <dl><div><dt data-i18n="health.engine">Engine</dt><dd id="health-engine">—</dd></div><div><dt data-i18n="health.strings">Strings</dt><dd id="health-strings">—</dd></div><div><dt data-i18n="health.translated">Translated</dt><dd id="health-translated">—</dd></div><div><dt data-i18n="health.delivery">Delivery</dt><dd id="health-delivery">—</dd></div></dl>
               </section>
             </aside>
           </div>
@@ -120,117 +120,121 @@
 
         <section id="page-workflow" class="page" data-page="workflow" aria-labelledby="workflow-heading" hidden>
           <header class="page-header">
-            <div><p class="section-kicker">Workflow</p><h2 id="workflow-heading">Prepare, translate, deliver</h2><p class="page-copy">One guided sequence from the game files to a playable translation layer. Every command writes to the local dictionary.</p></div>
+            <div><p class="section-kicker" data-i18n="workflow.kicker">Workflow</p><h2 id="workflow-heading" data-i18n="workflow.title">Prepare, translate, deliver</h2><p class="page-copy" data-i18n="workflow.copy">One guided sequence from the game files to a playable translation layer. Every command writes to the local dictionary.</p></div>
           </header>
 
-          <section class="stage-band" aria-label="Workflow stages">
-            <div class="stage" data-stage="prepare" id="stage-prepare"><span class="stage-index">01</span><div><strong>Prepare</strong><small>Scan and extract</small></div><span id="stage-prepare-status" class="stage-status">Next</span></div>
-            <div class="stage" data-stage="translate" id="stage-translate"><span class="stage-index">02</span><div><strong>Translate</strong><small>Translate and verify</small></div><span id="stage-translate-status" class="stage-status">Next</span></div>
-            <div class="stage" data-stage="deliver" id="stage-deliver"><span class="stage-index">03</span><div><strong>Deliver</strong><small>Install and launch</small></div><span id="stage-deliver-status" class="stage-status">Next</span></div>
+          <section class="stage-band" aria-label="Workflow stages" data-i18n-aria-label="stages.aria">
+            <div class="stage" data-stage="prepare" id="stage-prepare"><span class="stage-index">01</span><div><strong data-i18n="stage.prepare">Prepare</strong><small data-i18n="stage.prepare.note">Scan and extract</small></div><span id="stage-prepare-status" class="stage-status">Next</span></div>
+            <div class="stage" data-stage="translate" id="stage-translate"><span class="stage-index">02</span><div><strong data-i18n="stage.translate">Translate</strong><small data-i18n="stage.translate.note">Translate and verify</small></div><span id="stage-translate-status" class="stage-status">Next</span></div>
+            <div class="stage" data-stage="deliver" id="stage-deliver"><span class="stage-index">03</span><div><strong data-i18n="stage.deliver">Deliver</strong><small data-i18n="stage.deliver.note">Install and launch</small></div><span id="stage-deliver-status" class="stage-status">Next</span></div>
           </section>
 
-          <section class="panel workflow-panel" aria-label="Commands">
+          <section class="panel workflow-panel" aria-label="Commands" data-i18n-aria-label="commands.aria">
             <div class="workflow-grid">
-              <div class="workflow-group"><div class="group-heading"><span class="group-step">01</span><div><h3>Prepare</h3><p>Understand the game</p></div></div>
-                <button type="button" class="action" data-cmd="scan"><span class="action-icon tone-blue" aria-hidden="true">⌕</span><span class="action-copy"><span class="action-title">Scan</span><span class="action-note">Map engine and files</span></span><span class="action-arrow" aria-hidden="true">→</span></button>
-                <button type="button" class="action" data-cmd="extract"><span class="action-icon tone-blue" aria-hidden="true">⇩</span><span class="action-copy"><span class="action-title">Extract</span><span class="action-note">Collect strings into the dictionary</span></span><span class="action-arrow" aria-hidden="true">→</span></button>
-                <button type="button" class="action" data-cmd="status"><span class="action-icon tone-blue" aria-hidden="true">◫</span><span class="action-copy"><span class="action-title">Status</span><span class="action-note">See translation progress</span></span><span class="action-arrow" aria-hidden="true">→</span></button>
+              <div class="workflow-group"><div class="group-heading"><span class="group-step">01</span><div><h3 data-i18n="group.prepare">Prepare</h3><p data-i18n="group.prepare.note">Understand the game</p></div></div>
+                <button type="button" class="action" data-cmd="scan"><span class="action-icon tone-blue" aria-hidden="true">⌕</span><span class="action-copy"><span class="action-title" data-i18n="cmd.scan">Scan</span><span class="action-note" data-i18n="cmd.scan.note">Map engine and files</span></span><span class="action-arrow" aria-hidden="true">→</span></button>
+                <button type="button" class="action" data-cmd="extract"><span class="action-icon tone-blue" aria-hidden="true">⇩</span><span class="action-copy"><span class="action-title" data-i18n="cmd.extract">Extract</span><span class="action-note" data-i18n="cmd.extract.note">Collect strings into the dictionary</span></span><span class="action-arrow" aria-hidden="true">→</span></button>
+                <button type="button" class="action" data-cmd="status"><span class="action-icon tone-blue" aria-hidden="true">◫</span><span class="action-copy"><span class="action-title" data-i18n="cmd.status">Status</span><span class="action-note" data-i18n="cmd.status.note">See translation progress</span></span><span class="action-arrow" aria-hidden="true">→</span></button>
               </div>
-              <div class="workflow-group"><div class="group-heading"><span class="group-step group-step-accent">02</span><div><h3>Translate</h3><p>Do the language work</p></div></div>
-                <button type="button" class="action action-emphasis" data-cmd="translate"><span class="action-icon tone-coral" aria-hidden="true">文</span><span class="action-copy"><span class="action-title">Translate</span><span class="action-note">Run the configured provider</span></span><span class="action-arrow" aria-hidden="true">→</span></button>
-                <button type="button" class="action" data-cmd="verify"><span class="action-icon tone-coral" aria-hidden="true">✓</span><span class="action-copy"><span class="action-title">Verify</span><span class="action-note">Check control codes and quality</span></span><span class="action-arrow" aria-hidden="true">→</span></button>
+              <div class="workflow-group"><div class="group-heading"><span class="group-step group-step-accent">02</span><div><h3 data-i18n="group.translate">Translate</h3><p data-i18n="group.translate.note">Do the language work</p></div></div>
+                <button type="button" class="action action-emphasis" data-cmd="translate"><span class="action-icon tone-coral" aria-hidden="true">文</span><span class="action-copy"><span class="action-title" data-i18n="cmd.translate">Translate</span><span class="action-note" data-i18n="cmd.translate.note">Run the configured provider</span></span><span class="action-arrow" aria-hidden="true">→</span></button>
+                <button type="button" class="action" data-cmd="verify"><span class="action-icon tone-coral" aria-hidden="true">✓</span><span class="action-copy"><span class="action-title" data-i18n="cmd.verify">Verify</span><span class="action-note" data-i18n="cmd.verify.note">Check control codes and quality</span></span><span class="action-arrow" aria-hidden="true">→</span></button>
               </div>
-              <div class="workflow-group"><div class="group-heading"><span class="group-step group-step-green">03</span><div><h3>Deliver</h3><p>Put it back in the game</p></div></div>
-                <button type="button" class="action" data-cmd="install"><span class="action-icon tone-green" aria-hidden="true">⊕</span><span class="action-copy"><span class="action-title">Install</span><span class="action-note">Write the delivery layer</span></span><span class="action-arrow" aria-hidden="true">→</span></button>
-                <button type="button" class="action" data-cmd="uninstall"><span class="action-icon tone-green" aria-hidden="true">⊖</span><span class="action-copy"><span class="action-title">Uninstall</span><span class="action-note">Remove only the delivery layer</span></span><span class="action-arrow" aria-hidden="true">→</span></button>
-                <button type="button" class="action" id="workflow-launch" disabled><span class="action-icon tone-green" aria-hidden="true">▶</span><span class="action-copy"><span class="action-title">Launch game</span><span class="action-note">Use the launch buttons above the workflow</span></span><span class="action-arrow" aria-hidden="true">→</span></button>
+              <div class="workflow-group"><div class="group-heading"><span class="group-step group-step-green">03</span><div><h3 data-i18n="group.deliver">Deliver</h3><p data-i18n="group.deliver.note">Put it back in the game</p></div></div>
+                <button type="button" class="action" data-cmd="install"><span class="action-icon tone-green" aria-hidden="true">⊕</span><span class="action-copy"><span class="action-title" data-i18n="cmd.install">Install</span><span class="action-note" data-i18n="cmd.install.note">Write the delivery layer</span></span><span class="action-arrow" aria-hidden="true">→</span></button>
+                <button type="button" class="action" data-cmd="uninstall"><span class="action-icon tone-green" aria-hidden="true">⊖</span><span class="action-copy"><span class="action-title" data-i18n="cmd.uninstall">Uninstall</span><span class="action-note" data-i18n="cmd.uninstall.note">Remove only the delivery layer</span></span><span class="action-arrow" aria-hidden="true">→</span></button>
+                <button type="button" class="action" id="workflow-launch" disabled><span class="action-icon tone-green" aria-hidden="true">▶</span><span class="action-copy"><span class="action-title" data-i18n="cmd.launch">Launch game</span><span class="action-note" data-i18n="cmd.launch.note">Use the launch buttons above the workflow</span></span><span class="action-arrow" aria-hidden="true">→</span></button>
               </div>
             </div>
 
-            <div class="utility-bar"><p class="utility-label">Advanced</p><div class="utility-actions">
-              <button type="button" class="utility" data-cmd="doctor"><span aria-hidden="true">✚</span> Doctor</button>
-              <button type="button" class="utility" data-cmd="speaker"><span aria-hidden="true">◉</span> Speaker fix</button>
-              <button type="button" class="utility" data-cmd="terms"><span aria-hidden="true">⌁</span> Mine terms</button>
-              <button type="button" class="utility" data-cmd="export"><span aria-hidden="true">↗</span> Export JSON</button>
+            <div class="utility-bar"><p class="utility-label" data-i18n="utility.advanced">Advanced</p><div class="utility-actions">
+              <button type="button" class="utility" data-cmd="doctor"><span aria-hidden="true">✚</span> <span data-i18n="cmd.doctor">Doctor</span></button>
+              <button type="button" class="utility" data-cmd="speaker"><span aria-hidden="true">◉</span> <span data-i18n="cmd.speaker">Speaker fix</span></button>
+              <button type="button" class="utility" data-cmd="terms"><span aria-hidden="true">⌁</span> <span data-i18n="cmd.terms">Mine terms</span></button>
+              <button type="button" class="utility" data-cmd="export"><span aria-hidden="true">↗</span> <span data-i18n="cmd.export.button">Export JSON</span></button>
             </div></div>
           </section>
         </section>
 
         <section id="page-dictionary" class="page" data-page="dictionary" aria-labelledby="dictionary-heading" hidden>
           <header class="page-header">
-            <div><p class="section-kicker">Dictionary</p><h2 id="dictionary-heading">Edit the game text</h2><p class="page-copy">Review pending entries one at a time, or import a table produced by another tool.</p></div>
+            <div><p class="section-kicker" data-i18n="dictionary.kicker">Dictionary</p><h2 id="dictionary-heading" data-i18n="dictionary.title">Edit the game text</h2><p class="page-copy" data-i18n="dictionary.copy">Review pending entries one at a time, or import a table produced by another tool.</p></div>
           </header>
           <div class="dictionary-grid">
-            <section id="dictionary" class="panel dictionary-panel" aria-label="Dictionary">
-              <div class="panel-heading compact"><div><p class="section-kicker">Text</p><h2>Dictionary entries</h2></div><button id="dict-load" class="button" type="button">Load dictionary</button></div>
-              <p id="dict-summary" class="hint">Load the dictionary to review pending entries.</p>
-              <div class="dictionary-editor"><select id="dict-key" aria-label="Pending entry" hidden></select><textarea id="dict-text" rows="5" aria-label="Translation" hidden></textarea><button id="dict-save" class="button button-primary" type="button" hidden>Save entry</button></div>
+            <section id="dictionary" class="panel dictionary-panel" aria-label="Dictionary" data-i18n-aria-label="dictionary.aria">
+              <div class="panel-heading compact"><div><p class="section-kicker" data-i18n="dictionary.text">Text</p><h2 data-i18n="dictionary.entries">Dictionary entries</h2></div><button id="dict-load" class="button" type="button" data-i18n="dictionary.load">Load dictionary</button></div>
+              <p id="dict-summary" class="hint" data-i18n="dictionary.summary">Load the dictionary to review pending entries.</p>
+              <div class="dictionary-editor"><select id="dict-key" aria-label="Pending entry" data-i18n-aria-label="dictionary.pending" hidden></select><textarea id="dict-text" rows="5" aria-label="Translation" data-i18n-aria-label="dictionary.translation" hidden></textarea><button id="dict-save" class="button button-primary" type="button" hidden data-i18n="dictionary.save">Save entry</button></div>
             </section>
             <aside class="side-stack">
-              <section id="import" class="panel panel-compact" aria-label="Import"><div><p class="section-kicker">Bulk edit</p><h2>Import table</h2><p class="hint">TSV / CSV / JSON export file; only-empty by default.</p></div><button id="import-run" class="button" type="button">Import table…</button></section>
+              <section id="import" class="panel panel-compact" aria-label="Import"><div><p class="section-kicker" data-i18n="dictionary.bulkKicker">Bulk edit</p><h2 data-i18n="dictionary.importTitle">Import table</h2><p class="hint" data-i18n="dictionary.importHint">TSV / CSV / JSON export file; only-empty by default.</p></div><button id="import-run" class="button" type="button" data-i18n="dictionary.importButton">Import table…</button></section>
             </aside>
           </div>
         </section>
 
         <section id="page-settings" class="page" data-page="settings" aria-labelledby="settings-heading" hidden>
           <header class="page-header">
-            <div><p class="section-kicker">Settings</p><h2 id="settings-heading">Service and preferences</h2><p class="page-copy">Connection details stay in your local config. API keys are stored separately with the operating system credential store.</p></div>
-            <button type="button" id="config-load" class="utility utility-small" data-cmd="config">Load current</button>
+            <div><p class="section-kicker" data-i18n="settings.kicker">Settings</p><h2 id="settings-heading" data-i18n="settings.title">Service and preferences</h2><p class="page-copy" data-i18n="settings.copy">Connection details stay in your local config. API keys are stored separately with the operating system credential store.</p></div>
+            <div class="settings-tools">
+              <label class="language-picker"><span data-i18n="settings.language">Interface language</span><select id="ui-language" aria-label="Interface language" data-i18n-aria-label="settings.language"><option value="en" data-i18n="language.en">English</option><option value="zh" data-i18n="language.zh">中文</option></select></label>
+              <button type="button" id="config-load" class="utility utility-small" data-cmd="config" data-i18n="settings.load">Load current</button>
+            </div>
           </header>
 
-          <nav class="settings-tabs" aria-label="Settings sections">
-            <button type="button" id="tab-service" class="settings-tab is-active" data-tab="service">Service</button>
-            <button type="button" id="tab-credentials" class="settings-tab" data-tab="credentials">Credentials</button>
-            <button type="button" id="tab-translation" class="settings-tab" data-tab="translation">Translation</button>
-            <button type="button" id="tab-glossary" class="settings-tab" data-tab="glossary">Glossary</button>
+          <nav class="settings-tabs" aria-label="Settings sections" data-i18n-aria-label="settings.tabs.aria">
+            <button type="button" id="tab-service" class="settings-tab is-active" data-tab="service" data-i18n="tab.service">Service</button>
+            <button type="button" id="tab-credentials" class="settings-tab" data-tab="credentials" data-i18n="tab.credentials">Credentials</button>
+            <button type="button" id="tab-translation" class="settings-tab" data-tab="translation" data-i18n="tab.translation">Translation</button>
+            <button type="button" id="tab-glossary" class="settings-tab" data-tab="glossary" data-i18n="tab.glossary">Glossary</button>
           </nav>
 
           <section id="settings-service" class="settings-panel panel" data-tab-panel="service">
-            <div class="panel-heading compact"><div><p class="section-kicker">Translation service</p><h2>Provider and model</h2></div></div>
-            <p id="config-summary" class="hint">No service loaded — click Load current.</p>
+            <div class="panel-heading compact"><div><p class="section-kicker" data-i18n="service.kicker">Translation service</p><h2 data-i18n="service.title">Provider and model</h2></div></div>
+            <p id="config-summary" class="hint" data-i18n="service.summary.loading">No service loaded — click Load current.</p>
             <div class="config-grid">
-              <label class="field"><span>Provider</span><select id="config-provider" aria-label="Provider"><option value="">Not configured</option><option value="openai">OpenAI</option><option value="compatible">Compatible endpoint</option><option value="mock">Mock / demo</option></select></label>
-              <label class="field"><span>API format</span><select id="config-api-format" aria-label="API format"><option value="chat-completions" selected>Chat Completions (/chat/completions)</option><option value="responses">Responses (/responses)</option></select></label>
-              <label class="field field-wide" id="base-url-field"><span>Base URL</span><input id="config-base-url" type="text" autocomplete="off" placeholder="https://api.example.com/v1" aria-label="Base URL" /></label>
-              <label class="field field-wide"><span>Model</span><div class="model-row"><input id="config-model" type="text" autocomplete="off" placeholder="gpt-4.1-mini" aria-label="Model" /><button id="config-query-models" class="button button-quiet button-small" type="button">Fetch models</button></div></label>
+              <label class="field"><span data-i18n="service.provider">Provider</span><select id="config-provider" aria-label="Provider" data-i18n-aria-label="service.provider"><option value="" data-i18n="service.provider.none">Not configured</option><option value="openai" data-i18n="service.provider.openai">OpenAI</option><option value="compatible" data-i18n="service.provider.compatible">Compatible endpoint</option><option value="mock" data-i18n="service.provider.mock">Mock / demo</option></select></label>
+              <label class="field"><span data-i18n="service.apiFormat">API format</span><select id="config-api-format" aria-label="API format" data-i18n-aria-label="service.apiFormat"><option value="chat-completions" selected data-i18n="service.apiFormat.chat">Chat Completions (/chat/completions)</option><option value="responses" data-i18n="service.apiFormat.responses">Responses (/responses)</option></select></label>
+              <label class="field field-wide" id="base-url-field"><span data-i18n="service.baseUrl">Base URL</span><input id="config-base-url" type="text" autocomplete="off" placeholder="https://api.example.com/v1" aria-label="Base URL" /></label>
+              <label class="field field-wide"><span data-i18n="service.model">Model</span><div class="model-row"><input id="config-model" type="text" autocomplete="off" placeholder="gpt-4.1-mini" aria-label="Model" /><button id="config-query-models" class="button button-quiet button-small" type="button" data-i18n="service.fetchModels">Fetch models</button></div></label>
             </div>
-            <div id="config-model-list" class="model-list" role="listbox" aria-label="Available models" hidden></div>
+            <div id="config-model-list" class="model-list" role="listbox" aria-label="Available models" data-i18n-aria-label="service.availableModels" hidden></div>
             <p id="config-model-status" class="hint" role="status" aria-live="polite"></p>
-            <div class="config-actions"><button id="config-save" class="button button-primary button-small" type="button">Save service</button><button id="config-clear" class="button button-quiet button-small" type="button">Clear service</button><span id="config-state" class="hint"></span></div>
+            <div class="config-actions"><button id="config-save" class="button button-primary button-small" type="button" data-i18n="service.save">Save service</button><button id="config-clear" class="button button-quiet button-small" type="button" data-i18n="service.clear">Clear service</button><span id="config-state" class="hint"></span></div>
           </section>
 
           <section id="settings-credentials" class="settings-panel panel" data-tab-panel="credentials" hidden>
-            <div class="panel-heading compact"><div><p class="section-kicker">Credentials</p><h2>API key</h2></div></div>
-            <p class="hint">The key is stored by the operating system credential store and is never written into the game folder.</p>
-            <div class="key-row"><label class="field-label" for="key-input">API key</label><input id="key-input" type="password" autocomplete="off" placeholder="sk-…" aria-label="API key" /><button id="key-save" class="button button-small" type="button">Remember</button><button id="key-clear" class="button button-small button-quiet" type="button">Forget</button></div>
-            <label class="check-row"><input id="key-use" type="checkbox" /> Use stored key when translating</label>
+            <div class="panel-heading compact"><div><p class="section-kicker" data-i18n="credentials.kicker">Credentials</p><h2 data-i18n="credentials.title">API key</h2></div></div>
+            <p class="hint" data-i18n="credentials.hint">The key is stored by the operating system credential store and is never written into the game folder.</p>
+            <div class="key-row"><label class="field-label" for="key-input" data-i18n="credentials.apiKey">API key</label><input id="key-input" type="password" autocomplete="off" placeholder="sk-…" aria-label="API key" /><button id="key-save" class="button button-small" type="button" data-i18n="credentials.remember">Remember</button><button id="key-clear" class="button button-small button-quiet" type="button" data-i18n="credentials.forget">Forget</button></div>
+            <label class="check-row"><input id="key-use" type="checkbox" /> <span data-i18n="credentials.use">Use stored key when translating</span></label>
             <span id="key-state" class="hint"></span>
           </section>
 
           <section id="settings-translation" class="settings-panel panel" data-tab-panel="translation" hidden>
-            <div class="panel-heading compact"><div><p class="section-kicker">Translation</p><h2>Source language</h2></div></div>
-            <label class="field"><span>Source language</span><select id="source-lang" aria-label="Source language"><option value="ja" selected>Japanese</option><option value="en">English</option></select></label>
-            <p class="hint">The target language is Chinese for every source language in this release.</p>
+            <div class="panel-heading compact"><div><p class="section-kicker" data-i18n="translation.kicker">Translation</p><h2 data-i18n="translation.title">Source language</h2></div></div>
+            <label class="field"><span data-i18n="translation.source">Source language</span><select id="source-lang" aria-label="Source language" data-i18n-aria-label="translation.source"><option value="ja" selected data-i18n="translation.ja">Japanese</option><option value="en" data-i18n="translation.en">English</option></select></label>
+            <p class="hint" data-i18n="translation.hint">The target language is Chinese for every source language in this release.</p>
           </section>
 
           <section id="settings-glossary" class="settings-panel panel" data-tab-panel="glossary" hidden>
-            <div class="panel-heading compact"><div><p class="section-kicker">Glossary</p><h2>Shared terminology</h2></div></div>
-            <p class="hint">Shared glossaries and project terminology are reserved for a later release. This tab is the place they will live.</p>
+            <div class="panel-heading compact"><div><p class="section-kicker" data-i18n="glossary.kicker">Glossary</p><h2 data-i18n="glossary.title">Shared terminology</h2></div></div>
+            <p class="hint" data-i18n="glossary.hint">Shared glossaries and project terminology are reserved for a later release. This tab is the place they will live.</p>
           </section>
         </section>
       </main>
 
-      <button id="log-toggle" class="log-toggle" type="button" aria-expanded="false" aria-controls="log-dock"><span class="log-dot" aria-hidden="true"></span>Log<span id="log-count" class="log-count"></span></button>
-      <section id="log-dock" class="log-dock" aria-label="Program log" hidden>
-        <div class="log-dock-head"><div><p class="section-kicker">Diagnostics</p><strong>Program log</strong></div><div class="log-dock-actions"><button id="log-refresh" class="utility utility-small" type="button">Refresh</button><button id="log-open" class="utility utility-small" type="button">Open file…</button><button id="log-close" class="utility utility-small" type="button">Close</button></div></div>
-        <p id="log-summary" class="hint">Detailed command output is written to the log file.</p>
+      <button id="log-toggle" class="log-toggle" type="button" aria-expanded="false" aria-controls="log-dock"><span class="log-dot" aria-hidden="true"></span><span data-i18n="log.toggle">Log</span><span id="log-count" class="log-count"></span></button>
+      <section id="log-dock" class="log-dock" aria-label="Program log" data-i18n-aria-label="log.aria" hidden>
+        <div class="log-dock-head"><div><p class="section-kicker" data-i18n="log.kicker">Diagnostics</p><strong data-i18n="log.title">Program log</strong></div><div class="log-dock-actions"><button id="log-refresh" class="utility utility-small" type="button" data-i18n="log.refresh">Refresh</button><button id="log-open" class="utility utility-small" type="button" data-i18n="log.open">Open file…</button><button id="log-close" class="utility utility-small" type="button" data-i18n="log.close">Close</button></div></div>
+        <p id="log-summary" class="hint" data-i18n="log.summary">Detailed command output is written to the log file.</p>
         <div id="log-lines" class="log-lines" role="log" aria-live="polite"></div>
       </section>
     </div>
   </div>
 
-  <div id="toasts" class="toast-stack" role="region" aria-label="Notifications" aria-live="polite"></div>
-  <div class="drop-overlay" aria-hidden="true"><div class="drop-card"><span>Drop a game folder or game exe</span><strong>to scan it</strong></div></div>
+  <div id="toasts" class="toast-stack" role="region" aria-label="Notifications" data-i18n-aria-label="toast.aria" aria-live="polite"></div>
+  <div class="drop-overlay" aria-hidden="true"><div class="drop-card"><span data-i18n="drop.line">Drop a game folder or game exe</span><strong data-i18n="drop.strong">to scan it</strong></div></div>
+  <script src="i18n.js"></script>
   <script src="delivery.js"></script>
   <script src="recent.js"></script>
   <script src="renderer.js"></script>

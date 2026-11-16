@@ -610,6 +610,7 @@ TextGrammar = {
 | 1.2 | GUI Calm Workbench 与 Settings 服务配置：224px 深色导航 + 项目卡 + Prepare / Translate / Deliver 三阶段带 + Current task + Project health；Settings 直接配置 provider / model / base URL（`config list/set/unset`）（**已交付**） | 用户指出 GUI 目前无法配置 provider / model / baseUrl；1.2 把配置表单接进既有 config 命令，同时把 0.72 的页面纵向堆叠收成固定工作台 | 972 pass / 0 fail；`tools/gui-acceptance.mjs --only mz` 真窗阶段带 Now/Later/Later → Done/Now/Later，Settings 保存/清除/恢复通过 |
 | 1.3 | GUI 四页工作台与 Service 配置补全：Overview / Workflow / Dictionary / Settings 四页、Workspace / Recent games 两层左栏可收 76px、Settings 四标签页、底部 Log 抽屉、RGSS Launch original / Launch translated 双启动；Service 增加 API 格式与 `gui:list-models` 模型查询（**已交付**） | 用户要求左侧导航分页、侧栏两层可收起、底部日志、Settings 标签页，并补齐 provider / API 格式 / model 的 GUI 配置 | 996 pass / 0 fail；`tools/gui-acceptance.mjs --only mz` 真窗通过（四页、rail 收起 76px、Settings 保存、日志抽屉） |
 | 1.3.1 | GUI 拖放修复：drop overlay 改为视觉层（`pointer-events: none`），dragenter / dragleave 深度计数避免闪烁，`webUtils.getPathForFile` 失败时回退 `text/uri-list` 路径，无路径时明确提示；overlay 文案补上 game exe（**已交付**） | 用户报告 1.3.0 拖入目录或 exe 时提示闪烁、松开鼠标无法 drop；根因是 overlay 在指针下抢走 drop 目标 | 998 pass / 0 fail；gui-renderer 41 条；CDP 合成拖拽修复前无 drop、修复后 drop 并 scan |
+| 1.4 | GUI 中英双语：Settings 页头语言选择器即时切换全部静态与动态文案，选择写入 `localStorage` 并恢复；`gui/renderer/i18n.js` 的 en / zh 键集合一致，缺失键回退（**已交付**） | 用户要求给 GUI 添加 i18n，基础先提供英文和中文；界面文案原先只有英文硬编码 | 1004 pass / 0 fail；gui-renderer 42 条、gui-i18n 5 条；真机 `tools/gui-acceptance.mjs --only mz` 通过 |
 
 说明：
 

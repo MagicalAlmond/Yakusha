@@ -360,6 +360,23 @@ async function readStages(cdp) {
   return cdp.evaluate('["stage-prepare-status", "stage-translate-status", "stage-deliver-status"].map((id) => document.getElementById(id).textContent).join("|")');
 }
 
+async function setLanguage(cdp, lang, timeout) {
+  await cdp.evaluate('(() => { const select = document.getElementById("ui-language"); select.value = "' + lang + '"; select.dispatchEvent(new Event("change", { bubbles: true })); return true; })()');
+  await waitFor(cdp, 'document.getElementById("ui-language").value === "' + lang + '"', timeout, "language " + lang);
+}
+
+async function checkLanguage(cdp, artifacts, timeout) {
+  const initial = await cdp.evaluate('document.documentElement.lang');
+  await setLanguage(cdp, "zh", timeout);
+  await waitFor(cdp, 'document.querySelector("[data-i18n=\'nav.overview\']").textContent === "总览"', timeout, "Chinese nav");
+  const nav = await cdp.evaluate('document.querySelector("[data-i18n=\'nav.overview\']").textContent');
+  const stages = await readStages(cdp);
+  if (!/完成|当前|下一步|稍后/.test(stages)) throw new Error("Chinese stage band is " + JSON.stringify(stages));
+  const shot = await capture(cdp, path.join(artifacts, "language-zh.png"));
+  await setLanguage(cdp, "en", timeout);
+  return { initial, chineseNav: nav, chineseStages: stages, screenshot: shot };
+}
+
 async function checkPages(cdp, timeout) {
   const order = ["overview", "workflow", "dictionary", "settings", "overview"];
   const seen = [];
@@ -487,6 +504,8 @@ async function main() {
     cdp = await Cdp.connect(target.webSocketDebuggerUrl);
     await cdp.send("Page.bringToFront");
     await waitFor(cdp, "document.readyState === \"complete\" && typeof currentDir !== \"undefined\" && !!document.querySelector(\"[data-cmd=scan]\")", options.timeout, "renderer ready");
+    summary.detectedLanguage = await cdp.evaluate('document.documentElement.lang');
+    await setLanguage(cdp, "en", options.timeout);
     const logFile = path.join(config, "logs", "gui.log");
     summary.overviewScreenshot = await capture(cdp, path.join(shots, "overview.png"));
     summary.stageInitial = await readStages(cdp);
@@ -499,6 +518,7 @@ async function main() {
       summary.chains.push(await runChain(cdp, item.chain, item.dir, logFile, shots, options.timeout));
     }
     summary.logDock = await checkLogDock(cdp, shots, options.timeout);
+    summary.language = await checkLanguage(cdp, shots, options.timeout);
     summary.ok = true;
   } catch (error) {
     summary.error = String(error && error.stack ? error.stack : error);

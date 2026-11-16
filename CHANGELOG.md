@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-17
+
+### Added
+
+- The GUI is now available in English and Chinese. A language picker in the Settings header switches every static label and the dynamic project, task, stage, service, model, log and delivery text immediately, without restarting the app; the first launch follows the system language (Chinese on a Chinese system). The choice is stored in `localStorage` and restored on the next launch; the document language follows the selection.
+- The translation dictionary (`gui/renderer/i18n.js`) is a plain classic script with matching English and Chinese key sets. Missing keys fall back to English and then to the key name, and a test checks that every static `data-i18n` attribute in `gui/renderer/index.html` has both translations.
+
+### Unchanged
+
+- The JSON envelope, exit codes, command table, error codes and every existing payload key are untouched. No new dependency. 1004 pass.
+
 ## [1.3.1] - 2026-11-17
 
 ### Fixed
@@ -1178,7 +1189,8 @@ First stable release.
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v1.3.1...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/MagicalAlmond/Yakusha/compare/v1.3.1...v1.4.0
 [1.3.1]: https://github.com/MagicalAlmond/Yakusha/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/MagicalAlmond/Yakusha/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/MagicalAlmond/Yakusha/compare/v1.1.0...v1.2.0

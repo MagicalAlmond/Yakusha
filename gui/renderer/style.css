@@ -305,6 +305,10 @@ textarea { resize: vertical; }
 .settings-tab.is-active { color: var(--accent); }
 .settings-tab.is-active::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: -1px; height: 2px; background: var(--accent); }
 .settings-panel { padding: 22px; max-width: 760px; }
+.settings-tools { display: flex; align-items: flex-end; gap: 10px; flex: 0 0 auto; }
+.language-picker { display: flex; flex-direction: column; gap: 4px; }
+.language-picker > span { color: var(--muted); font-size: 10px; font-weight: 600; letter-spacing: .04em; }
+.language-picker select { width: auto; min-width: 112px; min-height: 30px; padding: 4px 8px; font-size: 11px; }
 .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 16px; }
 .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .field > span, .field-label { color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: .04em; }
@@ -383,6 +387,7 @@ body.dragging .drop-overlay { display: grid; }
   .stage-band { grid-template-columns: 1fr; }
   .stage { border-right: 0; border-bottom: 1px solid var(--line); }
   .config-grid, .side-stack { grid-template-columns: 1fr; }
+  .settings-tools { width: 100%; justify-content: space-between; }
   .topbar-side { flex-direction: column; align-items: stretch; }
   .launch-cluster { flex-wrap: wrap; }
   .log-dock { width: calc(100vw - 32px); right: 16px; bottom: 58px; height: 260px; }

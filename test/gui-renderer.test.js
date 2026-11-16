@@ -9,6 +9,7 @@ const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const RENDERER = path.join(ROOT, "gui", "renderer", "renderer.js");
 const DELIVERY = path.join(ROOT, "gui", "renderer", "delivery.js");
 const RECENT = path.join(ROOT, "gui", "renderer", "recent.js");
+const I18N = path.join(ROOT, "gui", "renderer", "i18n.js");
 
 const IDS = [
   "project-line", "project-input", "engine-badge", "pick", "launch-run", "launch-original",
@@ -31,7 +32,7 @@ const IDS = [
   "settings-heading", "project-card-title", "project-card-line", "project-card-engine",
   "workflow-launch", "tab-service", "tab-credentials", "tab-translation", "tab-glossary",
   "settings-service", "settings-credentials", "settings-translation", "settings-glossary",
-  "rail-toggle", "rail-toggle-icon",
+  "rail-toggle", "rail-toggle-icon", "ui-language",
   "log-toggle", "log-dock", "log-refresh", "log-close", "log-lines", "log-count",
 ];
 const COMMANDS = ["scan", "extract", "status", "translate", "verify", "install",
@@ -47,6 +48,8 @@ class FakeElement {
     this.disabled = false;
     this.hidden = false;
     this.title = "";
+    this.placeholder = "";
+    this.attributes = {};
     this.style = {};
     this.children = [];
     this.listeners = new Map();
@@ -73,6 +76,8 @@ class FakeElement {
     await Promise.all(handlers.map((fn) => fn(event)));
   }
   click() { return this.dispatch("click"); }
+  setAttribute(name, value) { this.attributes[name] = String(value); }
+  getAttribute(name) { return this.attributes[name]; }
   appendChild(child) { child.parent = this; this.children.push(child); }
   remove() {
     this.removed = true;
@@ -105,11 +110,15 @@ function makeDom(options = {}) {
     button.dataset.cmd = cmd;
     return button;
   });
+  const translatable = [{ dataset: { i18n: "nav.overview" }, textContent: "" }];
   const document = {
     body: new FakeElement("body"),
+    documentElement: { lang: "" },
     getElementById(id) { return elements.get(id) || null; },
     querySelectorAll(selector) {
       if (selector === "button[data-cmd]") return actions;
+      if (selector === "[data-i18n]") return translatable;
+      if (selector.startsWith("[data-i18n")) return [];
       throw new Error("unsupported selector: " + selector);
     },
     querySelector(selector) {
@@ -162,10 +171,11 @@ function makeDom(options = {}) {
     window, document, console, JSON, Math, Object, Array, String, Promise, Date,
     Number, Boolean, Error, RegExp, URL, setTimeout, clearTimeout, localStorage: storage,
   });
+  vm.runInContext(fs.readFileSync(I18N, "utf8"), context, { filename: "i18n.js" });
   vm.runInContext(fs.readFileSync(DELIVERY, "utf8"), context, { filename: "delivery.js" });
   vm.runInContext(fs.readFileSync(RECENT, "utf8"), context, { filename: "recent.js" });
   vm.runInContext(fs.readFileSync(RENDERER, "utf8"), context, { filename: "renderer.js" });
-  return { elements, actions, runCalls, envelopes, document, window, storage, docListeners, progressFns, warningFns };
+  return { elements, actions, runCalls, envelopes, document, window, storage, docListeners, progressFns, warningFns, translatable };
 }
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
@@ -851,7 +861,7 @@ test("RGSS shows original and translated launch buttons and gates the translated
   assert.equal(dom.elements.get("launch-translated").hidden, false);
   assert.equal(dom.elements.get("launch-original").disabled, false);
   assert.equal(dom.elements.get("launch-translated").disabled, true);
-  assert.equal(dom.elements.get("launch-translated").title, "游戏未进行翻译");
+  assert.equal(dom.elements.get("launch-translated").title, "The game has not been translated yet");
 
   dom.window.yakusha.projectState = async () => ({
     ok: true, dictionary: { translated: 2, pending: 1, total: 3 }, native: { installed: true, intact: true },
@@ -916,4 +926,23 @@ test("the bottom log toggle fetches and renders log lines", async () => {
   assert.equal(dom.elements.get("log-count").textContent, "3");
   await dom.elements.get("log-close").click();
   assert.equal(dom.elements.get("log-dock").hidden, true);
+});
+test("the language selector switches static and dynamic text and remembers the choice", async () => {
+  const dom = makeDom();
+  await scan(dom, {
+    ok: true, outcome: "ok", engine: "mz", root: "C:/games/alpha", gameTitle: "Alpha",
+    capabilities: { runtime: "plugin", launch: true },
+  });
+  assert.equal(dom.elements.get("ui-language").value, "en");
+  assert.equal(dom.translatable[0].textContent, "Overview");
+  assert.equal(dom.elements.get("task-state").textContent, "In progress");
+
+  dom.elements.get("ui-language").value = "zh";
+  await dom.elements.get("ui-language").dispatch("change");
+
+  assert.equal(dom.translatable[0].textContent, "总览");
+  assert.equal(dom.elements.get("project-line").textContent, "项目根目录：C:/games/alpha — Alpha");
+  assert.equal(dom.elements.get("task-state").textContent, "进行中");
+  assert.equal(dom.document.documentElement.lang, "zh");
+  assert.equal(dom.storage.getItem("yakusha.lang"), "zh");
 });
