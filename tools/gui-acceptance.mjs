@@ -315,13 +315,15 @@ async function runChain(cdp, chain, dir, logFile, artifacts, timeout) {
   if (!recentVisible) throw new Error(chain.id + " recent row did not record the scanned project");
   const screenshot = await capture(cdp, path.join(artifacts, chain.id + "-scan.png"));
   const stageAfterScan = await readStages(cdp);
-  if (stageAfterScan !== "Done|Now|Later") throw new Error(chain.id + " stage band after scan is " + JSON.stringify(stageAfterScan));
+  if (stageAfterScan !== "Now|Later|Later") throw new Error(chain.id + " stage band after scan is " + JSON.stringify(stageAfterScan));
   steps.push({ command: "scan", ok: scan.ok, engine: scan.engine, uniqueStrings: scan.uniqueStrings, deliveryTier: tier, stageBand: stageAfterScan, launchButtons: launchUi });
 
   const extract = await clickCommand(cdp, logFile, "[data-cmd=extract]", "extract", timeout);
   assertEnvelope("extract", extract, chain);
   if (!(extract.added > 0)) throw new Error(chain.id + " extract found no strings");
-  steps.push({ command: "extract", ok: extract.ok, added: extract.added, total: extract.total });
+  const stageAfterExtract = await readStages(cdp);
+  if (stageAfterExtract !== "Done|Now|Later") throw new Error(chain.id + " stage band after extract is " + JSON.stringify(stageAfterExtract));
+  steps.push({ command: "extract", ok: extract.ok, added: extract.added, total: extract.total, stageBand: stageAfterExtract });
 
   const translate = await clickCommand(cdp, logFile, "[data-cmd=translate]", "translate", timeout);
   assertEnvelope("translate", translate, chain);

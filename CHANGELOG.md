@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-11-19
+
+### Fixed
+
+- The collapsed icon rail now exposes accessible names for all four workspace buttons, the collapse toggle reports its expanded state, and keyboard focus is clearly visible on the dark rail.
+- The Settings tabs now use tab semantics with arrow-key navigation, and the log panel is a proper modal dialog: it traps focus, closes on Escape or a backdrop click, and returns focus to the button that opened it.
+- The stage band now reflects real progress: Prepare stays current until both scan and extract are done, Translate becomes current after extract and is only done after verify, and Deliver becomes current after verify and is only done after install.
+- Overview now has a single primary action; the top-bar folder button becomes quiet when the task card already offers the same action, and the project path is shown once in the project card instead of being repeated in the top bar.
+- The Settings service form is wider, the save/clear footer stays visible above the fold, and the model status is shown inline with the actions instead of as a floating line.
+- The log moved from a floating dock that covered the workflow into a full-height right-hand drawer with a backdrop; the page behind it is dimmed and its scroll is locked while open.
+- Muted text and focus colors were raised to meet contrast, the rail width now matches the documented 224px token, and long project paths truncate instead of breaking mid-character.
+
+### Unchanged
+
+- The JSON envelope, exit codes, command table, error codes and every existing payload key are untouched. No new dependency. 1004 pass.
+
 ## [1.4.0] - 2026-11-17
 
 ### Added
@@ -1189,7 +1205,8 @@ First stable release.
 - Batch, concurrency and save controls (`--batch-size`, `--char-budget`, `--concurrency`, `--save-every`) so a long run can be stopped and resumed.
 - Machine-readable output through `--json`, and `install --embed` to write the translations into the plugin file for offline distribution.
 
-[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/MagicalAlmond/Yakusha/compare/v1.4.1...HEAD
+[1.4.1]: https://github.com/MagicalAlmond/Yakusha/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/MagicalAlmond/Yakusha/compare/v1.3.1...v1.4.0
 [1.3.1]: https://github.com/MagicalAlmond/Yakusha/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/MagicalAlmond/Yakusha/compare/v1.2.0...v1.3.0

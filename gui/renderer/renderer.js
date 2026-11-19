@@ -67,7 +67,7 @@ function setModelStatus(key, params) {
 function renderConfigSummary() {
   if (configEmpty) { setText("config-summary", t("config.summary.empty")); return; }
   if (!configValues) { setText("config-summary", t("config.summary.loading")); return; }
-  const label = (entry) => entry && entry.value ? entry.value + (entry.source ? " (" + entry.source + ")" : "") : t("config.notSet");
+  const label = (entry) => entry && entry.value ? entry.value : t("config.notSet");
   setText("config-summary", t("config.summary", {
     provider: label(configValues.provider),
     apiFormat: label(configValues.apiFormat),
@@ -250,7 +250,10 @@ function updateToast(handle, { title, detail, kind = "success", timeout = 4200 }
 function updateInputLine() {
   const line = $("project-input");
   if (!line) return;
-  if (!selectedInput) { line.hidden = true; line.textContent = ""; line.title = ""; return; }
+  const distinct = selectedInput && selectedInput !== scanRoot;
+  if (!selectedInput || (selectedKind !== "file" && !distinct)) {
+    line.hidden = true; line.textContent = ""; line.title = ""; return;
+  }
   const label = selectedKind === "file" ? t("input.file") : selectedKind === "directory" ? t("input.folder") : t("input.path");
   line.hidden = false;
   line.textContent = t("input.selected", { label, path: selectedInput });
@@ -270,6 +273,7 @@ function setProjectTitle(title) {
 /** Show page navigation without rebuilding any panel (running jobs keep their state). */
 function showPage(name) {
   const page = PAGES.includes(name) ? name : "overview";
+  document.body.dataset.page = page;
   for (const id of PAGES) {
     setHidden("page-" + id, id !== page);
     const nav = $("nav-" + id);
@@ -288,7 +292,10 @@ function showSettingsTab(name) {
     if (!button || !button.classList) continue;
     button.classList.remove("is-active");
     if (id === tab) button.classList.add("is-active");
-    if (typeof button.setAttribute === "function") button.setAttribute("aria-selected", id === tab ? "true" : "false");
+    if (typeof button.setAttribute === "function") {
+      button.setAttribute("aria-selected", id === tab ? "true" : "false");
+      button.setAttribute("tabindex", id === tab ? "0" : "-1");
+    }
   }
 }
 
@@ -300,7 +307,7 @@ function setProjectInput(input, kind, target) {
   updateInputLine();
   if (!currentDir) {
     setProjectTitle(scanRoot ? t("project.selecting", { name: baseName(scanRoot) }) : t("project.none"));
-    setProjectLine(scanRoot ? t("project.scanning", { root: scanRoot }) : t("project.dropHint"));
+    setProjectLine(scanRoot ? t("project.state.scanning") : t("project.dropHint"));
   }
 }
 
@@ -311,9 +318,9 @@ function showProjectRoot(root, title) {
   const label = currentTitle || (root ? baseName(root) : "");
   if (root) {
     setProjectTitle(currentTitle || baseName(root));
-    setProjectLine(currentTitle ? t("project.rootTitle", { root, title: currentTitle }) : t("project.root", { root }));
+    setProjectLine(t("project.state.ready"));
     setText("project-card-title", label);
-    setText("project-card-line", root);
+    setText("project-card-line", root, root);
     setText("project-state", t("project.state.ready"));
     if (!selectedInput) { selectedInput = root; selectedKind = "directory"; scanRoot = root; updateInputLine(); }
   } else {
@@ -407,8 +414,8 @@ function rememberProject(envelope) {
 }
 
 function updateStages() {
-  const prepareState = ui.scanned ? "done" : "current";
-  const translateState = ui.verified ? "done" : ui.scanned ? "current" : "next";
+  const prepareState = ui.scanned && ui.extracted ? "done" : "current";
+  const translateState = ui.verified ? "done" : ui.extracted ? "current" : "next";
   const deliverState = ui.installed ? "done" : ui.verified ? "current" : "next";
   setStage("stage-prepare", prepareState);
   setStage("stage-translate", translateState);
@@ -813,7 +820,10 @@ function setRailCollapsed(collapsed) {
   if (toggle) {
     toggle.title = collapsed ? t("rail.expand") : t("rail.collapse");
     toggle.dataset.collapsed = collapsed ? "true" : "false";
-    if (typeof toggle.setAttribute === "function") toggle.setAttribute("aria-expanded", String(!collapsed));
+    if (typeof toggle.setAttribute === "function") {
+      toggle.setAttribute("aria-expanded", String(!collapsed));
+      toggle.setAttribute("aria-label", collapsed ? t("rail.expand") : t("rail.collapse"));
+    }
   }
 }
 const railToggle = $("rail-toggle");
@@ -830,6 +840,18 @@ for (const id of SETTINGS_TABS) {
   const tab = $("tab-" + id);
   if (tab) tab.addEventListener("click", () => showSettingsTab(id));
 }
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+  const active = document.activeElement;
+  const index = SETTINGS_TABS.findIndex((id) => $("tab-" + id) === active);
+  if (index < 0) return;
+  event.preventDefault();
+  const step = event.key === "ArrowRight" ? 1 : -1;
+  const next = SETTINGS_TABS[(index + step + SETTINGS_TABS.length) % SETTINGS_TABS.length];
+  showSettingsTab(next);
+  const button = $("tab-" + next);
+  if (button && typeof button.focus === "function") button.focus();
+});
 
 // Credentials: the key is typed once, sent to the main process for DPAPI
 // storage (or clearing), and the input is emptied immediately.
@@ -980,17 +1002,45 @@ async function refreshLog() {
     renderLogLines(lines);
   } catch (error) { setText("log-summary", brief(error && error.message ? error.message : error)); }
 }
+let lastLogFocus = null;
+function logFocusables() {
+  return ["log-close", "log-refresh", "log-open", "log-lines"].map((id) => $(id)).filter((node) => node && !node.disabled);
+}
 function setLogVisible(visible) {
   const dock = $("log-dock");
+  const backdrop = $("log-backdrop");
   const toggle = $("log-toggle");
+  if (visible) lastLogFocus = document.activeElement || toggle;
   if (dock) dock.hidden = !visible;
+  if (backdrop) backdrop.hidden = !visible;
+  if (document.body && document.body.classList) document.body.classList.toggle("log-open", visible);
   if (toggle && typeof toggle.setAttribute === "function") toggle.setAttribute("aria-expanded", visible ? "true" : "false");
-  if (visible) refreshLog();
+  if (visible) {
+    refreshLog();
+    const close = $("log-close");
+    if (close && typeof close.focus === "function") close.focus();
+  } else if (lastLogFocus && typeof lastLogFocus.focus === "function") {
+    lastLogFocus.focus();
+  }
 }
 const logToggle = $("log-toggle");
 if (logToggle) logToggle.addEventListener("click", () => setLogVisible(Boolean($("log-dock") && $("log-dock").hidden)));
 const logClose = $("log-close");
 if (logClose) logClose.addEventListener("click", () => setLogVisible(false));
+const logBackdrop = $("log-backdrop");
+if (logBackdrop) logBackdrop.addEventListener("click", () => setLogVisible(false));
+document.addEventListener("keydown", (event) => {
+  const dock = $("log-dock");
+  if (!dock || dock.hidden) return;
+  if (event.key === "Escape") { event.preventDefault(); setLogVisible(false); return; }
+  if (event.key !== "Tab") return;
+  const items = logFocusables();
+  if (!items.length) return;
+  const first = items[0];
+  const last = items[items.length - 1];
+  if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+  else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+});
 const logRefresh = $("log-refresh");
 if (logRefresh) logRefresh.addEventListener("click", () => refreshLog());
 setLogVisible(false);

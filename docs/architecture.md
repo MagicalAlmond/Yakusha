@@ -349,6 +349,7 @@ test/fixtures/           各引擎最小夹具（mini-mz、mini-mv、renpy-*、r
 | 1.3.0 | **已交付**：GUI 四页工作台与 Service 配置补全——Overview / Workflow / Dictionary / Settings 四页 + Workspace / Recent games 两层左栏（可收 76px）；Settings 四标签页，Service 表单接 `config list/get/set/unset`，API 格式 `chat-completions` / `responses` 与 `gui:list-models` 模型查询；底部 Log 抽屉；RGSS 项目卡 `Launch original` / `Launch translated` 双启动；`config` 增加 `apiFormat`，`translate` 增加 `--api-format` | 996 pass / 0 fail（gui-renderer 39、provider-api 8；gui-main / gui-preload 新增 config 与 log 用例；gui-acceptance 为真机工具，不进 npm test） |
 | 1.3.1 | **已交付**：GUI 拖放修复——drop overlay 改为视觉层（`pointer-events: none`），dragenter / dragleave 深度计数避免闪烁，`webUtils.getPathForFile` 失败时回退 `text/uri-list` 路径，无路径时给出明确提示；overlay 文案补上 game exe | 998 pass / 0 fail（gui-renderer 41 条，新增嵌套 dragenter 与 URI fallback 两条；CDP 合成拖拽修复前无 drop、修复后 drop 并 scan；便携包上原生 OLE 拖拽目录与 exe 均导入） |
 | 1.4.0 | **已交付**：GUI 中英双语——设置页头的语言选择器即时切换全部静态与动态文案，选择写入 `localStorage["yakusha.lang"]` 并随下次启动恢复；`gui/renderer/i18n.js` 的 en / zh 词典键集合一致，缺失键回退英文再回退键名；`<html lang>` 同步更新 | 1004 pass / 0 fail（gui-renderer 42 条、gui-i18n 5 条；`docs/gui.md` §9 新增 1.4.0 验收条目） |
+| 1.4.1 | **已交付**：首轮 GUI 评审 Blockers 修复——折叠 rail 可访问名称与焦点、Settings tab 语义与方向键、日志全高 dialog（焦点陷阱 / Escape / 背景关闭 / 还原焦点）、阶段带按 scan+extract / verify / install 真实推进、Overview 单一主 CTA 与项目路径去重、Settings 960px + 保存栏吸底 | 1004 pass / 0 fail（gui-renderer 47 条；真机 MZ 链 `tools/gui-acceptance.mjs` 通过） |
 
 ## 10. 风险
 

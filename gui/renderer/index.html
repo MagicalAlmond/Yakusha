@@ -18,10 +18,10 @@
       <div class="rail-section rail-workspace">
         <p class="rail-label" data-i18n="rail.workspace">Workspace</p>
         <nav class="rail-nav" aria-label="Workspace pages" data-i18n-aria-label="nav.aria">
-          <button type="button" id="nav-overview" class="rail-link is-active" data-page="overview"><span class="rail-icon" aria-hidden="true">◈</span><span data-i18n="nav.overview">Overview</span></button>
-          <button type="button" id="nav-workflow" class="rail-link" data-page="workflow"><span class="rail-icon" aria-hidden="true">⇄</span><span data-i18n="nav.workflow">Workflow</span></button>
-          <button type="button" id="nav-dictionary" class="rail-link" data-page="dictionary"><span class="rail-icon" aria-hidden="true">文</span><span data-i18n="nav.dictionary">Dictionary</span></button>
-          <button type="button" id="nav-settings" class="rail-link" data-page="settings"><span class="rail-icon" aria-hidden="true">⚙</span><span data-i18n="nav.settings">Settings</span></button>
+          <button type="button" id="nav-overview" class="rail-link is-active" data-page="overview" aria-label="Overview" data-i18n-aria-label="nav.overview"><span class="rail-icon" aria-hidden="true">◈</span><span data-i18n="nav.overview">Overview</span></button>
+          <button type="button" id="nav-workflow" class="rail-link" data-page="workflow" aria-label="Workflow" data-i18n-aria-label="nav.workflow"><span class="rail-icon" aria-hidden="true">⇄</span><span data-i18n="nav.workflow">Workflow</span></button>
+          <button type="button" id="nav-dictionary" class="rail-link" data-page="dictionary" aria-label="Dictionary" data-i18n-aria-label="nav.dictionary"><span class="rail-icon" aria-hidden="true">文</span><span data-i18n="nav.dictionary">Dictionary</span></button>
+          <button type="button" id="nav-settings" class="rail-link" data-page="settings" aria-label="Settings" data-i18n-aria-label="nav.settings"><span class="rail-icon" aria-hidden="true">⚙</span><span data-i18n="nav.settings">Settings</span></button>
         </nav>
       </div>
 
@@ -30,7 +30,7 @@
         <div id="recent-list" class="recent-list"></div>
       </div>
 
-      <button id="rail-toggle" class="rail-toggle" type="button" aria-expanded="true" title="Collapse sidebar" data-i18n-title="rail.collapse"><span id="rail-toggle-icon" class="rail-icon" aria-hidden="true">«</span><span class="rail-toggle-label" data-i18n="rail.collapse">Collapse sidebar</span></button>
+      <button id="rail-toggle" class="rail-toggle" type="button" aria-expanded="true" aria-label="Collapse sidebar" title="Collapse sidebar" data-i18n-aria-label="rail.collapse" data-i18n-title="rail.collapse"><span id="rail-toggle-icon" class="rail-icon" aria-hidden="true">«</span><span class="rail-toggle-label" data-i18n="rail.collapse">Collapse sidebar</span></button>
 
       <div class="rail-footer">
         <span class="rail-dot" aria-hidden="true"></span>
@@ -181,14 +181,14 @@
             </div>
           </header>
 
-          <nav class="settings-tabs" aria-label="Settings sections" data-i18n-aria-label="settings.tabs.aria">
-            <button type="button" id="tab-service" class="settings-tab is-active" data-tab="service" data-i18n="tab.service">Service</button>
-            <button type="button" id="tab-credentials" class="settings-tab" data-tab="credentials" data-i18n="tab.credentials">Credentials</button>
-            <button type="button" id="tab-translation" class="settings-tab" data-tab="translation" data-i18n="tab.translation">Translation</button>
-            <button type="button" id="tab-glossary" class="settings-tab" data-tab="glossary" data-i18n="tab.glossary">Glossary</button>
+          <nav class="settings-tabs" role="tablist" aria-label="Settings sections" data-i18n-aria-label="settings.tabs.aria">
+            <button type="button" id="tab-service" class="settings-tab is-active" role="tab" aria-selected="true" aria-controls="settings-service" tabindex="0" data-tab="service" data-i18n="tab.service">Service</button>
+            <button type="button" id="tab-credentials" class="settings-tab" role="tab" aria-selected="false" aria-controls="settings-credentials" tabindex="-1" data-tab="credentials" data-i18n="tab.credentials">Credentials</button>
+            <button type="button" id="tab-translation" class="settings-tab" role="tab" aria-selected="false" aria-controls="settings-translation" tabindex="-1" data-tab="translation" data-i18n="tab.translation">Translation</button>
+            <button type="button" id="tab-glossary" class="settings-tab" role="tab" aria-selected="false" aria-controls="settings-glossary" tabindex="-1" data-tab="glossary" data-i18n="tab.glossary">Glossary</button>
           </nav>
 
-          <section id="settings-service" class="settings-panel panel" data-tab-panel="service">
+          <section id="settings-service" class="settings-panel panel" role="tabpanel" aria-labelledby="tab-service" data-tab-panel="service">
             <div class="panel-heading compact"><div><p class="section-kicker" data-i18n="service.kicker">Translation service</p><h2 data-i18n="service.title">Provider and model</h2></div></div>
             <p id="config-summary" class="hint" data-i18n="service.summary.loading">No service loaded — click Load current.</p>
             <div class="config-grid">
@@ -198,11 +198,10 @@
               <label class="field field-wide"><span data-i18n="service.model">Model</span><div class="model-row"><input id="config-model" type="text" autocomplete="off" placeholder="gpt-4.1-mini" aria-label="Model" /><button id="config-query-models" class="button button-quiet button-small" type="button" data-i18n="service.fetchModels">Fetch models</button></div></label>
             </div>
             <div id="config-model-list" class="model-list" role="listbox" aria-label="Available models" data-i18n-aria-label="service.availableModels" hidden></div>
-            <p id="config-model-status" class="hint" role="status" aria-live="polite"></p>
-            <div class="config-actions"><button id="config-save" class="button button-primary button-small" type="button" data-i18n="service.save">Save service</button><button id="config-clear" class="button button-quiet button-small" type="button" data-i18n="service.clear">Clear service</button><span id="config-state" class="hint"></span></div>
+            <div class="config-actions"><button id="config-save" class="button button-primary button-small" type="button" data-i18n="service.save">Save service</button><button id="config-clear" class="button button-quiet button-small" type="button" data-i18n="service.clear">Clear service</button><span id="config-state" class="hint"></span><span id="config-model-status" class="hint" role="status" aria-live="polite"></span></div>
           </section>
 
-          <section id="settings-credentials" class="settings-panel panel" data-tab-panel="credentials" hidden>
+          <section id="settings-credentials" class="settings-panel panel" role="tabpanel" aria-labelledby="tab-credentials" data-tab-panel="credentials" hidden>
             <div class="panel-heading compact"><div><p class="section-kicker" data-i18n="credentials.kicker">Credentials</p><h2 data-i18n="credentials.title">API key</h2></div></div>
             <p class="hint" data-i18n="credentials.hint">The key is stored by the operating system credential store and is never written into the game folder.</p>
             <div class="key-row"><label class="field-label" for="key-input" data-i18n="credentials.apiKey">API key</label><input id="key-input" type="password" autocomplete="off" placeholder="sk-…" aria-label="API key" /><button id="key-save" class="button button-small" type="button" data-i18n="credentials.remember">Remember</button><button id="key-clear" class="button button-small button-quiet" type="button" data-i18n="credentials.forget">Forget</button></div>
@@ -210,13 +209,13 @@
             <span id="key-state" class="hint"></span>
           </section>
 
-          <section id="settings-translation" class="settings-panel panel" data-tab-panel="translation" hidden>
+          <section id="settings-translation" class="settings-panel panel" role="tabpanel" aria-labelledby="tab-translation" data-tab-panel="translation" hidden>
             <div class="panel-heading compact"><div><p class="section-kicker" data-i18n="translation.kicker">Translation</p><h2 data-i18n="translation.title">Source language</h2></div></div>
             <label class="field"><span data-i18n="translation.source">Source language</span><select id="source-lang" aria-label="Source language" data-i18n-aria-label="translation.source"><option value="ja" selected data-i18n="translation.ja">Japanese</option><option value="en" data-i18n="translation.en">English</option></select></label>
             <p class="hint" data-i18n="translation.hint">The target language is Chinese for every source language in this release.</p>
           </section>
 
-          <section id="settings-glossary" class="settings-panel panel" data-tab-panel="glossary" hidden>
+          <section id="settings-glossary" class="settings-panel panel" role="tabpanel" aria-labelledby="tab-glossary" data-tab-panel="glossary" hidden>
             <div class="panel-heading compact"><div><p class="section-kicker" data-i18n="glossary.kicker">Glossary</p><h2 data-i18n="glossary.title">Shared terminology</h2></div></div>
             <p class="hint" data-i18n="glossary.hint">Shared glossaries and project terminology are reserved for a later release. This tab is the place they will live.</p>
           </section>
@@ -224,7 +223,8 @@
       </main>
 
       <button id="log-toggle" class="log-toggle" type="button" aria-expanded="false" aria-controls="log-dock"><span class="log-dot" aria-hidden="true"></span><span data-i18n="log.toggle">Log</span><span id="log-count" class="log-count"></span></button>
-      <section id="log-dock" class="log-dock" aria-label="Program log" data-i18n-aria-label="log.aria" hidden>
+      <div id="log-backdrop" class="log-backdrop" hidden></div>
+      <section id="log-dock" class="log-dock" role="dialog" aria-modal="true" aria-label="Program log" data-i18n-aria-label="log.aria" hidden>
         <div class="log-dock-head"><div><p class="section-kicker" data-i18n="log.kicker">Diagnostics</p><strong data-i18n="log.title">Program log</strong></div><div class="log-dock-actions"><button id="log-refresh" class="utility utility-small" type="button" data-i18n="log.refresh">Refresh</button><button id="log-open" class="utility utility-small" type="button" data-i18n="log.open">Open file…</button><button id="log-close" class="utility utility-small" type="button" data-i18n="log.close">Close</button></div></div>
         <p id="log-summary" class="hint" data-i18n="log.summary">Detailed command output is written to the log file.</p>
         <div id="log-lines" class="log-lines" role="log" aria-live="polite"></div>

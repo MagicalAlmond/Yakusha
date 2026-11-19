@@ -33,7 +33,7 @@ const IDS = [
   "workflow-launch", "tab-service", "tab-credentials", "tab-translation", "tab-glossary",
   "settings-service", "settings-credentials", "settings-translation", "settings-glossary",
   "rail-toggle", "rail-toggle-icon", "ui-language",
-  "log-toggle", "log-dock", "log-refresh", "log-close", "log-lines", "log-count",
+  "log-toggle", "log-dock", "log-backdrop", "log-refresh", "log-close", "log-lines", "log-count",
 ];
 const COMMANDS = ["scan", "extract", "status", "translate", "verify", "install",
   "uninstall", "export", "speaker", "terms", "doctor", "config"];
@@ -201,7 +201,8 @@ test("scan success shows the engine and enables the install path", async () => {
   });
   assert.equal(dom.elements.get("engine-badge").hidden, false);
   assert.equal(dom.elements.get("engine-badge").textContent, "rgss 3");
-  assert.equal(dom.elements.get("project-line").textContent, "Project root: C:/games/alpha — Alpha");
+  assert.equal(dom.elements.get("project-line").textContent, "Ready to work");
+  assert.equal(dom.elements.get("project-card-line").textContent, "C:/games/alpha");
   const install = action(dom, "install");
   assert.equal(install.disabled, false);
   assert.equal(install.title, "");
@@ -240,7 +241,8 @@ test("successful scans fill the recent row and a chip scans that folder again", 
   await flush();
   assert.equal(dom.runCalls.at(-1)[0], "scan");
   assert.deepEqual([...dom.runCalls.at(-1)[1]], ["C:/games/alpha"]);
-  assert.equal(dom.elements.get("project-line").textContent, "Project root: C:/games/alpha — Alpha");
+  assert.equal(dom.elements.get("project-line").textContent, "Ready to work");
+  assert.equal(dom.elements.get("project-card-line").textContent, "C:/games/alpha");
 });
 
 test("a failed scan never enters the recent row", async () => {
@@ -298,7 +300,8 @@ test("scan without capabilities falls back to L3-only and a failed scan keeps th
   assert.equal(dom.elements.get("delivery-tier").textContent, "L3-only");
   await scan(dom, { ok: false, outcome: "error", error: { code: "E_NOT_PROJECT", message: "no game" } });
   assert.equal(dom.elements.get("delivery").hidden, false, "a failed scan must not erase the visible project");
-  assert.equal(dom.elements.get("project-line").textContent, "Project root: C:/games/unknown — Unknown");
+  assert.equal(dom.elements.get("project-line").textContent, "Ready to work");
+  assert.equal(dom.elements.get("project-card-line").textContent, "C:/games/unknown");
   assert.equal(dom.elements.get("project-state").textContent, "Scan failed — previous project kept");
 });
 
@@ -384,6 +387,12 @@ test("the stage band follows the same state as the current task", async () => {
     ok: true, outcome: "ok", engine: "mz", root: "C:/games/alpha", gameTitle: "Alpha",
     capabilities: { runtime: "plugin", launch: true },
   });
+  assert.equal(dom.elements.get("stage-prepare-status").textContent, "Now");
+  assert.equal(dom.elements.get("stage-translate-status").textContent, "Later");
+  assert.equal(dom.elements.get("stage-deliver-status").textContent, "Later");
+  dom.envelopes.push({ ok: true, outcome: "ok", total: 12 });
+  await action(dom, "extract").click();
+  await flush();
   assert.equal(dom.elements.get("stage-prepare-status").textContent, "Done");
   assert.equal(dom.elements.get("stage-translate-status").textContent, "Now");
   assert.equal(dom.elements.get("stage-deliver-status").textContent, "Later");
@@ -406,7 +415,7 @@ test("config load fills the provider form and hides the setup banner", async () 
   assert.equal(dom.elements.get("config-model").value, "gpt-4.1-mini");
   assert.equal(dom.elements.get("config-base-url").value, "https://api.example.test/v1");
   assert.equal(dom.elements.get("service-banner").hidden, true);
-  assert.match(dom.elements.get("config-summary").textContent, /provider: openai \(file\)/);
+  assert.match(dom.elements.get("config-summary").textContent, /Provider: openai · Format: \(not set\)/);
 });
 
 test("saving the service writes provider, model and base URL, then reloads", async () => {
@@ -546,8 +555,9 @@ test("a folder dropped on the window scans it through pathForFile", async () => 
   const call = dom.runCalls.at(-1);
   assert.equal(call[0], "scan");
   assert.deepEqual([...call[1]], ["D:/games/dropped"]);
-  assert.equal(dom.elements.get("project-input").textContent, "Selected folder: D:/games/dropped");
-  assert.equal(dom.elements.get("project-line").textContent, "Project root: D:/games/dropped — Dropped");
+  assert.equal(dom.elements.get("project-input").hidden, true);
+  assert.equal(dom.elements.get("project-line").textContent, "Ready to work");
+  assert.equal(dom.elements.get("project-card-line").textContent, "D:/games/dropped");
 });
 
 test("a game exe dropped on the window scans its containing folder", async () => {
@@ -571,7 +581,8 @@ test("a game exe dropped on the window scans its containing folder", async () =>
   assert.equal(call[0], "scan");
   assert.deepEqual([...call[1]], ["D:/games/picked"]);
   assert.equal(dom.elements.get("project-input").textContent, "Selected file: D:/games/picked/Game.exe");
-  assert.equal(dom.elements.get("project-line").textContent, "Project root: D:/games/picked/www — Picked");
+  assert.equal(dom.elements.get("project-line").textContent, "Ready to work");
+  assert.equal(dom.elements.get("project-card-line").textContent, "D:/games/picked/www");
 
   // The recent chip must remember both paths: the file the user chose and the
   // folder the scan actually reads.
@@ -662,8 +673,9 @@ test("the picker scans the chosen directory and a canceled picker does nothing",
   await dom.elements.get("pick").click();
   await flush();
   assert.deepEqual([...dom.runCalls.at(-1)[1]], ["C:/games/picked"]);
-  assert.equal(dom.elements.get("project-input").textContent, "Selected folder: C:/games/picked");
-  assert.equal(dom.elements.get("project-line").textContent, "Project root: C:/games/picked — Picked");
+  assert.equal(dom.elements.get("project-input").hidden, true);
+  assert.equal(dom.elements.get("project-line").textContent, "Ready to work");
+  assert.equal(dom.elements.get("project-card-line").textContent, "C:/games/picked");
   dom.window.yakusha.pickDirectory = async () => null;
   await dom.elements.get("pick").click();
   await flush();
@@ -941,7 +953,7 @@ test("the language selector switches static and dynamic text and remembers the c
   await dom.elements.get("ui-language").dispatch("change");
 
   assert.equal(dom.translatable[0].textContent, "总览");
-  assert.equal(dom.elements.get("project-line").textContent, "项目根目录：C:/games/alpha — Alpha");
+  assert.equal(dom.elements.get("project-line").textContent, "可以开始");
   assert.equal(dom.elements.get("task-state").textContent, "进行中");
   assert.equal(dom.document.documentElement.lang, "zh");
   assert.equal(dom.storage.getItem("yakusha.lang"), "zh");

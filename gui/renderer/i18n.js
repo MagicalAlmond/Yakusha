@@ -300,7 +300,7 @@ var YAKUSHA_I18N = (function () {
       "summary.configCleared": "{key} cleared",
       "summary.configuration": "configuration",
       "summary.completed": "completed",
-      "config.summary": "provider: {provider} · apiFormat: {apiFormat} · model: {model} · baseUrl: {baseUrl}",
+      "config.summary": "Provider: {provider} · Format: {apiFormat} · Model: {model} · Base URL: {baseUrl}",
       "config.summary.loading": "No service loaded — click Load current.",
       "config.summary.empty": "No service configured — set provider, API format and model.",
       "config.notSet": "(not set)",
